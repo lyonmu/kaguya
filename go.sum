@@ -1,0 +1,4 @@
+github.com/alecthomas/kong v1.15.0 h1:BVJstKbpO73zKpmIu+m/aLRrNmWwxXPIGTNin9VmLVI=
+github.com/alecthomas/kong v1.15.0/go.mod h1:wrlbXem1CWqUV5Vbmss5ISYhsVPkBb1Yo7YKJghju2I=
+github.com/lyonmu/gopkg v0.0.0-20260506141939-f494130ee076 h1:YDM42yo6c/smoA784CzTWi/K2YR9UyXrAgX+4xIhwB8=
+github.com/lyonmu/gopkg v0.0.0-20260506141939-f494130ee076/go.mod h1:9icn1LT6AgKOamuTZEOIsKjjGwY7ae4wCQovB4aARDA=

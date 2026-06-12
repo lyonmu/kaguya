@@ -1,0 +1,12 @@
+bin/
+.DS_Store
+*.log
+*.tmp
+*.exe
+*.out
+*.dll
+*.so
+*.dylib
+data/
+logs/
+target/
