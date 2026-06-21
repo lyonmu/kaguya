@@ -1,5 +1,20 @@
 package cmd
 
+import (
+	"os"
+
+	"github.com/lyonmu/ai-demo-go/internal/global"
+	"github.com/lyonmu/gopkg/logger"
+)
+
 func Run() {
-	println("Running the application...")
+
+	logger, err := logger.NewDefault()
+	if err != nil {
+		os.Exit(1)
+	}
+	global.Logger = logger
+	defer global.Logger.Sync()
+
+	global.Logger.Info("application started")
 }

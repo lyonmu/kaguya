@@ -21,8 +21,7 @@ LDFLAGS = -ldflags "-s -w \
 
 .PHONY: build
 build:
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) \
-	go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) && go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
 
 .PHONY: test
 test:
