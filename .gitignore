@@ -10,3 +10,4 @@ bin/
 data/
 logs/
 target/
+config.yml
