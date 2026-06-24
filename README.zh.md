@@ -1,5 +1,5 @@
 <p align="center">
-<img src="images/kaguya.png" alt="icon" style="zoom:10%;"/>
+<img src="images/kaguya.png" alt="icon" width="120"/>
 </p>
 
 <p align="center">Go 语言 AI Agent</p>
