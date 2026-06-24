@@ -44,14 +44,14 @@ func TestProviderInfo(t *testing.T) {
 	provider, err := openaicompat.New(
 		openaicompat.WithName(cfg.Providers[0].Name),
 		openaicompat.WithBaseURL(cfg.Providers[0].BaseURL),
-		openaicompat.WithAPIKey(cfg.Providers[0].ApiKey),
+		openaicompat.WithAPIKey(cfg.Providers[0].APIKey),
 	)
 	if err != nil {
 		panic(err)
 	}
 
 	// 从 provider 中获取指定模型的语言模型实例
-	model, err := provider.LanguageModel(ctx, cfg.Providers[0].Models[0].Id)
+	model, err := provider.LanguageModel(ctx, cfg.Providers[0].Models[0].ID)
 	if err != nil {
 		panic(err)
 	}

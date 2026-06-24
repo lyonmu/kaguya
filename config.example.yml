@@ -2,37 +2,51 @@ provider_info:
   - name: openai
     base_url: https://api.openai.com
     api_key: sk-xxxx
-    protocol: 1
+    protocol: openai
+    headers:
+      X-Custom-Header: ""
     models:
       - name: GPT-4o
         id: gpt-4o
         is_default: true
-        think:
+        reasoning:
           enabled: true
-          effort: 3
+          effort: high
         token:
-          context_tokens: 128000
-          response_tokens: 4096
+          context_window: 128000
+          max_output_tokens: 4096
+        capabilities:
+          tool_use: true
+          vision: true
+          structured_output: true
       - name: GPT-4o mini
         id: gpt-4o-mini
         is_default: false
-        think:
+        reasoning:
           enabled: false
-          effort: 0
+          effort: low
         token:
-          context_tokens: 128000
-          response_tokens: 4096
+          context_window: 128000
+          max_output_tokens: 4096
+        capabilities:
+          tool_use: true
+          vision: true
+          structured_output: true
   - name: anthropic
     base_url: https://api.anthropic.com
     api_key: sk-ant-xxxx
-    protocol: 2
+    protocol: anthropic
     models:
       - name: Claude Sonnet 4
         id: claude-sonnet-4-20250514
         is_default: false
-        think:
+        reasoning:
           enabled: true
-          effort: 2
+          effort: medium
         token:
-          context_tokens: 200000
-          response_tokens: 8192
+          context_window: 200000
+          max_output_tokens: 8192
+        capabilities:
+          tool_use: true
+          vision: true
+          structured_output: true

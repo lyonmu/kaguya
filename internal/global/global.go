@@ -1,7 +1,7 @@
 package global
 
 import (
-	"github.com/lyonmu/ai-demo-go/internal/config"
+	"github.com/lyonmu/kaguya/internal/config"
 	"go.uber.org/zap"
 )
 

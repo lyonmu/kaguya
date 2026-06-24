@@ -3,7 +3,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/lyonmu/ai-demo-go/internal/global"
+	"github.com/lyonmu/kaguya/internal/global"
 	"github.com/lyonmu/gopkg/logger"
 )
 

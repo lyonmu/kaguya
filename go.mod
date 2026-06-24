@@ -1,4 +1,4 @@
-module github.com/lyonmu/ai-demo-go
+module github.com/lyonmu/kaguya
 
 go 1.26.4
 
