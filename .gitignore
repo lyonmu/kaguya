@@ -12,3 +12,5 @@ logs/
 target/
 config.yml
 superpowers/
+.superpowers/
+.codegraph/

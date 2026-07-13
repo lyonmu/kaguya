@@ -1,75 +1,198 @@
 package config
 
 import (
-	"context"
-	"fmt"
-	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
-
-	"charm.land/fantasy"
-	"charm.land/fantasy/providers/openaicompat"
-	gopkgviper "github.com/lyonmu/gopkg/viper"
 )
 
-func TestProviderInfo(t *testing.T) {
-
-	// 初始化配置结构体和上下文
-	var (
-		cfg = Config{}
-		ctx = context.Background()
-	)
-
-	// 创建配置管理器，绑定配置结构体，支持热更新
-	cm := gopkgviper.NewConfigManager(&cfg)
-	defer cm.Close()
-
-	// 加载 config.yml 配置文件
-	if err := cm.LoadConfig("../../config.yml", "yaml"); err != nil {
-		log.Fatal(err)
+func TestProviderInfoDefaultModel(t *testing.T) {
+	tests := []struct {
+		name     string
+		provider ProviderInfo
+		wantID   string
+		wantErr  string
+	}{
+		{
+			name:     "single default",
+			provider: ProviderInfo{Models: []ModelInfo{{ID: "model", IsDefault: true}}},
+			wantID:   "model",
+		},
+		{
+			name:     "no default",
+			provider: ProviderInfo{Models: []ModelInfo{{ID: "model"}}},
+			wantErr:  "exactly one default model is required",
+		},
+		{
+			name: "two defaults",
+			provider: ProviderInfo{Models: []ModelInfo{
+				{ID: "a", IsDefault: true},
+				{ID: "b", IsDefault: true},
+			}},
+			wantErr: "exactly one default model is required",
+		},
+		{
+			name:     "empty provider has no models",
+			provider: ProviderInfo{},
+			wantErr:  "exactly one default model is required",
+		},
 	}
-
-	// 启动后台协程监听配置变更和错误
-	go func() {
-		for {
-			select {
-			case <-cm.Watch():
-				fmt.Println("config reloaded:", cm.GetConfig())
-			case err := <-cm.Errors():
-				log.Println("config reload failed:", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.provider.DefaultModel()
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("DefaultModel() error = nil, want %q", tt.wantErr)
+				}
+				if err.Error() != tt.wantErr {
+					t.Fatalf("DefaultModel() error = %q, want %q", err.Error(), tt.wantErr)
+				}
+				return
 			}
-		}
-	}()
-
-	// 根据配置创建 OpenAI 兼容协议的 provider 实例
-	provider, err := openaicompat.New(
-		openaicompat.WithName(cfg.Providers[0].Name),
-		openaicompat.WithBaseURL(cfg.Providers[0].BaseURL),
-		openaicompat.WithAPIKey(cfg.Providers[0].APIKey),
-	)
-	if err != nil {
-		panic(err)
+			if err != nil {
+				t.Fatalf("DefaultModel() unexpected error: %v", err)
+			}
+			if got.ID != tt.wantID {
+				t.Fatalf("DefaultModel() ID = %q, want %q", got.ID, tt.wantID)
+			}
+		})
 	}
+}
 
-	// 从 provider 中获取指定模型的语言模型实例
-	model, err := provider.LanguageModel(ctx, cfg.Providers[0].Models[0].ID)
-	if err != nil {
-		panic(err)
+func TestLoad(t *testing.T) {
+	validYAML := `provider_info:
+  - name: openai
+    base_url: https://api.openai.com
+    api_key: sk-test
+    protocol: openai
+    models:
+      - name: GPT-4o
+        id: gpt-4o
+        is_default: true
+`
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{
+			name: "valid config",
+			yaml: validYAML,
+		},
+		{
+			name: "empty provider name",
+			yaml: `provider_info:
+  - name: ""
+    base_url: https://api.openai.com
+    protocol: openai
+    models:
+      - name: GPT-4o
+        id: gpt-4o
+        is_default: true
+`,
+			wantErr: "provider name is required",
+		},
+		{
+			name: "invalid protocol",
+			yaml: `provider_info:
+  - name: openai
+    base_url: https://api.openai.com
+    protocol: unknown
+    models:
+      - name: GPT-4o
+        id: gpt-4o
+        is_default: true
+`,
+			wantErr: "unsupported protocol",
+		},
+		{
+			name: "empty base url",
+			yaml: `provider_info:
+  - name: openai
+    base_url: ""
+    protocol: openai
+    models:
+      - name: GPT-4o
+        id: gpt-4o
+        is_default: true
+`,
+			wantErr: "base_url is required",
+		},
+		{
+			name: "empty model id",
+			yaml: `provider_info:
+  - name: openai
+    base_url: https://api.openai.com
+    protocol: openai
+    models:
+      - name: GPT-4o
+        id: ""
+        is_default: true
+`,
+			wantErr: "model id is required",
+		},
+		{
+			name: "no default model",
+			yaml: `provider_info:
+  - name: openai
+    base_url: https://api.openai.com
+    protocol: openai
+    models:
+      - name: GPT-4o
+        id: gpt-4o
+        is_default: false
+`,
+			wantErr: "exactly one default model is required",
+		},
+		{
+			name: "two default models",
+			yaml: `provider_info:
+  - name: openai
+    base_url: https://api.openai.com
+    protocol: openai
+    models:
+      - name: A
+        id: a
+        is_default: true
+      - name: B
+        id: b
+        is_default: true
+`,
+			wantErr: "exactly one default model is required",
+		},
+		{
+			name:    "file does not exist",
+			yaml:    "",
+			wantErr: "failed to load config",
+		},
 	}
-
-	// 创建 AI Agent，设定系统提示词
-	agent := fantasy.NewAgent(
-		model,
-		fantasy.WithSystemPrompt("你是一个专业、简洁的中文助手。"),
-	)
-
-	// 调用 Agent 生成回答
-	result, err := agent.Generate(ctx, fantasy.AgentCall{
-		Prompt: "介绍一下 Kubernetes 的调度流程",
-	})
-	if err != nil {
-		panic(err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yml")
+			if tt.name == "file does not exist" {
+				path = filepath.Join(t.TempDir(), "nonexistent.yml")
+			} else {
+				if err := os.WriteFile(path, []byte(tt.yaml), 0644); err != nil {
+					t.Fatalf("failed to write temp config: %v", err)
+				}
+			}
+			cfg, err := Load(path)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("Load() error = nil, want containing %q", tt.wantErr)
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("Load() error = %q, want containing %q", err.Error(), tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load() unexpected error: %v", err)
+			}
+			if len(cfg.Providers) == 0 {
+				t.Fatal("Load() returned config with no providers")
+			}
+		})
 	}
-
-	// 输出生成结果
-	fmt.Println(result.Response.Content.Text())
 }

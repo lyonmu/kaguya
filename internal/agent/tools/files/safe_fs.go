@@ -8,6 +8,21 @@ import (
 	"strings"
 )
 
+var ErrDenied = errors.New("path denied")
+
+type deniedError struct {
+	reason string
+	path   string
+}
+
+func (e *deniedError) Error() string {
+	return fmt.Sprintf("%s: %s", e.reason, e.path)
+}
+
+func (e *deniedError) Unwrap() error {
+	return ErrDenied
+}
+
 func (s *SafeFS) resolve(userPath string) (absPath string, relPath string, err error) {
 	p := strings.TrimSpace(userPath)
 	if p == "" {
@@ -15,12 +30,12 @@ func (s *SafeFS) resolve(userPath string) (absPath string, relPath string, err e
 	}
 
 	if filepath.IsAbs(p) {
-		return "", "", errors.New("absolute paths are not allowed")
+		return "", "", &deniedError{reason: "absolute paths are not allowed", path: userPath}
 	}
 
 	clean := filepath.Clean(p)
 	if clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
-		return "", "", errors.New("path escapes workspace root")
+		return "", "", &deniedError{reason: "path escapes workspace root", path: userPath}
 	}
 
 	joined := filepath.Join(s.root, clean)
@@ -41,7 +56,7 @@ func (s *SafeFS) resolve(userPath string) (absPath string, relPath string, err e
 	}
 
 	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
-		return "", "", errors.New("path escapes workspace root")
+		return "", "", &deniedError{reason: "path escapes workspace root", path: userPath}
 	}
 
 	if err := s.checkDenied(rel); err != nil {
@@ -60,15 +75,15 @@ func (s *SafeFS) checkDenied(rel string) error {
 		}
 
 		if !s.cfg.AllowHidden && strings.HasPrefix(part, ".") {
-			return fmt.Errorf("hidden path is not allowed: %s", part)
+			return &deniedError{reason: "hidden path is not allowed", path: part}
 		}
 
 		if _, ok := s.cfg.DenyDirs[part]; ok {
-			return fmt.Errorf("directory is denied: %s", part)
+			return &deniedError{reason: "directory is denied", path: part}
 		}
 
 		if _, ok := s.cfg.DenyFileNames[part]; ok {
-			return fmt.Errorf("file is denied: %s", part)
+			return &deniedError{reason: "file is denied", path: part}
 		}
 	}
 

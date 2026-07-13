@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -27,8 +28,8 @@ func isTextFile(path string) (bool, error) {
 
 	buf := make([]byte, 8192)
 	n, err := f.Read(buf)
-	if err != nil && !errors.Is(err, os.ErrClosed) {
-		// io.EOF 不需要特殊处理，因为 n 仍然可用
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, err
 	}
 
 	sample := buf[:n]

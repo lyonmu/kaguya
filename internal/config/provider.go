@@ -1,5 +1,7 @@
 package config
 
+import "errors"
+
 // ProviderProtocol 定义模型服务提供方的 API 协议类型
 type ProviderProtocol string
 
@@ -78,4 +80,18 @@ type ProviderInfo struct {
 	Headers map[string]string `json:"headers" yaml:"headers" mapstructure:"headers"`
 	// Models 该提供方下可用的模型列表
 	Models []ModelInfo `json:"models" yaml:"models" mapstructure:"models"`
+}
+
+// DefaultModel 返回该提供方下的默认模型。当没有或存在多个默认模型时返回错误。
+func (p ProviderInfo) DefaultModel() (ModelInfo, error) {
+	var defaults []ModelInfo
+	for _, model := range p.Models {
+		if model.IsDefault {
+			defaults = append(defaults, model)
+		}
+	}
+	if len(defaults) != 1 {
+		return ModelInfo{}, errors.New("exactly one default model is required")
+	}
+	return defaults[0], nil
 }

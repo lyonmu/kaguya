@@ -36,3 +36,21 @@ This project borrows that image.
 The project focuses on the basic structure of an Agent, including model abstraction, prompt handling, tool calling, and execution flow.
 
 It is currently in early development and is mainly used for learning, experimentation, and gradual framework design.
+
+## Development Testing
+
+Run the default test suite (no network required):
+
+```text
+go test ./...
+```
+
+Run the integration tests (requires network access and a valid model provider):
+
+```text
+go test -tags=integration ./...
+```
+
+The integration tests require an uncommitted local `config.yml` file at the repository root. This file is gitignored and must never be committed.
+
+API keys and other credentials should only be stored in the gitignored `config.yml` file or in a controlled secrets management system. Never hard-code secrets in source files, tests, or documentation.

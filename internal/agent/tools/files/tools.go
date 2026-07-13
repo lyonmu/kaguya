@@ -110,7 +110,7 @@ func (s *SafeFS) readFile(ctx context.Context, input ReadFileInput, _ fantasy.To
 }
 
 func (s *SafeFS) listFiles(ctx context.Context, input ListFilesInput, _ fantasy.ToolCall) (fantasy.ToolResponse, error) {
-	abs, _, err := s.resolve(input.Path)
+	abs, baseRel, err := s.resolve(input.Path)
 	if err != nil {
 		return fantasy.NewTextErrorResponse(err.Error()), nil
 	}
@@ -160,21 +160,24 @@ func (s *SafeFS) listFiles(ctx context.Context, input ListFilesInput, _ fantasy.
 			continue
 		}
 
-		childAbs := filepath.Join(abs, name)
+		childRel := filepath.ToSlash(filepath.Join(baseRel, name))
 
-		realAbs, rel, err := s.resolve(filepath.ToSlash(mustRel(s.root, childAbs)))
+		realAbs, resolvedRel, err := s.resolve(childRel)
 		if err != nil {
-			continue
+			if errors.Is(err, ErrDenied) {
+				continue
+			}
+			return fantasy.NewTextErrorResponse(filepath.Join(baseRel, name) + ": " + err.Error()), nil
 		}
 
 		stat, err := os.Stat(realAbs)
 		if err != nil {
-			continue
+			return fantasy.NewTextErrorResponse(filepath.Join(baseRel, name) + ": " + err.Error()), nil
 		}
 
 		files = append(files, FileEntry{
 			Name:    name,
-			Path:    rel,
+			Path:    resolvedRel,
 			IsDir:   stat.IsDir(),
 			Size:    stat.Size(),
 			ModTime: stat.ModTime().Format("2006-01-02T15:04:05Z07:00"),
@@ -191,14 +194,6 @@ func (s *SafeFS) listFiles(ctx context.Context, input ListFilesInput, _ fantasy.
 		"count":     len(files),
 		"truncated": truncated,
 	}), nil
-}
-
-func mustRel(root, abs string) string {
-	rel, err := filepath.Rel(root, abs)
-	if err != nil {
-		return ""
-	}
-	return rel
 }
 
 func (s *SafeFS) grepFiles(ctx context.Context, input GrepFilesInput, _ fantasy.ToolCall) (fantasy.ToolResponse, error) {
@@ -322,6 +317,10 @@ func (s *SafeFS) grepFiles(ctx context.Context, input GrepFilesInput, _ fantasy.
 }
 
 func grepOneFile(path, rel, query string, re *regexp.Regexp, caseSensitive bool, limit int) ([]GrepMatch, error) {
+	if limit <= 0 {
+		return nil, nil
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
