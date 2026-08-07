@@ -1,0 +1,17 @@
+basePath: /kaguya/api
+host: http://localhost:9024
+info:
+  contact:
+    email: lyonmu@foxmail.com
+    name: Lyon Mu
+    url: https://github.com/lyonmu
+  description: kaguya 后端
+  license:
+    name: MIT
+    url: https://github.com/lyonmu/kaguya/blob/master/LICENSE
+  title: kaguya Swagger API接口文档
+  version: v0.0.1
+paths: {}
+schemes:
+- http
+swagger: "2.0"

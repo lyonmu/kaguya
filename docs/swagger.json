@@ -1,0 +1,23 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "kaguya 后端",
+        "title": "kaguya Swagger API接口文档",
+        "contact": {
+            "name": "Lyon Mu",
+            "url": "https://github.com/lyonmu",
+            "email": "lyonmu@foxmail.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://github.com/lyonmu/kaguya/blob/master/LICENSE"
+        },
+        "version": "v0.0.1"
+    },
+    "host": "http://localhost:9024",
+    "basePath": "/kaguya/api",
+    "paths": {}
+}
