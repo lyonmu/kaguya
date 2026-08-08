@@ -6,5 +6,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// KaguyaModelsInfo is the predicate function for kaguyamodelsinfo builders.
+type KaguyaModelsInfo func(*sql.Selector)
+
 // KaguyaProviderInfo is the predicate function for kaguyaproviderinfo builders.
 type KaguyaProviderInfo func(*sql.Selector)

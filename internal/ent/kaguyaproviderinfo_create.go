@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
@@ -134,6 +135,21 @@ func (_c *KaguyaProviderInfoCreate) SetNillableID(v *string) *KaguyaProviderInfo
 		_c.SetID(*v)
 	}
 	return _c
+}
+
+// AddModelIDs adds the "models" edge to the KaguyaModelsInfo entity by IDs.
+func (_c *KaguyaProviderInfoCreate) AddModelIDs(ids ...string) *KaguyaProviderInfoCreate {
+	_c.mutation.AddModelIDs(ids...)
+	return _c
+}
+
+// AddModels adds the "models" edges to the KaguyaModelsInfo entity.
+func (_c *KaguyaProviderInfoCreate) AddModels(v ...*KaguyaModelsInfo) *KaguyaProviderInfoCreate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddModelIDs(ids...)
 }
 
 // Mutation returns the KaguyaProviderInfoMutation object of the builder.
@@ -277,6 +293,22 @@ func (_c *KaguyaProviderInfoCreate) createSpec() (*KaguyaProviderInfo, *sqlgraph
 	if value, ok := _c.mutation.BaseURL(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldBaseURL, field.TypeString, value)
 		_node.BaseURL = value
+	}
+	if nodes := _c.mutation.ModelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaproviderinfo.ModelsTable,
+			Columns: []string{kaguyaproviderinfo.ModelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -9,6 +9,18 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 )
 
+// The KaguyaModelsInfoFunc type is an adapter to allow the use of ordinary
+// function as KaguyaModelsInfo mutator.
+type KaguyaModelsInfoFunc func(context.Context, *ent.KaguyaModelsInfoMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaModelsInfoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaModelsInfoMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaModelsInfoMutation", m)
+}
+
 // The KaguyaProviderInfoFunc type is an adapter to allow the use of ordinary
 // function as KaguyaProviderInfo mutator.
 type KaguyaProviderInfoFunc func(context.Context, *ent.KaguyaProviderInfoMutation) (ent.Value, error)

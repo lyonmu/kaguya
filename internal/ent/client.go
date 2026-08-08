@@ -14,6 +14,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 
 	stdsql "database/sql"
@@ -24,6 +26,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// KaguyaModelsInfo is the client for interacting with the KaguyaModelsInfo builders.
+	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProviderInfo is the client for interacting with the KaguyaProviderInfo builders.
 	KaguyaProviderInfo *KaguyaProviderInfoClient
 }
@@ -37,6 +41,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.KaguyaModelsInfo = NewKaguyaModelsInfoClient(c.config)
 	c.KaguyaProviderInfo = NewKaguyaProviderInfoClient(c.config)
 }
 
@@ -130,6 +135,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                ctx,
 		config:             cfg,
+		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
 	}, nil
 }
@@ -150,6 +156,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                ctx,
 		config:             cfg,
+		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
 	}, nil
 }
@@ -157,7 +164,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		KaguyaProviderInfo.
+//		KaguyaModelsInfo.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -179,22 +186,176 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.KaguyaModelsInfo.Use(hooks...)
 	c.KaguyaProviderInfo.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.KaguyaModelsInfo.Intercept(interceptors...)
 	c.KaguyaProviderInfo.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *KaguyaModelsInfoMutation:
+		return c.KaguyaModelsInfo.mutate(ctx, m)
 	case *KaguyaProviderInfoMutation:
 		return c.KaguyaProviderInfo.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// KaguyaModelsInfoClient is a client for the KaguyaModelsInfo schema.
+type KaguyaModelsInfoClient struct {
+	config
+}
+
+// NewKaguyaModelsInfoClient returns a client for the KaguyaModelsInfo from the given config.
+func NewKaguyaModelsInfoClient(c config) *KaguyaModelsInfoClient {
+	return &KaguyaModelsInfoClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamodelsinfo.Hooks(f(g(h())))`.
+func (c *KaguyaModelsInfoClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaModelsInfo = append(c.hooks.KaguyaModelsInfo, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamodelsinfo.Intercept(f(g(h())))`.
+func (c *KaguyaModelsInfoClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaModelsInfo = append(c.inters.KaguyaModelsInfo, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaModelsInfo entity.
+func (c *KaguyaModelsInfoClient) Create() *KaguyaModelsInfoCreate {
+	mutation := newKaguyaModelsInfoMutation(c.config, OpCreate)
+	return &KaguyaModelsInfoCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaModelsInfo entities.
+func (c *KaguyaModelsInfoClient) CreateBulk(builders ...*KaguyaModelsInfoCreate) *KaguyaModelsInfoCreateBulk {
+	return &KaguyaModelsInfoCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaModelsInfoClient) MapCreateBulk(slice any, setFunc func(*KaguyaModelsInfoCreate, int)) *KaguyaModelsInfoCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaModelsInfoCreateBulk{err: fmt.Errorf("calling to KaguyaModelsInfoClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaModelsInfoCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaModelsInfoCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaModelsInfo.
+func (c *KaguyaModelsInfoClient) Update() *KaguyaModelsInfoUpdate {
+	mutation := newKaguyaModelsInfoMutation(c.config, OpUpdate)
+	return &KaguyaModelsInfoUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaModelsInfoClient) UpdateOne(_m *KaguyaModelsInfo) *KaguyaModelsInfoUpdateOne {
+	mutation := newKaguyaModelsInfoMutation(c.config, OpUpdateOne, withKaguyaModelsInfo(_m))
+	return &KaguyaModelsInfoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaModelsInfoClient) UpdateOneID(id string) *KaguyaModelsInfoUpdateOne {
+	mutation := newKaguyaModelsInfoMutation(c.config, OpUpdateOne, withKaguyaModelsInfoID(id))
+	return &KaguyaModelsInfoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaModelsInfo.
+func (c *KaguyaModelsInfoClient) Delete() *KaguyaModelsInfoDelete {
+	mutation := newKaguyaModelsInfoMutation(c.config, OpDelete)
+	return &KaguyaModelsInfoDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaModelsInfoClient) DeleteOne(_m *KaguyaModelsInfo) *KaguyaModelsInfoDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaModelsInfoClient) DeleteOneID(id string) *KaguyaModelsInfoDeleteOne {
+	builder := c.Delete().Where(kaguyamodelsinfo.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaModelsInfoDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaModelsInfo.
+func (c *KaguyaModelsInfoClient) Query() *KaguyaModelsInfoQuery {
+	return &KaguyaModelsInfoQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaModelsInfo},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaModelsInfo entity by its id.
+func (c *KaguyaModelsInfoClient) Get(ctx context.Context, id string) (*KaguyaModelsInfo, error) {
+	return c.Query().Where(kaguyamodelsinfo.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaModelsInfoClient) GetX(ctx context.Context, id string) *KaguyaModelsInfo {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryProvider queries the provider edge of a KaguyaModelsInfo.
+func (c *KaguyaModelsInfoClient) QueryProvider(_m *KaguyaModelsInfo) *KaguyaProviderInfoQuery {
+	query := (&KaguyaProviderInfoClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyamodelsinfo.Table, kaguyamodelsinfo.FieldID, id),
+			sqlgraph.To(kaguyaproviderinfo.Table, kaguyaproviderinfo.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, kaguyamodelsinfo.ProviderTable, kaguyamodelsinfo.ProviderColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaModelsInfoClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaModelsInfo
+	return append(hooks[:len(hooks):len(hooks)], kaguyamodelsinfo.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaModelsInfoClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaModelsInfo
+}
+
+func (c *KaguyaModelsInfoClient) mutate(ctx context.Context, m *KaguyaModelsInfoMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaModelsInfoCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaModelsInfoUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaModelsInfoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaModelsInfoDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaModelsInfo mutation op: %q", m.Op())
 	}
 }
 
@@ -306,6 +467,22 @@ func (c *KaguyaProviderInfoClient) GetX(ctx context.Context, id string) *KaguyaP
 	return obj
 }
 
+// QueryModels queries the models edge of a KaguyaProviderInfo.
+func (c *KaguyaProviderInfoClient) QueryModels(_m *KaguyaProviderInfo) *KaguyaModelsInfoQuery {
+	query := (&KaguyaModelsInfoClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyaproviderinfo.Table, kaguyaproviderinfo.FieldID, id),
+			sqlgraph.To(kaguyamodelsinfo.Table, kaguyamodelsinfo.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, kaguyaproviderinfo.ModelsTable, kaguyaproviderinfo.ModelsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *KaguyaProviderInfoClient) Hooks() []Hook {
 	hooks := c.hooks.KaguyaProviderInfo
@@ -335,10 +512,10 @@ func (c *KaguyaProviderInfoClient) mutate(ctx context.Context, m *KaguyaProvider
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		KaguyaProviderInfo []ent.Hook
+		KaguyaModelsInfo, KaguyaProviderInfo []ent.Hook
 	}
 	inters struct {
-		KaguyaProviderInfo []ent.Interceptor
+		KaguyaModelsInfo, KaguyaProviderInfo []ent.Interceptor
 	}
 )
 

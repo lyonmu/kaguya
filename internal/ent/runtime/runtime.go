@@ -5,6 +5,8 @@ package runtime
 import (
 	"time"
 
+	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
@@ -13,6 +15,70 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	kaguyamodelsinfoMixin := schema.KaguyaModelsInfo{}.Mixin()
+	kaguyamodelsinfoMixinHooks1 := kaguyamodelsinfoMixin[1].Hooks()
+	kaguyamodelsinfo.Hooks[0] = kaguyamodelsinfoMixinHooks1[0]
+	kaguyamodelsinfo.Hooks[1] = kaguyamodelsinfoMixinHooks1[1]
+	kaguyamodelsinfoMixinFields0 := kaguyamodelsinfoMixin[0].Fields()
+	_ = kaguyamodelsinfoMixinFields0
+	kaguyamodelsinfoMixinFields1 := kaguyamodelsinfoMixin[1].Fields()
+	_ = kaguyamodelsinfoMixinFields1
+	kaguyamodelsinfoFields := schema.KaguyaModelsInfo{}.Fields()
+	_ = kaguyamodelsinfoFields
+	// kaguyamodelsinfoDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamodelsinfoDescCreatedAt := kaguyamodelsinfoMixinFields1[0].Descriptor()
+	// kaguyamodelsinfo.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamodelsinfo.DefaultCreatedAt = kaguyamodelsinfoDescCreatedAt.Default.(func() time.Time)
+	// kaguyamodelsinfoDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamodelsinfoDescUpdatedAt := kaguyamodelsinfoMixinFields1[1].Descriptor()
+	// kaguyamodelsinfo.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamodelsinfo.DefaultUpdatedAt = kaguyamodelsinfoDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamodelsinfo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamodelsinfo.UpdateDefaultUpdatedAt = kaguyamodelsinfoDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamodelsinfoDescIsDefault is the schema descriptor for is_default field.
+	kaguyamodelsinfoDescIsDefault := kaguyamodelsinfoFields[3].Descriptor()
+	// kaguyamodelsinfo.DefaultIsDefault holds the default value on creation for the is_default field.
+	kaguyamodelsinfo.DefaultIsDefault = consts.Status(kaguyamodelsinfoDescIsDefault.Default.(int))
+	// kaguyamodelsinfoDescReasoningEnabled is the schema descriptor for reasoning_enabled field.
+	kaguyamodelsinfoDescReasoningEnabled := kaguyamodelsinfoFields[4].Descriptor()
+	// kaguyamodelsinfo.DefaultReasoningEnabled holds the default value on creation for the reasoning_enabled field.
+	kaguyamodelsinfo.DefaultReasoningEnabled = consts.Status(kaguyamodelsinfoDescReasoningEnabled.Default.(int))
+	// kaguyamodelsinfoDescReasoningEffort is the schema descriptor for reasoning_effort field.
+	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[5].Descriptor()
+	// kaguyamodelsinfo.DefaultReasoningEffort holds the default value on creation for the reasoning_effort field.
+	kaguyamodelsinfo.DefaultReasoningEffort = schema.ReasoningEffort(kaguyamodelsinfoDescReasoningEffort.Default.(string))
+	// kaguyamodelsinfoDescCapabilityToolUse is the schema descriptor for capability_tool_use field.
+	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[8].Descriptor()
+	// kaguyamodelsinfo.DefaultCapabilityToolUse holds the default value on creation for the capability_tool_use field.
+	kaguyamodelsinfo.DefaultCapabilityToolUse = consts.Status(kaguyamodelsinfoDescCapabilityToolUse.Default.(int))
+	// kaguyamodelsinfoDescCapabilityVision is the schema descriptor for capability_vision field.
+	kaguyamodelsinfoDescCapabilityVision := kaguyamodelsinfoFields[9].Descriptor()
+	// kaguyamodelsinfo.DefaultCapabilityVision holds the default value on creation for the capability_vision field.
+	kaguyamodelsinfo.DefaultCapabilityVision = consts.Status(kaguyamodelsinfoDescCapabilityVision.Default.(int))
+	// kaguyamodelsinfoDescCapabilityStructuredOutput is the schema descriptor for capability_structured_output field.
+	kaguyamodelsinfoDescCapabilityStructuredOutput := kaguyamodelsinfoFields[10].Descriptor()
+	// kaguyamodelsinfo.DefaultCapabilityStructuredOutput holds the default value on creation for the capability_structured_output field.
+	kaguyamodelsinfo.DefaultCapabilityStructuredOutput = consts.Status(kaguyamodelsinfoDescCapabilityStructuredOutput.Default.(int))
+	// kaguyamodelsinfoDescID is the schema descriptor for id field.
+	kaguyamodelsinfoDescID := kaguyamodelsinfoMixinFields0[0].Descriptor()
+	// kaguyamodelsinfo.DefaultID holds the default value on creation for the id field.
+	kaguyamodelsinfo.DefaultID = kaguyamodelsinfoDescID.Default.(func() string)
+	// kaguyamodelsinfo.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamodelsinfo.IDValidator = func() func(string) error {
+		validators := kaguyamodelsinfoDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	kaguyaproviderinfoMixin := schema.KaguyaProviderInfo{}.Mixin()
 	kaguyaproviderinfoMixinHooks1 := kaguyaproviderinfoMixin[1].Hooks()
 	kaguyaproviderinfo.Hooks[0] = kaguyaproviderinfoMixinHooks1[0]

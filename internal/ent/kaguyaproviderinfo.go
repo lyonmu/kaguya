@@ -32,8 +32,29 @@ type KaguyaProviderInfo struct {
 	// API Key
 	APIKey string `json:"api_key,omitempty"`
 	// Base URL
-	BaseURL      string `json:"base_url,omitempty"`
+	BaseURL string `json:"base_url,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the KaguyaProviderInfoQuery when eager-loading is set.
+	Edges        KaguyaProviderInfoEdges `json:"-" gorm:"-"`
 	selectValues sql.SelectValues
+}
+
+// KaguyaProviderInfoEdges holds the relations/edges for other nodes in the graph.
+type KaguyaProviderInfoEdges struct {
+	// 该提供方下的模型列表
+	Models []*KaguyaModelsInfo `json:"models,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// ModelsOrErr returns the Models value or an error if the edge
+// was not loaded in eager-loading.
+func (e KaguyaProviderInfoEdges) ModelsOrErr() ([]*KaguyaModelsInfo, error) {
+	if e.loadedTypes[0] {
+		return e.Models, nil
+	}
+	return nil, &NotLoadedError{edge: "models"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -120,6 +141,11 @@ func (_m *KaguyaProviderInfo) assignValues(columns []string, values []any) error
 // This includes values selected through modifiers, order, etc.
 func (_m *KaguyaProviderInfo) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
+}
+
+// QueryModels queries the "models" edge of the KaguyaProviderInfo entity.
+func (_m *KaguyaProviderInfo) QueryModels() *KaguyaModelsInfoQuery {
+	return NewKaguyaProviderInfoClient(_m.config).QueryModels(_m)
 }
 
 // Update returns a builder for updating this KaguyaProviderInfo.

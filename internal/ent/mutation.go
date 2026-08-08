@@ -11,6 +11,8 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
@@ -25,8 +27,1569 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeKaguyaModelsInfo   = "KaguyaModelsInfo"
 	TypeKaguyaProviderInfo = "KaguyaProviderInfo"
 )
+
+// KaguyaModelsInfoMutation represents an operation that mutates the KaguyaModelsInfo nodes in the graph.
+type KaguyaModelsInfoMutation struct {
+	config
+	op                              Op
+	typ                             string
+	id                              *string
+	created_at                      *time.Time
+	updated_at                      *time.Time
+	deleted_at                      *time.Time
+	model_name                      *string
+	model_id                        *string
+	is_default                      *consts.Status
+	addis_default                   *consts.Status
+	reasoning_enabled               *consts.Status
+	addreasoning_enabled            *consts.Status
+	reasoning_effort                *schema.ReasoningEffort
+	token_context_window            *int
+	addtoken_context_window         *int
+	token_max_output_tokens         *int
+	addtoken_max_output_tokens      *int
+	capability_tool_use             *consts.Status
+	addcapability_tool_use          *consts.Status
+	capability_vision               *consts.Status
+	addcapability_vision            *consts.Status
+	capability_structured_output    *consts.Status
+	addcapability_structured_output *consts.Status
+	clearedFields                   map[string]struct{}
+	provider                        *string
+	clearedprovider                 bool
+	done                            bool
+	oldValue                        func(context.Context) (*KaguyaModelsInfo, error)
+	predicates                      []predicate.KaguyaModelsInfo
+}
+
+var _ ent.Mutation = (*KaguyaModelsInfoMutation)(nil)
+
+// kaguyamodelsinfoOption allows management of the mutation configuration using functional options.
+type kaguyamodelsinfoOption func(*KaguyaModelsInfoMutation)
+
+// newKaguyaModelsInfoMutation creates new mutation for the KaguyaModelsInfo entity.
+func newKaguyaModelsInfoMutation(c config, op Op, opts ...kaguyamodelsinfoOption) *KaguyaModelsInfoMutation {
+	m := &KaguyaModelsInfoMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKaguyaModelsInfo,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKaguyaModelsInfoID sets the ID field of the mutation.
+func withKaguyaModelsInfoID(id string) kaguyamodelsinfoOption {
+	return func(m *KaguyaModelsInfoMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KaguyaModelsInfo
+		)
+		m.oldValue = func(ctx context.Context) (*KaguyaModelsInfo, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KaguyaModelsInfo.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKaguyaModelsInfo sets the old KaguyaModelsInfo of the mutation.
+func withKaguyaModelsInfo(node *KaguyaModelsInfo) kaguyamodelsinfoOption {
+	return func(m *KaguyaModelsInfoMutation) {
+		m.oldValue = func(context.Context) (*KaguyaModelsInfo, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KaguyaModelsInfoMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KaguyaModelsInfoMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of KaguyaModelsInfo entities.
+func (m *KaguyaModelsInfoMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KaguyaModelsInfoMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KaguyaModelsInfoMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KaguyaModelsInfo.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KaguyaModelsInfoMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KaguyaModelsInfoMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KaguyaModelsInfoMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KaguyaModelsInfoMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KaguyaModelsInfoMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KaguyaModelsInfoMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *KaguyaModelsInfoMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *KaguyaModelsInfoMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *KaguyaModelsInfoMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[kaguyamodelsinfo.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *KaguyaModelsInfoMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldDeletedAt)
+}
+
+// SetProviderID sets the "provider_id" field.
+func (m *KaguyaModelsInfoMutation) SetProviderID(s string) {
+	m.provider = &s
+}
+
+// ProviderID returns the value of the "provider_id" field in the mutation.
+func (m *KaguyaModelsInfoMutation) ProviderID() (r string, exists bool) {
+	v := m.provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderID returns the old "provider_id" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldProviderID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderID: %w", err)
+	}
+	return oldValue.ProviderID, nil
+}
+
+// ClearProviderID clears the value of the "provider_id" field.
+func (m *KaguyaModelsInfoMutation) ClearProviderID() {
+	m.provider = nil
+	m.clearedFields[kaguyamodelsinfo.FieldProviderID] = struct{}{}
+}
+
+// ProviderIDCleared returns if the "provider_id" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) ProviderIDCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldProviderID]
+	return ok
+}
+
+// ResetProviderID resets all changes to the "provider_id" field.
+func (m *KaguyaModelsInfoMutation) ResetProviderID() {
+	m.provider = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldProviderID)
+}
+
+// SetModelName sets the "model_name" field.
+func (m *KaguyaModelsInfoMutation) SetModelName(s string) {
+	m.model_name = &s
+}
+
+// ModelName returns the value of the "model_name" field in the mutation.
+func (m *KaguyaModelsInfoMutation) ModelName() (r string, exists bool) {
+	v := m.model_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelName returns the old "model_name" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldModelName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelName: %w", err)
+	}
+	return oldValue.ModelName, nil
+}
+
+// ClearModelName clears the value of the "model_name" field.
+func (m *KaguyaModelsInfoMutation) ClearModelName() {
+	m.model_name = nil
+	m.clearedFields[kaguyamodelsinfo.FieldModelName] = struct{}{}
+}
+
+// ModelNameCleared returns if the "model_name" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) ModelNameCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldModelName]
+	return ok
+}
+
+// ResetModelName resets all changes to the "model_name" field.
+func (m *KaguyaModelsInfoMutation) ResetModelName() {
+	m.model_name = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldModelName)
+}
+
+// SetModelID sets the "model_id" field.
+func (m *KaguyaModelsInfoMutation) SetModelID(s string) {
+	m.model_id = &s
+}
+
+// ModelID returns the value of the "model_id" field in the mutation.
+func (m *KaguyaModelsInfoMutation) ModelID() (r string, exists bool) {
+	v := m.model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelID returns the old "model_id" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldModelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelID: %w", err)
+	}
+	return oldValue.ModelID, nil
+}
+
+// ClearModelID clears the value of the "model_id" field.
+func (m *KaguyaModelsInfoMutation) ClearModelID() {
+	m.model_id = nil
+	m.clearedFields[kaguyamodelsinfo.FieldModelID] = struct{}{}
+}
+
+// ModelIDCleared returns if the "model_id" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) ModelIDCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldModelID]
+	return ok
+}
+
+// ResetModelID resets all changes to the "model_id" field.
+func (m *KaguyaModelsInfoMutation) ResetModelID() {
+	m.model_id = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldModelID)
+}
+
+// SetIsDefault sets the "is_default" field.
+func (m *KaguyaModelsInfoMutation) SetIsDefault(c consts.Status) {
+	m.is_default = &c
+	m.addis_default = nil
+}
+
+// IsDefault returns the value of the "is_default" field in the mutation.
+func (m *KaguyaModelsInfoMutation) IsDefault() (r consts.Status, exists bool) {
+	v := m.is_default
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsDefault returns the old "is_default" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldIsDefault(ctx context.Context) (v consts.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsDefault is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsDefault requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsDefault: %w", err)
+	}
+	return oldValue.IsDefault, nil
+}
+
+// AddIsDefault adds c to the "is_default" field.
+func (m *KaguyaModelsInfoMutation) AddIsDefault(c consts.Status) {
+	if m.addis_default != nil {
+		*m.addis_default += c
+	} else {
+		m.addis_default = &c
+	}
+}
+
+// AddedIsDefault returns the value that was added to the "is_default" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedIsDefault() (r consts.Status, exists bool) {
+	v := m.addis_default
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearIsDefault clears the value of the "is_default" field.
+func (m *KaguyaModelsInfoMutation) ClearIsDefault() {
+	m.is_default = nil
+	m.addis_default = nil
+	m.clearedFields[kaguyamodelsinfo.FieldIsDefault] = struct{}{}
+}
+
+// IsDefaultCleared returns if the "is_default" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) IsDefaultCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldIsDefault]
+	return ok
+}
+
+// ResetIsDefault resets all changes to the "is_default" field.
+func (m *KaguyaModelsInfoMutation) ResetIsDefault() {
+	m.is_default = nil
+	m.addis_default = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldIsDefault)
+}
+
+// SetReasoningEnabled sets the "reasoning_enabled" field.
+func (m *KaguyaModelsInfoMutation) SetReasoningEnabled(c consts.Status) {
+	m.reasoning_enabled = &c
+	m.addreasoning_enabled = nil
+}
+
+// ReasoningEnabled returns the value of the "reasoning_enabled" field in the mutation.
+func (m *KaguyaModelsInfoMutation) ReasoningEnabled() (r consts.Status, exists bool) {
+	v := m.reasoning_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasoningEnabled returns the old "reasoning_enabled" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldReasoningEnabled(ctx context.Context) (v consts.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasoningEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasoningEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasoningEnabled: %w", err)
+	}
+	return oldValue.ReasoningEnabled, nil
+}
+
+// AddReasoningEnabled adds c to the "reasoning_enabled" field.
+func (m *KaguyaModelsInfoMutation) AddReasoningEnabled(c consts.Status) {
+	if m.addreasoning_enabled != nil {
+		*m.addreasoning_enabled += c
+	} else {
+		m.addreasoning_enabled = &c
+	}
+}
+
+// AddedReasoningEnabled returns the value that was added to the "reasoning_enabled" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedReasoningEnabled() (r consts.Status, exists bool) {
+	v := m.addreasoning_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearReasoningEnabled clears the value of the "reasoning_enabled" field.
+func (m *KaguyaModelsInfoMutation) ClearReasoningEnabled() {
+	m.reasoning_enabled = nil
+	m.addreasoning_enabled = nil
+	m.clearedFields[kaguyamodelsinfo.FieldReasoningEnabled] = struct{}{}
+}
+
+// ReasoningEnabledCleared returns if the "reasoning_enabled" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) ReasoningEnabledCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldReasoningEnabled]
+	return ok
+}
+
+// ResetReasoningEnabled resets all changes to the "reasoning_enabled" field.
+func (m *KaguyaModelsInfoMutation) ResetReasoningEnabled() {
+	m.reasoning_enabled = nil
+	m.addreasoning_enabled = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldReasoningEnabled)
+}
+
+// SetReasoningEffort sets the "reasoning_effort" field.
+func (m *KaguyaModelsInfoMutation) SetReasoningEffort(se schema.ReasoningEffort) {
+	m.reasoning_effort = &se
+}
+
+// ReasoningEffort returns the value of the "reasoning_effort" field in the mutation.
+func (m *KaguyaModelsInfoMutation) ReasoningEffort() (r schema.ReasoningEffort, exists bool) {
+	v := m.reasoning_effort
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasoningEffort returns the old "reasoning_effort" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldReasoningEffort(ctx context.Context) (v schema.ReasoningEffort, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasoningEffort is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasoningEffort requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasoningEffort: %w", err)
+	}
+	return oldValue.ReasoningEffort, nil
+}
+
+// ClearReasoningEffort clears the value of the "reasoning_effort" field.
+func (m *KaguyaModelsInfoMutation) ClearReasoningEffort() {
+	m.reasoning_effort = nil
+	m.clearedFields[kaguyamodelsinfo.FieldReasoningEffort] = struct{}{}
+}
+
+// ReasoningEffortCleared returns if the "reasoning_effort" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) ReasoningEffortCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldReasoningEffort]
+	return ok
+}
+
+// ResetReasoningEffort resets all changes to the "reasoning_effort" field.
+func (m *KaguyaModelsInfoMutation) ResetReasoningEffort() {
+	m.reasoning_effort = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldReasoningEffort)
+}
+
+// SetTokenContextWindow sets the "token_context_window" field.
+func (m *KaguyaModelsInfoMutation) SetTokenContextWindow(i int) {
+	m.token_context_window = &i
+	m.addtoken_context_window = nil
+}
+
+// TokenContextWindow returns the value of the "token_context_window" field in the mutation.
+func (m *KaguyaModelsInfoMutation) TokenContextWindow() (r int, exists bool) {
+	v := m.token_context_window
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenContextWindow returns the old "token_context_window" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldTokenContextWindow(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenContextWindow is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenContextWindow requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenContextWindow: %w", err)
+	}
+	return oldValue.TokenContextWindow, nil
+}
+
+// AddTokenContextWindow adds i to the "token_context_window" field.
+func (m *KaguyaModelsInfoMutation) AddTokenContextWindow(i int) {
+	if m.addtoken_context_window != nil {
+		*m.addtoken_context_window += i
+	} else {
+		m.addtoken_context_window = &i
+	}
+}
+
+// AddedTokenContextWindow returns the value that was added to the "token_context_window" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedTokenContextWindow() (r int, exists bool) {
+	v := m.addtoken_context_window
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTokenContextWindow clears the value of the "token_context_window" field.
+func (m *KaguyaModelsInfoMutation) ClearTokenContextWindow() {
+	m.token_context_window = nil
+	m.addtoken_context_window = nil
+	m.clearedFields[kaguyamodelsinfo.FieldTokenContextWindow] = struct{}{}
+}
+
+// TokenContextWindowCleared returns if the "token_context_window" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) TokenContextWindowCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldTokenContextWindow]
+	return ok
+}
+
+// ResetTokenContextWindow resets all changes to the "token_context_window" field.
+func (m *KaguyaModelsInfoMutation) ResetTokenContextWindow() {
+	m.token_context_window = nil
+	m.addtoken_context_window = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldTokenContextWindow)
+}
+
+// SetTokenMaxOutputTokens sets the "token_max_output_tokens" field.
+func (m *KaguyaModelsInfoMutation) SetTokenMaxOutputTokens(i int) {
+	m.token_max_output_tokens = &i
+	m.addtoken_max_output_tokens = nil
+}
+
+// TokenMaxOutputTokens returns the value of the "token_max_output_tokens" field in the mutation.
+func (m *KaguyaModelsInfoMutation) TokenMaxOutputTokens() (r int, exists bool) {
+	v := m.token_max_output_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenMaxOutputTokens returns the old "token_max_output_tokens" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldTokenMaxOutputTokens(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenMaxOutputTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenMaxOutputTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenMaxOutputTokens: %w", err)
+	}
+	return oldValue.TokenMaxOutputTokens, nil
+}
+
+// AddTokenMaxOutputTokens adds i to the "token_max_output_tokens" field.
+func (m *KaguyaModelsInfoMutation) AddTokenMaxOutputTokens(i int) {
+	if m.addtoken_max_output_tokens != nil {
+		*m.addtoken_max_output_tokens += i
+	} else {
+		m.addtoken_max_output_tokens = &i
+	}
+}
+
+// AddedTokenMaxOutputTokens returns the value that was added to the "token_max_output_tokens" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedTokenMaxOutputTokens() (r int, exists bool) {
+	v := m.addtoken_max_output_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTokenMaxOutputTokens clears the value of the "token_max_output_tokens" field.
+func (m *KaguyaModelsInfoMutation) ClearTokenMaxOutputTokens() {
+	m.token_max_output_tokens = nil
+	m.addtoken_max_output_tokens = nil
+	m.clearedFields[kaguyamodelsinfo.FieldTokenMaxOutputTokens] = struct{}{}
+}
+
+// TokenMaxOutputTokensCleared returns if the "token_max_output_tokens" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) TokenMaxOutputTokensCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldTokenMaxOutputTokens]
+	return ok
+}
+
+// ResetTokenMaxOutputTokens resets all changes to the "token_max_output_tokens" field.
+func (m *KaguyaModelsInfoMutation) ResetTokenMaxOutputTokens() {
+	m.token_max_output_tokens = nil
+	m.addtoken_max_output_tokens = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldTokenMaxOutputTokens)
+}
+
+// SetCapabilityToolUse sets the "capability_tool_use" field.
+func (m *KaguyaModelsInfoMutation) SetCapabilityToolUse(c consts.Status) {
+	m.capability_tool_use = &c
+	m.addcapability_tool_use = nil
+}
+
+// CapabilityToolUse returns the value of the "capability_tool_use" field in the mutation.
+func (m *KaguyaModelsInfoMutation) CapabilityToolUse() (r consts.Status, exists bool) {
+	v := m.capability_tool_use
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCapabilityToolUse returns the old "capability_tool_use" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldCapabilityToolUse(ctx context.Context) (v consts.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCapabilityToolUse is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCapabilityToolUse requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCapabilityToolUse: %w", err)
+	}
+	return oldValue.CapabilityToolUse, nil
+}
+
+// AddCapabilityToolUse adds c to the "capability_tool_use" field.
+func (m *KaguyaModelsInfoMutation) AddCapabilityToolUse(c consts.Status) {
+	if m.addcapability_tool_use != nil {
+		*m.addcapability_tool_use += c
+	} else {
+		m.addcapability_tool_use = &c
+	}
+}
+
+// AddedCapabilityToolUse returns the value that was added to the "capability_tool_use" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedCapabilityToolUse() (r consts.Status, exists bool) {
+	v := m.addcapability_tool_use
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCapabilityToolUse clears the value of the "capability_tool_use" field.
+func (m *KaguyaModelsInfoMutation) ClearCapabilityToolUse() {
+	m.capability_tool_use = nil
+	m.addcapability_tool_use = nil
+	m.clearedFields[kaguyamodelsinfo.FieldCapabilityToolUse] = struct{}{}
+}
+
+// CapabilityToolUseCleared returns if the "capability_tool_use" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) CapabilityToolUseCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldCapabilityToolUse]
+	return ok
+}
+
+// ResetCapabilityToolUse resets all changes to the "capability_tool_use" field.
+func (m *KaguyaModelsInfoMutation) ResetCapabilityToolUse() {
+	m.capability_tool_use = nil
+	m.addcapability_tool_use = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldCapabilityToolUse)
+}
+
+// SetCapabilityVision sets the "capability_vision" field.
+func (m *KaguyaModelsInfoMutation) SetCapabilityVision(c consts.Status) {
+	m.capability_vision = &c
+	m.addcapability_vision = nil
+}
+
+// CapabilityVision returns the value of the "capability_vision" field in the mutation.
+func (m *KaguyaModelsInfoMutation) CapabilityVision() (r consts.Status, exists bool) {
+	v := m.capability_vision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCapabilityVision returns the old "capability_vision" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldCapabilityVision(ctx context.Context) (v consts.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCapabilityVision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCapabilityVision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCapabilityVision: %w", err)
+	}
+	return oldValue.CapabilityVision, nil
+}
+
+// AddCapabilityVision adds c to the "capability_vision" field.
+func (m *KaguyaModelsInfoMutation) AddCapabilityVision(c consts.Status) {
+	if m.addcapability_vision != nil {
+		*m.addcapability_vision += c
+	} else {
+		m.addcapability_vision = &c
+	}
+}
+
+// AddedCapabilityVision returns the value that was added to the "capability_vision" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedCapabilityVision() (r consts.Status, exists bool) {
+	v := m.addcapability_vision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCapabilityVision clears the value of the "capability_vision" field.
+func (m *KaguyaModelsInfoMutation) ClearCapabilityVision() {
+	m.capability_vision = nil
+	m.addcapability_vision = nil
+	m.clearedFields[kaguyamodelsinfo.FieldCapabilityVision] = struct{}{}
+}
+
+// CapabilityVisionCleared returns if the "capability_vision" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) CapabilityVisionCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldCapabilityVision]
+	return ok
+}
+
+// ResetCapabilityVision resets all changes to the "capability_vision" field.
+func (m *KaguyaModelsInfoMutation) ResetCapabilityVision() {
+	m.capability_vision = nil
+	m.addcapability_vision = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldCapabilityVision)
+}
+
+// SetCapabilityStructuredOutput sets the "capability_structured_output" field.
+func (m *KaguyaModelsInfoMutation) SetCapabilityStructuredOutput(c consts.Status) {
+	m.capability_structured_output = &c
+	m.addcapability_structured_output = nil
+}
+
+// CapabilityStructuredOutput returns the value of the "capability_structured_output" field in the mutation.
+func (m *KaguyaModelsInfoMutation) CapabilityStructuredOutput() (r consts.Status, exists bool) {
+	v := m.capability_structured_output
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCapabilityStructuredOutput returns the old "capability_structured_output" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldCapabilityStructuredOutput(ctx context.Context) (v consts.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCapabilityStructuredOutput is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCapabilityStructuredOutput requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCapabilityStructuredOutput: %w", err)
+	}
+	return oldValue.CapabilityStructuredOutput, nil
+}
+
+// AddCapabilityStructuredOutput adds c to the "capability_structured_output" field.
+func (m *KaguyaModelsInfoMutation) AddCapabilityStructuredOutput(c consts.Status) {
+	if m.addcapability_structured_output != nil {
+		*m.addcapability_structured_output += c
+	} else {
+		m.addcapability_structured_output = &c
+	}
+}
+
+// AddedCapabilityStructuredOutput returns the value that was added to the "capability_structured_output" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedCapabilityStructuredOutput() (r consts.Status, exists bool) {
+	v := m.addcapability_structured_output
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCapabilityStructuredOutput clears the value of the "capability_structured_output" field.
+func (m *KaguyaModelsInfoMutation) ClearCapabilityStructuredOutput() {
+	m.capability_structured_output = nil
+	m.addcapability_structured_output = nil
+	m.clearedFields[kaguyamodelsinfo.FieldCapabilityStructuredOutput] = struct{}{}
+}
+
+// CapabilityStructuredOutputCleared returns if the "capability_structured_output" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) CapabilityStructuredOutputCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldCapabilityStructuredOutput]
+	return ok
+}
+
+// ResetCapabilityStructuredOutput resets all changes to the "capability_structured_output" field.
+func (m *KaguyaModelsInfoMutation) ResetCapabilityStructuredOutput() {
+	m.capability_structured_output = nil
+	m.addcapability_structured_output = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldCapabilityStructuredOutput)
+}
+
+// ClearProvider clears the "provider" edge to the KaguyaProviderInfo entity.
+func (m *KaguyaModelsInfoMutation) ClearProvider() {
+	m.clearedprovider = true
+	m.clearedFields[kaguyamodelsinfo.FieldProviderID] = struct{}{}
+}
+
+// ProviderCleared reports if the "provider" edge to the KaguyaProviderInfo entity was cleared.
+func (m *KaguyaModelsInfoMutation) ProviderCleared() bool {
+	return m.ProviderIDCleared() || m.clearedprovider
+}
+
+// ProviderIDs returns the "provider" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProviderID instead. It exists only for internal usage by the builders.
+func (m *KaguyaModelsInfoMutation) ProviderIDs() (ids []string) {
+	if id := m.provider; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProvider resets all changes to the "provider" edge.
+func (m *KaguyaModelsInfoMutation) ResetProvider() {
+	m.provider = nil
+	m.clearedprovider = false
+}
+
+// Where appends a list predicates to the KaguyaModelsInfoMutation builder.
+func (m *KaguyaModelsInfoMutation) Where(ps ...predicate.KaguyaModelsInfo) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KaguyaModelsInfoMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KaguyaModelsInfoMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KaguyaModelsInfo, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KaguyaModelsInfoMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KaguyaModelsInfoMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KaguyaModelsInfo).
+func (m *KaguyaModelsInfoMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KaguyaModelsInfoMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.created_at != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldDeletedAt)
+	}
+	if m.provider != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldProviderID)
+	}
+	if m.model_name != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldModelName)
+	}
+	if m.model_id != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldModelID)
+	}
+	if m.is_default != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldIsDefault)
+	}
+	if m.reasoning_enabled != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
+	}
+	if m.reasoning_effort != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldReasoningEffort)
+	}
+	if m.token_context_window != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldTokenContextWindow)
+	}
+	if m.token_max_output_tokens != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldTokenMaxOutputTokens)
+	}
+	if m.capability_tool_use != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityToolUse)
+	}
+	if m.capability_vision != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityVision)
+	}
+	if m.capability_structured_output != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityStructuredOutput)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KaguyaModelsInfoMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyamodelsinfo.FieldCreatedAt:
+		return m.CreatedAt()
+	case kaguyamodelsinfo.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case kaguyamodelsinfo.FieldDeletedAt:
+		return m.DeletedAt()
+	case kaguyamodelsinfo.FieldProviderID:
+		return m.ProviderID()
+	case kaguyamodelsinfo.FieldModelName:
+		return m.ModelName()
+	case kaguyamodelsinfo.FieldModelID:
+		return m.ModelID()
+	case kaguyamodelsinfo.FieldIsDefault:
+		return m.IsDefault()
+	case kaguyamodelsinfo.FieldReasoningEnabled:
+		return m.ReasoningEnabled()
+	case kaguyamodelsinfo.FieldReasoningEffort:
+		return m.ReasoningEffort()
+	case kaguyamodelsinfo.FieldTokenContextWindow:
+		return m.TokenContextWindow()
+	case kaguyamodelsinfo.FieldTokenMaxOutputTokens:
+		return m.TokenMaxOutputTokens()
+	case kaguyamodelsinfo.FieldCapabilityToolUse:
+		return m.CapabilityToolUse()
+	case kaguyamodelsinfo.FieldCapabilityVision:
+		return m.CapabilityVision()
+	case kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		return m.CapabilityStructuredOutput()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KaguyaModelsInfoMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kaguyamodelsinfo.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kaguyamodelsinfo.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case kaguyamodelsinfo.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case kaguyamodelsinfo.FieldProviderID:
+		return m.OldProviderID(ctx)
+	case kaguyamodelsinfo.FieldModelName:
+		return m.OldModelName(ctx)
+	case kaguyamodelsinfo.FieldModelID:
+		return m.OldModelID(ctx)
+	case kaguyamodelsinfo.FieldIsDefault:
+		return m.OldIsDefault(ctx)
+	case kaguyamodelsinfo.FieldReasoningEnabled:
+		return m.OldReasoningEnabled(ctx)
+	case kaguyamodelsinfo.FieldReasoningEffort:
+		return m.OldReasoningEffort(ctx)
+	case kaguyamodelsinfo.FieldTokenContextWindow:
+		return m.OldTokenContextWindow(ctx)
+	case kaguyamodelsinfo.FieldTokenMaxOutputTokens:
+		return m.OldTokenMaxOutputTokens(ctx)
+	case kaguyamodelsinfo.FieldCapabilityToolUse:
+		return m.OldCapabilityToolUse(ctx)
+	case kaguyamodelsinfo.FieldCapabilityVision:
+		return m.OldCapabilityVision(ctx)
+	case kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		return m.OldCapabilityStructuredOutput(ctx)
+	}
+	return nil, fmt.Errorf("unknown KaguyaModelsInfo field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaModelsInfoMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kaguyamodelsinfo.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kaguyamodelsinfo.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case kaguyamodelsinfo.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case kaguyamodelsinfo.FieldProviderID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderID(v)
+		return nil
+	case kaguyamodelsinfo.FieldModelName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelName(v)
+		return nil
+	case kaguyamodelsinfo.FieldModelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelID(v)
+		return nil
+	case kaguyamodelsinfo.FieldIsDefault:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsDefault(v)
+		return nil
+	case kaguyamodelsinfo.FieldReasoningEnabled:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasoningEnabled(v)
+		return nil
+	case kaguyamodelsinfo.FieldReasoningEffort:
+		v, ok := value.(schema.ReasoningEffort)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasoningEffort(v)
+		return nil
+	case kaguyamodelsinfo.FieldTokenContextWindow:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenContextWindow(v)
+		return nil
+	case kaguyamodelsinfo.FieldTokenMaxOutputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenMaxOutputTokens(v)
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityToolUse:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCapabilityToolUse(v)
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityVision:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCapabilityVision(v)
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCapabilityStructuredOutput(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaModelsInfo field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KaguyaModelsInfoMutation) AddedFields() []string {
+	var fields []string
+	if m.addis_default != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldIsDefault)
+	}
+	if m.addreasoning_enabled != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
+	}
+	if m.addtoken_context_window != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldTokenContextWindow)
+	}
+	if m.addtoken_max_output_tokens != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldTokenMaxOutputTokens)
+	}
+	if m.addcapability_tool_use != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityToolUse)
+	}
+	if m.addcapability_vision != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityVision)
+	}
+	if m.addcapability_structured_output != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityStructuredOutput)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KaguyaModelsInfoMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyamodelsinfo.FieldIsDefault:
+		return m.AddedIsDefault()
+	case kaguyamodelsinfo.FieldReasoningEnabled:
+		return m.AddedReasoningEnabled()
+	case kaguyamodelsinfo.FieldTokenContextWindow:
+		return m.AddedTokenContextWindow()
+	case kaguyamodelsinfo.FieldTokenMaxOutputTokens:
+		return m.AddedTokenMaxOutputTokens()
+	case kaguyamodelsinfo.FieldCapabilityToolUse:
+		return m.AddedCapabilityToolUse()
+	case kaguyamodelsinfo.FieldCapabilityVision:
+		return m.AddedCapabilityVision()
+	case kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		return m.AddedCapabilityStructuredOutput()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaModelsInfoMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case kaguyamodelsinfo.FieldIsDefault:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddIsDefault(v)
+		return nil
+	case kaguyamodelsinfo.FieldReasoningEnabled:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReasoningEnabled(v)
+		return nil
+	case kaguyamodelsinfo.FieldTokenContextWindow:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTokenContextWindow(v)
+		return nil
+	case kaguyamodelsinfo.FieldTokenMaxOutputTokens:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTokenMaxOutputTokens(v)
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityToolUse:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCapabilityToolUse(v)
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityVision:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCapabilityVision(v)
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCapabilityStructuredOutput(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaModelsInfo numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KaguyaModelsInfoMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kaguyamodelsinfo.FieldDeletedAt) {
+		fields = append(fields, kaguyamodelsinfo.FieldDeletedAt)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldProviderID) {
+		fields = append(fields, kaguyamodelsinfo.FieldProviderID)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldModelName) {
+		fields = append(fields, kaguyamodelsinfo.FieldModelName)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldModelID) {
+		fields = append(fields, kaguyamodelsinfo.FieldModelID)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldIsDefault) {
+		fields = append(fields, kaguyamodelsinfo.FieldIsDefault)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldReasoningEnabled) {
+		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldReasoningEffort) {
+		fields = append(fields, kaguyamodelsinfo.FieldReasoningEffort)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldTokenContextWindow) {
+		fields = append(fields, kaguyamodelsinfo.FieldTokenContextWindow)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldTokenMaxOutputTokens) {
+		fields = append(fields, kaguyamodelsinfo.FieldTokenMaxOutputTokens)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldCapabilityToolUse) {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityToolUse)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldCapabilityVision) {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityVision)
+	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldCapabilityStructuredOutput) {
+		fields = append(fields, kaguyamodelsinfo.FieldCapabilityStructuredOutput)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KaguyaModelsInfoMutation) ClearField(name string) error {
+	switch name {
+	case kaguyamodelsinfo.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case kaguyamodelsinfo.FieldProviderID:
+		m.ClearProviderID()
+		return nil
+	case kaguyamodelsinfo.FieldModelName:
+		m.ClearModelName()
+		return nil
+	case kaguyamodelsinfo.FieldModelID:
+		m.ClearModelID()
+		return nil
+	case kaguyamodelsinfo.FieldIsDefault:
+		m.ClearIsDefault()
+		return nil
+	case kaguyamodelsinfo.FieldReasoningEnabled:
+		m.ClearReasoningEnabled()
+		return nil
+	case kaguyamodelsinfo.FieldReasoningEffort:
+		m.ClearReasoningEffort()
+		return nil
+	case kaguyamodelsinfo.FieldTokenContextWindow:
+		m.ClearTokenContextWindow()
+		return nil
+	case kaguyamodelsinfo.FieldTokenMaxOutputTokens:
+		m.ClearTokenMaxOutputTokens()
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityToolUse:
+		m.ClearCapabilityToolUse()
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityVision:
+		m.ClearCapabilityVision()
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		m.ClearCapabilityStructuredOutput()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaModelsInfo nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KaguyaModelsInfoMutation) ResetField(name string) error {
+	switch name {
+	case kaguyamodelsinfo.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kaguyamodelsinfo.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case kaguyamodelsinfo.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case kaguyamodelsinfo.FieldProviderID:
+		m.ResetProviderID()
+		return nil
+	case kaguyamodelsinfo.FieldModelName:
+		m.ResetModelName()
+		return nil
+	case kaguyamodelsinfo.FieldModelID:
+		m.ResetModelID()
+		return nil
+	case kaguyamodelsinfo.FieldIsDefault:
+		m.ResetIsDefault()
+		return nil
+	case kaguyamodelsinfo.FieldReasoningEnabled:
+		m.ResetReasoningEnabled()
+		return nil
+	case kaguyamodelsinfo.FieldReasoningEffort:
+		m.ResetReasoningEffort()
+		return nil
+	case kaguyamodelsinfo.FieldTokenContextWindow:
+		m.ResetTokenContextWindow()
+		return nil
+	case kaguyamodelsinfo.FieldTokenMaxOutputTokens:
+		m.ResetTokenMaxOutputTokens()
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityToolUse:
+		m.ResetCapabilityToolUse()
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityVision:
+		m.ResetCapabilityVision()
+		return nil
+	case kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		m.ResetCapabilityStructuredOutput()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaModelsInfo field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.provider != nil {
+		edges = append(edges, kaguyamodelsinfo.EdgeProvider)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case kaguyamodelsinfo.EdgeProvider:
+		if id := m.provider; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KaguyaModelsInfoMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KaguyaModelsInfoMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedprovider {
+		edges = append(edges, kaguyamodelsinfo.EdgeProvider)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) EdgeCleared(name string) bool {
+	switch name {
+	case kaguyamodelsinfo.EdgeProvider:
+		return m.clearedprovider
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KaguyaModelsInfoMutation) ClearEdge(name string) error {
+	switch name {
+	case kaguyamodelsinfo.EdgeProvider:
+		m.ClearProvider()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaModelsInfo unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KaguyaModelsInfoMutation) ResetEdge(name string) error {
+	switch name {
+	case kaguyamodelsinfo.EdgeProvider:
+		m.ResetProvider()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaModelsInfo edge %s", name)
+}
 
 // KaguyaProviderInfoMutation represents an operation that mutates the KaguyaProviderInfo nodes in the graph.
 type KaguyaProviderInfoMutation struct {
@@ -42,6 +1605,9 @@ type KaguyaProviderInfoMutation struct {
 	api_key       *string
 	base_url      *string
 	clearedFields map[string]struct{}
+	models        map[string]struct{}
+	removedmodels map[string]struct{}
+	clearedmodels bool
 	done          bool
 	oldValue      func(context.Context) (*KaguyaProviderInfo, error)
 	predicates    []predicate.KaguyaProviderInfo
@@ -468,6 +2034,60 @@ func (m *KaguyaProviderInfoMutation) ResetBaseURL() {
 	delete(m.clearedFields, kaguyaproviderinfo.FieldBaseURL)
 }
 
+// AddModelIDs adds the "models" edge to the KaguyaModelsInfo entity by ids.
+func (m *KaguyaProviderInfoMutation) AddModelIDs(ids ...string) {
+	if m.models == nil {
+		m.models = make(map[string]struct{})
+	}
+	for i := range ids {
+		m.models[ids[i]] = struct{}{}
+	}
+}
+
+// ClearModels clears the "models" edge to the KaguyaModelsInfo entity.
+func (m *KaguyaProviderInfoMutation) ClearModels() {
+	m.clearedmodels = true
+}
+
+// ModelsCleared reports if the "models" edge to the KaguyaModelsInfo entity was cleared.
+func (m *KaguyaProviderInfoMutation) ModelsCleared() bool {
+	return m.clearedmodels
+}
+
+// RemoveModelIDs removes the "models" edge to the KaguyaModelsInfo entity by IDs.
+func (m *KaguyaProviderInfoMutation) RemoveModelIDs(ids ...string) {
+	if m.removedmodels == nil {
+		m.removedmodels = make(map[string]struct{})
+	}
+	for i := range ids {
+		delete(m.models, ids[i])
+		m.removedmodels[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedModels returns the removed IDs of the "models" edge to the KaguyaModelsInfo entity.
+func (m *KaguyaProviderInfoMutation) RemovedModelsIDs() (ids []string) {
+	for id := range m.removedmodels {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ModelsIDs returns the "models" edge IDs in the mutation.
+func (m *KaguyaProviderInfoMutation) ModelsIDs() (ids []string) {
+	for id := range m.models {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetModels resets all changes to the "models" edge.
+func (m *KaguyaProviderInfoMutation) ResetModels() {
+	m.models = nil
+	m.clearedmodels = false
+	m.removedmodels = nil
+}
+
 // Where appends a list predicates to the KaguyaProviderInfoMutation builder.
 func (m *KaguyaProviderInfoMutation) Where(ps ...predicate.KaguyaProviderInfo) {
 	m.predicates = append(m.predicates, ps...)
@@ -736,48 +2356,84 @@ func (m *KaguyaProviderInfoMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *KaguyaProviderInfoMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.models != nil {
+		edges = append(edges, kaguyaproviderinfo.EdgeModels)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *KaguyaProviderInfoMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case kaguyaproviderinfo.EdgeModels:
+		ids := make([]ent.Value, 0, len(m.models))
+		for id := range m.models {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *KaguyaProviderInfoMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.removedmodels != nil {
+		edges = append(edges, kaguyaproviderinfo.EdgeModels)
+	}
 	return edges
 }
 
 // RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
 // the given name in this mutation.
 func (m *KaguyaProviderInfoMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case kaguyaproviderinfo.EdgeModels:
+		ids := make([]ent.Value, 0, len(m.removedmodels))
+		for id := range m.removedmodels {
+			ids = append(ids, id)
+		}
+		return ids
+	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *KaguyaProviderInfoMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedmodels {
+		edges = append(edges, kaguyaproviderinfo.EdgeModels)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *KaguyaProviderInfoMutation) EdgeCleared(name string) bool {
+	switch name {
+	case kaguyaproviderinfo.EdgeModels:
+		return m.clearedmodels
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *KaguyaProviderInfoMutation) ClearEdge(name string) error {
+	switch name {
+	}
 	return fmt.Errorf("unknown KaguyaProviderInfo unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *KaguyaProviderInfoMutation) ResetEdge(name string) error {
+	switch name {
+	case kaguyaproviderinfo.EdgeModels:
+		m.ResetModels()
+		return nil
+	}
 	return fmt.Errorf("unknown KaguyaProviderInfo edge %s", name)
 }

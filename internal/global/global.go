@@ -3,6 +3,7 @@ package global
 import (
 	pkgid "github.com/lyonmu/gopkg/id"
 	"github.com/lyonmu/kaguya/internal/config"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"go.uber.org/zap"
 )

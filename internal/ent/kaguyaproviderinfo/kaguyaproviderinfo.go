@@ -7,6 +7,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
@@ -29,8 +30,17 @@ const (
 	FieldAPIKey = "api_key"
 	// FieldBaseURL holds the string denoting the base_url field in the database.
 	FieldBaseURL = "base_url"
+	// EdgeModels holds the string denoting the models edge name in mutations.
+	EdgeModels = "models"
 	// Table holds the table name of the kaguyaproviderinfo in the database.
 	Table = "kaguya_provider_info"
+	// ModelsTable is the table that holds the models relation/edge.
+	ModelsTable = "kaguya_models_info"
+	// ModelsInverseTable is the table name for the KaguyaModelsInfo entity.
+	// It exists in this package in order to avoid circular dependency with the "kaguyamodelsinfo" package.
+	ModelsInverseTable = "kaguya_models_info"
+	// ModelsColumn is the table column denoting the models relation/edge.
+	ModelsColumn = "provider_id"
 )
 
 // Columns holds all SQL columns for kaguyaproviderinfo fields.
@@ -117,4 +127,25 @@ func ByAPIKey(opts ...sql.OrderTermOption) OrderOption {
 // ByBaseURL orders the results by the base_url field.
 func ByBaseURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBaseURL, opts...).ToFunc()
+}
+
+// ByModelsCount orders the results by models count.
+func ByModelsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newModelsStep(), opts...)
+	}
+}
+
+// ByModels orders the results by models terms.
+func ByModels(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newModelsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newModelsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ModelsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, ModelsTable, ModelsColumn),
+	)
 }

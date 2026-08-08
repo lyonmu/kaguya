@@ -9,6 +9,66 @@ import (
 )
 
 var (
+	// KaguyaModelsInfoColumns holds the columns for the "kaguya_models_info" table.
+	KaguyaModelsInfoColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "model_name", Type: field.TypeString, Nullable: true, Comment: "模型显示名称"},
+		{Name: "model_id", Type: field.TypeString, Nullable: true, Comment: "调用 API 时使用的模型标识符"},
+		{Name: "is_default", Type: field.TypeInt, Nullable: true, Comment: "是否为该提供方下的默认模型", Default: 1},
+		{Name: "reasoning_enabled", Type: field.TypeInt, Nullable: true, Comment: "是否启用思考模式", Default: 1},
+		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true, Comment: "思考努力程度，影响推理深度和响应速度", Default: "medium"},
+		{Name: "token_context_window", Type: field.TypeInt, Nullable: true, Comment: "模型支持的最大上下文窗口大小（token 数）"},
+		{Name: "token_max_output_tokens", Type: field.TypeInt, Nullable: true, Comment: "模型单次生成的最大输出 token 数"},
+		{Name: "capability_tool_use", Type: field.TypeInt, Nullable: true, Comment: "是否支持工具调用（function calling）", Default: 1},
+		{Name: "capability_vision", Type: field.TypeInt, Nullable: true, Comment: "是否支持图像理解", Default: 1},
+		{Name: "capability_structured_output", Type: field.TypeInt, Nullable: true, Comment: "是否支持结构化输出（如 JSON schema 约束）", Default: 1},
+		{Name: "provider_id", Type: field.TypeString, Nullable: true, Size: 64, Comment: "提供商id"},
+	}
+	// KaguyaModelsInfoTable holds the schema information for the "kaguya_models_info" table.
+	KaguyaModelsInfoTable = &schema.Table{
+		Name:       "kaguya_models_info",
+		Comment:    "模型信息表",
+		Columns:    KaguyaModelsInfoColumns,
+		PrimaryKey: []*schema.Column{KaguyaModelsInfoColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "kaguya_models_info_kaguya_provider_info_models",
+				Columns:    []*schema.Column{KaguyaModelsInfoColumns[14]},
+				RefColumns: []*schema.Column{KaguyaProviderInfoColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamodelsinfo_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[1]},
+			},
+			{
+				Name:    "kaguyamodelsinfo_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[2]},
+			},
+			{
+				Name:    "kaguyamodelsinfo_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[3]},
+			},
+			{
+				Name:    "kaguyamodelsinfo_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[0]},
+			},
+			{
+				Name:    "kaguyamodelsinfo_provider_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[14]},
+			},
+		},
+	}
 	// KaguyaProviderInfoColumns holds the columns for the "kaguya_provider_info" table.
 	KaguyaProviderInfoColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
@@ -47,15 +107,32 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{KaguyaProviderInfoColumns[0]},
 			},
+			{
+				Name:    "kaguyaproviderinfo_provider_name",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaProviderInfoColumns[4]},
+			},
+			{
+				Name:    "kaguyaproviderinfo_api_protocol",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaProviderInfoColumns[5]},
+			},
 		},
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		KaguyaModelsInfoTable,
 		KaguyaProviderInfoTable,
 	}
 )
 
 func init() {
+	KaguyaModelsInfoTable.ForeignKeys[0].RefTable = KaguyaProviderInfoTable
+	KaguyaModelsInfoTable.Annotation = &entsql.Annotation{
+		Table:     "kaguya_models_info",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	}
 	KaguyaProviderInfoTable.Annotation = &entsql.Annotation{
 		Table:     "kaguya_provider_info",
 		Charset:   "utf8mb4",

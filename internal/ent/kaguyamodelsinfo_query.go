@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -17,54 +16,54 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 )
 
-// KaguyaProviderInfoQuery is the builder for querying KaguyaProviderInfo entities.
-type KaguyaProviderInfoQuery struct {
+// KaguyaModelsInfoQuery is the builder for querying KaguyaModelsInfo entities.
+type KaguyaModelsInfoQuery struct {
 	config
-	ctx        *QueryContext
-	order      []kaguyaproviderinfo.OrderOption
-	inters     []Interceptor
-	predicates []predicate.KaguyaProviderInfo
-	withModels *KaguyaModelsInfoQuery
-	modifiers  []func(*sql.Selector)
+	ctx          *QueryContext
+	order        []kaguyamodelsinfo.OrderOption
+	inters       []Interceptor
+	predicates   []predicate.KaguyaModelsInfo
+	withProvider *KaguyaProviderInfoQuery
+	modifiers    []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
 }
 
-// Where adds a new predicate for the KaguyaProviderInfoQuery builder.
-func (_q *KaguyaProviderInfoQuery) Where(ps ...predicate.KaguyaProviderInfo) *KaguyaProviderInfoQuery {
+// Where adds a new predicate for the KaguyaModelsInfoQuery builder.
+func (_q *KaguyaModelsInfoQuery) Where(ps ...predicate.KaguyaModelsInfo) *KaguyaModelsInfoQuery {
 	_q.predicates = append(_q.predicates, ps...)
 	return _q
 }
 
 // Limit the number of records to be returned by this query.
-func (_q *KaguyaProviderInfoQuery) Limit(limit int) *KaguyaProviderInfoQuery {
+func (_q *KaguyaModelsInfoQuery) Limit(limit int) *KaguyaModelsInfoQuery {
 	_q.ctx.Limit = &limit
 	return _q
 }
 
 // Offset to start from.
-func (_q *KaguyaProviderInfoQuery) Offset(offset int) *KaguyaProviderInfoQuery {
+func (_q *KaguyaModelsInfoQuery) Offset(offset int) *KaguyaModelsInfoQuery {
 	_q.ctx.Offset = &offset
 	return _q
 }
 
 // Unique configures the query builder to filter duplicate records on query.
 // By default, unique is set to true, and can be disabled using this method.
-func (_q *KaguyaProviderInfoQuery) Unique(unique bool) *KaguyaProviderInfoQuery {
+func (_q *KaguyaModelsInfoQuery) Unique(unique bool) *KaguyaModelsInfoQuery {
 	_q.ctx.Unique = &unique
 	return _q
 }
 
 // Order specifies how the records should be ordered.
-func (_q *KaguyaProviderInfoQuery) Order(o ...kaguyaproviderinfo.OrderOption) *KaguyaProviderInfoQuery {
+func (_q *KaguyaModelsInfoQuery) Order(o ...kaguyamodelsinfo.OrderOption) *KaguyaModelsInfoQuery {
 	_q.order = append(_q.order, o...)
 	return _q
 }
 
-// QueryModels chains the current query on the "models" edge.
-func (_q *KaguyaProviderInfoQuery) QueryModels() *KaguyaModelsInfoQuery {
-	query := (&KaguyaModelsInfoClient{config: _q.config}).Query()
+// QueryProvider chains the current query on the "provider" edge.
+func (_q *KaguyaModelsInfoQuery) QueryProvider() *KaguyaProviderInfoQuery {
+	query := (&KaguyaProviderInfoClient{config: _q.config}).Query()
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := _q.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -74,9 +73,9 @@ func (_q *KaguyaProviderInfoQuery) QueryModels() *KaguyaModelsInfoQuery {
 			return nil, err
 		}
 		step := sqlgraph.NewStep(
-			sqlgraph.From(kaguyaproviderinfo.Table, kaguyaproviderinfo.FieldID, selector),
-			sqlgraph.To(kaguyamodelsinfo.Table, kaguyamodelsinfo.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, kaguyaproviderinfo.ModelsTable, kaguyaproviderinfo.ModelsColumn),
+			sqlgraph.From(kaguyamodelsinfo.Table, kaguyamodelsinfo.FieldID, selector),
+			sqlgraph.To(kaguyaproviderinfo.Table, kaguyaproviderinfo.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, kaguyamodelsinfo.ProviderTable, kaguyamodelsinfo.ProviderColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -84,21 +83,21 @@ func (_q *KaguyaProviderInfoQuery) QueryModels() *KaguyaModelsInfoQuery {
 	return query
 }
 
-// First returns the first KaguyaProviderInfo entity from the query.
-// Returns a *NotFoundError when no KaguyaProviderInfo was found.
-func (_q *KaguyaProviderInfoQuery) First(ctx context.Context) (*KaguyaProviderInfo, error) {
+// First returns the first KaguyaModelsInfo entity from the query.
+// Returns a *NotFoundError when no KaguyaModelsInfo was found.
+func (_q *KaguyaModelsInfoQuery) First(ctx context.Context) (*KaguyaModelsInfo, error) {
 	nodes, err := _q.Limit(1).All(setContextOp(ctx, _q.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
 	if len(nodes) == 0 {
-		return nil, &NotFoundError{kaguyaproviderinfo.Label}
+		return nil, &NotFoundError{kaguyamodelsinfo.Label}
 	}
 	return nodes[0], nil
 }
 
 // FirstX is like First, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) FirstX(ctx context.Context) *KaguyaProviderInfo {
+func (_q *KaguyaModelsInfoQuery) FirstX(ctx context.Context) *KaguyaModelsInfo {
 	node, err := _q.First(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -106,22 +105,22 @@ func (_q *KaguyaProviderInfoQuery) FirstX(ctx context.Context) *KaguyaProviderIn
 	return node
 }
 
-// FirstID returns the first KaguyaProviderInfo ID from the query.
-// Returns a *NotFoundError when no KaguyaProviderInfo ID was found.
-func (_q *KaguyaProviderInfoQuery) FirstID(ctx context.Context) (id string, err error) {
+// FirstID returns the first KaguyaModelsInfo ID from the query.
+// Returns a *NotFoundError when no KaguyaModelsInfo ID was found.
+func (_q *KaguyaModelsInfoQuery) FirstID(ctx context.Context) (id string, err error) {
 	var ids []string
 	if ids, err = _q.Limit(1).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
-		err = &NotFoundError{kaguyaproviderinfo.Label}
+		err = &NotFoundError{kaguyamodelsinfo.Label}
 		return
 	}
 	return ids[0], nil
 }
 
 // FirstIDX is like FirstID, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) FirstIDX(ctx context.Context) string {
+func (_q *KaguyaModelsInfoQuery) FirstIDX(ctx context.Context) string {
 	id, err := _q.FirstID(ctx)
 	if err != nil && !IsNotFound(err) {
 		panic(err)
@@ -129,10 +128,10 @@ func (_q *KaguyaProviderInfoQuery) FirstIDX(ctx context.Context) string {
 	return id
 }
 
-// Only returns a single KaguyaProviderInfo entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when more than one KaguyaProviderInfo entity is found.
-// Returns a *NotFoundError when no KaguyaProviderInfo entities are found.
-func (_q *KaguyaProviderInfoQuery) Only(ctx context.Context) (*KaguyaProviderInfo, error) {
+// Only returns a single KaguyaModelsInfo entity found by the query, ensuring it only returns one.
+// Returns a *NotSingularError when more than one KaguyaModelsInfo entity is found.
+// Returns a *NotFoundError when no KaguyaModelsInfo entities are found.
+func (_q *KaguyaModelsInfoQuery) Only(ctx context.Context) (*KaguyaModelsInfo, error) {
 	nodes, err := _q.Limit(2).All(setContextOp(ctx, _q.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
@@ -141,14 +140,14 @@ func (_q *KaguyaProviderInfoQuery) Only(ctx context.Context) (*KaguyaProviderInf
 	case 1:
 		return nodes[0], nil
 	case 0:
-		return nil, &NotFoundError{kaguyaproviderinfo.Label}
+		return nil, &NotFoundError{kaguyamodelsinfo.Label}
 	default:
-		return nil, &NotSingularError{kaguyaproviderinfo.Label}
+		return nil, &NotSingularError{kaguyamodelsinfo.Label}
 	}
 }
 
 // OnlyX is like Only, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) OnlyX(ctx context.Context) *KaguyaProviderInfo {
+func (_q *KaguyaModelsInfoQuery) OnlyX(ctx context.Context) *KaguyaModelsInfo {
 	node, err := _q.Only(ctx)
 	if err != nil {
 		panic(err)
@@ -156,10 +155,10 @@ func (_q *KaguyaProviderInfoQuery) OnlyX(ctx context.Context) *KaguyaProviderInf
 	return node
 }
 
-// OnlyID is like Only, but returns the only KaguyaProviderInfo ID in the query.
-// Returns a *NotSingularError when more than one KaguyaProviderInfo ID is found.
+// OnlyID is like Only, but returns the only KaguyaModelsInfo ID in the query.
+// Returns a *NotSingularError when more than one KaguyaModelsInfo ID is found.
 // Returns a *NotFoundError when no entities are found.
-func (_q *KaguyaProviderInfoQuery) OnlyID(ctx context.Context) (id string, err error) {
+func (_q *KaguyaModelsInfoQuery) OnlyID(ctx context.Context) (id string, err error) {
 	var ids []string
 	if ids, err = _q.Limit(2).IDs(setContextOp(ctx, _q.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
@@ -168,15 +167,15 @@ func (_q *KaguyaProviderInfoQuery) OnlyID(ctx context.Context) (id string, err e
 	case 1:
 		id = ids[0]
 	case 0:
-		err = &NotFoundError{kaguyaproviderinfo.Label}
+		err = &NotFoundError{kaguyamodelsinfo.Label}
 	default:
-		err = &NotSingularError{kaguyaproviderinfo.Label}
+		err = &NotSingularError{kaguyamodelsinfo.Label}
 	}
 	return
 }
 
 // OnlyIDX is like OnlyID, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) OnlyIDX(ctx context.Context) string {
+func (_q *KaguyaModelsInfoQuery) OnlyIDX(ctx context.Context) string {
 	id, err := _q.OnlyID(ctx)
 	if err != nil {
 		panic(err)
@@ -184,18 +183,18 @@ func (_q *KaguyaProviderInfoQuery) OnlyIDX(ctx context.Context) string {
 	return id
 }
 
-// All executes the query and returns a list of KaguyaProviderInfos.
-func (_q *KaguyaProviderInfoQuery) All(ctx context.Context) ([]*KaguyaProviderInfo, error) {
+// All executes the query and returns a list of KaguyaModelsInfos.
+func (_q *KaguyaModelsInfoQuery) All(ctx context.Context) ([]*KaguyaModelsInfo, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryAll)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
-	qr := querierAll[[]*KaguyaProviderInfo, *KaguyaProviderInfoQuery]()
-	return withInterceptors[[]*KaguyaProviderInfo](ctx, _q, qr, _q.inters)
+	qr := querierAll[[]*KaguyaModelsInfo, *KaguyaModelsInfoQuery]()
+	return withInterceptors[[]*KaguyaModelsInfo](ctx, _q, qr, _q.inters)
 }
 
 // AllX is like All, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) AllX(ctx context.Context) []*KaguyaProviderInfo {
+func (_q *KaguyaModelsInfoQuery) AllX(ctx context.Context) []*KaguyaModelsInfo {
 	nodes, err := _q.All(ctx)
 	if err != nil {
 		panic(err)
@@ -203,20 +202,20 @@ func (_q *KaguyaProviderInfoQuery) AllX(ctx context.Context) []*KaguyaProviderIn
 	return nodes
 }
 
-// IDs executes the query and returns a list of KaguyaProviderInfo IDs.
-func (_q *KaguyaProviderInfoQuery) IDs(ctx context.Context) (ids []string, err error) {
+// IDs executes the query and returns a list of KaguyaModelsInfo IDs.
+func (_q *KaguyaModelsInfoQuery) IDs(ctx context.Context) (ids []string, err error) {
 	if _q.ctx.Unique == nil && _q.path != nil {
 		_q.Unique(true)
 	}
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryIDs)
-	if err = _q.Select(kaguyaproviderinfo.FieldID).Scan(ctx, &ids); err != nil {
+	if err = _q.Select(kaguyamodelsinfo.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
 }
 
 // IDsX is like IDs, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) IDsX(ctx context.Context) []string {
+func (_q *KaguyaModelsInfoQuery) IDsX(ctx context.Context) []string {
 	ids, err := _q.IDs(ctx)
 	if err != nil {
 		panic(err)
@@ -225,16 +224,16 @@ func (_q *KaguyaProviderInfoQuery) IDsX(ctx context.Context) []string {
 }
 
 // Count returns the count of the given query.
-func (_q *KaguyaProviderInfoQuery) Count(ctx context.Context) (int, error) {
+func (_q *KaguyaModelsInfoQuery) Count(ctx context.Context) (int, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryCount)
 	if err := _q.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
-	return withInterceptors[int](ctx, _q, querierCount[*KaguyaProviderInfoQuery](), _q.inters)
+	return withInterceptors[int](ctx, _q, querierCount[*KaguyaModelsInfoQuery](), _q.inters)
 }
 
 // CountX is like Count, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) CountX(ctx context.Context) int {
+func (_q *KaguyaModelsInfoQuery) CountX(ctx context.Context) int {
 	count, err := _q.Count(ctx)
 	if err != nil {
 		panic(err)
@@ -243,7 +242,7 @@ func (_q *KaguyaProviderInfoQuery) CountX(ctx context.Context) int {
 }
 
 // Exist returns true if the query has elements in the graph.
-func (_q *KaguyaProviderInfoQuery) Exist(ctx context.Context) (bool, error) {
+func (_q *KaguyaModelsInfoQuery) Exist(ctx context.Context) (bool, error) {
 	ctx = setContextOp(ctx, _q.ctx, ent.OpQueryExist)
 	switch _, err := _q.FirstID(ctx); {
 	case IsNotFound(err):
@@ -256,7 +255,7 @@ func (_q *KaguyaProviderInfoQuery) Exist(ctx context.Context) (bool, error) {
 }
 
 // ExistX is like Exist, but panics if an error occurs.
-func (_q *KaguyaProviderInfoQuery) ExistX(ctx context.Context) bool {
+func (_q *KaguyaModelsInfoQuery) ExistX(ctx context.Context) bool {
 	exist, err := _q.Exist(ctx)
 	if err != nil {
 		panic(err)
@@ -264,19 +263,19 @@ func (_q *KaguyaProviderInfoQuery) ExistX(ctx context.Context) bool {
 	return exist
 }
 
-// Clone returns a duplicate of the KaguyaProviderInfoQuery builder, including all associated steps. It can be
+// Clone returns a duplicate of the KaguyaModelsInfoQuery builder, including all associated steps. It can be
 // used to prepare common query builders and use them differently after the clone is made.
-func (_q *KaguyaProviderInfoQuery) Clone() *KaguyaProviderInfoQuery {
+func (_q *KaguyaModelsInfoQuery) Clone() *KaguyaModelsInfoQuery {
 	if _q == nil {
 		return nil
 	}
-	return &KaguyaProviderInfoQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]kaguyaproviderinfo.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.KaguyaProviderInfo{}, _q.predicates...),
-		withModels: _q.withModels.Clone(),
+	return &KaguyaModelsInfoQuery{
+		config:       _q.config,
+		ctx:          _q.ctx.Clone(),
+		order:        append([]kaguyamodelsinfo.OrderOption{}, _q.order...),
+		inters:       append([]Interceptor{}, _q.inters...),
+		predicates:   append([]predicate.KaguyaModelsInfo{}, _q.predicates...),
+		withProvider: _q.withProvider.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -284,14 +283,14 @@ func (_q *KaguyaProviderInfoQuery) Clone() *KaguyaProviderInfoQuery {
 	}
 }
 
-// WithModels tells the query-builder to eager-load the nodes that are connected to
-// the "models" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *KaguyaProviderInfoQuery) WithModels(opts ...func(*KaguyaModelsInfoQuery)) *KaguyaProviderInfoQuery {
-	query := (&KaguyaModelsInfoClient{config: _q.config}).Query()
+// WithProvider tells the query-builder to eager-load the nodes that are connected to
+// the "provider" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *KaguyaModelsInfoQuery) WithProvider(opts ...func(*KaguyaProviderInfoQuery)) *KaguyaModelsInfoQuery {
+	query := (&KaguyaProviderInfoClient{config: _q.config}).Query()
 	for _, opt := range opts {
 		opt(query)
 	}
-	_q.withModels = query
+	_q.withProvider = query
 	return _q
 }
 
@@ -305,15 +304,15 @@ func (_q *KaguyaProviderInfoQuery) WithModels(opts ...func(*KaguyaModelsInfoQuer
 //		Count int `json:"count,omitempty"`
 //	}
 //
-//	client.KaguyaProviderInfo.Query().
-//		GroupBy(kaguyaproviderinfo.FieldCreatedAt).
+//	client.KaguyaModelsInfo.Query().
+//		GroupBy(kaguyamodelsinfo.FieldCreatedAt).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
-func (_q *KaguyaProviderInfoQuery) GroupBy(field string, fields ...string) *KaguyaProviderInfoGroupBy {
+func (_q *KaguyaModelsInfoQuery) GroupBy(field string, fields ...string) *KaguyaModelsInfoGroupBy {
 	_q.ctx.Fields = append([]string{field}, fields...)
-	grbuild := &KaguyaProviderInfoGroupBy{build: _q}
+	grbuild := &KaguyaModelsInfoGroupBy{build: _q}
 	grbuild.flds = &_q.ctx.Fields
-	grbuild.label = kaguyaproviderinfo.Label
+	grbuild.label = kaguyamodelsinfo.Label
 	grbuild.scan = grbuild.Scan
 	return grbuild
 }
@@ -327,23 +326,23 @@ func (_q *KaguyaProviderInfoQuery) GroupBy(field string, fields ...string) *Kagu
 //		CreatedAt time.Time `json:"created_at,omitempty"`
 //	}
 //
-//	client.KaguyaProviderInfo.Query().
-//		Select(kaguyaproviderinfo.FieldCreatedAt).
+//	client.KaguyaModelsInfo.Query().
+//		Select(kaguyamodelsinfo.FieldCreatedAt).
 //		Scan(ctx, &v)
-func (_q *KaguyaProviderInfoQuery) Select(fields ...string) *KaguyaProviderInfoSelect {
+func (_q *KaguyaModelsInfoQuery) Select(fields ...string) *KaguyaModelsInfoSelect {
 	_q.ctx.Fields = append(_q.ctx.Fields, fields...)
-	sbuild := &KaguyaProviderInfoSelect{KaguyaProviderInfoQuery: _q}
-	sbuild.label = kaguyaproviderinfo.Label
+	sbuild := &KaguyaModelsInfoSelect{KaguyaModelsInfoQuery: _q}
+	sbuild.label = kaguyamodelsinfo.Label
 	sbuild.flds, sbuild.scan = &_q.ctx.Fields, sbuild.Scan
 	return sbuild
 }
 
-// Aggregate returns a KaguyaProviderInfoSelect configured with the given aggregations.
-func (_q *KaguyaProviderInfoQuery) Aggregate(fns ...AggregateFunc) *KaguyaProviderInfoSelect {
+// Aggregate returns a KaguyaModelsInfoSelect configured with the given aggregations.
+func (_q *KaguyaModelsInfoQuery) Aggregate(fns ...AggregateFunc) *KaguyaModelsInfoSelect {
 	return _q.Select().Aggregate(fns...)
 }
 
-func (_q *KaguyaProviderInfoQuery) prepareQuery(ctx context.Context) error {
+func (_q *KaguyaModelsInfoQuery) prepareQuery(ctx context.Context) error {
 	for _, inter := range _q.inters {
 		if inter == nil {
 			return fmt.Errorf("ent: uninitialized interceptor (forgotten import ent/runtime?)")
@@ -355,7 +354,7 @@ func (_q *KaguyaProviderInfoQuery) prepareQuery(ctx context.Context) error {
 		}
 	}
 	for _, f := range _q.ctx.Fields {
-		if !kaguyaproviderinfo.ValidColumn(f) {
+		if !kaguyamodelsinfo.ValidColumn(f) {
 			return &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
 		}
 	}
@@ -369,19 +368,19 @@ func (_q *KaguyaProviderInfoQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (_q *KaguyaProviderInfoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*KaguyaProviderInfo, error) {
+func (_q *KaguyaModelsInfoQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*KaguyaModelsInfo, error) {
 	var (
-		nodes       = []*KaguyaProviderInfo{}
+		nodes       = []*KaguyaModelsInfo{}
 		_spec       = _q.querySpec()
 		loadedTypes = [1]bool{
-			_q.withModels != nil,
+			_q.withProvider != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
-		return (*KaguyaProviderInfo).scanValues(nil, columns)
+		return (*KaguyaModelsInfo).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []any) error {
-		node := &KaguyaProviderInfo{config: _q.config}
+		node := &KaguyaModelsInfo{config: _q.config}
 		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
@@ -398,48 +397,46 @@ func (_q *KaguyaProviderInfoQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withModels; query != nil {
-		if err := _q.loadModels(ctx, query, nodes,
-			func(n *KaguyaProviderInfo) { n.Edges.Models = []*KaguyaModelsInfo{} },
-			func(n *KaguyaProviderInfo, e *KaguyaModelsInfo) { n.Edges.Models = append(n.Edges.Models, e) }); err != nil {
+	if query := _q.withProvider; query != nil {
+		if err := _q.loadProvider(ctx, query, nodes, nil,
+			func(n *KaguyaModelsInfo, e *KaguyaProviderInfo) { n.Edges.Provider = e }); err != nil {
 			return nil, err
 		}
 	}
 	return nodes, nil
 }
 
-func (_q *KaguyaProviderInfoQuery) loadModels(ctx context.Context, query *KaguyaModelsInfoQuery, nodes []*KaguyaProviderInfo, init func(*KaguyaProviderInfo), assign func(*KaguyaProviderInfo, *KaguyaModelsInfo)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[string]*KaguyaProviderInfo)
+func (_q *KaguyaModelsInfoQuery) loadProvider(ctx context.Context, query *KaguyaProviderInfoQuery, nodes []*KaguyaModelsInfo, init func(*KaguyaModelsInfo), assign func(*KaguyaModelsInfo, *KaguyaProviderInfo)) error {
+	ids := make([]string, 0, len(nodes))
+	nodeids := make(map[string][]*KaguyaModelsInfo)
 	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
+		fk := nodes[i].ProviderID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
 		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
 	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(kaguyamodelsinfo.FieldProviderID)
+	if len(ids) == 0 {
+		return nil
 	}
-	query.Where(predicate.KaguyaModelsInfo(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(kaguyaproviderinfo.ModelsColumn), fks...))
-	}))
+	query.Where(kaguyaproviderinfo.IDIn(ids...))
 	neighbors, err := query.All(ctx)
 	if err != nil {
 		return err
 	}
 	for _, n := range neighbors {
-		fk := n.ProviderID
-		node, ok := nodeids[fk]
+		nodes, ok := nodeids[n.ID]
 		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "provider_id" returned %v for node %v`, fk, n.ID)
+			return fmt.Errorf(`unexpected foreign-key "provider_id" returned %v`, n.ID)
 		}
-		assign(node, n)
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
 	}
 	return nil
 }
 
-func (_q *KaguyaProviderInfoQuery) sqlCount(ctx context.Context) (int, error) {
+func (_q *KaguyaModelsInfoQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
 	if len(_q.modifiers) > 0 {
 		_spec.Modifiers = _q.modifiers
@@ -451,8 +448,8 @@ func (_q *KaguyaProviderInfoQuery) sqlCount(ctx context.Context) (int, error) {
 	return sqlgraph.CountNodes(ctx, _q.driver, _spec)
 }
 
-func (_q *KaguyaProviderInfoQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := sqlgraph.NewQuerySpec(kaguyaproviderinfo.Table, kaguyaproviderinfo.Columns, sqlgraph.NewFieldSpec(kaguyaproviderinfo.FieldID, field.TypeString))
+func (_q *KaguyaModelsInfoQuery) querySpec() *sqlgraph.QuerySpec {
+	_spec := sqlgraph.NewQuerySpec(kaguyamodelsinfo.Table, kaguyamodelsinfo.Columns, sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString))
 	_spec.From = _q.sql
 	if unique := _q.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
@@ -461,11 +458,14 @@ func (_q *KaguyaProviderInfoQuery) querySpec() *sqlgraph.QuerySpec {
 	}
 	if fields := _q.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
-		_spec.Node.Columns = append(_spec.Node.Columns, kaguyaproviderinfo.FieldID)
+		_spec.Node.Columns = append(_spec.Node.Columns, kaguyamodelsinfo.FieldID)
 		for i := range fields {
-			if fields[i] != kaguyaproviderinfo.FieldID {
+			if fields[i] != kaguyamodelsinfo.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withProvider != nil {
+			_spec.Node.AddColumnOnce(kaguyamodelsinfo.FieldProviderID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {
@@ -491,12 +491,12 @@ func (_q *KaguyaProviderInfoQuery) querySpec() *sqlgraph.QuerySpec {
 	return _spec
 }
 
-func (_q *KaguyaProviderInfoQuery) sqlQuery(ctx context.Context) *sql.Selector {
+func (_q *KaguyaModelsInfoQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(_q.driver.Dialect())
-	t1 := builder.Table(kaguyaproviderinfo.Table)
+	t1 := builder.Table(kaguyamodelsinfo.Table)
 	columns := _q.ctx.Fields
 	if len(columns) == 0 {
-		columns = kaguyaproviderinfo.Columns
+		columns = kaguyamodelsinfo.Columns
 	}
 	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if _q.sql != nil {
@@ -527,33 +527,33 @@ func (_q *KaguyaProviderInfoQuery) sqlQuery(ctx context.Context) *sql.Selector {
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
-func (_q *KaguyaProviderInfoQuery) Modify(modifiers ...func(s *sql.Selector)) *KaguyaProviderInfoSelect {
+func (_q *KaguyaModelsInfoQuery) Modify(modifiers ...func(s *sql.Selector)) *KaguyaModelsInfoSelect {
 	_q.modifiers = append(_q.modifiers, modifiers...)
 	return _q.Select()
 }
 
-// KaguyaProviderInfoGroupBy is the group-by builder for KaguyaProviderInfo entities.
-type KaguyaProviderInfoGroupBy struct {
+// KaguyaModelsInfoGroupBy is the group-by builder for KaguyaModelsInfo entities.
+type KaguyaModelsInfoGroupBy struct {
 	selector
-	build *KaguyaProviderInfoQuery
+	build *KaguyaModelsInfoQuery
 }
 
 // Aggregate adds the given aggregation functions to the group-by query.
-func (_g *KaguyaProviderInfoGroupBy) Aggregate(fns ...AggregateFunc) *KaguyaProviderInfoGroupBy {
+func (_g *KaguyaModelsInfoGroupBy) Aggregate(fns ...AggregateFunc) *KaguyaModelsInfoGroupBy {
 	_g.fns = append(_g.fns, fns...)
 	return _g
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_g *KaguyaProviderInfoGroupBy) Scan(ctx context.Context, v any) error {
+func (_g *KaguyaModelsInfoGroupBy) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _g.build.ctx, ent.OpQueryGroupBy)
 	if err := _g.build.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*KaguyaProviderInfoQuery, *KaguyaProviderInfoGroupBy](ctx, _g.build, _g, _g.build.inters, v)
+	return scanWithInterceptors[*KaguyaModelsInfoQuery, *KaguyaModelsInfoGroupBy](ctx, _g.build, _g, _g.build.inters, v)
 }
 
-func (_g *KaguyaProviderInfoGroupBy) sqlScan(ctx context.Context, root *KaguyaProviderInfoQuery, v any) error {
+func (_g *KaguyaModelsInfoGroupBy) sqlScan(ctx context.Context, root *KaguyaModelsInfoQuery, v any) error {
 	selector := root.sqlQuery(ctx).Select()
 	aggregation := make([]string, 0, len(_g.fns))
 	for _, fn := range _g.fns {
@@ -580,28 +580,28 @@ func (_g *KaguyaProviderInfoGroupBy) sqlScan(ctx context.Context, root *KaguyaPr
 	return sql.ScanSlice(rows, v)
 }
 
-// KaguyaProviderInfoSelect is the builder for selecting fields of KaguyaProviderInfo entities.
-type KaguyaProviderInfoSelect struct {
-	*KaguyaProviderInfoQuery
+// KaguyaModelsInfoSelect is the builder for selecting fields of KaguyaModelsInfo entities.
+type KaguyaModelsInfoSelect struct {
+	*KaguyaModelsInfoQuery
 	selector
 }
 
 // Aggregate adds the given aggregation functions to the selector query.
-func (_s *KaguyaProviderInfoSelect) Aggregate(fns ...AggregateFunc) *KaguyaProviderInfoSelect {
+func (_s *KaguyaModelsInfoSelect) Aggregate(fns ...AggregateFunc) *KaguyaModelsInfoSelect {
 	_s.fns = append(_s.fns, fns...)
 	return _s
 }
 
 // Scan applies the selector query and scans the result into the given value.
-func (_s *KaguyaProviderInfoSelect) Scan(ctx context.Context, v any) error {
+func (_s *KaguyaModelsInfoSelect) Scan(ctx context.Context, v any) error {
 	ctx = setContextOp(ctx, _s.ctx, ent.OpQuerySelect)
 	if err := _s.prepareQuery(ctx); err != nil {
 		return err
 	}
-	return scanWithInterceptors[*KaguyaProviderInfoQuery, *KaguyaProviderInfoSelect](ctx, _s.KaguyaProviderInfoQuery, _s, _s.inters, v)
+	return scanWithInterceptors[*KaguyaModelsInfoQuery, *KaguyaModelsInfoSelect](ctx, _s.KaguyaModelsInfoQuery, _s, _s.inters, v)
 }
 
-func (_s *KaguyaProviderInfoSelect) sqlScan(ctx context.Context, root *KaguyaProviderInfoQuery, v any) error {
+func (_s *KaguyaModelsInfoSelect) sqlScan(ctx context.Context, root *KaguyaModelsInfoQuery, v any) error {
 	selector := root.sqlQuery(ctx)
 	aggregation := make([]string, 0, len(_s.fns))
 	for _, fn := range _s.fns {
@@ -623,7 +623,7 @@ func (_s *KaguyaProviderInfoSelect) sqlScan(ctx context.Context, root *KaguyaPro
 }
 
 // Modify adds a query modifier for attaching custom logic to queries.
-func (_s *KaguyaProviderInfoSelect) Modify(modifiers ...func(s *sql.Selector)) *KaguyaProviderInfoSelect {
+func (_s *KaguyaModelsInfoSelect) Modify(modifiers ...func(s *sql.Selector)) *KaguyaModelsInfoSelect {
 	_s.modifiers = append(_s.modifiers, modifiers...)
 	return _s
 }

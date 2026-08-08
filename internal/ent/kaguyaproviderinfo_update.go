@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
@@ -136,9 +137,45 @@ func (_u *KaguyaProviderInfoUpdate) ClearBaseURL() *KaguyaProviderInfoUpdate {
 	return _u
 }
 
+// AddModelIDs adds the "models" edge to the KaguyaModelsInfo entity by IDs.
+func (_u *KaguyaProviderInfoUpdate) AddModelIDs(ids ...string) *KaguyaProviderInfoUpdate {
+	_u.mutation.AddModelIDs(ids...)
+	return _u
+}
+
+// AddModels adds the "models" edges to the KaguyaModelsInfo entity.
+func (_u *KaguyaProviderInfoUpdate) AddModels(v ...*KaguyaModelsInfo) *KaguyaProviderInfoUpdate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddModelIDs(ids...)
+}
+
 // Mutation returns the KaguyaProviderInfoMutation object of the builder.
 func (_u *KaguyaProviderInfoUpdate) Mutation() *KaguyaProviderInfoMutation {
 	return _u.mutation
+}
+
+// ClearModels clears all "models" edges to the KaguyaModelsInfo entity.
+func (_u *KaguyaProviderInfoUpdate) ClearModels() *KaguyaProviderInfoUpdate {
+	_u.mutation.ClearModels()
+	return _u
+}
+
+// RemoveModelIDs removes the "models" edge to KaguyaModelsInfo entities by IDs.
+func (_u *KaguyaProviderInfoUpdate) RemoveModelIDs(ids ...string) *KaguyaProviderInfoUpdate {
+	_u.mutation.RemoveModelIDs(ids...)
+	return _u
+}
+
+// RemoveModels removes "models" edges to KaguyaModelsInfo entities.
+func (_u *KaguyaProviderInfoUpdate) RemoveModels(v ...*KaguyaModelsInfo) *KaguyaProviderInfoUpdate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveModelIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -230,6 +267,51 @@ func (_u *KaguyaProviderInfoUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if _u.mutation.BaseURLCleared() {
 		_spec.ClearField(kaguyaproviderinfo.FieldBaseURL, field.TypeString)
+	}
+	if _u.mutation.ModelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaproviderinfo.ModelsTable,
+			Columns: []string{kaguyaproviderinfo.ModelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedModelsIDs(); len(nodes) > 0 && !_u.mutation.ModelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaproviderinfo.ModelsTable,
+			Columns: []string{kaguyaproviderinfo.ModelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ModelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaproviderinfo.ModelsTable,
+			Columns: []string{kaguyaproviderinfo.ModelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -359,9 +441,45 @@ func (_u *KaguyaProviderInfoUpdateOne) ClearBaseURL() *KaguyaProviderInfoUpdateO
 	return _u
 }
 
+// AddModelIDs adds the "models" edge to the KaguyaModelsInfo entity by IDs.
+func (_u *KaguyaProviderInfoUpdateOne) AddModelIDs(ids ...string) *KaguyaProviderInfoUpdateOne {
+	_u.mutation.AddModelIDs(ids...)
+	return _u
+}
+
+// AddModels adds the "models" edges to the KaguyaModelsInfo entity.
+func (_u *KaguyaProviderInfoUpdateOne) AddModels(v ...*KaguyaModelsInfo) *KaguyaProviderInfoUpdateOne {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddModelIDs(ids...)
+}
+
 // Mutation returns the KaguyaProviderInfoMutation object of the builder.
 func (_u *KaguyaProviderInfoUpdateOne) Mutation() *KaguyaProviderInfoMutation {
 	return _u.mutation
+}
+
+// ClearModels clears all "models" edges to the KaguyaModelsInfo entity.
+func (_u *KaguyaProviderInfoUpdateOne) ClearModels() *KaguyaProviderInfoUpdateOne {
+	_u.mutation.ClearModels()
+	return _u
+}
+
+// RemoveModelIDs removes the "models" edge to KaguyaModelsInfo entities by IDs.
+func (_u *KaguyaProviderInfoUpdateOne) RemoveModelIDs(ids ...string) *KaguyaProviderInfoUpdateOne {
+	_u.mutation.RemoveModelIDs(ids...)
+	return _u
+}
+
+// RemoveModels removes "models" edges to KaguyaModelsInfo entities.
+func (_u *KaguyaProviderInfoUpdateOne) RemoveModels(v ...*KaguyaModelsInfo) *KaguyaProviderInfoUpdateOne {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveModelIDs(ids...)
 }
 
 // Where appends a list predicates to the KaguyaProviderInfoUpdate builder.
@@ -483,6 +601,51 @@ func (_u *KaguyaProviderInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	}
 	if _u.mutation.BaseURLCleared() {
 		_spec.ClearField(kaguyaproviderinfo.FieldBaseURL, field.TypeString)
+	}
+	if _u.mutation.ModelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaproviderinfo.ModelsTable,
+			Columns: []string{kaguyaproviderinfo.ModelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedModelsIDs(); len(nodes) > 0 && !_u.mutation.ModelsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaproviderinfo.ModelsTable,
+			Columns: []string{kaguyaproviderinfo.ModelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ModelsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaproviderinfo.ModelsTable,
+			Columns: []string{kaguyaproviderinfo.ModelsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &KaguyaProviderInfo{config: _u.config}

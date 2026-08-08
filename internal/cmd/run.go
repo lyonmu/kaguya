@@ -6,6 +6,8 @@ import (
 
 	pkgid "github.com/lyonmu/gopkg/id"
 	"github.com/lyonmu/gopkg/logger"
+	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/db"
 	"github.com/lyonmu/kaguya/internal/global"
 	"github.com/lyonmu/kaguya/internal/router"
 	"github.com/lyonmu/kaguya/pkg"
@@ -41,10 +43,36 @@ func Run() {
 		return global.Cfg.MachineID, nil // 每台机器应使用不同的 ID
 	})
 	if err != nil {
-		global.Logger.Error("failed to create ID generator", zap.Error(err))
+		global.Logger.Sugar().Errorf("failed to create ID generator ,err is %s", err)
 		os.Exit(1)
 	}
 	global.Id = gen
+
+	switch global.Cfg.DB.Kind {
+	case consts.MySQL:
+		if err := global.Cfg.DB.EnsureMySQLDatabase(); err != nil {
+			global.Logger.Sugar().Errorf("ensure mysql database failederr is %s", err)
+			os.Exit(1)
+		}
+		entcli, initErr := db.InitMySQL(&global.Cfg.DB, global.Cfg.Debug)
+		if initErr != nil {
+			global.Logger.Sugar().Errorf("init mysql conn failed ,err is %s", initErr)
+			os.Exit(1)
+		}
+		db.EntClient = entcli
+	case consts.SQLite:
+		if err := global.Cfg.DB.EnsureSQLiteDatabase(); err != nil {
+			global.Logger.Sugar().Errorf("ensure sqlite database failederr is %s", err)
+			os.Exit(1)
+		}
+		entcli, initErr := db.InitSQLite(&global.Cfg.DB, global.Cfg.Debug)
+		if initErr != nil {
+			global.Logger.Sugar().Errorf("init sqlite conn failed ,err is %s", initErr)
+			os.Exit(1)
+		}
+		db.EntClient = entcli
+
+	}
 
 	global.Metrics = pkg.NewPrometheusRegistry()
 

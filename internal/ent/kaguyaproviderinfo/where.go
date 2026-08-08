@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
@@ -548,6 +549,29 @@ func BaseURLEqualFold(v string) predicate.KaguyaProviderInfo {
 // BaseURLContainsFold applies the ContainsFold predicate on the "base_url" field.
 func BaseURLContainsFold(v string) predicate.KaguyaProviderInfo {
 	return predicate.KaguyaProviderInfo(sql.FieldContainsFold(FieldBaseURL, v))
+}
+
+// HasModels applies the HasEdge predicate on the "models" edge.
+func HasModels() predicate.KaguyaProviderInfo {
+	return predicate.KaguyaProviderInfo(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, ModelsTable, ModelsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasModelsWith applies the HasEdge predicate on the "models" edge with a given conditions (other predicates).
+func HasModelsWith(preds ...predicate.KaguyaModelsInfo) predicate.KaguyaProviderInfo {
+	return predicate.KaguyaProviderInfo(func(s *sql.Selector) {
+		step := newModelsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

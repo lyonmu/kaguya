@@ -8,6 +8,7 @@ import (
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 	"github.com/lyonmu/kaguya/internal/global"
 	"github.com/lyonmu/kaguya/pkg"
 )
@@ -40,7 +41,10 @@ func (KaguyaProviderInfo) Fields() []ent.Field {
 
 // Edges of the KaguyaProviderInfo.
 func (KaguyaProviderInfo) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.To("models", KaguyaModelsInfo.Type).
+			Comment("该提供方下的模型列表"),
+	}
 }
 
 func (KaguyaProviderInfo) Mixin() []ent.Mixin {
@@ -57,7 +61,10 @@ func (KaguyaProviderInfo) Mixin() []ent.Mixin {
 }
 
 func (KaguyaProviderInfo) Indexes() []ent.Index {
-	return []ent.Index{}
+	return []ent.Index{
+		index.Fields("provider_name"),
+		index.Fields("api_protocol"),
+	}
 }
 
 func (KaguyaProviderInfo) Annotations() []schema.Annotation {
