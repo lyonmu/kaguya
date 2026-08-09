@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// KaguyaAccessLog is the predicate function for kaguyaaccesslog builders.
+type KaguyaAccessLog func(*sql.Selector)
+
 // KaguyaModelsInfo is the predicate function for kaguyamodelsinfo builders.
 type KaguyaModelsInfo func(*sql.Selector)
 

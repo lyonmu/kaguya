@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/gin-gonic/gin"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/global"
 	"github.com/lyonmu/kaguya/pkg"
 )
@@ -19,11 +20,8 @@ func (b *ChatApiV1Group) Chat(c *gin.Context) {
 	var req dtochat.ChatReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(200, gin.H{
-			"msg":  "pong",
-			"data": err,
-			"code": 500,
-		})
+		global.Logger.Sugar().Errorf("Request parameter error : %+v", err)
+		dtocode.RequestParameterError.Failure(c)
 		return
 	}
 

@@ -64,6 +64,8 @@ func (KaguyaModelsInfo) Indexes() []ent.Index {
 
 	return []ent.Index{
 		index.Fields("provider_id"),
+		index.Fields("model_id"),
+		index.Fields("is_default"),
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaaccesslog"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
@@ -15,6 +16,50 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	kaguyaaccesslogMixin := schema.KaguyaAccessLog{}.Mixin()
+	kaguyaaccesslogMixinHooks1 := kaguyaaccesslogMixin[1].Hooks()
+	kaguyaaccesslog.Hooks[0] = kaguyaaccesslogMixinHooks1[0]
+	kaguyaaccesslog.Hooks[1] = kaguyaaccesslogMixinHooks1[1]
+	kaguyaaccesslogMixinFields0 := kaguyaaccesslogMixin[0].Fields()
+	_ = kaguyaaccesslogMixinFields0
+	kaguyaaccesslogMixinFields1 := kaguyaaccesslogMixin[1].Fields()
+	_ = kaguyaaccesslogMixinFields1
+	kaguyaaccesslogFields := schema.KaguyaAccessLog{}.Fields()
+	_ = kaguyaaccesslogFields
+	// kaguyaaccesslogDescCreatedAt is the schema descriptor for created_at field.
+	kaguyaaccesslogDescCreatedAt := kaguyaaccesslogMixinFields1[0].Descriptor()
+	// kaguyaaccesslog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyaaccesslog.DefaultCreatedAt = kaguyaaccesslogDescCreatedAt.Default.(func() time.Time)
+	// kaguyaaccesslogDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyaaccesslogDescUpdatedAt := kaguyaaccesslogMixinFields1[1].Descriptor()
+	// kaguyaaccesslog.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyaaccesslog.DefaultUpdatedAt = kaguyaaccesslogDescUpdatedAt.Default.(func() time.Time)
+	// kaguyaaccesslog.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyaaccesslog.UpdateDefaultUpdatedAt = kaguyaaccesslogDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyaaccesslogDescAccessTime is the schema descriptor for access_time field.
+	kaguyaaccesslogDescAccessTime := kaguyaaccesslogFields[1].Descriptor()
+	// kaguyaaccesslog.DefaultAccessTime holds the default value on creation for the access_time field.
+	kaguyaaccesslog.DefaultAccessTime = kaguyaaccesslogDescAccessTime.Default.(func() int64)
+	// kaguyaaccesslogDescID is the schema descriptor for id field.
+	kaguyaaccesslogDescID := kaguyaaccesslogMixinFields0[0].Descriptor()
+	// kaguyaaccesslog.DefaultID holds the default value on creation for the id field.
+	kaguyaaccesslog.DefaultID = kaguyaaccesslogDescID.Default.(func() string)
+	// kaguyaaccesslog.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyaaccesslog.IDValidator = func() func(string) error {
+		validators := kaguyaaccesslogDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	kaguyamodelsinfoMixin := schema.KaguyaModelsInfo{}.Mixin()
 	kaguyamodelsinfoMixinHooks1 := kaguyamodelsinfoMixin[1].Hooks()
 	kaguyamodelsinfo.Hooks[0] = kaguyamodelsinfoMixinHooks1[0]

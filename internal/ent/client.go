@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaaccesslog"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 
@@ -26,6 +27,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// KaguyaAccessLog is the client for interacting with the KaguyaAccessLog builders.
+	KaguyaAccessLog *KaguyaAccessLogClient
 	// KaguyaModelsInfo is the client for interacting with the KaguyaModelsInfo builders.
 	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProviderInfo is the client for interacting with the KaguyaProviderInfo builders.
@@ -41,6 +44,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.KaguyaAccessLog = NewKaguyaAccessLogClient(c.config)
 	c.KaguyaModelsInfo = NewKaguyaModelsInfoClient(c.config)
 	c.KaguyaProviderInfo = NewKaguyaProviderInfoClient(c.config)
 }
@@ -135,6 +139,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                ctx,
 		config:             cfg,
+		KaguyaAccessLog:    NewKaguyaAccessLogClient(cfg),
 		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
 	}, nil
@@ -156,6 +161,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                ctx,
 		config:             cfg,
+		KaguyaAccessLog:    NewKaguyaAccessLogClient(cfg),
 		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
 	}, nil
@@ -164,7 +170,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		KaguyaModelsInfo.
+//		KaguyaAccessLog.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -186,6 +192,7 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.KaguyaAccessLog.Use(hooks...)
 	c.KaguyaModelsInfo.Use(hooks...)
 	c.KaguyaProviderInfo.Use(hooks...)
 }
@@ -193,6 +200,7 @@ func (c *Client) Use(hooks ...Hook) {
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.KaguyaAccessLog.Intercept(interceptors...)
 	c.KaguyaModelsInfo.Intercept(interceptors...)
 	c.KaguyaProviderInfo.Intercept(interceptors...)
 }
@@ -200,12 +208,148 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *KaguyaAccessLogMutation:
+		return c.KaguyaAccessLog.mutate(ctx, m)
 	case *KaguyaModelsInfoMutation:
 		return c.KaguyaModelsInfo.mutate(ctx, m)
 	case *KaguyaProviderInfoMutation:
 		return c.KaguyaProviderInfo.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// KaguyaAccessLogClient is a client for the KaguyaAccessLog schema.
+type KaguyaAccessLogClient struct {
+	config
+}
+
+// NewKaguyaAccessLogClient returns a client for the KaguyaAccessLog from the given config.
+func NewKaguyaAccessLogClient(c config) *KaguyaAccessLogClient {
+	return &KaguyaAccessLogClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyaaccesslog.Hooks(f(g(h())))`.
+func (c *KaguyaAccessLogClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaAccessLog = append(c.hooks.KaguyaAccessLog, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyaaccesslog.Intercept(f(g(h())))`.
+func (c *KaguyaAccessLogClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaAccessLog = append(c.inters.KaguyaAccessLog, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaAccessLog entity.
+func (c *KaguyaAccessLogClient) Create() *KaguyaAccessLogCreate {
+	mutation := newKaguyaAccessLogMutation(c.config, OpCreate)
+	return &KaguyaAccessLogCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaAccessLog entities.
+func (c *KaguyaAccessLogClient) CreateBulk(builders ...*KaguyaAccessLogCreate) *KaguyaAccessLogCreateBulk {
+	return &KaguyaAccessLogCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaAccessLogClient) MapCreateBulk(slice any, setFunc func(*KaguyaAccessLogCreate, int)) *KaguyaAccessLogCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaAccessLogCreateBulk{err: fmt.Errorf("calling to KaguyaAccessLogClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaAccessLogCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaAccessLogCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaAccessLog.
+func (c *KaguyaAccessLogClient) Update() *KaguyaAccessLogUpdate {
+	mutation := newKaguyaAccessLogMutation(c.config, OpUpdate)
+	return &KaguyaAccessLogUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaAccessLogClient) UpdateOne(_m *KaguyaAccessLog) *KaguyaAccessLogUpdateOne {
+	mutation := newKaguyaAccessLogMutation(c.config, OpUpdateOne, withKaguyaAccessLog(_m))
+	return &KaguyaAccessLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaAccessLogClient) UpdateOneID(id string) *KaguyaAccessLogUpdateOne {
+	mutation := newKaguyaAccessLogMutation(c.config, OpUpdateOne, withKaguyaAccessLogID(id))
+	return &KaguyaAccessLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaAccessLog.
+func (c *KaguyaAccessLogClient) Delete() *KaguyaAccessLogDelete {
+	mutation := newKaguyaAccessLogMutation(c.config, OpDelete)
+	return &KaguyaAccessLogDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaAccessLogClient) DeleteOne(_m *KaguyaAccessLog) *KaguyaAccessLogDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaAccessLogClient) DeleteOneID(id string) *KaguyaAccessLogDeleteOne {
+	builder := c.Delete().Where(kaguyaaccesslog.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaAccessLogDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaAccessLog.
+func (c *KaguyaAccessLogClient) Query() *KaguyaAccessLogQuery {
+	return &KaguyaAccessLogQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaAccessLog},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaAccessLog entity by its id.
+func (c *KaguyaAccessLogClient) Get(ctx context.Context, id string) (*KaguyaAccessLog, error) {
+	return c.Query().Where(kaguyaaccesslog.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaAccessLogClient) GetX(ctx context.Context, id string) *KaguyaAccessLog {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaAccessLogClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaAccessLog
+	return append(hooks[:len(hooks):len(hooks)], kaguyaaccesslog.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaAccessLogClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaAccessLog
+}
+
+func (c *KaguyaAccessLogClient) mutate(ctx context.Context, m *KaguyaAccessLogMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaAccessLogCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaAccessLogUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaAccessLogUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaAccessLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaAccessLog mutation op: %q", m.Op())
 	}
 }
 
@@ -512,10 +656,10 @@ func (c *KaguyaProviderInfoClient) mutate(ctx context.Context, m *KaguyaProvider
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		KaguyaModelsInfo, KaguyaProviderInfo []ent.Hook
+		KaguyaAccessLog, KaguyaModelsInfo, KaguyaProviderInfo []ent.Hook
 	}
 	inters struct {
-		KaguyaModelsInfo, KaguyaProviderInfo []ent.Interceptor
+		KaguyaAccessLog, KaguyaModelsInfo, KaguyaProviderInfo []ent.Interceptor
 	}
 )
 

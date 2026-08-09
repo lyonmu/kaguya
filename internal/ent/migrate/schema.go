@@ -9,6 +9,60 @@ import (
 )
 
 var (
+	// KaguyaAccessLogColumns holds the columns for the "kaguya_access_log" table.
+	KaguyaAccessLogColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "access_ip", Type: field.TypeString, Nullable: true, Comment: "访问IP"},
+		{Name: "access_time", Type: field.TypeInt64, Nullable: true, Comment: "操作时间"},
+		{Name: "os", Type: field.TypeString, Nullable: true, Comment: "操作系统"},
+		{Name: "platform", Type: field.TypeString, Nullable: true, Comment: "操作平台"},
+		{Name: "browser_name", Type: field.TypeString, Nullable: true, Comment: "浏览器名称"},
+		{Name: "browser_version", Type: field.TypeString, Nullable: true, Comment: "浏览器版本"},
+		{Name: "browser_engine_name", Type: field.TypeString, Nullable: true, Comment: "浏览器引擎名称"},
+		{Name: "browser_engine_version", Type: field.TypeString, Nullable: true, Comment: "浏览器引擎版本"},
+	}
+	// KaguyaAccessLogTable holds the schema information for the "kaguya_access_log" table.
+	KaguyaAccessLogTable = &schema.Table{
+		Name:       "kaguya_access_log",
+		Comment:    "访问日志信息表",
+		Columns:    KaguyaAccessLogColumns,
+		PrimaryKey: []*schema.Column{KaguyaAccessLogColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyaaccesslog_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaAccessLogColumns[1]},
+			},
+			{
+				Name:    "kaguyaaccesslog_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaAccessLogColumns[2]},
+			},
+			{
+				Name:    "kaguyaaccesslog_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaAccessLogColumns[3]},
+			},
+			{
+				Name:    "kaguyaaccesslog_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaAccessLogColumns[0]},
+			},
+			{
+				Name:    "kaguyaaccesslog_access_ip",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaAccessLogColumns[4]},
+			},
+			{
+				Name:    "kaguyaaccesslog_access_time",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaAccessLogColumns[5]},
+			},
+		},
+	}
 	// KaguyaModelsInfoColumns holds the columns for the "kaguya_models_info" table.
 	KaguyaModelsInfoColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
@@ -67,6 +121,16 @@ var (
 				Unique:  false,
 				Columns: []*schema.Column{KaguyaModelsInfoColumns[14]},
 			},
+			{
+				Name:    "kaguyamodelsinfo_model_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[5]},
+			},
+			{
+				Name:    "kaguyamodelsinfo_is_default",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[6]},
+			},
 		},
 	}
 	// KaguyaProviderInfoColumns holds the columns for the "kaguya_provider_info" table.
@@ -121,12 +185,18 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		KaguyaAccessLogTable,
 		KaguyaModelsInfoTable,
 		KaguyaProviderInfoTable,
 	}
 )
 
 func init() {
+	KaguyaAccessLogTable.Annotation = &entsql.Annotation{
+		Table:     "kaguya_access_log",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	}
 	KaguyaModelsInfoTable.ForeignKeys[0].RefTable = KaguyaProviderInfoTable
 	KaguyaModelsInfoTable.Annotation = &entsql.Annotation{
 		Table:     "kaguya_models_info",

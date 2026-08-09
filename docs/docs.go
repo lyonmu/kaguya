@@ -46,6 +46,83 @@ const docTemplate = `{
                 ],
                 "responses": {}
             }
+        },
+        "/v1/system/accesslog/page": {
+            "get": {
+                "description": "获取访问日志分页列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "系统管理"
+                ],
+                "summary": "访问日志分页列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "访问IP",
+                        "name": "access_ip",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "结束时间",
+                        "name": "end_time",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 10,
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页条数",
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "开始时间",
+                        "name": "start_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "100000,success",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "code": {
+                                            "type": "number"
+                                        },
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemAccessLogListResp"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -56,6 +133,85 @@ const docTemplate = `{
             ],
             "properties": {
                 "messages": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_lyonmu_kaguya_internal_dto_code.Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "system.SystemAccessLogListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "description": "操作日志列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.SystemAccessLogResp"
+                    }
+                },
+                "page": {
+                    "description": "页码",
+                    "type": "integer"
+                },
+                "page_size": {
+                    "description": "每页条数",
+                    "type": "integer"
+                },
+                "total": {
+                    "description": "总条数",
+                    "type": "integer"
+                }
+            }
+        },
+        "system.SystemAccessLogResp": {
+            "type": "object",
+            "properties": {
+                "access_ip": {
+                    "description": "访问IP",
+                    "type": "string"
+                },
+                "access_time": {
+                    "description": "操作时间",
+                    "type": "integer"
+                },
+                "browser_engine_name": {
+                    "description": "浏览器引擎名称",
+                    "type": "string"
+                },
+                "browser_engine_version": {
+                    "description": "浏览器引擎版本",
+                    "type": "string"
+                },
+                "browser_name": {
+                    "description": "浏览器名称",
+                    "type": "string"
+                },
+                "browser_version": {
+                    "description": "浏览器版本",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "ID",
+                    "type": "string"
+                },
+                "os": {
+                    "description": "操作系统",
+                    "type": "string"
+                },
+                "platform": {
+                    "description": "操作平台",
                     "type": "string"
                 }
             }

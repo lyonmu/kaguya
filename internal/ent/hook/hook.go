@@ -9,6 +9,18 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 )
 
+// The KaguyaAccessLogFunc type is an adapter to allow the use of ordinary
+// function as KaguyaAccessLog mutator.
+type KaguyaAccessLogFunc func(context.Context, *ent.KaguyaAccessLogMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaAccessLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaAccessLogMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaAccessLogMutation", m)
+}
+
 // The KaguyaModelsInfoFunc type is an adapter to allow the use of ordinary
 // function as KaguyaModelsInfo mutator.
 type KaguyaModelsInfoFunc func(context.Context, *ent.KaguyaModelsInfoMutation) (ent.Value, error)

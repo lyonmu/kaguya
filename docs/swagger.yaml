@@ -7,6 +7,63 @@ definitions:
     required:
     - messages
     type: object
+  github_com_lyonmu_kaguya_internal_dto_code.Response:
+    properties:
+      code:
+        example: 100000
+        type: integer
+      data: {}
+      message:
+        example: success
+        type: string
+    type: object
+  system.SystemAccessLogListResp:
+    properties:
+      items:
+        description: 操作日志列表
+        items:
+          $ref: '#/definitions/system.SystemAccessLogResp'
+        type: array
+      page:
+        description: 页码
+        type: integer
+      page_size:
+        description: 每页条数
+        type: integer
+      total:
+        description: 总条数
+        type: integer
+    type: object
+  system.SystemAccessLogResp:
+    properties:
+      access_ip:
+        description: 访问IP
+        type: string
+      access_time:
+        description: 操作时间
+        type: integer
+      browser_engine_name:
+        description: 浏览器引擎名称
+        type: string
+      browser_engine_version:
+        description: 浏览器引擎版本
+        type: string
+      browser_name:
+        description: 浏览器名称
+        type: string
+      browser_version:
+        description: 浏览器版本
+        type: string
+      id:
+        description: ID
+        type: string
+      os:
+        description: 操作系统
+        type: string
+      platform:
+        description: 操作平台
+        type: string
+    type: object
 host: http://localhost:9024
 info:
   contact:
@@ -36,6 +93,56 @@ paths:
       summary: 简单对话
       tags:
       - 对话
+  /v1/system/accesslog/page:
+    get:
+      description: 获取访问日志分页列表
+      parameters:
+      - description: 访问IP
+        in: query
+        name: access_ip
+        type: string
+      - description: 结束时间
+        in: query
+        name: end_time
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        minimum: 1
+        name: page
+        required: true
+        type: integer
+      - default: 10
+        description: 每页条数
+        in: query
+        maximum: 1000
+        minimum: 10
+        name: page_size
+        required: true
+        type: integer
+      - description: 开始时间
+        in: query
+        name: start_time
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 100000,success
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                code:
+                  type: number
+                data:
+                  $ref: '#/definitions/system.SystemAccessLogListResp'
+                message:
+                  type: string
+              type: object
+      summary: 访问日志分页列表
+      tags:
+      - 系统管理
 schemes:
 - http
 swagger: "2.0"
