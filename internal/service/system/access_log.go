@@ -41,7 +41,7 @@ func (s *SystemSvc) AccessLogPage(ctx context.Context, req *dtosystem.SystemAcce
 		page     = (req.Page - 1) * req.PageSize
 		pageSize = req.PageSize
 		resp     = &dtosystem.SystemAccessLogListResp{}
-		query    = db.EntClient.KaguyaAccessLog.Query()
+		query    = db.EntClient.KaguyaAccessLog.Query().Where(kaguyaaccesslog.DeletedAtIsNil())
 	)
 
 	if len(req.AccessIP) > 0 {

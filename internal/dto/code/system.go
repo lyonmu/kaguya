@@ -9,5 +9,5 @@ var (
 	RequestParameterError = Response{Code: 100001, Message: "请求参数错误"}
 
 	// 操作日志相关
-	AccessLogQueryFailure = Response{Code: 100100, Message: "访问日志查询失败"}
+	AccessLogQueryFailure = Response{Code: 101000, Message: "访问日志查询失败"}
 )
