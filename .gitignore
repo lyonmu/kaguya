@@ -16,3 +16,4 @@ superpowers/
 .codegraph/
 .vscode/
 data/
+.worktrees/
