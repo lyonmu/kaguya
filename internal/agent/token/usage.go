@@ -1,4 +1,4 @@
-package usage
+package agent
 
 import (
 	"context"
@@ -6,6 +6,10 @@ import (
 
 	"charm.land/fantasy"
 )
+
+type UsageRecorder interface {
+	RecordUsage(ctx context.Context, usage TurnUsage) error
+}
 
 type NormalizedUsage struct {
 	InputTokens         int64 `json:"input_tokens"`
