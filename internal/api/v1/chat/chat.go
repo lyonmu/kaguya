@@ -1,6 +1,10 @@
 package chat
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
@@ -10,9 +14,10 @@ import (
 // ChatSSE
 // @Tags      Chat
 // @Summary   ChatSSE
-// @Description 简单SSE对话
-// @Param     data  body      dtochat.ChatReq      true  "用户发起的对话"
+// @Description 简单SSE对话：流式返回模型回答，首帧携带会话ID与模型信息，末帧携带完整内容与token用量
+// @Param     data  body      dtochat.ChatReq      true  "用户发起的对话（conversation_id 为空时开启新对话）"
 // @Produce   json
+// @Success   200  {object}  dtochat.ChatSSEResp  "SSE 流式响应，每帧为一个 ChatSSEResp"
 // @Router    /v1/chat/sse [POST]
 func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 
@@ -24,19 +29,34 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 		return
 	}
 
-	c.Writer.WriteHeader(200)
-	c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
-	c.Writer.Header().Set("Content-Type", "")
-	c.Writer.WriteHeaderNow()
-	dataChan := make(chan *dtochat.ChatSSEResp)
-	// 开启协程实现 SSE 推送
-	go agentvc.ChatSSE(c.Request.Context(), dataChan, &req)
-	for range dataChan {
-		c.Writer.Write([]byte{}) // 产生数据
-		c.Writer.Flush()         // 产生一定的数据后， flush到浏览器端
-	}
-	c.Writer.Flush() // 最后 flush 一次
+	// SSE 响应头必须在 WriteHeader 之前设置
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Writer.WriteHeader(http.StatusOK)
+	c.Writer.Flush()
 
-	c.Next()
-	return
+	dataChan := make(chan *dtochat.ChatSSEResp)
+	go agentvc.ChatSSE(c.Request.Context(), dataChan, &req)
+
+	for {
+		select {
+		case <-c.Request.Context().Done():
+			return
+		case v, ok := <-dataChan:
+			if !ok {
+				c.Writer.Flush()
+				return
+			}
+			data, err := json.Marshal(v)
+			if err != nil {
+				global.Logger.Sugar().Errorf("marshal sse response failed : %+v", err)
+				return
+			}
+			if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", data); err != nil {
+				return
+			}
+			c.Writer.Flush()
+		}
+	}
 }
