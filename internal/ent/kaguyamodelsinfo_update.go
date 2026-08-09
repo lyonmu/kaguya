@@ -15,7 +15,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // KaguyaModelsInfoUpdate is the builder for updating KaguyaModelsInfo entities.
@@ -173,13 +172,13 @@ func (_u *KaguyaModelsInfoUpdate) ClearReasoningEnabled() *KaguyaModelsInfoUpdat
 }
 
 // SetReasoningEffort sets the "reasoning_effort" field.
-func (_u *KaguyaModelsInfoUpdate) SetReasoningEffort(v schema.ReasoningEffort) *KaguyaModelsInfoUpdate {
+func (_u *KaguyaModelsInfoUpdate) SetReasoningEffort(v consts.ReasoningEffort) *KaguyaModelsInfoUpdate {
 	_u.mutation.SetReasoningEffort(v)
 	return _u
 }
 
 // SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
-func (_u *KaguyaModelsInfoUpdate) SetNillableReasoningEffort(v *schema.ReasoningEffort) *KaguyaModelsInfoUpdate {
+func (_u *KaguyaModelsInfoUpdate) SetNillableReasoningEffort(v *consts.ReasoningEffort) *KaguyaModelsInfoUpdate {
 	if v != nil {
 		_u.SetReasoningEffort(*v)
 	}
@@ -682,13 +681,13 @@ func (_u *KaguyaModelsInfoUpdateOne) ClearReasoningEnabled() *KaguyaModelsInfoUp
 }
 
 // SetReasoningEffort sets the "reasoning_effort" field.
-func (_u *KaguyaModelsInfoUpdateOne) SetReasoningEffort(v schema.ReasoningEffort) *KaguyaModelsInfoUpdateOne {
+func (_u *KaguyaModelsInfoUpdateOne) SetReasoningEffort(v consts.ReasoningEffort) *KaguyaModelsInfoUpdateOne {
 	_u.mutation.SetReasoningEffort(v)
 	return _u
 }
 
 // SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
-func (_u *KaguyaModelsInfoUpdateOne) SetNillableReasoningEffort(v *schema.ReasoningEffort) *KaguyaModelsInfoUpdateOne {
+func (_u *KaguyaModelsInfoUpdateOne) SetNillableReasoningEffort(v *consts.ReasoningEffort) *KaguyaModelsInfoUpdateOne {
 	if v != nil {
 		_u.SetReasoningEffort(*v)
 	}

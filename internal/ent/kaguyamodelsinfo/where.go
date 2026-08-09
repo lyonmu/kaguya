@@ -9,7 +9,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // ID filters vertices based on their ID field.
@@ -110,7 +109,7 @@ func ReasoningEnabled(v consts.Status) predicate.KaguyaModelsInfo {
 }
 
 // ReasoningEffort applies equality check predicate on the "reasoning_effort" field. It's identical to ReasoningEffortEQ.
-func ReasoningEffort(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffort(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldReasoningEffort, vc))
 }
@@ -627,19 +626,19 @@ func ReasoningEnabledNotNil() predicate.KaguyaModelsInfo {
 }
 
 // ReasoningEffortEQ applies the EQ predicate on the "reasoning_effort" field.
-func ReasoningEffortEQ(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortEQ(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortNEQ applies the NEQ predicate on the "reasoning_effort" field.
-func ReasoningEffortNEQ(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortNEQ(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldNEQ(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortIn applies the In predicate on the "reasoning_effort" field.
-func ReasoningEffortIn(vs ...schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortIn(vs ...consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
@@ -648,7 +647,7 @@ func ReasoningEffortIn(vs ...schema.ReasoningEffort) predicate.KaguyaModelsInfo 
 }
 
 // ReasoningEffortNotIn applies the NotIn predicate on the "reasoning_effort" field.
-func ReasoningEffortNotIn(vs ...schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortNotIn(vs ...consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
@@ -657,43 +656,43 @@ func ReasoningEffortNotIn(vs ...schema.ReasoningEffort) predicate.KaguyaModelsIn
 }
 
 // ReasoningEffortGT applies the GT predicate on the "reasoning_effort" field.
-func ReasoningEffortGT(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortGT(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldGT(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortGTE applies the GTE predicate on the "reasoning_effort" field.
-func ReasoningEffortGTE(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortGTE(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldGTE(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortLT applies the LT predicate on the "reasoning_effort" field.
-func ReasoningEffortLT(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortLT(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldLT(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortLTE applies the LTE predicate on the "reasoning_effort" field.
-func ReasoningEffortLTE(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortLTE(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldLTE(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortContains applies the Contains predicate on the "reasoning_effort" field.
-func ReasoningEffortContains(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortContains(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldContains(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortHasPrefix applies the HasPrefix predicate on the "reasoning_effort" field.
-func ReasoningEffortHasPrefix(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortHasPrefix(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldHasPrefix(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortHasSuffix applies the HasSuffix predicate on the "reasoning_effort" field.
-func ReasoningEffortHasSuffix(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortHasSuffix(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldHasSuffix(FieldReasoningEffort, vc))
 }
@@ -709,13 +708,13 @@ func ReasoningEffortNotNil() predicate.KaguyaModelsInfo {
 }
 
 // ReasoningEffortEqualFold applies the EqualFold predicate on the "reasoning_effort" field.
-func ReasoningEffortEqualFold(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortEqualFold(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldEqualFold(FieldReasoningEffort, vc))
 }
 
 // ReasoningEffortContainsFold applies the ContainsFold predicate on the "reasoning_effort" field.
-func ReasoningEffortContainsFold(v schema.ReasoningEffort) predicate.KaguyaModelsInfo {
+func ReasoningEffortContainsFold(v consts.ReasoningEffort) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldContainsFold(FieldReasoningEffort, vc))
 }

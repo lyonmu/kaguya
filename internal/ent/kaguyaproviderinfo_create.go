@@ -12,9 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // KaguyaProviderInfoCreate is the builder for creating a KaguyaProviderInfo entity.
@@ -82,13 +82,13 @@ func (_c *KaguyaProviderInfoCreate) SetNillableProviderName(v *string) *KaguyaPr
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
-func (_c *KaguyaProviderInfoCreate) SetAPIProtocol(v schema.ProviderProtocol) *KaguyaProviderInfoCreate {
+func (_c *KaguyaProviderInfoCreate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoCreate {
 	_c.mutation.SetAPIProtocol(v)
 	return _c
 }
 
 // SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
-func (_c *KaguyaProviderInfoCreate) SetNillableAPIProtocol(v *schema.ProviderProtocol) *KaguyaProviderInfoCreate {
+func (_c *KaguyaProviderInfoCreate) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaProviderInfoCreate {
 	if v != nil {
 		_c.SetAPIProtocol(*v)
 	}
@@ -411,7 +411,7 @@ func (u *KaguyaProviderInfoUpsert) ClearProviderName() *KaguyaProviderInfoUpsert
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsert) SetAPIProtocol(v schema.ProviderProtocol) *KaguyaProviderInfoUpsert {
+func (u *KaguyaProviderInfoUpsert) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpsert {
 	u.Set(kaguyaproviderinfo.FieldAPIProtocol, v)
 	return u
 }
@@ -572,7 +572,7 @@ func (u *KaguyaProviderInfoUpsertOne) ClearProviderName() *KaguyaProviderInfoUps
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsertOne) SetAPIProtocol(v schema.ProviderProtocol) *KaguyaProviderInfoUpsertOne {
+func (u *KaguyaProviderInfoUpsertOne) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpsertOne {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.SetAPIProtocol(v)
 	})
@@ -909,7 +909,7 @@ func (u *KaguyaProviderInfoUpsertBulk) ClearProviderName() *KaguyaProviderInfoUp
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsertBulk) SetAPIProtocol(v schema.ProviderProtocol) *KaguyaProviderInfoUpsertBulk {
+func (u *KaguyaProviderInfoUpsertBulk) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpsertBulk {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.SetAPIProtocol(v)
 	})

@@ -46,7 +46,7 @@ func init() {
 	// kaguyamodelsinfoDescReasoningEffort is the schema descriptor for reasoning_effort field.
 	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[5].Descriptor()
 	// kaguyamodelsinfo.DefaultReasoningEffort holds the default value on creation for the reasoning_effort field.
-	kaguyamodelsinfo.DefaultReasoningEffort = schema.ReasoningEffort(kaguyamodelsinfoDescReasoningEffort.Default.(string))
+	kaguyamodelsinfo.DefaultReasoningEffort = consts.ReasoningEffort(kaguyamodelsinfoDescReasoningEffort.Default.(string))
 	// kaguyamodelsinfoDescCapabilityToolUse is the schema descriptor for capability_tool_use field.
 	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[8].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityToolUse holds the default value on creation for the capability_tool_use field.
@@ -102,7 +102,7 @@ func init() {
 	// kaguyaproviderinfoDescAPIProtocol is the schema descriptor for api_protocol field.
 	kaguyaproviderinfoDescAPIProtocol := kaguyaproviderinfoFields[1].Descriptor()
 	// kaguyaproviderinfo.DefaultAPIProtocol holds the default value on creation for the api_protocol field.
-	kaguyaproviderinfo.DefaultAPIProtocol = schema.ProviderProtocol(kaguyaproviderinfoDescAPIProtocol.Default.(string))
+	kaguyaproviderinfo.DefaultAPIProtocol = consts.ProviderProtocol(kaguyaproviderinfoDescAPIProtocol.Default.(string))
 	// kaguyaproviderinfoDescID is the schema descriptor for id field.
 	kaguyaproviderinfoDescID := kaguyaproviderinfoMixinFields0[0].Descriptor()
 	// kaguyaproviderinfo.DefaultID holds the default value on creation for the id field.

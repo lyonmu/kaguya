@@ -9,7 +9,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/lyonmu/kaguya/internal/consts"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 const (
@@ -105,7 +104,7 @@ var (
 	// DefaultReasoningEnabled holds the default value on creation for the "reasoning_enabled" field.
 	DefaultReasoningEnabled consts.Status
 	// DefaultReasoningEffort holds the default value on creation for the "reasoning_effort" field.
-	DefaultReasoningEffort schema.ReasoningEffort
+	DefaultReasoningEffort consts.ReasoningEffort
 	// DefaultCapabilityToolUse holds the default value on creation for the "capability_tool_use" field.
 	DefaultCapabilityToolUse consts.Status
 	// DefaultCapabilityVision holds the default value on creation for the "capability_vision" field.

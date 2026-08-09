@@ -12,7 +12,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // 模型信息表
@@ -38,7 +37,7 @@ type KaguyaModelsInfo struct {
 	// 是否启用思考模式
 	ReasoningEnabled consts.Status `json:"reasoning_enabled,omitempty"`
 	// 思考努力程度，影响推理深度和响应速度
-	ReasoningEffort schema.ReasoningEffort `json:"reasoning_effort,omitempty"`
+	ReasoningEffort consts.ReasoningEffort `json:"reasoning_effort,omitempty"`
 	// 模型支持的最大上下文窗口大小（token 数）
 	TokenContextWindow int `json:"token_context_window,omitempty"`
 	// 模型单次生成的最大输出 token 数
@@ -160,7 +159,7 @@ func (_m *KaguyaModelsInfo) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field reasoning_effort", values[i])
 			} else if value.Valid {
-				_m.ReasoningEffort = schema.ReasoningEffort(value.String)
+				_m.ReasoningEffort = consts.ReasoningEffort(value.String)
 			}
 		case kaguyamodelsinfo.FieldTokenContextWindow:
 			if value, ok := values[i].(*sql.NullInt64); !ok {

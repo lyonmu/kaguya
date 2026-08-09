@@ -15,7 +15,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 const (
@@ -46,7 +45,7 @@ type KaguyaModelsInfoMutation struct {
 	addis_default                   *consts.Status
 	reasoning_enabled               *consts.Status
 	addreasoning_enabled            *consts.Status
-	reasoning_effort                *schema.ReasoningEffort
+	reasoning_effort                *consts.ReasoningEffort
 	token_context_window            *int
 	addtoken_context_window         *int
 	token_max_output_tokens         *int
@@ -578,12 +577,12 @@ func (m *KaguyaModelsInfoMutation) ResetReasoningEnabled() {
 }
 
 // SetReasoningEffort sets the "reasoning_effort" field.
-func (m *KaguyaModelsInfoMutation) SetReasoningEffort(se schema.ReasoningEffort) {
-	m.reasoning_effort = &se
+func (m *KaguyaModelsInfoMutation) SetReasoningEffort(ce consts.ReasoningEffort) {
+	m.reasoning_effort = &ce
 }
 
 // ReasoningEffort returns the value of the "reasoning_effort" field in the mutation.
-func (m *KaguyaModelsInfoMutation) ReasoningEffort() (r schema.ReasoningEffort, exists bool) {
+func (m *KaguyaModelsInfoMutation) ReasoningEffort() (r consts.ReasoningEffort, exists bool) {
 	v := m.reasoning_effort
 	if v == nil {
 		return
@@ -594,7 +593,7 @@ func (m *KaguyaModelsInfoMutation) ReasoningEffort() (r schema.ReasoningEffort, 
 // OldReasoningEffort returns the old "reasoning_effort" field's value of the KaguyaModelsInfo entity.
 // If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *KaguyaModelsInfoMutation) OldReasoningEffort(ctx context.Context) (v schema.ReasoningEffort, err error) {
+func (m *KaguyaModelsInfoMutation) OldReasoningEffort(ctx context.Context) (v consts.ReasoningEffort, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldReasoningEffort is only allowed on UpdateOne operations")
 	}
@@ -1219,7 +1218,7 @@ func (m *KaguyaModelsInfoMutation) SetField(name string, value ent.Value) error 
 		m.SetReasoningEnabled(v)
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEffort:
-		v, ok := value.(schema.ReasoningEffort)
+		v, ok := value.(consts.ReasoningEffort)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
@@ -1601,7 +1600,7 @@ type KaguyaProviderInfoMutation struct {
 	updated_at    *time.Time
 	deleted_at    *time.Time
 	provider_name *string
-	api_protocol  *schema.ProviderProtocol
+	api_protocol  *consts.ProviderProtocol
 	api_key       *string
 	base_url      *string
 	clearedFields map[string]struct{}
@@ -1888,12 +1887,12 @@ func (m *KaguyaProviderInfoMutation) ResetProviderName() {
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
-func (m *KaguyaProviderInfoMutation) SetAPIProtocol(sp schema.ProviderProtocol) {
-	m.api_protocol = &sp
+func (m *KaguyaProviderInfoMutation) SetAPIProtocol(cp consts.ProviderProtocol) {
+	m.api_protocol = &cp
 }
 
 // APIProtocol returns the value of the "api_protocol" field in the mutation.
-func (m *KaguyaProviderInfoMutation) APIProtocol() (r schema.ProviderProtocol, exists bool) {
+func (m *KaguyaProviderInfoMutation) APIProtocol() (r consts.ProviderProtocol, exists bool) {
 	v := m.api_protocol
 	if v == nil {
 		return
@@ -1904,7 +1903,7 @@ func (m *KaguyaProviderInfoMutation) APIProtocol() (r schema.ProviderProtocol, e
 // OldAPIProtocol returns the old "api_protocol" field's value of the KaguyaProviderInfo entity.
 // If the KaguyaProviderInfo object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *KaguyaProviderInfoMutation) OldAPIProtocol(ctx context.Context) (v schema.ProviderProtocol, err error) {
+func (m *KaguyaProviderInfoMutation) OldAPIProtocol(ctx context.Context) (v consts.ProviderProtocol, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAPIProtocol is only allowed on UpdateOne operations")
 	}
@@ -2227,7 +2226,7 @@ func (m *KaguyaProviderInfoMutation) SetField(name string, value ent.Value) erro
 		m.SetProviderName(v)
 		return nil
 	case kaguyaproviderinfo.FieldAPIProtocol:
-		v, ok := value.(schema.ProviderProtocol)
+		v, ok := value.(consts.ProviderProtocol)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}

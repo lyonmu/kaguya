@@ -11,10 +11,10 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // KaguyaProviderInfoUpdate is the builder for updating KaguyaProviderInfo entities.
@@ -78,13 +78,13 @@ func (_u *KaguyaProviderInfoUpdate) ClearProviderName() *KaguyaProviderInfoUpdat
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
-func (_u *KaguyaProviderInfoUpdate) SetAPIProtocol(v schema.ProviderProtocol) *KaguyaProviderInfoUpdate {
+func (_u *KaguyaProviderInfoUpdate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpdate {
 	_u.mutation.SetAPIProtocol(v)
 	return _u
 }
 
 // SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
-func (_u *KaguyaProviderInfoUpdate) SetNillableAPIProtocol(v *schema.ProviderProtocol) *KaguyaProviderInfoUpdate {
+func (_u *KaguyaProviderInfoUpdate) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaProviderInfoUpdate {
 	if v != nil {
 		_u.SetAPIProtocol(*v)
 	}
@@ -382,13 +382,13 @@ func (_u *KaguyaProviderInfoUpdateOne) ClearProviderName() *KaguyaProviderInfoUp
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
-func (_u *KaguyaProviderInfoUpdateOne) SetAPIProtocol(v schema.ProviderProtocol) *KaguyaProviderInfoUpdateOne {
+func (_u *KaguyaProviderInfoUpdateOne) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpdateOne {
 	_u.mutation.SetAPIProtocol(v)
 	return _u
 }
 
 // SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
-func (_u *KaguyaProviderInfoUpdateOne) SetNillableAPIProtocol(v *schema.ProviderProtocol) *KaguyaProviderInfoUpdateOne {
+func (_u *KaguyaProviderInfoUpdateOne) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaProviderInfoUpdateOne {
 	if v != nil {
 		_u.SetAPIProtocol(*v)
 	}

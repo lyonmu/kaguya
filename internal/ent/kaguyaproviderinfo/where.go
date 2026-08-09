@@ -7,8 +7,8 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // ID filters vertices based on their ID field.
@@ -87,7 +87,7 @@ func ProviderName(v string) predicate.KaguyaProviderInfo {
 }
 
 // APIProtocol applies equality check predicate on the "api_protocol" field. It's identical to APIProtocolEQ.
-func APIProtocol(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocol(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldEQ(FieldAPIProtocol, vc))
 }
@@ -308,19 +308,19 @@ func ProviderNameContainsFold(v string) predicate.KaguyaProviderInfo {
 }
 
 // APIProtocolEQ applies the EQ predicate on the "api_protocol" field.
-func APIProtocolEQ(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolEQ(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldEQ(FieldAPIProtocol, vc))
 }
 
 // APIProtocolNEQ applies the NEQ predicate on the "api_protocol" field.
-func APIProtocolNEQ(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolNEQ(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldNEQ(FieldAPIProtocol, vc))
 }
 
 // APIProtocolIn applies the In predicate on the "api_protocol" field.
-func APIProtocolIn(vs ...schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolIn(vs ...consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
@@ -329,7 +329,7 @@ func APIProtocolIn(vs ...schema.ProviderProtocol) predicate.KaguyaProviderInfo {
 }
 
 // APIProtocolNotIn applies the NotIn predicate on the "api_protocol" field.
-func APIProtocolNotIn(vs ...schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolNotIn(vs ...consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	v := make([]any, len(vs))
 	for i := range v {
 		v[i] = string(vs[i])
@@ -338,43 +338,43 @@ func APIProtocolNotIn(vs ...schema.ProviderProtocol) predicate.KaguyaProviderInf
 }
 
 // APIProtocolGT applies the GT predicate on the "api_protocol" field.
-func APIProtocolGT(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolGT(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldGT(FieldAPIProtocol, vc))
 }
 
 // APIProtocolGTE applies the GTE predicate on the "api_protocol" field.
-func APIProtocolGTE(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolGTE(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldGTE(FieldAPIProtocol, vc))
 }
 
 // APIProtocolLT applies the LT predicate on the "api_protocol" field.
-func APIProtocolLT(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolLT(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldLT(FieldAPIProtocol, vc))
 }
 
 // APIProtocolLTE applies the LTE predicate on the "api_protocol" field.
-func APIProtocolLTE(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolLTE(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldLTE(FieldAPIProtocol, vc))
 }
 
 // APIProtocolContains applies the Contains predicate on the "api_protocol" field.
-func APIProtocolContains(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolContains(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldContains(FieldAPIProtocol, vc))
 }
 
 // APIProtocolHasPrefix applies the HasPrefix predicate on the "api_protocol" field.
-func APIProtocolHasPrefix(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolHasPrefix(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldHasPrefix(FieldAPIProtocol, vc))
 }
 
 // APIProtocolHasSuffix applies the HasSuffix predicate on the "api_protocol" field.
-func APIProtocolHasSuffix(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolHasSuffix(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldHasSuffix(FieldAPIProtocol, vc))
 }
@@ -390,13 +390,13 @@ func APIProtocolNotNil() predicate.KaguyaProviderInfo {
 }
 
 // APIProtocolEqualFold applies the EqualFold predicate on the "api_protocol" field.
-func APIProtocolEqualFold(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolEqualFold(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldEqualFold(FieldAPIProtocol, vc))
 }
 
 // APIProtocolContainsFold applies the ContainsFold predicate on the "api_protocol" field.
-func APIProtocolContainsFold(v schema.ProviderProtocol) predicate.KaguyaProviderInfo {
+func APIProtocolContainsFold(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldContainsFold(FieldAPIProtocol, vc))
 }

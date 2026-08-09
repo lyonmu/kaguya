@@ -15,7 +15,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // KaguyaModelsInfoCreate is the builder for creating a KaguyaModelsInfo entity.
@@ -139,13 +138,13 @@ func (_c *KaguyaModelsInfoCreate) SetNillableReasoningEnabled(v *consts.Status) 
 }
 
 // SetReasoningEffort sets the "reasoning_effort" field.
-func (_c *KaguyaModelsInfoCreate) SetReasoningEffort(v schema.ReasoningEffort) *KaguyaModelsInfoCreate {
+func (_c *KaguyaModelsInfoCreate) SetReasoningEffort(v consts.ReasoningEffort) *KaguyaModelsInfoCreate {
 	_c.mutation.SetReasoningEffort(v)
 	return _c
 }
 
 // SetNillableReasoningEffort sets the "reasoning_effort" field if the given value is not nil.
-func (_c *KaguyaModelsInfoCreate) SetNillableReasoningEffort(v *schema.ReasoningEffort) *KaguyaModelsInfoCreate {
+func (_c *KaguyaModelsInfoCreate) SetNillableReasoningEffort(v *consts.ReasoningEffort) *KaguyaModelsInfoCreate {
 	if v != nil {
 		_c.SetReasoningEffort(*v)
 	}
@@ -629,7 +628,7 @@ func (u *KaguyaModelsInfoUpsert) ClearReasoningEnabled() *KaguyaModelsInfoUpsert
 }
 
 // SetReasoningEffort sets the "reasoning_effort" field.
-func (u *KaguyaModelsInfoUpsert) SetReasoningEffort(v schema.ReasoningEffort) *KaguyaModelsInfoUpsert {
+func (u *KaguyaModelsInfoUpsert) SetReasoningEffort(v consts.ReasoningEffort) *KaguyaModelsInfoUpsert {
 	u.Set(kaguyamodelsinfo.FieldReasoningEffort, v)
 	return u
 }
@@ -972,7 +971,7 @@ func (u *KaguyaModelsInfoUpsertOne) ClearReasoningEnabled() *KaguyaModelsInfoUps
 }
 
 // SetReasoningEffort sets the "reasoning_effort" field.
-func (u *KaguyaModelsInfoUpsertOne) SetReasoningEffort(v schema.ReasoningEffort) *KaguyaModelsInfoUpsertOne {
+func (u *KaguyaModelsInfoUpsertOne) SetReasoningEffort(v consts.ReasoningEffort) *KaguyaModelsInfoUpsertOne {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.SetReasoningEffort(v)
 	})
@@ -1505,7 +1504,7 @@ func (u *KaguyaModelsInfoUpsertBulk) ClearReasoningEnabled() *KaguyaModelsInfoUp
 }
 
 // SetReasoningEffort sets the "reasoning_effort" field.
-func (u *KaguyaModelsInfoUpsertBulk) SetReasoningEffort(v schema.ReasoningEffort) *KaguyaModelsInfoUpsertBulk {
+func (u *KaguyaModelsInfoUpsertBulk) SetReasoningEffort(v consts.ReasoningEffort) *KaguyaModelsInfoUpsertBulk {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.SetReasoningEffort(v)
 	})

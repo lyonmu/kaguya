@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -16,22 +15,17 @@ import (
 	"charm.land/fantasy/providers/openaicompat"
 
 	token "github.com/lyonmu/kaguya/internal/agent/token"
-)
-
-// 支持的提供商协议（与 internal/ent/schema 的 ProviderProtocol 保持一致）。
-const (
-	ProtocolOpenAI       = "openai"       // 兼容 OpenAI 的 API 协议
-	ProtocolAnthropic    = "anthropic"    // Anthropic 原生 API 协议
-	ProtocolOpenAICompat = "openaicompat" // OpenAI 兼容协议的第三方服务
+	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/global"
 )
 
 // ProviderConfig 描述如何通过提供商协议构造底层模型。
 type ProviderConfig struct {
-	Name     string // 提供商名称（记录元数据用）
-	Protocol string // 协议：openai / anthropic / openaicompat
-	BaseURL  string // 可选，留空使用提供商官方默认地址
-	APIKey   string // API Key
-	ModelID  string // 调用 API 时使用的模型标识符
+	Name     string                  // 提供商名称（记录元数据用）
+	Protocol consts.ProviderProtocol // 模型协议类型
+	BaseURL  string                  // 可选，留空使用提供商官方默认地址
+	APIKey   string                  // API Key
+	ModelID  string                  // 调用 API 时使用的模型标识符
 }
 
 // Option 配置 Agent 的可选参数。
@@ -43,7 +37,6 @@ type Option func(*Agent)
 type Agent struct {
 	inner    fantasy.Agent       // 组装好的底层 fantasy.Agent
 	recorder token.UsageRecorder // 运行信息记录器，可为空
-	logger   *slog.Logger        // 日志器，默认 slog.Default()
 
 	provider string // 提供商名称（记录元数据）
 	model    string // 模型名称（记录元数据）
@@ -61,7 +54,7 @@ type Agent struct {
 
 // New 组装 Agent 运行时。必须且只能设置一次模型来源（WithProvider 或 WithModel）。
 func New(opts ...Option) (*Agent, error) {
-	a := &Agent{logger: slog.Default()}
+	a := &Agent{}
 	for _, opt := range opts {
 		opt(a)
 	}
@@ -153,15 +146,6 @@ func WithRecorder(r token.UsageRecorder) Option {
 	}
 }
 
-// WithLogger 设置日志器，默认 slog.Default()。记录失败时仅记 warning，不影响回答返回。
-func WithLogger(l *slog.Logger) Option {
-	return func(a *Agent) {
-		if l != nil {
-			a.logger = l
-		}
-	}
-}
-
 // WithConversationIDFunc 自定义会话 ID 取值函数，默认从 context 读取。
 func WithConversationIDFunc(fn func(context.Context) string) Option {
 	return func(a *Agent) {
@@ -184,17 +168,17 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 	)
 
 	switch cfg.Protocol {
-	case ProtocolOpenAI:
+	case consts.ProtocolOpenAICompletions:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
 			openai.WithBaseURL(cfg.BaseURL),
 		)
-	case ProtocolAnthropic:
+	case consts.ProtocolAnthropic:
 		provider, err = anthropic.New(
 			anthropic.WithAPIKey(cfg.APIKey),
 			anthropic.WithBaseURL(cfg.BaseURL),
 		)
-	case ProtocolOpenAICompat:
+	case consts.ProtocolOpenAIRespone:
 		provider, err = openaicompat.New(
 			openaicompat.WithAPIKey(cfg.APIKey),
 			openaicompat.WithBaseURL(cfg.BaseURL),
@@ -346,6 +330,6 @@ func (a *Agent) record(
 	}
 
 	if err := a.recorder.RecordUsage(ctx, turn); err != nil {
-		a.logger.Warn("record agent usage failed", "error", err)
+		global.Logger.Sugar().Warnf("record agent usage failed", "error", err)
 	}
 }

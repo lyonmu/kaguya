@@ -14,18 +14,6 @@ import (
 	"github.com/lyonmu/kaguya/pkg"
 )
 
-// ReasoningEffort 定义模型思考/推理的努力程度
-type ReasoningEffort string
-
-const (
-	// ReasoningEffortLow 低强度思考，响应更快但推理深度较浅
-	ReasoningEffortLow ReasoningEffort = "low"
-	// ReasoningEffortMedium 中等强度思考，平衡速度与推理深度
-	ReasoningEffortMedium ReasoningEffort = "medium"
-	// ReasoningEffortHigh 高强度思考，推理更深入但响应较慢
-	ReasoningEffortHigh ReasoningEffort = "high"
-)
-
 // KaguyaModelsInfo holds the schema definition for the KaguyaModelsInfo entity.
 type KaguyaModelsInfo struct {
 	ent.Schema
@@ -39,7 +27,7 @@ func (KaguyaModelsInfo) Fields() []ent.Field {
 		field.String("model_id").Optional().Comment("调用 API 时使用的模型标识符"),
 		field.Int("is_default").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否为该提供方下的默认模型"),
 		field.Int("reasoning_enabled").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否启用思考模式"),
-		field.String("reasoning_effort").Optional().GoType(ReasoningEffort("")).Default(string(ReasoningEffortMedium)).Comment("思考努力程度，影响推理深度和响应速度"),
+		field.String("reasoning_effort").Optional().GoType(consts.ReasoningEffort("")).Default(string(consts.ReasoningEffortMedium)).Comment("思考努力程度，影响推理深度和响应速度"),
 		field.Int("token_context_window").Optional().Comment("模型支持的最大上下文窗口大小（token 数）"),
 		field.Int("token_max_output_tokens").Optional().Comment("模型单次生成的最大输出 token 数"),
 		field.Int("capability_tool_use").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否支持工具调用（function calling）"),

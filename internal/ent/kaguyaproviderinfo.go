@@ -9,8 +9,8 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
 // 模型提供商信息表
@@ -28,7 +28,7 @@ type KaguyaProviderInfo struct {
 	// 提供商名称
 	ProviderName string `json:"provider_name,omitempty"`
 	// API 协议类型
-	APIProtocol schema.ProviderProtocol `json:"api_protocol,omitempty"`
+	APIProtocol consts.ProviderProtocol `json:"api_protocol,omitempty"`
 	// API Key
 	APIKey string `json:"api_key,omitempty"`
 	// Base URL
@@ -116,7 +116,7 @@ func (_m *KaguyaProviderInfo) assignValues(columns []string, values []any) error
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field api_protocol", values[i])
 			} else if value.Valid {
-				_m.APIProtocol = schema.ProviderProtocol(value.String)
+				_m.APIProtocol = consts.ProviderProtocol(value.String)
 			}
 		case kaguyaproviderinfo.FieldAPIKey:
 			if value, ok := values[i].(*sql.NullString); !ok {

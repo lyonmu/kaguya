@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/lyonmu/kaguya/internal/ent/schema"
+	"github.com/lyonmu/kaguya/internal/consts"
 )
 
 const (
@@ -79,7 +79,7 @@ var (
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
 	// DefaultAPIProtocol holds the default value on creation for the "api_protocol" field.
-	DefaultAPIProtocol schema.ProviderProtocol
+	DefaultAPIProtocol consts.ProviderProtocol
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() string
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.

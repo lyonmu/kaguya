@@ -9,18 +9,9 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/global"
 	"github.com/lyonmu/kaguya/pkg"
-)
-
-// ProviderProtocol 定义模型服务提供方的 API 协议类型
-type ProviderProtocol string
-
-const (
-	// ProtocolOpenAI 表示兼容 OpenAI 的 API 协议
-	ProtocolOpenAI ProviderProtocol = "openai"
-	// ProtocolAnthropic 表示 Anthropic 原生 API 协议
-	ProtocolAnthropic ProviderProtocol = "anthropic"
 )
 
 // KaguyaProviderInfo holds the schema definition for the KaguyaProviderInfo entity.
@@ -32,7 +23,7 @@ type KaguyaProviderInfo struct {
 func (KaguyaProviderInfo) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("provider_name").Unique().Optional().Comment("提供商名称"),
-		field.String("api_protocol").Optional().GoType(ProviderProtocol("")).Optional().Comment("API 协议类型").Default(string(ProtocolOpenAI)),
+		field.String("api_protocol").Optional().GoType(consts.ProviderProtocol("")).Optional().Comment("API 协议类型").Default(string(consts.ProtocolOpenAICompletions)),
 		field.String("api_key").Optional().Comment("API Key"),
 		field.String("base_url").Optional().Comment("Base URL"),
 	}

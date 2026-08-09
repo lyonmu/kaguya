@@ -76,7 +76,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "provider_name", Type: field.TypeString, Unique: true, Nullable: true, Comment: "提供商名称"},
-		{Name: "api_protocol", Type: field.TypeString, Nullable: true, Comment: "API 协议类型", Default: "openai"},
+		{Name: "api_protocol", Type: field.TypeString, Nullable: true, Comment: "API 协议类型", Default: "openai-chat"},
 		{Name: "api_key", Type: field.TypeString, Nullable: true, Comment: "API Key"},
 		{Name: "base_url", Type: field.TypeString, Nullable: true, Comment: "Base URL"},
 	}
