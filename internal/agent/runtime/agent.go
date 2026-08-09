@@ -5,13 +5,15 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+
+	token "github.com/lyonmu/kaguya/internal/agent/token"
 )
 
 type AgentOption func(*Agent)
 
 type Agent struct {
 	inner    fantasy.Agent
-	recorder UsageRecorder
+	recorder token.UsageRecorder
 
 	provider string
 	model    string
@@ -20,7 +22,7 @@ type Agent struct {
 	messageIDFunc      func(context.Context) string
 }
 
-func NewAgent(inner fantasy.Agent, recorder UsageRecorder, opts ...AgentOption) *Agent {
+func NewAgent(inner fantasy.Agent, recorder token.UsageRecorder, opts ...AgentOption) *Agent {
 	a := &Agent{
 		inner:    inner,
 		recorder: recorder,
@@ -90,13 +92,13 @@ func (a *Agent) record(
 
 	finishedAt := time.Now()
 
-	turn := TurnUsage{
-		Provider:   a.provider,
-		Model:      a.model,
-		Mode:       mode,
-		StartedAt:  startedAt,
-		FinishedAt: finishedAt,
-		Latency:    finishedAt.Sub(startedAt),
+	turn := token.TurnUsage{
+		Provider:      a.provider,
+		Model:         a.model,
+		Mode:          mode,
+		StartedAt:     startedAt,
+		FinishedAt:    finishedAt,
+		TotalDuration: finishedAt.Sub(startedAt),
 	}
 
 	if a.conversationIDFunc != nil {
@@ -112,15 +114,15 @@ func (a *Agent) record(
 	}
 
 	if result != nil {
-		turn.Total = FromFantasyUsage(result.TotalUsage)
+		turn.Total = token.FromFantasyUsage(result.TotalUsage)
 
 		if len(result.Steps) > 0 {
-			turn.Steps = make([]StepUsage, 0, len(result.Steps))
+			turn.Steps = make([]token.StepUsage, 0, len(result.Steps))
 
 			for i, step := range result.Steps {
-				turn.Steps = append(turn.Steps, StepUsage{
+				turn.Steps = append(turn.Steps, token.StepUsage{
 					StepIndex: i + 1,
-					Usage:     FromFantasyUsage(step.Response.Usage),
+					Usage:     token.FromFantasyUsage(step.Response.Usage),
 				})
 			}
 		}
