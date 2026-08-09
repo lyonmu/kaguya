@@ -8,8 +8,8 @@ import (
 )
 
 // SystemAccessLogPage
-// @Tags      系统管理
-// @Summary   访问日志分页列表
+// @Tags      System
+// @Summary   SystemAccessLogPage
 // @Description 获取访问日志分页列表
 // @Param     data  query      dtosystem.SystemAccessLogPageReq  true  "访问日志请求参数"
 // @Produce   json

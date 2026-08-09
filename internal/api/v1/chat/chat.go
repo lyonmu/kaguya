@@ -5,17 +5,16 @@ import (
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/global"
-	"github.com/lyonmu/kaguya/pkg"
 )
 
-// Chat
-// @Tags      对话
-// @Summary   简单对话
-// @Description 简单对话 chat
+// ChatSSE
+// @Tags      Chat
+// @Summary   ChatSSE
+// @Description 简单SSE对话
 // @Param     data  body      dtochat.ChatReq      true  "用户发起的对话"
 // @Produce   json
-// @Router    /v1/chat [GET]
-func (b *ChatApiV1Group) Chat(c *gin.Context) {
+// @Router    /v1/chat/sse [POST]
+func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 
 	var req dtochat.ChatReq
 
@@ -24,14 +23,6 @@ func (b *ChatApiV1Group) Chat(c *gin.Context) {
 		dtocode.RequestParameterError.Failure(c)
 		return
 	}
-
-	uaStr := c.Request.UserAgent()
-	ua := pkg.ParseUserAgent(uaStr)
-	access_ip := c.ClientIP()
-
-	global.Logger.Sugar().Info(ua.Browser())
-
-	global.Logger.Sugar().Info(access_ip)
 
 	c.JSON(200, gin.H{
 		"msg":  "pong",

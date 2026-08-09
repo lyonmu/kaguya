@@ -23,16 +23,16 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/v1/chat": {
-            "get": {
-                "description": "简单对话 chat",
+        "/v1/chat/sse": {
+            "post": {
+                "description": "简单SSE对话",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "对话"
+                    "Chat"
                 ],
-                "summary": "简单对话",
+                "summary": "ChatSSE",
                 "parameters": [
                     {
                         "description": "用户发起的对话",
@@ -54,9 +54,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "系统管理"
+                    "System"
                 ],
-                "summary": "访问日志分页列表",
+                "summary": "SystemAccessLogPage",
                 "parameters": [
                     {
                         "type": "string",

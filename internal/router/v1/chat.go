@@ -9,9 +9,9 @@ type ChatRouter struct{}
 
 func (r *ChatRouter) InitChatRouter(group *gin.RouterGroup, apiGroup apiv1.ApiV1Group) {
 
-	chatRouter := group.Group("v1")
+	chatRouter := group.Group("v1/chat")
 	{
-		chatRouter.GET("chat", apiGroup.Chat)
+		chatRouter.POST("sse", apiGroup.ChatSSE)
 	}
 
 }

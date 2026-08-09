@@ -8,6 +8,7 @@ import (
 	"github.com/lyonmu/gopkg/logger"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
+	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
 	"github.com/lyonmu/kaguya/internal/router"
 	"github.com/lyonmu/kaguya/pkg"
