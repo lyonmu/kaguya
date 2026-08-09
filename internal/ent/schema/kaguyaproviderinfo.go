@@ -23,7 +23,7 @@ type KaguyaProviderInfo struct {
 func (KaguyaProviderInfo) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("provider_name").Unique().Optional().Comment("提供商名称"),
-		field.String("api_protocol").Optional().GoType(consts.ProviderProtocol("")).Optional().Comment("API 协议类型").Default(string(consts.ProtocolOpenAICompletions)),
+		field.String("api_protocol").Optional().GoType(consts.ProviderProtocol("")).Optional().Comment("API 协议类型").Default(string(consts.ProtocolOpenAIChat)),
 		field.String("api_key").Optional().Comment("API Key"),
 		field.String("base_url").Optional().Comment("Base URL"),
 	}

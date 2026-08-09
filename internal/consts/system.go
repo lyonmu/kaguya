@@ -20,11 +20,11 @@ type ProviderProtocol string
 
 const (
 	// ProtocolOpenAI 表示 OpenAI 的 Chat Completions API 协议
-	ProtocolOpenAICompletions ProviderProtocol = "openai-chat"
+	ProtocolOpenAIChat ProviderProtocol = "openai-chat"
 	// ProtocolAnthropic 表示 Anthropic 的 Messages API 协议
 	ProtocolAnthropic ProviderProtocol = "anthropic"
 	// ProtocolOpenAIRespone 表示 OpenAI 的 OpenAI Responses API
-	ProtocolOpenAIRespone ProviderProtocol = "openai-response"
+	ProtocolOpenAIResponses ProviderProtocol = "openai-response"
 )
 
 // ReasoningEffort 定义模型思考/推理的努力程度

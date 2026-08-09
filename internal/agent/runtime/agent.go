@@ -12,7 +12,6 @@ import (
 	"charm.land/fantasy"
 	"charm.land/fantasy/providers/anthropic"
 	"charm.land/fantasy/providers/openai"
-	"charm.land/fantasy/providers/openaicompat"
 
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	"github.com/lyonmu/kaguya/internal/consts"
@@ -168,20 +167,21 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 	)
 
 	switch cfg.Protocol {
-	case consts.ProtocolOpenAICompletions:
+	case consts.ProtocolOpenAIChat:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
 			openai.WithBaseURL(cfg.BaseURL),
+		)
+	case consts.ProtocolOpenAIResponses:
+		provider, err = openai.New(
+			openai.WithAPIKey(cfg.APIKey),
+			openai.WithBaseURL(cfg.BaseURL),
+			openai.WithUseResponsesAPI(),
 		)
 	case consts.ProtocolAnthropic:
 		provider, err = anthropic.New(
 			anthropic.WithAPIKey(cfg.APIKey),
 			anthropic.WithBaseURL(cfg.BaseURL),
-		)
-	case consts.ProtocolOpenAIRespone:
-		provider, err = openaicompat.New(
-			openaicompat.WithAPIKey(cfg.APIKey),
-			openaicompat.WithBaseURL(cfg.BaseURL),
 		)
 	default:
 		return nil, fmt.Errorf("unsupported provider protocol %q", cfg.Protocol)
