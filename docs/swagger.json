@@ -22,7 +22,7 @@
     "paths": {
         "/v1/chat/sse": {
             "post": {
-                "description": "简单SSE对话",
+                "description": "简单SSE对话：流式返回模型回答，首帧携带会话ID与模型信息，末帧携带完整内容与token用量",
                 "produces": [
                     "application/json"
                 ],
@@ -32,7 +32,7 @@
                 "summary": "ChatSSE",
                 "parameters": [
                     {
-                        "description": "用户发起的对话",
+                        "description": "用户发起的对话（conversation_id 为空时开启新对话）",
                         "name": "data",
                         "in": "body",
                         "required": true,
@@ -41,7 +41,14 @@
                         }
                     }
                 ],
-                "responses": {}
+                "responses": {
+                    "200": {
+                        "description": "SSE 流式响应，每帧为一个 ChatSSEResp",
+                        "schema": {
+                            "$ref": "#/definitions/chat.ChatSSEResp"
+                        }
+                    }
+                }
             }
         },
         "/v1/system/accesslog/page": {
@@ -123,16 +130,112 @@
         }
     },
     "definitions": {
+        "chat.Chat": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "模型返回的内容",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "对话id",
+                    "type": "string"
+                }
+            }
+        },
         "chat.ChatReq": {
             "type": "object",
             "required": [
                 "messages"
             ],
             "properties": {
+                "conversation_id": {
+                    "description": "会话ID，空值表示开启新对话",
+                    "type": "string"
+                },
                 "messages": {
                     "type": "string"
                 }
             }
+        },
+        "chat.ChatSSEResp": {
+            "type": "object",
+            "properties": {
+                "api_protocol": {
+                    "description": "api接口类型",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.ProviderProtocol"
+                        }
+                    ]
+                },
+                "chat": {
+                    "description": "对话信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/chat.Chat"
+                        }
+                    ]
+                },
+                "created": {
+                    "description": "创建时间时间戳",
+                    "type": "integer"
+                },
+                "is_error": {
+                    "description": "是否产生错误需要进行终止",
+                    "type": "boolean"
+                },
+                "model_id": {
+                    "description": "模型id",
+                    "type": "string"
+                },
+                "model_name": {
+                    "description": "模型名称",
+                    "type": "string"
+                },
+                "usage": {
+                    "description": "token 使用信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/chat.Usage"
+                        }
+                    ]
+                }
+            }
+        },
+        "chat.Usage": {
+            "type": "object",
+            "properties": {
+                "cached_tokens": {
+                    "description": "命中缓存的 Token 数",
+                    "type": "integer"
+                },
+                "input_tokens": {
+                    "description": "输入 Token 数。",
+                    "type": "integer"
+                },
+                "output_tokens": {
+                    "description": "输出 Token 数",
+                    "type": "integer"
+                },
+                "total_tokens": {
+                    "description": "总 Token 数",
+                    "type": "integer"
+                }
+            }
+        },
+        "consts.ProviderProtocol": {
+            "type": "string",
+            "enum": [
+                "openai-chat",
+                "anthropic",
+                "openai-response"
+            ],
+            "x-enum-varnames": [
+                "ProtocolOpenAIChat",
+                "ProtocolAnthropic",
+                "ProtocolOpenAIResponses"
+            ]
         },
         "github_com_lyonmu_kaguya_internal_dto_code.Response": {
             "type": "object",
