@@ -114,6 +114,10 @@ func New(opts ...Option) (*Agent, error) {
 // WithModel 直接注入底层模型（测试/自定义场景用）。与 WithProvider 二选一。
 func WithModel(m fantasy.LanguageModel) Option {
 	return func(a *Agent) {
+		if m == nil {
+			// 空模型直接跳过，让 New 给出明确的"模型缺失"错误，而不是落到 buildLanguageModel 报协议不支持
+			return
+		}
 		a.modelCount++
 		a.modelCfg = m
 	}
@@ -231,7 +235,9 @@ func (a *Agent) Stream(ctx context.Context, call fantasy.AgentStreamCall) (*fant
 // reasoningTimer 统计一次调用中模型思考（reasoning）的总时长。
 // 思考时长只能通过 stream 回调精确测量；generate 模式无法获取，记为 0。
 type reasoningTimer struct {
-	mu     sync.Mutex           // 回调可能在工具执行 goroutine 中触发，加锁保证并发安全
+	// fantasy v0.33.2 中 stream 处理与工具执行严格同步于调用方 goroutine，
+	// 回调在消费流的同一个 goroutine 中触发；保留锁作为防御，防止未来异步路径引入竞态
+	mu     sync.Mutex
 	active map[string]time.Time // id -> 思考开始时间
 	total  time.Duration        // 累计思考时长
 }

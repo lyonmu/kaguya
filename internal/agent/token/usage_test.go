@@ -108,4 +108,25 @@ func TestTurnUsageJSON(t *testing.T) {
 			t.Errorf("JSON 缺少字段 %q", k)
 		}
 	}
+
+	// 反序列化到类型化结构，校验字段值正确性（往返一致），而非仅存在性
+	var got TurnUsage
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("unmarshal typed: %v", err)
+	}
+	if !got.StartedAt.Equal(u.StartedAt) || !got.FinishedAt.Equal(u.FinishedAt) {
+		t.Fatalf("started/finished_at = %v/%v, want %v/%v", got.StartedAt, got.FinishedAt, u.StartedAt, u.FinishedAt)
+	}
+	if got.TotalDuration != u.TotalDuration || got.ReasoningDuration != u.ReasoningDuration {
+		t.Fatalf("total/reasoning_duration = %v/%v, want %v/%v", got.TotalDuration, got.ReasoningDuration, u.TotalDuration, u.ReasoningDuration)
+	}
+	if got.ToolCalls != u.ToolCalls || got.FinishReason != u.FinishReason {
+		t.Fatalf("tool_calls/finish_reason = %d/%q, want %d/%q", got.ToolCalls, got.FinishReason, u.ToolCalls, u.FinishReason)
+	}
+	if got.Total != u.Total {
+		t.Fatalf("total = %+v, want %+v", got.Total, u.Total)
+	}
+	if len(got.Steps) != 1 || got.Steps[0].StepIndex != 1 || got.Steps[0].ToolCalls != 3 {
+		t.Fatalf("steps = %+v, want 1 step with index=1 tool_calls=3", got.Steps)
+	}
 }

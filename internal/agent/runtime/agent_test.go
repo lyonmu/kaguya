@@ -26,6 +26,11 @@ func TestNew_Validation(t *testing.T) {
 			wantErr: "model is required",
 		},
 		{
+			name:    "nil model ignored",
+			opts:    []Option{WithModel(nil)},
+			wantErr: "model is required",
+		},
+		{
 			name:    "both model sources",
 			opts:    []Option{WithModel(&fakeModel{}), WithProvider(ProviderConfig{Protocol: ProtocolOpenAI})},
 			wantErr: "configured more than once",
@@ -54,26 +59,39 @@ func TestNew_Validation(t *testing.T) {
 	}
 }
 
-// TestNew_WithProvider_OpenAI 验证合法协议配置可成功组装（仅构造对象，不发起网络请求）。
-func TestNew_WithProvider_OpenAI(t *testing.T) {
-	a, err := New(WithProvider(ProviderConfig{
-		Name:     "my-openai",
-		Protocol: ProtocolOpenAI,
-		BaseURL:  "https://example.com/v1",
-		APIKey:   "sk-test",
-		ModelID:  "gpt-4o",
-	}))
-	if err != nil {
-		t.Fatalf("New: %v", err)
+// TestNew_WithProvider_Protocols 验证所有受支持协议均可成功组装（仅构造本地对象，不发起网络请求）。
+func TestNew_WithProvider_Protocols(t *testing.T) {
+	tests := []struct {
+		name     string
+		protocol string
+	}{
+		{name: "openai", protocol: ProtocolOpenAI},
+		{name: "anthropic", protocol: ProtocolAnthropic},
+		{name: "openaicompat", protocol: ProtocolOpenAICompat},
 	}
-	if a == nil {
-		t.Fatal("expected non-nil agent")
-	}
-	if a.provider != "my-openai" {
-		t.Fatalf("provider = %q, want %q", a.provider, "my-openai")
-	}
-	if a.model != "gpt-4o" {
-		t.Fatalf("model = %q, want %q", a.model, "gpt-4o")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a, err := New(WithProvider(ProviderConfig{
+				Name:     "my-" + tt.name,
+				Protocol: tt.protocol,
+				BaseURL:  "https://example.com/v1",
+				APIKey:   "sk-test",
+				ModelID:  "gpt-4o",
+			}))
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			if a == nil {
+				t.Fatal("expected non-nil agent")
+			}
+			if a.provider != "my-"+tt.name {
+				t.Fatalf("provider = %q, want %q", a.provider, "my-"+tt.name)
+			}
+			if a.model != "gpt-4o" {
+				t.Fatalf("model = %q, want %q", a.model, "gpt-4o")
+			}
+		})
 	}
 }
 
@@ -99,11 +117,15 @@ type fakeModel struct {
 
 	responses     []*fantasy.Response      // Generate 按调用顺序依次返回
 	streams       []fantasy.StreamResponse // Stream 按调用顺序依次返回
+	generateErr   error                    // 非空时 Generate 直接返回该错误（错误场景测试用）
 	generateCalls int
 	streamCalls   int
 }
 
 func (m *fakeModel) Generate(_ context.Context, _ fantasy.Call) (*fantasy.Response, error) {
+	if m.generateErr != nil {
+		return nil, m.generateErr
+	}
 	r := m.responses[m.generateCalls]
 	m.generateCalls++
 	return r, nil
@@ -229,6 +251,118 @@ func TestGenerate_RecordsUsage(t *testing.T) {
 	}
 	if u.Err != "" {
 		t.Fatalf("Err = %q, want empty", u.Err)
+	}
+}
+
+// TestGenerate_RecordsContextIDs 验证 context 注入的会话/消息 ID 落入记录（默认 ID 取值函数从 context 读取）。
+func TestGenerate_RecordsContextIDs(t *testing.T) {
+	model := &fakeModel{
+		provider:  "test-provider",
+		model:     "test-model",
+		responses: []*fantasy.Response{stopResponse(1, 1)},
+	}
+	recorder := &fakeRecorder{}
+
+	a, err := New(WithModel(model), WithRecorder(recorder))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := token.WithConversationID(context.Background(), "conv-42")
+	ctx = token.WithMessageID(ctx, "msg-42")
+	if _, err := a.Generate(ctx, fantasy.AgentCall{Prompt: "hello"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+
+	u := recorder.Items()[0]
+	if u.ConversationID != "conv-42" {
+		t.Fatalf("ConversationID = %q, want %q", u.ConversationID, "conv-42")
+	}
+	if u.MessageID != "msg-42" {
+		t.Fatalf("MessageID = %q, want %q", u.MessageID, "msg-42")
+	}
+}
+
+// TestGenerate_ContextIDFuncOverrides 验证 WithConversationIDFunc/WithMessageIDFunc 覆盖默认的 context 读取。
+func TestGenerate_ContextIDFuncOverrides(t *testing.T) {
+	model := &fakeModel{
+		provider:  "test-provider",
+		model:     "test-model",
+		responses: []*fantasy.Response{stopResponse(1, 1)},
+	}
+	recorder := &fakeRecorder{}
+
+	a, err := New(
+		WithModel(model),
+		WithRecorder(recorder),
+		WithConversationIDFunc(func(context.Context) string { return "override-conv" }),
+		WithMessageIDFunc(func(context.Context) string { return "override-msg" }),
+	)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	ctx := token.WithConversationID(context.Background(), "ctx-conv")
+	ctx = token.WithMessageID(ctx, "ctx-msg")
+	if _, err := a.Generate(ctx, fantasy.AgentCall{Prompt: "hello"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+
+	u := recorder.Items()[0]
+	if u.ConversationID != "override-conv" {
+		t.Fatalf("ConversationID = %q, want %q", u.ConversationID, "override-conv")
+	}
+	if u.MessageID != "override-msg" {
+		t.Fatalf("MessageID = %q, want %q", u.MessageID, "override-msg")
+	}
+}
+
+// TestGenerate_RecordsError 验证失败时 Err 被填充且不记录结束原因。
+func TestGenerate_RecordsError(t *testing.T) {
+	model := &fakeModel{
+		provider:    "test-provider",
+		model:       "test-model",
+		generateErr: errors.New("model exploded"),
+	}
+	recorder := &fakeRecorder{}
+
+	a, err := New(WithModel(model), WithRecorder(recorder))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	if _, err := a.Generate(context.Background(), fantasy.AgentCall{Prompt: "boom"}); err == nil {
+		t.Fatal("expected Generate error, got nil")
+	}
+
+	u := recorder.Items()[0]
+	if u.Err != "model exploded" {
+		t.Fatalf("Err = %q, want %q", u.Err, "model exploded")
+	}
+	if u.FinishReason != "" {
+		t.Fatalf("FinishReason = %q, want empty on error", u.FinishReason)
+	}
+}
+
+// TestGenerate_NilRecorderNoop 验证未设置记录器时记录步骤直接早退（no-op），不影响回答返回。
+func TestGenerate_NilRecorderNoop(t *testing.T) {
+	model := &fakeModel{
+		provider:  "test-provider",
+		model:     "test-model",
+		responses: []*fantasy.Response{stopResponse(1, 1)},
+	}
+
+	a, err := New(WithModel(model))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	result, err := a.Generate(context.Background(), fantasy.AgentCall{Prompt: "hello"})
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
 	}
 }
 
