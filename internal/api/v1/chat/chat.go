@@ -17,7 +17,7 @@ import (
 // @Description 简单SSE对话：流式返回模型回答，首帧携带会话ID与模型信息，末帧携带完整内容与token用量
 // @Param     data  body      dtochat.ChatReq      true  "用户发起的对话（conversation_id 为空时开启新对话）"
 // @Produce   json
-// @Success   200  {object}  dtochat.ChatSSEResp  "SSE 流式响应，每帧为一个 ChatSSEResp"
+// @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatSSEResp,message=string}  "SSE 流式响应，每帧为一个 ChatSSEResp"
 // @Router    /v1/chat/sse [POST]
 func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 

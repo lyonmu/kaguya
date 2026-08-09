@@ -48,7 +48,25 @@ const docTemplate = `{
                     "200": {
                         "description": "SSE 流式响应，每帧为一个 ChatSSEResp",
                         "schema": {
-                            "$ref": "#/definitions/chat.ChatSSEResp"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "code": {
+                                            "type": "number"
+                                        },
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ChatSSEResp"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
