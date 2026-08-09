@@ -184,9 +184,8 @@ const docTemplate = `{
                     "description": "创建时间时间戳",
                     "type": "integer"
                 },
-                "is_error": {
-                    "description": "是否产生错误需要进行终止",
-                    "type": "boolean"
+                "err": {
+                    "description": "错误信息"
                 },
                 "model_id": {
                     "description": "模型id",

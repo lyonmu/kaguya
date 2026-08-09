@@ -9,7 +9,7 @@ type ChatSSEResp struct {
 	Created     int64                   `json:"created"`      // 创建时间时间戳
 	ModelID     string                  `json:"model_id"`     // 模型id
 	ModelName   string                  `json:"model_name"`   // 模型名称
-	IsError     bool                    `json:"is_error"`     // 是否产生错误需要进行终止
+	Err         error                   `json:"err"`          // 错误信息
 }
 type Chat struct {
 	ID      string `json:"id"`      // 对话id

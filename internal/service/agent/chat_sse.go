@@ -19,6 +19,16 @@ import (
 // chatSystemPrompt 组装 Agent 时使用的系统提示词。
 const chatSystemPrompt = "你是一个乐于助人的 AI 助手。"
 
+// send 向 dataChan 推送一条消息；客户端已断开（ctx 取消）或 channel 已关闭时返回 false。
+func send(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, resp *dtochat.ChatSSEResp) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case dataChan <- resp:
+		return true
+	}
+}
+
 // ChatSSE 执行一次流式对话：查询默认模型 → 组装 Agent → Stream 增量推送。
 func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, req *dtochat.ChatReq) {
 	defer close(dataChan)
@@ -31,13 +41,13 @@ func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSERe
 		First(ctx)
 	if err != nil {
 		global.Logger.Sugar().Errorf("query default model failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{IsError: true})
+		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err})
 		return
 	}
 	provider := model.Edges.Provider
 	if provider == nil {
 		global.Logger.Sugar().Errorf("default model %q has no provider", model.ModelID)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{IsError: true})
+		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err})
 		return
 	}
 
@@ -54,7 +64,7 @@ func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSERe
 	)
 	if err != nil {
 		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{IsError: true})
+		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err})
 		return
 	}
 
@@ -64,7 +74,7 @@ func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSERe
 		id, gerr := global.Id.GenID()
 		if gerr != nil {
 			global.Logger.Sugar().Errorf("generate conversation id failed, err is %+v", gerr)
-			send(ctx, dataChan, &dtochat.ChatSSEResp{IsError: true})
+			send(ctx, dataChan, &dtochat.ChatSSEResp{Err: gerr})
 			return
 		}
 		convID = fmt.Sprintf("%d", id)
@@ -103,7 +113,7 @@ func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSERe
 	})
 	if err != nil {
 		global.Logger.Sugar().Errorf("stream chat failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{IsError: true, Chat: dtochat.Chat{ID: convID}})
+		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err, Chat: dtochat.Chat{ID: convID}})
 		return
 	}
 
@@ -129,14 +139,4 @@ func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSERe
 		ModelID:   model.ModelID,
 		ModelName: model.ModelName,
 	})
-}
-
-// send 向 dataChan 推送一条消息；客户端已断开（ctx 取消）或 channel 已关闭时返回 false。
-func send(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, resp *dtochat.ChatSSEResp) bool {
-	select {
-	case <-ctx.Done():
-		return false
-	case dataChan <- resp:
-		return true
-	}
 }

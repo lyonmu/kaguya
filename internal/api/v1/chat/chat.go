@@ -29,8 +29,14 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 		return
 	}
 
-	// SSE 响应头必须在 WriteHeader 之前设置
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	fail, err := json.Marshal(dtocode.ChatSSEFailure)
+	if err != nil {
+		global.Logger.Sugar().Errorf("marshal sse failure response failed : %+v", err)
+		dtocode.ChatSSEFailure.Failure(c)
+		return
+	}
+
+	c.Writer.Header().Set("Content-Type", "text/event-stream;charset=UTF-8")
 	c.Writer.Header().Set("Cache-Control", "no-cache")
 	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.WriteHeader(http.StatusOK)
@@ -48,15 +54,29 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 				c.Writer.Flush()
 				return
 			}
-			data, err := json.Marshal(v)
-			if err != nil {
-				global.Logger.Sugar().Errorf("marshal sse response failed : %+v", err)
+
+			if v.Err != nil {
+				fmt.Fprintf(c.Writer, "data: %s\n\n", fail)
+				c.Writer.Flush()
 				return
 			}
+
+			re := dtocode.SystemSuccess
+			re.Data = v
+
+			data, err := json.Marshal(re)
+			if err != nil {
+				global.Logger.Sugar().Errorf("marshal sse response failed : %+v", err)
+				fmt.Fprintf(c.Writer, "data: %s\n\n", fail)
+				c.Writer.Flush()
+				return
+			}
+
 			if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", data); err != nil {
 				return
 			}
 			c.Writer.Flush()
+
 		}
 	}
 }
