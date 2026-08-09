@@ -11,7 +11,7 @@ import (
 )
 
 // CreateAccessLog 创建访问日志
-func (s *AgentSvc) CharSSE(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, msg string) {
+func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, req *dtochat.ChatReq) {
 
 	var (
 		query = db.EntClient.KaguyaModelsInfo.Query().
@@ -27,5 +27,7 @@ func (s *AgentSvc) CharSSE(ctx context.Context, dataChan chan *dtochat.ChatSSERe
 		resp.IsError = true
 		dataChan <- resp
 	}
+
+	_ = defaultModel
 
 }

@@ -30,10 +30,10 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 	c.Writer.WriteHeaderNow()
 	dataChan := make(chan *dtochat.ChatSSEResp)
 	// 开启协程实现 SSE 推送
-	go agentvc.CharSSE(c.Request.Context(), dataChan, req.Messages)
-	for v := range dataChan {
-		c.Writer.Write() // 产生数据
-		c.Writer.Flush() // 产生一定的数据后， flush到浏览器端
+	go agentvc.ChatSSE(c.Request.Context(), dataChan, &req)
+	for range dataChan {
+		c.Writer.Write([]byte{}) // 产生数据
+		c.Writer.Flush()         // 产生一定的数据后， flush到浏览器端
 	}
 	c.Writer.Flush() // 最后 flush 一次
 
