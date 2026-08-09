@@ -22,7 +22,45 @@ const docTemplate = `{
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
-    "paths": {}
+    "paths": {
+        "/v1/chat": {
+            "get": {
+                "description": "简单对话 chat",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "对话"
+                ],
+                "summary": "简单对话",
+                "parameters": [
+                    {
+                        "description": "用户发起的对话",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chat.ChatReq"
+                        }
+                    }
+                ],
+                "responses": {}
+            }
+        }
+    },
+    "definitions": {
+        "chat.ChatReq": {
+            "type": "object",
+            "required": [
+                "messages"
+            ],
+            "properties": {
+                "messages": {
+                    "type": "string"
+                }
+            }
+        }
+    }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
