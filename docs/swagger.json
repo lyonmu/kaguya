@@ -69,6 +69,44 @@
                 }
             }
         },
+        "/v1/chat/ws": {
+            "get": {
+                "description": "WebSocket 流式对话：长连接多轮对话。上行帧 ChatWSReq（flag=chat/cancel），下行帧 dtocode.Response 包 ChatWSResp（flag=start/delta/done/error）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "ChatWS",
+                "responses": {
+                    "200": {
+                        "description": "WS 帧，每帧为一个 dtocode.Response",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "code": {
+                                            "type": "number"
+                                        },
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ChatWSResp"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/system/accesslog/page": {
             "get": {
                 "description": "获取访问日志分页列表",
@@ -220,6 +258,17 @@
                 }
             }
         },
+        "chat.ChatWSResp": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/chat.ChatSSEResp"
+                },
+                "flag": {
+                    "$ref": "#/definitions/chat.WSFlag"
+                }
+            }
+        },
         "chat.Usage": {
             "type": "object",
             "properties": {
@@ -240,6 +289,41 @@
                     "type": "integer"
                 }
             }
+        },
+        "chat.WSFlag": {
+            "type": "string",
+            "enum": [
+                "chat",
+                "cancel",
+                "start",
+                "delta",
+                "done",
+                "error"
+            ],
+            "x-enum-comments": {
+                "WSFlagCancel": "上行：取消当前生成",
+                "WSFlagChat": "上行：发起一轮对话",
+                "WSFlagDelta": "下行：增量内容帧",
+                "WSFlagDone": "下行：本轮末帧（完整回答 + Usage）",
+                "WSFlagError": "下行：出错或被取消",
+                "WSFlagStart": "下行：本轮首帧（会话 ID + 模型信息）"
+            },
+            "x-enum-descriptions": [
+                "上行：发起一轮对话",
+                "上行：取消当前生成",
+                "下行：本轮首帧（会话 ID + 模型信息）",
+                "下行：增量内容帧",
+                "下行：本轮末帧（完整回答 + Usage）",
+                "下行：出错或被取消"
+            ],
+            "x-enum-varnames": [
+                "WSFlagChat",
+                "WSFlagCancel",
+                "WSFlagStart",
+                "WSFlagDelta",
+                "WSFlagDone",
+                "WSFlagError"
+            ]
         },
         "consts.ProviderProtocol": {
             "type": "string",
