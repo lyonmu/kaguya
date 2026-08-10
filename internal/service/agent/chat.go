@@ -20,7 +20,7 @@ import (
 const chatSystemPrompt = "你是一个乐于助人的 AI 助手。"
 
 // send 向 dataChan 推送一条消息；客户端已断开（ctx 取消）或 channel 已关闭时返回 false。
-func send(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, resp *dtochat.ChatSSEResp) bool {
+func send(ctx context.Context, dataChan chan *dtochat.ChatResp, resp *dtochat.ChatResp) bool {
 	select {
 	case <-ctx.Done():
 		return false
@@ -30,7 +30,7 @@ func send(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, resp *dtochat
 }
 
 // Chat 执行一次流式对话：查询默认模型 → 组装 Agent → Stream 增量推送。
-func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, req *dtochat.ChatReq) {
+func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, req *dtochat.ChatReq) {
 	defer close(dataChan)
 
 	// 查询默认模型及其 provider 配置
@@ -41,13 +41,13 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp,
 		First(ctx)
 	if err != nil {
 		global.Logger.Sugar().Errorf("query default model failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err})
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
 		return
 	}
 	provider := model.Edges.Provider
 	if provider == nil {
 		global.Logger.Sugar().Errorf("default model %q has no provider", model.ModelID)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err})
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
 		return
 	}
 
@@ -64,17 +64,17 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp,
 	)
 	if err != nil {
 		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err})
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
 		return
 	}
 
 	// 会话管理：空 ID 生成新会话，否则沿用历史
-	convID := req.ConversationID
+	convID := req.ID
 	if convID == "" {
 		id, gerr := global.Id.GenID()
 		if gerr != nil {
 			global.Logger.Sugar().Errorf("generate conversation id failed, err is %+v", gerr)
-			send(ctx, dataChan, &dtochat.ChatSSEResp{Err: gerr})
+			send(ctx, dataChan, &dtochat.ChatResp{Err: gerr})
 			return
 		}
 		convID = fmt.Sprintf("%d", id)
@@ -82,7 +82,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp,
 	history := conversationStoreInstance.history(convID)
 
 	// 首条消息：携带会话 ID 与模型信息
-	first := &dtochat.ChatSSEResp{
+	first := &dtochat.ChatResp{
 		Chat:        dtochat.Chat{ID: convID},
 		APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
 		Created:     time.Now().Unix(),
@@ -99,7 +99,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp,
 		Prompt:   req.Messages,
 		Messages: history,
 		OnTextDelta: func(_ string, delta string) error {
-			if !send(ctx, dataChan, &dtochat.ChatSSEResp{
+			if !send(ctx, dataChan, &dtochat.ChatResp{
 				Chat:        dtochat.Chat{ID: convID, Content: delta},
 				APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
 				Created:     time.Now().Unix(),
@@ -113,7 +113,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp,
 	})
 	if err != nil {
 		global.Logger.Sugar().Errorf("stream chat failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatSSEResp{Err: err, Chat: dtochat.Chat{ID: convID}})
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID}})
 		return
 	}
 
@@ -126,7 +126,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp,
 
 	// 末条消息：完整回答 + Usage
 	usage := token.FromFantasyUsage(result.TotalUsage)
-	send(ctx, dataChan, &dtochat.ChatSSEResp{
+	send(ctx, dataChan, &dtochat.ChatResp{
 		Chat:        dtochat.Chat{ID: convID, Content: result.Response.Content.Text()},
 		APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
 		Usage: dtochat.Usage{

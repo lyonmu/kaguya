@@ -55,7 +55,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 	// 投递错误帧（读循环使用连接级 ctx）
 	sendErr := func(resp dtocode.Response) {
-		resp.Data = dtochat.ChatWSResp{Flag: dtochat.WSFlagError}
+		resp.Data = dtochat.ChatResp{Chat: dtochat.Chat{Flag: dtochat.WSFlagError}}
 		select {
 		case <-connCtx.Done():
 		case send <- &resp:
@@ -63,7 +63,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 	}
 
 	for {
-		var req dtochat.ChatWSReq
+		var req dtochat.ChatReq
 		if err := conn.ReadJSON(&req); err != nil {
 			// 连接关闭 / 读错误：取消当前轮并终结写 goroutine
 			mu.Lock()
@@ -97,10 +97,10 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 			turnCancel = cancel
 			mu.Unlock()
 
-			dataChan := make(chan *dtochat.ChatSSEResp)
+			dataChan := make(chan *dtochat.ChatResp)
 			go agentvc.Chat(turnCtx, dataChan, &dtochat.ChatReq{
-				ConversationID: req.ConversationID,
-				Messages:       req.Messages,
+				ID:       req.ID,
+				Messages: req.Messages,
 			})
 
 			// 每轮转发 goroutine：dataChan → send，映射 flag
@@ -147,11 +147,11 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 // mapWSFrame 将一条 ChatSSEResp 映射为下行 dtocode.Response。
 // 返回的 bool 表示是否为错误帧（error 分支仅带 flag，不带 ChatSSEResp）。
-func mapWSFrame(v *dtochat.ChatSSEResp, first bool) (dtocode.Response, bool) {
+func mapWSFrame(v *dtochat.ChatResp, first bool) (dtocode.Response, bool) {
 	resp := dtocode.SystemSuccess
 	if v.Err != nil {
 		resp = dtocode.ChatSSEFailure
-		resp.Data = dtochat.ChatWSResp{Flag: dtochat.WSFlagError}
+		resp.Data = dtochat.ChatResp{Chat: dtochat.Chat{Flag: dtochat.WSFlagError}}
 		return resp, true
 	}
 	flag := dtochat.WSFlagDelta
@@ -160,6 +160,7 @@ func mapWSFrame(v *dtochat.ChatSSEResp, first bool) (dtocode.Response, bool) {
 	} else if v.Usage.TotalTokens > 0 {
 		flag = dtochat.WSFlagDone
 	}
-	resp.Data = dtochat.ChatWSResp{Flag: flag, Data: *v}
+	v.Chat.Flag = flag
+	resp.Data = v
 	return resp, false
 }
