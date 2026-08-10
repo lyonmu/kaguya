@@ -12,6 +12,7 @@ func (r *ChatRouter) InitChatRouter(group *gin.RouterGroup, apiGroup apiv1.ApiV1
 	chatRouter := group.Group("v1/chat")
 	{
 		chatRouter.POST("sse", apiGroup.ChatSSE)
+		chatRouter.GET("ws", apiGroup.ChatWS)
 	}
 
 }
