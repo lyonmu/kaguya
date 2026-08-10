@@ -29,8 +29,8 @@ func send(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, resp *dtochat
 	}
 }
 
-// ChatSSE 执行一次流式对话：查询默认模型 → 组装 Agent → Stream 增量推送。
-func (s *AgentSvc) ChatSSE(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, req *dtochat.ChatReq) {
+// Chat 执行一次流式对话：查询默认模型 → 组装 Agent → Stream 增量推送。
+func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatSSEResp, req *dtochat.ChatReq) {
 	defer close(dataChan)
 
 	// 查询默认模型及其 provider 配置

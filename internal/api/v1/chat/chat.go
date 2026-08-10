@@ -43,7 +43,7 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 	c.Writer.Flush()
 
 	dataChan := make(chan *dtochat.ChatSSEResp)
-	go agentvc.ChatSSE(c.Request.Context(), dataChan, &req)
+	go agentvc.Chat(c.Request.Context(), dataChan, &req)
 
 	for {
 		select {
