@@ -30,6 +30,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 	var (
 		mu         sync.Mutex
+		wg         sync.WaitGroup
 		busy       bool
 		turnCancel context.CancelFunc
 	)
@@ -70,6 +71,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 				turnCancel()
 			}
 			mu.Unlock()
+			wg.Wait() // 等所有转发 goroutine 退出后再 close，避免 send-on-closed-channel
 			close(send)
 			return
 		}
@@ -102,7 +104,9 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 			})
 
 			// 每轮转发 goroutine：dataChan → send，映射 flag
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				defer func() {
 					mu.Lock()
 					busy = false
