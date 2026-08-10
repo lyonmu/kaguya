@@ -19,7 +19,7 @@ import (
 // @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatWSResp,message=string}  "WS 帧，每帧为一个 dtocode.Response"
 // @Router    /v1/chat/ws [GET]
 func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
-	conn, err := pkg.Upgrade(c)
+	conn, err := pkg.Upgrade(c, pkg.WithReadLimit(1<<20))
 	if err != nil {
 		global.Logger.Sugar().Errorf("websocket upgrade failed, err is %+v", err)
 		return
@@ -116,24 +116,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 				first := true
 				for v := range dataChan {
-					resp := dtocode.SystemSuccess
-					if v.Err != nil {
-						// 错误帧统一规则：仅带 flag，不带 ChatSSEResp
-						if turnCtx.Err() == context.Canceled {
-							resp = dtocode.ChatWSCanceled
-						} else {
-							resp = dtocode.ChatSSEFailure
-						}
-						resp.Data = dtochat.ChatWSResp{Flag: dtochat.WSFlagError}
-					} else {
-						flag := dtochat.WSFlagDelta
-						if first {
-							flag = dtochat.WSFlagStart
-						} else if v.Usage.TotalTokens > 0 {
-							flag = dtochat.WSFlagDone
-						}
-						resp.Data = dtochat.ChatWSResp{Flag: flag, Data: *v}
-					}
+					resp, _ := mapWSFrame(v, first)
 					first = false
 
 					select {
@@ -146,13 +129,37 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 		case dtochat.WSFlagCancel:
 			mu.Lock()
-			if turnCancel != nil {
+			canceled := busy && turnCancel != nil
+			if canceled {
 				turnCancel()
 			}
 			mu.Unlock()
+			if canceled {
+				// 读循环直接投递取消确认帧：Service 在 ctx 取消后不再投递任何帧
+				sendErr(dtocode.ChatWSCanceled)
+			}
 
 		default:
 			sendErr(dtocode.RequestParameterError)
 		}
 	}
+}
+
+// mapWSFrame 将一条 ChatSSEResp 映射为下行 dtocode.Response。
+// 返回的 bool 表示是否为错误帧（error 分支仅带 flag，不带 ChatSSEResp）。
+func mapWSFrame(v *dtochat.ChatSSEResp, first bool) (dtocode.Response, bool) {
+	resp := dtocode.SystemSuccess
+	if v.Err != nil {
+		resp = dtocode.ChatSSEFailure
+		resp.Data = dtochat.ChatWSResp{Flag: dtochat.WSFlagError}
+		return resp, true
+	}
+	flag := dtochat.WSFlagDelta
+	if first {
+		flag = dtochat.WSFlagStart
+	} else if v.Usage.TotalTokens > 0 {
+		flag = dtochat.WSFlagDone
+	}
+	resp.Data = dtochat.ChatWSResp{Flag: flag, Data: *v}
+	return resp, false
 }
