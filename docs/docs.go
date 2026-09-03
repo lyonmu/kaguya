@@ -46,7 +46,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "SSE 流式响应，每帧为一个 ChatSSEResp",
+                        "description": "SSE 流式响应，每帧为一个 ChatResp",
                         "schema": {
                             "allOf": [
                                 {
@@ -59,7 +59,7 @@ const docTemplate = `{
                                             "type": "number"
                                         },
                                         "data": {
-                                            "$ref": "#/definitions/chat.ChatSSEResp"
+                                            "$ref": "#/definitions/chat.ChatResp"
                                         },
                                         "message": {
                                             "type": "string"
@@ -97,7 +97,7 @@ const docTemplate = `{
                                             "type": "number"
                                         },
                                         "data": {
-                                            "$ref": "#/definitions/chat.ChatWSResp"
+                                            "$ref": "#/definitions/chat.ChatResp"
                                         },
                                         "message": {
                                             "type": "string"
@@ -196,6 +196,9 @@ const docTemplate = `{
                     "description": "模型返回的内容",
                     "type": "string"
                 },
+                "flag": {
+                    "$ref": "#/definitions/chat.WSFlag"
+                },
                 "id": {
                     "description": "对话id",
                     "type": "string"
@@ -205,10 +208,14 @@ const docTemplate = `{
         "chat.ChatReq": {
             "type": "object",
             "required": [
+                "flag",
                 "messages"
             ],
             "properties": {
-                "conversation_id": {
+                "flag": {
+                    "$ref": "#/definitions/chat.WSFlag"
+                },
+                "id": {
                     "description": "会话ID，空值表示开启新对话",
                     "type": "string"
                 },
@@ -217,7 +224,7 @@ const docTemplate = `{
                 }
             }
         },
-        "chat.ChatSSEResp": {
+        "chat.ChatResp": {
             "type": "object",
             "properties": {
                 "api_protocol": {
@@ -258,17 +265,6 @@ const docTemplate = `{
                             "$ref": "#/definitions/chat.Usage"
                         }
                     ]
-                }
-            }
-        },
-        "chat.ChatWSResp": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "$ref": "#/definitions/chat.ChatSSEResp"
-                },
-                "flag": {
-                    "$ref": "#/definitions/chat.WSFlag"
                 }
             }
         },

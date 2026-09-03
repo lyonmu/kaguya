@@ -5,7 +5,6 @@ import (
 	"os"
 
 	pkgid "github.com/lyonmu/gopkg/id"
-	"github.com/lyonmu/gopkg/logger"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
@@ -31,13 +30,16 @@ import (
 
 func Run() {
 
-	logger, err := logger.NewDefault()
+	zapLogger, err := global.Cfg.LogInfo.NewLogger()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create logger: %v\n", err)
 		os.Exit(1)
 	}
 
-	global.Logger = logger
+	global.Logger = zapLogger
 	defer global.Logger.Sync()
+
+	global.Logger.Info("application is starting...")
 
 	// 创建 ID 生成器，传入机器 ID 获取函数
 	gen, err := pkgid.NewSonySnowFlake(func() (int, error) {
@@ -49,6 +51,7 @@ func Run() {
 	}
 	global.Id = gen
 
+	global.Logger.Info("start init database connection")
 	switch global.Cfg.DB.Kind {
 	case consts.MySQL:
 		if err := global.Cfg.DB.EnsureMySQLDatabase(); err != nil {
@@ -76,12 +79,19 @@ func Run() {
 	}
 
 	global.Metrics = pkg.NewPrometheusRegistry()
-
+	global.Logger.Info("start init register gin engine")
 	ginEngine, err := pkg.NewGin(global.Metrics, global.Cfg.Debug)
 	if err != nil {
 		global.Logger.Error("failed to create gin engine", zap.Error(err))
 		os.Exit(1)
 	}
+
+	global.Logger.Info("start init register metrics")
+	if err := pkg.RegisterMetrics(ginEngine, global.Metrics, fmt.Sprintf("%s/metrics", global.Cfg.RouterPrefix)); err != nil {
+		global.Logger.Error("failed to register metrics endpoint", zap.Error(err))
+		os.Exit(1)
+	}
+
 	router.InitRouter(ginEngine)
 
 	global.Logger.Sugar().Infof("kaguya is running on port :%d", global.Cfg.Port)

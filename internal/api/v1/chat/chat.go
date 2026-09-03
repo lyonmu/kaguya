@@ -17,7 +17,7 @@ import (
 // @Description 简单SSE对话：流式返回模型回答，首帧携带会话ID与模型信息，末帧携带完整内容与token用量
 // @Param     data  body      dtochat.ChatReq      true  "用户发起的对话（conversation_id 为空时开启新对话）"
 // @Produce   json
-// @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatSSEResp,message=string}  "SSE 流式响应，每帧为一个 ChatSSEResp"
+// @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatResp,message=string}  "SSE 流式响应，每帧为一个 ChatResp"
 // @Router    /v1/chat/sse [POST]
 func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 
@@ -45,6 +45,7 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 	dataChan := make(chan *dtochat.ChatResp)
 	go agentvc.Chat(c.Request.Context(), dataChan, &req)
 
+	first := true
 	for {
 		select {
 		case <-c.Request.Context().Done():
@@ -55,14 +56,9 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 				return
 			}
 
-			if v.Err != nil {
-				fmt.Fprintf(c.Writer, "data: %s\n\n", fail)
-				c.Writer.Flush()
-				return
-			}
-
-			re := dtocode.SystemSuccess
-			re.Data = v
+			// 与 WS 下行帧共用同一套 flag 映射（start/delta/done/error）
+			re, isErr := mapFrame(v, first)
+			first = false
 
 			data, err := json.Marshal(re)
 			if err != nil {
@@ -77,6 +73,9 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 			}
 			c.Writer.Flush()
 
+			if isErr {
+				return
+			}
 		}
 	}
 }

@@ -16,7 +16,7 @@ import (
 // @Summary   ChatWS
 // @Description WebSocket 流式对话：长连接多轮对话。上行帧 ChatWSReq（flag=chat/cancel），下行帧 dtocode.Response 包 ChatWSResp（flag=start/delta/done/error）
 // @Produce   json
-// @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatWSResp,message=string}  "WS 帧，每帧为一个 dtocode.Response"
+// @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatResp,message=string}  "WS 帧，每帧为一个 dtocode.Response"
 // @Router    /v1/chat/ws [GET]
 func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 	conn, err := pkg.Upgrade(c, pkg.WithReadLimit(1<<20))
@@ -116,7 +116,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 				first := true
 				for v := range dataChan {
-					resp, _ := mapWSFrame(v, first)
+					resp, _ := mapFrame(v, first)
 					first = false
 
 					select {
@@ -145,9 +145,10 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 	}
 }
 
-// mapWSFrame 将一条 ChatSSEResp 映射为下行 dtocode.Response。
-// 返回的 bool 表示是否为错误帧（error 分支仅带 flag，不带 ChatSSEResp）。
-func mapWSFrame(v *dtochat.ChatResp, first bool) (dtocode.Response, bool) {
+// mapFrame 将一条 ChatResp 映射为下行 dtocode.Response（SSE 与 WS 共用），
+// 并按帧类型填充 Chat.Flag（start/delta/done/error）。
+// 返回的 bool 表示是否为错误帧（error 分支仅带 flag，不带 ChatResp）。
+func mapFrame(v *dtochat.ChatResp, first bool) (dtocode.Response, bool) {
 	resp := dtocode.SystemSuccess
 	if v.Err != nil {
 		resp = dtocode.ChatSSEFailure

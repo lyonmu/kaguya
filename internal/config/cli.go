@@ -7,4 +7,5 @@ type Cli struct {
 	MachineID    int            `name:"machine-id" short:"m" long:"machine-id" help:"Machine ID for the application" default:"1"`
 	RouterPrefix string         `name:"router-prefix" short:"r" long:"router-prefix" help:"Router prefix for the application" default:"/kaguya/api"`
 	DB           DatabaseConfig `embed:"" prefix:"db." mapstructure:"db" json:"db" yaml:"db"`
+	LogInfo      LogConfig      `embed:"" prefix:"log." mapstructure:"log" json:"log" yaml:"log"`
 }
