@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// swag init -g ./internal/cmd/run.go -o ./docs --parseDependency --parseInternal
+// swag init -g ./internal/cmd/run.go -o ./docs --parseDependency --parseInternal --v3.1
 
 // @title                       kaguya Swagger API接口文档
 // @description                 kaguya 后端
