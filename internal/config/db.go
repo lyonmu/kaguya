@@ -2,29 +2,35 @@ package config
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 
+	"github.com/lib/pq"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/redis/go-redis/v9"
 )
 
 type DatabaseConfig struct {
-	Kind     consts.DBKind `enum:"sqlite,mysql" name:"kind" env:"DB_KIND" default:"mysql" help:"数据库类型 [sqlite,mysql]" mapstructure:"kind" yaml:"kind" json:"kind"`
+	Kind     consts.DBKind `enum:"sqlite,mysql,postgresql,postgres" name:"kind" env:"DB_KIND" default:"mysql" help:"数据库类型 [sqlite,mysql,postgresql,postgres]" mapstructure:"kind" yaml:"kind" json:"kind"`
 	Path     string        `name:"path" env:"DB_PATH" default:"./data/kaguya.sqlite" help:"sqlite数据库文件地址" mapstructure:"path" yaml:"path" json:"path"`
-	Host     string        `name:"host" env:"MYSQL_HOST" default:"127.0.0.1" help:"mysql数据库主机" mapstructure:"host" yaml:"host" json:"host"`
-	Port     int           `name:"port" env:"MYSQL_PORT" default:"3306" help:"mysql数据库端口" mapstructure:"port" yaml:"port" json:"port"`
-	User     string        `name:"user" env:"MYSQL_USER" default:"root" help:"mysql数据库用户" mapstructure:"user" yaml:"user" json:"user"`
-	Password string        `name:"password" env:"MYSQL_PASSWORD" default:"root" help:"mysql数据库密码" mapstructure:"password" yaml:"password" json:"password"`
-	DBName   string        `name:"db_name" env:"MYSQL_DB_NAME" default:"kaguya" help:"mysql数据库名称" mapstructure:"db_name" yaml:"db_name" json:"db_name"`
+	Host     string        `name:"host" env:"DB_HOST,MYSQL_HOST,POSTGRES_HOST,PGHOST" default:"127.0.0.1" help:"数据库主机" mapstructure:"host" yaml:"host" json:"host"`
+	Port     int           `name:"port" env:"DB_PORT,MYSQL_PORT,POSTGRES_PORT,PGPORT" default:"0" help:"数据库端口（0 表示 MySQL 使用 3306、PostgreSQL 使用 5432）" mapstructure:"port" yaml:"port" json:"port"`
+	User     string        `name:"user" env:"DB_USER,MYSQL_USER,POSTGRES_USER,PGUSER" default:"root" help:"数据库用户" mapstructure:"user" yaml:"user" json:"user"`
+	Password string        `name:"password" env:"DB_PASSWORD,MYSQL_PASSWORD,POSTGRES_PASSWORD,PGPASSWORD" default:"root" help:"数据库密码" mapstructure:"password" yaml:"password" json:"password"`
+	DBName   string        `name:"db_name" env:"DB_NAME,MYSQL_DB_NAME,POSTGRES_DB,PGDATABASE" default:"kaguya" help:"数据库名称" mapstructure:"db_name" yaml:"db_name" json:"db_name"`
+	SSLMode  string        `name:"ssl_mode" env:"DB_SSL_MODE,POSTGRES_SSL_MODE,PGSSLMODE" default:"disable" help:"PostgreSQL SSL 模式" mapstructure:"ssl_mode" yaml:"ssl_mode" json:"ssl_mode"`
 }
 
 // EnsureDatabase 检查数据库是否存在，如果不存在则创建
 func (c *DatabaseConfig) EnsureMySQLDatabase() error {
 	// 连接到 MySQL 服务器（不指定数据库名）
 	dsnWithoutDB := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=true&loc=Local",
-		c.User, c.Password, c.Host, c.Port)
+		c.User, c.Password, c.Host, c.databasePort(3306))
 
 	db, err := sql.Open("mysql", dsnWithoutDB)
 	if err != nil {
@@ -75,7 +81,74 @@ func (c *DatabaseConfig) EnsureSQLiteDatabase() error {
 }
 
 func (c *DatabaseConfig) MySQLDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local", c.User, c.Password, c.Host, c.Port, c.DBName)
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local", c.User, c.Password, c.Host, c.databasePort(3306), c.DBName)
+}
+
+// EnsurePostgreSQLDatabase 检查 PostgreSQL 数据库是否存在，如果不存在则创建。
+func (c *DatabaseConfig) EnsurePostgreSQLDatabase() error {
+	db, err := sql.Open("postgres", c.PostgreSQLDSN())
+	if err != nil {
+		return fmt.Errorf("failed to open postgresql database: %w", err)
+	}
+	err = db.Ping()
+	if closeErr := db.Close(); closeErr != nil && err == nil {
+		return fmt.Errorf("failed to close postgresql database: %w", closeErr)
+	}
+	if err == nil {
+		return nil
+	}
+
+	var pqErr *pq.Error
+	if !errors.As(err, &pqErr) || pqErr.Code != "3D000" {
+		return fmt.Errorf("failed to connect to postgresql database %s: %w", c.DBName, err)
+	}
+
+	maintenanceDB, openErr := sql.Open("postgres", c.postgreSQLDSN("postgres"))
+	if openErr != nil {
+		return fmt.Errorf("failed to open postgresql server connection: %w", openErr)
+	}
+	defer maintenanceDB.Close()
+	if pingErr := maintenanceDB.Ping(); pingErr != nil {
+		return fmt.Errorf("failed to connect to postgresql server: %w", pingErr)
+	}
+
+	_, createErr := maintenanceDB.Exec("CREATE DATABASE " + pq.QuoteIdentifier(c.DBName))
+	if createErr != nil {
+		if errors.As(createErr, &pqErr) && pqErr.Code == "42P04" {
+			return nil
+		}
+		return fmt.Errorf("failed to create postgresql database %s: %w", c.DBName, createErr)
+	}
+	return nil
+}
+
+// PostgreSQLDSN 返回 PostgreSQL 数据库的数据源名称（DSN）。
+func (c *DatabaseConfig) PostgreSQLDSN() string {
+	return c.postgreSQLDSN(c.DBName)
+}
+
+func (c *DatabaseConfig) postgreSQLDSN(database string) string {
+	dsn := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.User, c.Password),
+		Host:   net.JoinHostPort(c.Host, strconv.Itoa(c.databasePort(5432))),
+		Path:   "/" + database,
+	}
+	query := dsn.Query()
+	sslMode := c.SSLMode
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+	query.Set("sslmode", sslMode)
+	dsn.RawQuery = query.Encode()
+	return dsn.String()
+}
+
+func (c *DatabaseConfig) databasePort(defaultPort int) int {
+	if c.Port == 0 {
+		return defaultPort
+	}
+	return c.Port
 }
 
 // SQLiteDSN 返回 SQLite 数据库的数据源名称（DSN）

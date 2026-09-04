@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/lib/pq v1.12.3
 	github.com/lyonmu/gopkg v0.0.1
 	github.com/lyonmu/quebec v0.0.0-20260108132732-a14b14239bdf
 	github.com/mssola/useragent v1.0.0

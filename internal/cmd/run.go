@@ -64,6 +64,17 @@ func Run() {
 			os.Exit(1)
 		}
 		db.EntClient = entcli
+	case consts.PostgreSQL, consts.Postgres:
+		if err := global.Cfg.DB.EnsurePostgreSQLDatabase(); err != nil {
+			global.Logger.Sugar().Errorf("ensure postgresql database failed, err is %s", err)
+			os.Exit(1)
+		}
+		entcli, initErr := db.InitPostgreSQL(&global.Cfg.DB, global.Cfg.Debug)
+		if initErr != nil {
+			global.Logger.Sugar().Errorf("init postgresql conn failed, err is %s", initErr)
+			os.Exit(1)
+		}
+		db.EntClient = entcli
 	case consts.SQLite:
 		if err := global.Cfg.DB.EnsureSQLiteDatabase(); err != nil {
 			global.Logger.Sugar().Errorf("ensure sqlite database failederr is %s", err)

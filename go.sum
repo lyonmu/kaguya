@@ -210,6 +210,8 @@ github.com/kylelemons/godebug v1.1.0 h1:RPNrshWIDI6G2gRW9EHilWtl7Z6Sb1BR0xunSBf0
 github.com/kylelemons/godebug v1.1.0/go.mod h1:9/0rRGxNHcop5bhtWyNeEfOS8JIWk580+fNqagV/RAw=
 github.com/leodido/go-urn v1.4.0 h1:WT9HwE9SGECu3lg4d/dIA+jxlljEa1/ffXKmRjqdmIQ=
 github.com/leodido/go-urn v1.4.0/go.mod h1:bvxc+MVxLKB4z00jd1z+Dvzr47oO32F/QSNjSBOlFxI=
+github.com/lib/pq v1.12.3 h1:tTWxr2YLKwIvK90ZXEw8GP7UFHtcbTtty8zsI+YjrfQ=
+github.com/lib/pq v1.12.3/go.mod h1:/p+8NSbOcwzAEI7wiMXFlgydTwcgTr3OSKMsD2BitpA=
 github.com/lyonmu/gopkg v0.0.1 h1:XoOcTBuOEsTzTliXDRTFswQF4m+ATR/osDK/W3gqU+s=
 github.com/lyonmu/gopkg v0.0.1/go.mod h1:UPHND++//2RbxyEo6SHcFB5hCqnHPybAt4PcS/xp6Ak=
 github.com/lyonmu/quebec v0.0.0-20260108132732-a14b14239bdf h1:Ge5GXgYx+H7oICH2u9TlaHyeBpphhcfD8HnzjBkWd/M=
