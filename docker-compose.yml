@@ -1,0 +1,30 @@
+services:
+  kaguya-svc:
+    image: kaguya:latest
+    container_name: kaguya-svc
+    hostname: kaguya-svc
+    restart: unless-stopped
+    ports:
+      - "9024:9024"
+    network_mode: host
+
+  pgvector:
+    image: pgvector/pgvector:pg18-trixie
+    container_name: pgvector-svc
+    hostname: pgvector-svc
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pgvector
+      POSTGRES_PASSWORD: pgvector-123
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    network_mode: host
+    healthcheck:
+      test: ["CMD-SHELL", "pidof postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ${PWD}/pgvector:/var/lib/postgresql
