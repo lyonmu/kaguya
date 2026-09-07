@@ -21,6 +21,11 @@ type RouterGroup struct {
 
 func InitRouter(e *gin.Engine) {
 
+	// 前端静态资源注册在 API 路由组之外，避免记录静态资源访问日志。
+	e.GET("/", v1api.Front)
+	e.HEAD("/", v1api.Front)
+	e.NoRoute(v1api.Front)
+
 	// 创建操作日志中间件
 	accessLogMiddleware := middleware.NewAccessLogMiddleware()
 

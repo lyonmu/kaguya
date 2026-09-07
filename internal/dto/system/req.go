@@ -12,7 +12,7 @@ type SystemAccessLogReq struct {
 }
 
 type SystemAccessLogPageReq struct {
-	AccessIP  string `json:"access_ip,omitempty"`                                                                                              // 访问IP
+	AccessIP  string `json:"access_ip,omitempty" form:"access_ip"`                                                                             // 访问IP
 	StartTime int64  `json:"start_time,omitempty" form:"start_time"`                                                                           // 开始时间
 	EndTime   int64  `json:"end_time,omitempty" form:"end_time"`                                                                               // 结束时间
 	Page      int    `json:"page,omitempty" binding:"required,min=1" form:"page" minimum:"1" default:"1"`                                      // 页码

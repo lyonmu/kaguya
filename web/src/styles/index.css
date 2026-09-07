@@ -1,0 +1,110 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-k-canvas: var(--k-canvas);
+  --color-k-panel: var(--k-panel);
+  --color-k-rail: var(--k-rail);
+  --color-k-surface: var(--k-surface);
+  --color-k-elevated: var(--k-elevated);
+  --color-k-selected: var(--k-selected);
+  --color-k-border: var(--k-border);
+  --color-k-border-soft: var(--k-border-soft);
+  --color-k-text: var(--k-text);
+  --color-k-text-muted: var(--k-text-muted);
+  --color-k-text-subtle: var(--k-text-subtle);
+  --color-k-primary: var(--k-primary);
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', monospace;
+}
+
+:root {
+  --k-canvas: #f4f7fb;
+  --k-panel: #f8fafc;
+  --k-rail: #ffffff;
+  --k-surface: #ffffff;
+  --k-elevated: #f7f9fc;
+  --k-selected: #e8f1ff;
+  --k-border: #d9e1eb;
+  --k-border-soft: #e8edf3;
+  --k-text: #172033;
+  --k-text-muted: #64748b;
+  --k-text-subtle: #94a3b8;
+  --k-primary: #2563eb;
+  color: var(--k-text);
+  background: var(--k-canvas);
+  color-scheme: light;
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root.dark {
+  --k-canvas: #0e1116;
+  --k-panel: #101318;
+  --k-rail: #0c0f13;
+  --k-surface: #11161d;
+  --k-elevated: #151b23;
+  --k-selected: #192230;
+  --k-border: #29323d;
+  --k-border-soft: #202731;
+  --k-text: #edf2f7;
+  --k-text-muted: #8e99a8;
+  --k-text-subtle: #647081;
+  --k-primary: #6ea8fe;
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--k-border) transparent;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 320px;
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    overflow: hidden;
+    color: var(--k-text);
+    background: var(--k-canvas);
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  ::selection {
+    color: #f8fbff;
+    background: rgb(37 99 235 / 35%);
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: var(--k-border);
+    background-clip: padding-box;
+  }
+}

@@ -20,7 +20,6 @@ require (
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
 	github.com/swaggo/swag v1.16.6
-	github.com/swaggo/swag/v2 v2.0.0-rc5
 	go.uber.org/zap v1.28.0
 	modernc.org/sqlite v1.56.0
 )
@@ -112,7 +111,6 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/soheilhy/cmux v0.1.5 // indirect
 	github.com/sony/sonyflake/v2 v2.2.0 // indirect
-	github.com/sv-tools/openapi v0.4.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

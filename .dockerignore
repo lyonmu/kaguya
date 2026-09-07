@@ -18,3 +18,7 @@ superpowers/
 data/
 .worktrees/
 plans/
+web/node_modules/
+web/dist/
+internal/api/v1/system/frontend/
+__debug_bin*

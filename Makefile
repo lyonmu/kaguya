@@ -1,4 +1,4 @@
-.PHONY: build clean test
+.PHONY: build backend frontend clean test docker default
 
 default: build
 
@@ -19,9 +19,30 @@ LDFLAGS = -ldflags "-s -w \
 	-X 'github.com/lyonmu/gopkg/version.Commit=${COMMIT}' \
 	-X 'github.com/lyonmu/gopkg/version.Branch=${BRANCH}'"
 
+FRONTEND_EMBED_DIR := internal/api/v1/system/frontend
+
+.PHONY: frontend
+frontend:
+	cd web && bun install --frozen-lockfile
+	cd web && bun run build
+	rm -rf $(FRONTEND_EMBED_DIR)
+	mkdir -p $(FRONTEND_EMBED_DIR)
+	cp -R web/dist/. $(FRONTEND_EMBED_DIR)/
+
+.PHONY: backend
+backend:
+	mkdir -p target
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+
 .PHONY: build
-build:
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH)  go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+build: frontend
+	mkdir -p target
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+
+.PHONY: docker
+docker:
+	docker build -t $(PROJECT_NAME):$(VERSION) .
+	docker tag $(PROJECT_NAME):$(VERSION) $(PROJECT_NAME):latest
 
 .PHONY: test
 test:

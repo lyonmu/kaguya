@@ -1,10 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" href="/src/assets/kaguya.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>web</title>
+    <meta name="theme-color" content="#0b0d10" />
+    <meta
+      name="description"
+      content="Kaguya Agent Console 系统管理控制台"
+    />
+    <script>
+      try {
+        const savedMode = localStorage.getItem('kaguya-color-mode')
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle(
+          'dark',
+          savedMode === 'dark' || (savedMode !== 'light' && prefersDark),
+        )
+      } catch (_) {
+        document.documentElement.classList.add('dark')
+      }
+    </script>
+    <title>Kaguya Agent Console</title>
   </head>
   <body>
     <div id="root"></div>
