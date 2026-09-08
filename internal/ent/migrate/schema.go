@@ -63,6 +63,202 @@ var (
 			},
 		},
 	}
+	// KaguyaChatBlockColumns holds the columns for the "kaguya_chat_block" table.
+	KaguyaChatBlockColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "sequence", Type: field.TypeInt64, Comment: "轮内首次出现顺序，非时间戳排序"},
+		{Name: "type", Type: field.TypeEnum, Enums: []string{"text", "reasoning", "tool_call"}},
+		{Name: "text", Type: field.TypeString, Size: 2147483647, Default: "", SchemaType: map[string]string{"mysql": "longtext"}},
+		{Name: "tool_call_id", Type: field.TypeString, Default: ""},
+		{Name: "tool_name", Type: field.TypeString, Default: ""},
+		{Name: "input", Type: field.TypeString, Size: 2147483647, Default: "", SchemaType: map[string]string{"mysql": "longtext"}},
+		{Name: "output", Type: field.TypeJSON, Nullable: true},
+		{Name: "provider_executed", Type: field.TypeBool, Default: false},
+		{Name: "is_error", Type: field.TypeBool, Default: false},
+		{Name: "error_message", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "finished_at", Type: field.TypeTime},
+		{Name: "start_order", Type: field.TypeInt64},
+		{Name: "end_order", Type: field.TypeInt64, Comment: "回调事件序号，保留并行工具的真实完成先后"},
+		{Name: "turn_id", Type: field.TypeString, Size: 64},
+	}
+	// KaguyaChatBlockTable holds the schema information for the "kaguya_chat_block" table.
+	KaguyaChatBlockTable = &schema.Table{
+		Name:       "kaguya_chat_block",
+		Comment:    "按执行顺序保存的完整模型内容块",
+		Columns:    KaguyaChatBlockColumns,
+		PrimaryKey: []*schema.Column{KaguyaChatBlockColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "kaguya_chat_block_kaguya_chat_turn_blocks",
+				Columns:    []*schema.Column{KaguyaChatBlockColumns[18]},
+				RefColumns: []*schema.Column{KaguyaChatTurnColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyachatblock_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatBlockColumns[1]},
+			},
+			{
+				Name:    "kaguyachatblock_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatBlockColumns[2]},
+			},
+			{
+				Name:    "kaguyachatblock_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatBlockColumns[3]},
+			},
+			{
+				Name:    "kaguyachatblock_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatBlockColumns[0]},
+			},
+			{
+				Name:    "kaguyachatblock_turn_id_sequence",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaChatBlockColumns[18], KaguyaChatBlockColumns[4]},
+			},
+		},
+	}
+	// KaguyaChatTurnColumns holds the columns for the "kaguya_chat_turn" table.
+	KaguyaChatTurnColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "turn_index", Type: field.TypeInt64},
+		{Name: "user_content", Type: field.TypeString, Size: 2147483647, SchemaType: map[string]string{"mysql": "longtext"}},
+		{Name: "provider_id", Type: field.TypeString},
+		{Name: "provider_name", Type: field.TypeString},
+		{Name: "model_id", Type: field.TypeString},
+		{Name: "model_name", Type: field.TypeString},
+		{Name: "api_protocol", Type: field.TypeString},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "finished_at", Type: field.TypeTime},
+		{Name: "duration_ms", Type: field.TypeInt64},
+		{Name: "tool_calls", Type: field.TypeInt64},
+		{Name: "finish_reason", Type: field.TypeString},
+		{Name: "input_tokens", Type: field.TypeInt64},
+		{Name: "output_tokens", Type: field.TypeInt64},
+		{Name: "total_tokens", Type: field.TypeInt64},
+		{Name: "cached_tokens", Type: field.TypeInt64},
+		{Name: "reasoning_tokens", Type: field.TypeInt64},
+		{Name: "messages", Type: field.TypeJSON, Comment: "仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"},
+		{Name: "conversation_id", Type: field.TypeString, Size: 64},
+	}
+	// KaguyaChatTurnTable holds the schema information for the "kaguya_chat_turn" table.
+	KaguyaChatTurnTable = &schema.Table{
+		Name:       "kaguya_chat_turn",
+		Comment:    "已完整提交的问答及累计用量",
+		Columns:    KaguyaChatTurnColumns,
+		PrimaryKey: []*schema.Column{KaguyaChatTurnColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "kaguya_chat_turn_kaguya_conversation_turns",
+				Columns:    []*schema.Column{KaguyaChatTurnColumns[22]},
+				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyachatturn_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatTurnColumns[1]},
+			},
+			{
+				Name:    "kaguyachatturn_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatTurnColumns[2]},
+			},
+			{
+				Name:    "kaguyachatturn_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatTurnColumns[3]},
+			},
+			{
+				Name:    "kaguyachatturn_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatTurnColumns[0]},
+			},
+			{
+				Name:    "kaguyachatturn_conversation_id_turn_index",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaChatTurnColumns[22], KaguyaChatTurnColumns[4]},
+			},
+		},
+	}
+	// KaguyaConversationColumns holds the columns for the "kaguya_conversation" table.
+	KaguyaConversationColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "title", Type: field.TypeString, Size: 200},
+		{Name: "favorite", Type: field.TypeBool, Default: false},
+		{Name: "turn_count", Type: field.TypeInt64, Comment: "已提交轮数，同时用于乐观并发校验", Default: 0},
+		{Name: "last_message_at", Type: field.TypeTime},
+		{Name: "model_id", Type: field.TypeString},
+		{Name: "model_name", Type: field.TypeString},
+		{Name: "duration_ms", Type: field.TypeInt64, Default: 0},
+		{Name: "tool_calls", Type: field.TypeInt64, Default: 0},
+		{Name: "input_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "output_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "cached_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "reasoning_tokens", Type: field.TypeInt64, Default: 0},
+	}
+	// KaguyaConversationTable holds the schema information for the "kaguya_conversation" table.
+	KaguyaConversationTable = &schema.Table{
+		Name:       "kaguya_conversation",
+		Comment:    "已完成对话的会话摘要",
+		Columns:    KaguyaConversationColumns,
+		PrimaryKey: []*schema.Column{KaguyaConversationColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyaconversation_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[1]},
+			},
+			{
+				Name:    "kaguyaconversation_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[2]},
+			},
+			{
+				Name:    "kaguyaconversation_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[3]},
+			},
+			{
+				Name:    "kaguyaconversation_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[0]},
+			},
+			{
+				Name:    "kaguyaconversation_deleted_at_last_message_at_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[7], KaguyaConversationColumns[0]},
+			},
+			{
+				Name:    "kaguyaconversation_deleted_at_favorite_last_message_at_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[5], KaguyaConversationColumns[7], KaguyaConversationColumns[0]},
+			},
+			{
+				Name:    "kaguyaconversation_deleted_at_title",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[4]},
+			},
+		},
+	}
 	// KaguyaModelsInfoColumns holds the columns for the "kaguya_models_info" table.
 	KaguyaModelsInfoColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
@@ -191,6 +387,9 @@ var (
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		KaguyaAccessLogTable,
+		KaguyaChatBlockTable,
+		KaguyaChatTurnTable,
+		KaguyaConversationTable,
 		KaguyaModelsInfoTable,
 		KaguyaProviderInfoTable,
 	}
@@ -199,6 +398,23 @@ var (
 func init() {
 	KaguyaAccessLogTable.Annotation = &entsql.Annotation{
 		Table:     "kaguya_access_log",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	}
+	KaguyaChatBlockTable.ForeignKeys[0].RefTable = KaguyaChatTurnTable
+	KaguyaChatBlockTable.Annotation = &entsql.Annotation{
+		Table:     "kaguya_chat_block",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	}
+	KaguyaChatTurnTable.ForeignKeys[0].RefTable = KaguyaConversationTable
+	KaguyaChatTurnTable.Annotation = &entsql.Annotation{
+		Table:     "kaguya_chat_turn",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	}
+	KaguyaConversationTable.Annotation = &entsql.Annotation{
+		Table:     "kaguya_conversation",
 		Charset:   "utf8mb4",
 		Collation: "utf8mb4_general_ci",
 	}

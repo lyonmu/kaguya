@@ -23,6 +23,219 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/v1/chat/conversation/page": {
+            "get": {
+                "description": "按最近完整轮次时间倒序；支持标题前缀搜索、收藏筛选。新建会话仍使用 SSE/WS 空 id 请求，首次成功后才出现在列表中。",
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "会话列表（仅已完成会话）",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "name": "favorite",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 200,
+                        "type": "string",
+                        "description": "标题前缀搜索（走索引）",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ConversationListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/chat/conversation/{id}": {
+            "get": {
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "会话摘要与累计运行信息（Overview）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ConversationResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "修改会话标题或收藏状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "至少提供 title 或 favorite",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chat.ConversationUpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ConversationResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "软删除会话（删除后不可查询或续聊）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/chat/conversation/{id}/turns": {
+            "get": {
+                "description": "首屏最新 limit 轮，返回正序；用 next_before 向前加载并前插。轮内 blocks 按 sequence 正序；工具输入输出合并一行，start_order/end_order 可还原并行工具时间线。不返回用于模型恢复的私有 metadata。",
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "按原始执行顺序读取完整轮次（聊天/Trace/工具详情）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "上页 next_before；0 表示最新",
+                        "name": "before",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.TurnListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/chat/sse": {
             "post": {
                 "description": "SSE 对话：chat.id 为会话雪花 ID，后续请求沿用该 ID；chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end。正文与思考的 block_end 不重复内容；唯一的整轮 done 仅携带 Token 用量",
@@ -845,6 +1058,180 @@ const docTemplate = `{
                 }
             }
         },
+        "chat.ConversationListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chat.ConversationResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "chat.ConversationResp": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "favorite": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_message_at": {
+                    "type": "string"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "首轮成功后异步生成，AI 标题最多20字符；等待/失败时为“新对话”，可轮询刷新",
+                    "type": "string"
+                },
+                "tool_calls": {
+                    "type": "integer"
+                },
+                "turn_count": {
+                    "type": "integer"
+                },
+                "usage": {
+                    "description": "仅累计已完成轮次",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/chat.Usage"
+                        }
+                    ]
+                }
+            }
+        },
+        "chat.ConversationUpdateReq": {
+            "type": "object",
+            "properties": {
+                "favorite": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 1
+                }
+            }
+        },
+        "chat.StoredBlock": {
+            "type": "object",
+            "properties": {
+                "end_order": {
+                    "type": "integer"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "input": {
+                    "type": "string"
+                },
+                "is_error": {
+                    "type": "boolean"
+                },
+                "output": {
+                    "$ref": "#/definitions/chat.ToolOutput"
+                },
+                "provider_executed": {
+                    "type": "boolean"
+                },
+                "sequence": {
+                    "description": "轮内展示顺序；与 turn_index 联合排序",
+                    "type": "integer"
+                },
+                "start_order": {
+                    "description": "Trace 按事件序号还原并行开始/结束顺序",
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "tool_call_id": {
+                    "type": "string"
+                },
+                "tool_name": {
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/definitions/chat.BlockType"
+                }
+            }
+        },
+        "chat.StoredTurn": {
+            "type": "object",
+            "properties": {
+                "api_protocol": {
+                    "type": "string"
+                },
+                "blocks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chat.StoredBlock"
+                    }
+                },
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "finish_reason": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "tool_calls": {
+                    "type": "integer"
+                },
+                "turn_index": {
+                    "description": "仅历史分页/排序使用，不改变实时 DTO",
+                    "type": "integer"
+                },
+                "usage": {
+                    "$ref": "#/definitions/chat.Usage"
+                },
+                "user_content": {
+                    "type": "string"
+                }
+            }
+        },
         "chat.ToolOutput": {
             "type": "object",
             "properties": {
@@ -875,6 +1262,25 @@ const docTemplate = `{
                 "ToolOutputError",
                 "ToolOutputMedia"
             ]
+        },
+        "chat.TurnListResp": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "description": "按 turn_index 升序，每轮 blocks 按 sequence 升序",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chat.StoredTurn"
+                    }
+                },
+                "next_before": {
+                    "description": "向前加载更早轮次的游标",
+                    "type": "integer"
+                }
+            }
         },
         "chat.Usage": {
             "type": "object",

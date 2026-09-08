@@ -21,6 +21,42 @@ func (f KaguyaAccessLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaAccessLogMutation", m)
 }
 
+// The KaguyaChatBlockFunc type is an adapter to allow the use of ordinary
+// function as KaguyaChatBlock mutator.
+type KaguyaChatBlockFunc func(context.Context, *ent.KaguyaChatBlockMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaChatBlockFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaChatBlockMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaChatBlockMutation", m)
+}
+
+// The KaguyaChatTurnFunc type is an adapter to allow the use of ordinary
+// function as KaguyaChatTurn mutator.
+type KaguyaChatTurnFunc func(context.Context, *ent.KaguyaChatTurnMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaChatTurnFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaChatTurnMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaChatTurnMutation", m)
+}
+
+// The KaguyaConversationFunc type is an adapter to allow the use of ordinary
+// function as KaguyaConversation mutator.
+type KaguyaConversationFunc func(context.Context, *ent.KaguyaConversationMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaConversationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaConversationMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaConversationMutation", m)
+}
+
 // The KaguyaModelsInfoFunc type is an adapter to allow the use of ordinary
 // function as KaguyaModelsInfo mutator.
 type KaguyaModelsInfoFunc func(context.Context, *ent.KaguyaModelsInfoMutation) (ent.Value, error)

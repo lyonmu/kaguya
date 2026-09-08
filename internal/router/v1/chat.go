@@ -13,6 +13,11 @@ func (r *ChatRouter) InitChatRouter(group *gin.RouterGroup, apiGroup apiv1.ApiV1
 	{
 		chatRouter.POST("sse", apiGroup.ChatSSE)
 		chatRouter.GET("ws", apiGroup.ChatWS)
+		chatRouter.GET("conversation/page", apiGroup.ConversationPage)
+		chatRouter.GET("conversation/:id", apiGroup.ConversationDetail)
+		chatRouter.GET("conversation/:id/turns", apiGroup.ConversationTurns)
+		chatRouter.PUT("conversation/:id", apiGroup.ConversationUpdate)
+		chatRouter.DELETE("conversation/:id", apiGroup.ConversationDelete)
 	}
 
 }

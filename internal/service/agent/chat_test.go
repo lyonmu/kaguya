@@ -26,37 +26,55 @@ type chatTestID struct{ value atomic.Int64 }
 
 func (g *chatTestID) GenID() (int64, error) { return g.value.Add(1), nil }
 
-// 真正走 Service → Agent → HTTP，验证唯一 done、会话 ID 透传和按 ID 恢复历史。
-func TestChatConversationAndSingleDone(t *testing.T) {
+func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	client, err := ent.Open(dialect.SQLite, "file:chat-flow?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	t.Cleanup(cancel)
+	client, err := ent.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { _ = client.Close() })
 	if err := client.Schema.Create(ctx, migrate.WithForeignKeys(false)); err != nil {
 		t.Fatal(err)
 	}
-	oldClient, oldID, oldLogger, oldStore := db.EntClient, global.Id, global.Logger, conversationStoreInstance
+	oldClient, oldID, oldLogger := db.EntClient, global.Id, global.Logger
 	gen := &chatTestID{}
 	gen.value.Store(123456789012340)
-	db.EntClient, global.Id, global.Logger, conversationStoreInstance = client, gen, zap.NewNop(), newConversationStore()
-	defer func() {
-		db.EntClient, global.Id, global.Logger, conversationStoreInstance = oldClient, oldID, oldLogger, oldStore
-	}()
+	db.EntClient, global.Id, global.Logger = client, gen, zap.NewNop()
+	t.Cleanup(func() { db.EntClient, global.Id, global.Logger = oldClient, oldID, oldLogger })
+	return ctx, client
+}
+
+// 真正走 Service → Agent → HTTP，验证唯一 done、落库和从数据库恢复历史。
+func TestChatConversationAndSingleDone(t *testing.T) {
+	ctx, client := setupChatTest(t)
 	type request struct {
 		id       string
 		messages json.RawMessage
 	}
 	requests := make(chan request, 3)
+	var titleCalls atomic.Int64
+	titleGate := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Messages json.RawMessage `json:"messages"`
+			Stream   bool            `json:"stream"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 			w.WriteHeader(400)
+			return
+		}
+		if !body.Stream {
+			titleCalls.Add(1)
+			select {
+			case <-titleGate:
+			case <-r.Context().Done():
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"id":"title","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"会话测试标题"},"finish_reason":"stop"}]}`)
 			return
 		}
 		requests <- request{r.Header.Get("X-Conversation-ID"), body.Messages}
@@ -64,6 +82,13 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 		fmt.Fprint(w, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"answer\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
 	}))
 	defer server.Close()
+	defer func() {
+		select {
+		case <-titleGate:
+		default:
+			close(titleGate)
+		}
+	}()
 	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -120,10 +145,21 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 		}
 	}
 	id, _ := run("", "first-question")
-	count := gen.value.Load()
+	// 标题请求被阻塞时，聊天仍已返回 done；结束请求不应取消后台生成。
+	initial, err := client.KaguyaConversation.Get(ctx, id)
+	if err != nil || initial.Title != defaultConversationTitle {
+		t.Fatalf("initial title: %+v %v", initial, err)
+	}
+	close(titleGate)
+	waitConversationTitle(t, ctx, client, id, "会话测试标题")
 	resumed, req := run(id, "second-question")
-	if resumed != id || gen.value.Load() != count {
-		t.Fatal("resuming generated a new ID")
+	count, err := client.KaguyaConversation.Query().Count(ctx)
+	if err != nil || resumed != id || count != 1 {
+		t.Fatalf("resuming created a new conversation: count=%d err=%v", count, err)
+	}
+	detail, err := (&AgentSvc{}).ConversationDetail(ctx, id)
+	if err != nil || detail.TurnCount != 2 {
+		t.Fatalf("missing completed turns: %+v %v", detail, err)
 	}
 	for _, text := range []string{"first-question", "answer", "second-question"} {
 		if !strings.Contains(string(req.messages), text) {
@@ -133,5 +169,26 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 	other, req := run("", "independent-question")
 	if other == id || strings.Contains(string(req.messages), "first-question") {
 		t.Fatal("new conversation reused old history")
+	}
+	waitConversationTitle(t, ctx, client, other, "会话测试标题")
+	if titleCalls.Load() != 2 {
+		t.Fatalf("title calls=%d; only first turns should generate titles", titleCalls.Load())
+	}
+}
+
+func waitConversationTitle(t *testing.T, ctx context.Context, client *ent.Client, id, want string) {
+	t.Helper()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		row, err := client.KaguyaConversation.Get(ctx, id)
+		if err == nil && row.Title == want {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("waiting for title %q: %v", want, ctx.Err())
+		case <-ticker.C:
+		}
 	}
 }

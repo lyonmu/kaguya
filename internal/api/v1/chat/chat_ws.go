@@ -26,7 +26,8 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	connCtx := c.Request.Context()
+	connCtx, cancelConn := context.WithCancel(c.Request.Context())
+	defer cancelConn()
 
 	var (
 		mu         sync.Mutex
@@ -41,6 +42,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 	go func() {
 		for resp := range send {
 			if err := conn.WriteJSON(resp); err != nil {
+				cancelConn() // 断连立即取消生成，防止未完成轮次落库
 				global.Logger.Sugar().Errorf("websocket write failed, err is %+v", err)
 				mu.Lock()
 				if turnCancel != nil {
@@ -65,6 +67,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 	for {
 		var req dtochat.ChatReq
 		if err := conn.ReadJSON(&req); err != nil {
+			cancelConn()
 			// 连接关闭 / 读错误：取消当前轮并终结写 goroutine
 			mu.Lock()
 			if turnCancel != nil {

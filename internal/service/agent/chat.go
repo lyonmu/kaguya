@@ -62,18 +62,26 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		}
 		convID = fmt.Sprintf("%d", id)
 	}
-	history := conversationStoreInstance.history(convID)
+	release, err := acquireConversation(convID)
+	if err != nil {
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
+		return
+	}
+	defer release()
+	history, version, err := loadConversation(ctx, convID)
+	if err != nil {
+		global.Logger.Sugar().Errorf("load conversation failed: %v", err)
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
+		return
+	}
 
 	// 组装 Agent（每次请求新建）
+	providerCfg := agentruntime.ProviderConfig{
+		Name: provider.ProviderName, Protocol: consts.ProviderProtocol(provider.APIProtocol),
+		BaseURL: provider.BaseURL, APIKey: provider.APIKey, ModelID: model.ModelID, ConversationID: convID,
+	}
 	ag, err := agentruntime.New(
-		agentruntime.WithProvider(agentruntime.ProviderConfig{
-			Name:           provider.ProviderName,
-			Protocol:       consts.ProviderProtocol(provider.APIProtocol),
-			BaseURL:        provider.BaseURL,
-			APIKey:         provider.APIKey,
-			ModelID:        model.ModelID,
-			ConversationID: convID,
-		}),
+		agentruntime.WithProvider(providerCfg),
 		agentruntime.WithSystemPrompt(chatSystemPrompt),
 	)
 	if err != nil {
@@ -111,9 +119,23 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return nil
 	})
 	call := stream.callbacks()
+	// 流式内容已发送后不能透明重试，否则失败尝试会混入同一轮展示/历史。
+	maxRetries := 0
+	call.MaxRetries = &maxRetries
+	trace := newTurnTrace()
+	trace.wrap(&call)
 	call.Prompt = req.Messages
 	call.Messages = history
+	startedAt := time.Now()
 	result, err := ag.Stream(streamCtx, call)
+	finishedAt := time.Now()
+	if err == nil {
+		err = ctx.Err()
+	}
+	// 截断、过滤、未知终止也不算完整结束，不保存部分上下文。
+	if err == nil && (result == nil || result.Response.FinishReason != fantasy.FinishReasonStop) {
+		err = fmt.Errorf("conversation did not finish normally")
+	}
 	if err != nil {
 		global.Logger.Sugar().Errorf("stream chat failed, err is %+v", err)
 		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
@@ -126,10 +148,30 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	for _, step := range result.Steps {
 		convMsgs = append(convMsgs, step.Messages...)
 	}
-	conversationStoreInstance.append(convID, convMsgs...)
-
-	// 唯一的整轮结束帧：仅 Usage，不重复发送已推送的正文/思考/工具内容
 	usage := token.FromFantasyUsage(result.TotalUsage)
+	if err := trace.finish(finishedAt); err != nil {
+		global.Logger.Sugar().Errorf("incomplete conversation trace: id=%s err=%v", convID, err)
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
+		return
+	}
+	if err := saveCompletedTurn(ctx, completedTurn{
+		ConversationID: convID, Version: version, UserContent: req.Messages,
+		ProviderID: provider.ID, ProviderName: provider.ProviderName, ModelID: model.ModelID,
+		ModelName: model.ModelName, APIProtocol: string(provider.APIProtocol),
+		StartedAt: startedAt, FinishedAt: finishedAt, FinishReason: string(result.Response.FinishReason),
+		Usage: usage, Messages: convMsgs, Blocks: trace.blocks,
+	}); err != nil {
+		global.Logger.Sugar().Errorf("persist completed conversation failed: id=%s err=%v", convID, err)
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
+		return
+	}
+
+	if version == 0 {
+		// 首轮只启动一次；异步生成/回写，不等待标题，也不向聊天流追加帧。
+		startConversationTitle(db.EntClient, global.Logger, providerCfg, req.Messages, result.Response.Content.Text())
+	}
+
+	// 事务提交后才发唯一 done；落库失败不能向前端报告本轮成功。
 	global.Logger.Sugar().Infof("chat usage: conversation_id=%s input_tokens=%d output_tokens=%d total_tokens=%d reasoning_tokens=%d cached_tokens=%d",
 		convID, usage.InputTokens, usage.OutputTokens, usage.TotalTokens, usage.ReasoningTokens, usage.CacheHitTokens)
 	send(ctx, dataChan, &dtochat.ChatResp{

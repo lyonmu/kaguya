@@ -16,6 +16,12 @@ type Tx struct {
 	config
 	// KaguyaAccessLog is the client for interacting with the KaguyaAccessLog builders.
 	KaguyaAccessLog *KaguyaAccessLogClient
+	// KaguyaChatBlock is the client for interacting with the KaguyaChatBlock builders.
+	KaguyaChatBlock *KaguyaChatBlockClient
+	// KaguyaChatTurn is the client for interacting with the KaguyaChatTurn builders.
+	KaguyaChatTurn *KaguyaChatTurnClient
+	// KaguyaConversation is the client for interacting with the KaguyaConversation builders.
+	KaguyaConversation *KaguyaConversationClient
 	// KaguyaModelsInfo is the client for interacting with the KaguyaModelsInfo builders.
 	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProviderInfo is the client for interacting with the KaguyaProviderInfo builders.
@@ -152,6 +158,9 @@ func (tx *Tx) Client() *Client {
 
 func (tx *Tx) init() {
 	tx.KaguyaAccessLog = NewKaguyaAccessLogClient(tx.config)
+	tx.KaguyaChatBlock = NewKaguyaChatBlockClient(tx.config)
+	tx.KaguyaChatTurn = NewKaguyaChatTurnClient(tx.config)
+	tx.KaguyaConversation = NewKaguyaConversationClient(tx.config)
 	tx.KaguyaModelsInfo = NewKaguyaModelsInfoClient(tx.config)
 	tx.KaguyaProviderInfo = NewKaguyaProviderInfoClient(tx.config)
 }

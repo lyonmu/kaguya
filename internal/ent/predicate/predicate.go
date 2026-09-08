@@ -9,6 +9,15 @@ import (
 // KaguyaAccessLog is the predicate function for kaguyaaccesslog builders.
 type KaguyaAccessLog func(*sql.Selector)
 
+// KaguyaChatBlock is the predicate function for kaguyachatblock builders.
+type KaguyaChatBlock func(*sql.Selector)
+
+// KaguyaChatTurn is the predicate function for kaguyachatturn builders.
+type KaguyaChatTurn func(*sql.Selector)
+
+// KaguyaConversation is the predicate function for kaguyaconversation builders.
+type KaguyaConversation func(*sql.Selector)
+
 // KaguyaModelsInfo is the predicate function for kaguyamodelsinfo builders.
 type KaguyaModelsInfo func(*sql.Selector)
 

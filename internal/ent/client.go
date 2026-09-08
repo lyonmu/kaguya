@@ -16,6 +16,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaaccesslog"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 
@@ -29,6 +32,12 @@ type Client struct {
 	Schema *migrate.Schema
 	// KaguyaAccessLog is the client for interacting with the KaguyaAccessLog builders.
 	KaguyaAccessLog *KaguyaAccessLogClient
+	// KaguyaChatBlock is the client for interacting with the KaguyaChatBlock builders.
+	KaguyaChatBlock *KaguyaChatBlockClient
+	// KaguyaChatTurn is the client for interacting with the KaguyaChatTurn builders.
+	KaguyaChatTurn *KaguyaChatTurnClient
+	// KaguyaConversation is the client for interacting with the KaguyaConversation builders.
+	KaguyaConversation *KaguyaConversationClient
 	// KaguyaModelsInfo is the client for interacting with the KaguyaModelsInfo builders.
 	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProviderInfo is the client for interacting with the KaguyaProviderInfo builders.
@@ -45,6 +54,9 @@ func NewClient(opts ...Option) *Client {
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.KaguyaAccessLog = NewKaguyaAccessLogClient(c.config)
+	c.KaguyaChatBlock = NewKaguyaChatBlockClient(c.config)
+	c.KaguyaChatTurn = NewKaguyaChatTurnClient(c.config)
+	c.KaguyaConversation = NewKaguyaConversationClient(c.config)
 	c.KaguyaModelsInfo = NewKaguyaModelsInfoClient(c.config)
 	c.KaguyaProviderInfo = NewKaguyaProviderInfoClient(c.config)
 }
@@ -140,6 +152,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ctx:                ctx,
 		config:             cfg,
 		KaguyaAccessLog:    NewKaguyaAccessLogClient(cfg),
+		KaguyaChatBlock:    NewKaguyaChatBlockClient(cfg),
+		KaguyaChatTurn:     NewKaguyaChatTurnClient(cfg),
+		KaguyaConversation: NewKaguyaConversationClient(cfg),
 		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
 	}, nil
@@ -162,6 +177,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ctx:                ctx,
 		config:             cfg,
 		KaguyaAccessLog:    NewKaguyaAccessLogClient(cfg),
+		KaguyaChatBlock:    NewKaguyaChatBlockClient(cfg),
+		KaguyaChatTurn:     NewKaguyaChatTurnClient(cfg),
+		KaguyaConversation: NewKaguyaConversationClient(cfg),
 		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
 	}, nil
@@ -192,17 +210,23 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	c.KaguyaAccessLog.Use(hooks...)
-	c.KaguyaModelsInfo.Use(hooks...)
-	c.KaguyaProviderInfo.Use(hooks...)
+	for _, n := range []interface{ Use(...Hook) }{
+		c.KaguyaAccessLog, c.KaguyaChatBlock, c.KaguyaChatTurn, c.KaguyaConversation,
+		c.KaguyaModelsInfo, c.KaguyaProviderInfo,
+	} {
+		n.Use(hooks...)
+	}
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	c.KaguyaAccessLog.Intercept(interceptors...)
-	c.KaguyaModelsInfo.Intercept(interceptors...)
-	c.KaguyaProviderInfo.Intercept(interceptors...)
+	for _, n := range []interface{ Intercept(...Interceptor) }{
+		c.KaguyaAccessLog, c.KaguyaChatBlock, c.KaguyaChatTurn, c.KaguyaConversation,
+		c.KaguyaModelsInfo, c.KaguyaProviderInfo,
+	} {
+		n.Intercept(interceptors...)
+	}
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -210,6 +234,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
 	case *KaguyaAccessLogMutation:
 		return c.KaguyaAccessLog.mutate(ctx, m)
+	case *KaguyaChatBlockMutation:
+		return c.KaguyaChatBlock.mutate(ctx, m)
+	case *KaguyaChatTurnMutation:
+		return c.KaguyaChatTurn.mutate(ctx, m)
+	case *KaguyaConversationMutation:
+		return c.KaguyaConversation.mutate(ctx, m)
 	case *KaguyaModelsInfoMutation:
 		return c.KaguyaModelsInfo.mutate(ctx, m)
 	case *KaguyaProviderInfoMutation:
@@ -350,6 +380,472 @@ func (c *KaguyaAccessLogClient) mutate(ctx context.Context, m *KaguyaAccessLogMu
 		return (&KaguyaAccessLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown KaguyaAccessLog mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaChatBlockClient is a client for the KaguyaChatBlock schema.
+type KaguyaChatBlockClient struct {
+	config
+}
+
+// NewKaguyaChatBlockClient returns a client for the KaguyaChatBlock from the given config.
+func NewKaguyaChatBlockClient(c config) *KaguyaChatBlockClient {
+	return &KaguyaChatBlockClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyachatblock.Hooks(f(g(h())))`.
+func (c *KaguyaChatBlockClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaChatBlock = append(c.hooks.KaguyaChatBlock, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyachatblock.Intercept(f(g(h())))`.
+func (c *KaguyaChatBlockClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaChatBlock = append(c.inters.KaguyaChatBlock, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaChatBlock entity.
+func (c *KaguyaChatBlockClient) Create() *KaguyaChatBlockCreate {
+	mutation := newKaguyaChatBlockMutation(c.config, OpCreate)
+	return &KaguyaChatBlockCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaChatBlock entities.
+func (c *KaguyaChatBlockClient) CreateBulk(builders ...*KaguyaChatBlockCreate) *KaguyaChatBlockCreateBulk {
+	return &KaguyaChatBlockCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaChatBlockClient) MapCreateBulk(slice any, setFunc func(*KaguyaChatBlockCreate, int)) *KaguyaChatBlockCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaChatBlockCreateBulk{err: fmt.Errorf("calling to KaguyaChatBlockClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaChatBlockCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaChatBlockCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaChatBlock.
+func (c *KaguyaChatBlockClient) Update() *KaguyaChatBlockUpdate {
+	mutation := newKaguyaChatBlockMutation(c.config, OpUpdate)
+	return &KaguyaChatBlockUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaChatBlockClient) UpdateOne(_m *KaguyaChatBlock) *KaguyaChatBlockUpdateOne {
+	mutation := newKaguyaChatBlockMutation(c.config, OpUpdateOne, withKaguyaChatBlock(_m))
+	return &KaguyaChatBlockUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaChatBlockClient) UpdateOneID(id string) *KaguyaChatBlockUpdateOne {
+	mutation := newKaguyaChatBlockMutation(c.config, OpUpdateOne, withKaguyaChatBlockID(id))
+	return &KaguyaChatBlockUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaChatBlock.
+func (c *KaguyaChatBlockClient) Delete() *KaguyaChatBlockDelete {
+	mutation := newKaguyaChatBlockMutation(c.config, OpDelete)
+	return &KaguyaChatBlockDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaChatBlockClient) DeleteOne(_m *KaguyaChatBlock) *KaguyaChatBlockDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaChatBlockClient) DeleteOneID(id string) *KaguyaChatBlockDeleteOne {
+	builder := c.Delete().Where(kaguyachatblock.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaChatBlockDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaChatBlock.
+func (c *KaguyaChatBlockClient) Query() *KaguyaChatBlockQuery {
+	return &KaguyaChatBlockQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaChatBlock},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaChatBlock entity by its id.
+func (c *KaguyaChatBlockClient) Get(ctx context.Context, id string) (*KaguyaChatBlock, error) {
+	return c.Query().Where(kaguyachatblock.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaChatBlockClient) GetX(ctx context.Context, id string) *KaguyaChatBlock {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTurn queries the turn edge of a KaguyaChatBlock.
+func (c *KaguyaChatBlockClient) QueryTurn(_m *KaguyaChatBlock) *KaguyaChatTurnQuery {
+	query := (&KaguyaChatTurnClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyachatblock.Table, kaguyachatblock.FieldID, id),
+			sqlgraph.To(kaguyachatturn.Table, kaguyachatturn.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, kaguyachatblock.TurnTable, kaguyachatblock.TurnColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaChatBlockClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaChatBlock
+	return append(hooks[:len(hooks):len(hooks)], kaguyachatblock.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaChatBlockClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaChatBlock
+}
+
+func (c *KaguyaChatBlockClient) mutate(ctx context.Context, m *KaguyaChatBlockMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaChatBlockCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaChatBlockUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaChatBlockUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaChatBlockDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaChatBlock mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaChatTurnClient is a client for the KaguyaChatTurn schema.
+type KaguyaChatTurnClient struct {
+	config
+}
+
+// NewKaguyaChatTurnClient returns a client for the KaguyaChatTurn from the given config.
+func NewKaguyaChatTurnClient(c config) *KaguyaChatTurnClient {
+	return &KaguyaChatTurnClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyachatturn.Hooks(f(g(h())))`.
+func (c *KaguyaChatTurnClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaChatTurn = append(c.hooks.KaguyaChatTurn, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyachatturn.Intercept(f(g(h())))`.
+func (c *KaguyaChatTurnClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaChatTurn = append(c.inters.KaguyaChatTurn, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaChatTurn entity.
+func (c *KaguyaChatTurnClient) Create() *KaguyaChatTurnCreate {
+	mutation := newKaguyaChatTurnMutation(c.config, OpCreate)
+	return &KaguyaChatTurnCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaChatTurn entities.
+func (c *KaguyaChatTurnClient) CreateBulk(builders ...*KaguyaChatTurnCreate) *KaguyaChatTurnCreateBulk {
+	return &KaguyaChatTurnCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaChatTurnClient) MapCreateBulk(slice any, setFunc func(*KaguyaChatTurnCreate, int)) *KaguyaChatTurnCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaChatTurnCreateBulk{err: fmt.Errorf("calling to KaguyaChatTurnClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaChatTurnCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaChatTurnCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaChatTurn.
+func (c *KaguyaChatTurnClient) Update() *KaguyaChatTurnUpdate {
+	mutation := newKaguyaChatTurnMutation(c.config, OpUpdate)
+	return &KaguyaChatTurnUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaChatTurnClient) UpdateOne(_m *KaguyaChatTurn) *KaguyaChatTurnUpdateOne {
+	mutation := newKaguyaChatTurnMutation(c.config, OpUpdateOne, withKaguyaChatTurn(_m))
+	return &KaguyaChatTurnUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaChatTurnClient) UpdateOneID(id string) *KaguyaChatTurnUpdateOne {
+	mutation := newKaguyaChatTurnMutation(c.config, OpUpdateOne, withKaguyaChatTurnID(id))
+	return &KaguyaChatTurnUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaChatTurn.
+func (c *KaguyaChatTurnClient) Delete() *KaguyaChatTurnDelete {
+	mutation := newKaguyaChatTurnMutation(c.config, OpDelete)
+	return &KaguyaChatTurnDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaChatTurnClient) DeleteOne(_m *KaguyaChatTurn) *KaguyaChatTurnDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaChatTurnClient) DeleteOneID(id string) *KaguyaChatTurnDeleteOne {
+	builder := c.Delete().Where(kaguyachatturn.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaChatTurnDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaChatTurn.
+func (c *KaguyaChatTurnClient) Query() *KaguyaChatTurnQuery {
+	return &KaguyaChatTurnQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaChatTurn},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaChatTurn entity by its id.
+func (c *KaguyaChatTurnClient) Get(ctx context.Context, id string) (*KaguyaChatTurn, error) {
+	return c.Query().Where(kaguyachatturn.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaChatTurnClient) GetX(ctx context.Context, id string) *KaguyaChatTurn {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryConversation queries the conversation edge of a KaguyaChatTurn.
+func (c *KaguyaChatTurnClient) QueryConversation(_m *KaguyaChatTurn) *KaguyaConversationQuery {
+	query := (&KaguyaConversationClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyachatturn.Table, kaguyachatturn.FieldID, id),
+			sqlgraph.To(kaguyaconversation.Table, kaguyaconversation.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, kaguyachatturn.ConversationTable, kaguyachatturn.ConversationColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryBlocks queries the blocks edge of a KaguyaChatTurn.
+func (c *KaguyaChatTurnClient) QueryBlocks(_m *KaguyaChatTurn) *KaguyaChatBlockQuery {
+	query := (&KaguyaChatBlockClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyachatturn.Table, kaguyachatturn.FieldID, id),
+			sqlgraph.To(kaguyachatblock.Table, kaguyachatblock.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, kaguyachatturn.BlocksTable, kaguyachatturn.BlocksColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaChatTurnClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaChatTurn
+	return append(hooks[:len(hooks):len(hooks)], kaguyachatturn.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaChatTurnClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaChatTurn
+}
+
+func (c *KaguyaChatTurnClient) mutate(ctx context.Context, m *KaguyaChatTurnMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaChatTurnCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaChatTurnUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaChatTurnUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaChatTurnDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaChatTurn mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaConversationClient is a client for the KaguyaConversation schema.
+type KaguyaConversationClient struct {
+	config
+}
+
+// NewKaguyaConversationClient returns a client for the KaguyaConversation from the given config.
+func NewKaguyaConversationClient(c config) *KaguyaConversationClient {
+	return &KaguyaConversationClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyaconversation.Hooks(f(g(h())))`.
+func (c *KaguyaConversationClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaConversation = append(c.hooks.KaguyaConversation, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyaconversation.Intercept(f(g(h())))`.
+func (c *KaguyaConversationClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaConversation = append(c.inters.KaguyaConversation, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaConversation entity.
+func (c *KaguyaConversationClient) Create() *KaguyaConversationCreate {
+	mutation := newKaguyaConversationMutation(c.config, OpCreate)
+	return &KaguyaConversationCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaConversation entities.
+func (c *KaguyaConversationClient) CreateBulk(builders ...*KaguyaConversationCreate) *KaguyaConversationCreateBulk {
+	return &KaguyaConversationCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaConversationClient) MapCreateBulk(slice any, setFunc func(*KaguyaConversationCreate, int)) *KaguyaConversationCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaConversationCreateBulk{err: fmt.Errorf("calling to KaguyaConversationClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaConversationCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaConversationCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaConversation.
+func (c *KaguyaConversationClient) Update() *KaguyaConversationUpdate {
+	mutation := newKaguyaConversationMutation(c.config, OpUpdate)
+	return &KaguyaConversationUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaConversationClient) UpdateOne(_m *KaguyaConversation) *KaguyaConversationUpdateOne {
+	mutation := newKaguyaConversationMutation(c.config, OpUpdateOne, withKaguyaConversation(_m))
+	return &KaguyaConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaConversationClient) UpdateOneID(id string) *KaguyaConversationUpdateOne {
+	mutation := newKaguyaConversationMutation(c.config, OpUpdateOne, withKaguyaConversationID(id))
+	return &KaguyaConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaConversation.
+func (c *KaguyaConversationClient) Delete() *KaguyaConversationDelete {
+	mutation := newKaguyaConversationMutation(c.config, OpDelete)
+	return &KaguyaConversationDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaConversationClient) DeleteOne(_m *KaguyaConversation) *KaguyaConversationDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaConversationClient) DeleteOneID(id string) *KaguyaConversationDeleteOne {
+	builder := c.Delete().Where(kaguyaconversation.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaConversationDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaConversation.
+func (c *KaguyaConversationClient) Query() *KaguyaConversationQuery {
+	return &KaguyaConversationQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaConversation},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaConversation entity by its id.
+func (c *KaguyaConversationClient) Get(ctx context.Context, id string) (*KaguyaConversation, error) {
+	return c.Query().Where(kaguyaconversation.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaConversationClient) GetX(ctx context.Context, id string) *KaguyaConversation {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryTurns queries the turns edge of a KaguyaConversation.
+func (c *KaguyaConversationClient) QueryTurns(_m *KaguyaConversation) *KaguyaChatTurnQuery {
+	query := (&KaguyaChatTurnClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyaconversation.Table, kaguyaconversation.FieldID, id),
+			sqlgraph.To(kaguyachatturn.Table, kaguyachatturn.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, kaguyaconversation.TurnsTable, kaguyaconversation.TurnsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaConversationClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaConversation
+	return append(hooks[:len(hooks):len(hooks)], kaguyaconversation.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaConversationClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaConversation
+}
+
+func (c *KaguyaConversationClient) mutate(ctx context.Context, m *KaguyaConversationMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaConversationCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaConversationUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaConversationUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaConversationDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaConversation mutation op: %q", m.Op())
 	}
 }
 
@@ -656,10 +1152,12 @@ func (c *KaguyaProviderInfoClient) mutate(ctx context.Context, m *KaguyaProvider
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		KaguyaAccessLog, KaguyaModelsInfo, KaguyaProviderInfo []ent.Hook
+		KaguyaAccessLog, KaguyaChatBlock, KaguyaChatTurn, KaguyaConversation,
+		KaguyaModelsInfo, KaguyaProviderInfo []ent.Hook
 	}
 	inters struct {
-		KaguyaAccessLog, KaguyaModelsInfo, KaguyaProviderInfo []ent.Interceptor
+		KaguyaAccessLog, KaguyaChatBlock, KaguyaChatTurn, KaguyaConversation,
+		KaguyaModelsInfo, KaguyaProviderInfo []ent.Interceptor
 	}
 )
 

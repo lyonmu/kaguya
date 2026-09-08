@@ -13,6 +13,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaaccesslog"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 )
@@ -76,6 +79,9 @@ func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			kaguyaaccesslog.Table:    kaguyaaccesslog.ValidColumn,
+			kaguyachatblock.Table:    kaguyachatblock.ValidColumn,
+			kaguyachatturn.Table:     kaguyachatturn.ValidColumn,
+			kaguyaconversation.Table: kaguyaconversation.ValidColumn,
 			kaguyamodelsinfo.Table:   kaguyamodelsinfo.ValidColumn,
 			kaguyaproviderinfo.Table: kaguyaproviderinfo.ValidColumn,
 		})
