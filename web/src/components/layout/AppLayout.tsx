@@ -3,6 +3,7 @@ import {
   ApiOutlined,
   FileSearchOutlined,
   MoonOutlined,
+  RobotOutlined,
   RightOutlined,
   SettingOutlined,
   SunOutlined,
@@ -13,14 +14,20 @@ import kaguyaIcon from '../../assets/kaguya.png'
 
 const { Content, Header, Sider } = Layout
 
+export type SystemPage = 'access-logs' | 'ai-providers'
+
 interface AppLayoutProps extends PropsWithChildren {
   colorMode: ColorMode
+  currentPage: SystemPage
+  onPageChange: (page: SystemPage) => void
   onToggleColorMode: () => void
 }
 
 export function AppLayout({
   children,
   colorMode,
+  currentPage,
+  onPageChange,
   onToggleColorMode,
 }: AppLayoutProps) {
   const isDark = colorMode === 'dark'
@@ -93,6 +100,24 @@ export function AppLayout({
             </div>
 
             <div className="px-2.5 pt-5 pb-2 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
+              AI 配置
+            </div>
+            <Menu
+              className="border-0! bg-transparent!"
+              items={[
+                {
+                  key: 'ai-providers',
+                  icon: <RobotOutlined />,
+                  label: 'AI 提供商',
+                },
+              ]}
+              mode="inline"
+              onClick={({ key }) => onPageChange(key as SystemPage)}
+              selectedKeys={[currentPage]}
+              theme={isDark ? 'dark' : 'light'}
+            />
+
+            <div className="px-2.5 pt-5 pb-2 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
               日志与审计
             </div>
             <Menu
@@ -105,7 +130,8 @@ export function AppLayout({
                 },
               ]}
               mode="inline"
-              selectedKeys={['access-logs']}
+              onClick={({ key }) => onPageChange(key as SystemPage)}
+              selectedKeys={[currentPage]}
               theme={isDark ? 'dark' : 'light'}
             />
 
@@ -131,7 +157,7 @@ export function AppLayout({
             <Breadcrumb
               items={[
                 { title: '系统管理' },
-                { title: '访问日志' },
+                { title: currentPage === 'ai-providers' ? 'AI 提供商' : '访问日志' },
               ]}
               separator={<RightOutlined className="text-[8px]" />}
             />

@@ -1,0 +1,72 @@
+export type ProviderProtocol = 'openai-chat' | 'anthropic' | 'openai-response'
+export type Status = 1 | 2
+export type ReasoningEffort = 'low' | 'medium' | 'high'
+
+export interface AIModel {
+  id: string
+  provider_id: string
+  provider_name: string
+  model_name: string
+  model_id: string
+  is_default: Status
+  reasoning_enabled: Status
+  reasoning_effort: ReasoningEffort
+  token_context_window: number
+  token_max_output_tokens: number
+  capability_tool_use: Status
+  capability_vision: Status
+  capability_structured_output: Status
+  created_at: string
+  updated_at: string
+}
+
+export interface AIProvider {
+  id: string
+  provider_name: string
+  api_protocol: ProviderProtocol
+  api_key: string
+  base_url: string
+  models: AIModel[]
+  created_at: string
+  updated_at: string
+}
+
+export interface ProviderPageResponse {
+  total: number
+  items: AIProvider[]
+  page: number
+  page_size: number
+}
+
+export interface ProviderQuery {
+  providerName?: string
+  apiProtocol?: ProviderProtocol
+  page: number
+  pageSize: number
+}
+
+export interface ProviderPayload {
+  provider_name: string
+  api_protocol: ProviderProtocol
+  api_key: string
+  base_url: string
+}
+
+export interface ModelPayload {
+  provider_id: string
+  model_name: string
+  model_id: string
+  is_default: Status
+  reasoning_enabled: Status
+  reasoning_effort: ReasoningEffort
+  token_context_window: number
+  token_max_output_tokens: number
+  capability_tool_use: Status
+  capability_vision: Status
+  capability_structured_output: Status
+}
+
+export interface LabelOption {
+  label: string
+  value: string
+}

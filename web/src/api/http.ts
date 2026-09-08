@@ -37,23 +37,30 @@ function buildUrl(path: string, query?: Record<string, QueryValue>) {
   return `${apiBaseUrl}${path}${queryString ? `?${queryString}` : ''}`
 }
 
-export async function get<T>(
+async function request<T>(
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
-  query?: Record<string, QueryValue>,
-  signal?: AbortSignal,
+  options?: {
+    body?: unknown
+    query?: Record<string, QueryValue>
+    signal?: AbortSignal
+  },
 ): Promise<T> {
   let response: Response
 
   try {
-    response = await fetch(buildUrl(path, query), {
-      method: 'GET',
+    response = await fetch(buildUrl(path, options?.query), {
+      method,
       headers: {
         Accept: 'application/json',
+        ...(options?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
       },
+      body: options?.body === undefined ? undefined : JSON.stringify(options.body),
       credentials: 'same-origin',
-      signal,
+      signal: options?.signal,
     })
   } catch (requestError) {
+    const signal = options?.signal
     if (signal?.aborted) {
       throw requestError
     }
@@ -98,4 +105,24 @@ export async function get<T>(
   }
 
   return payload.data as T
+}
+
+export function get<T>(
+  path: string,
+  query?: Record<string, QueryValue>,
+  signal?: AbortSignal,
+): Promise<T> {
+  return request<T>('GET', path, { query, signal })
+}
+
+export function post<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>('POST', path, { body })
+}
+
+export function put<T>(path: string, body?: unknown): Promise<T> {
+  return request<T>('PUT', path, { body })
+}
+
+export function del(path: string): Promise<void> {
+  return request<void>('DELETE', path)
 }
