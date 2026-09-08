@@ -7,8 +7,17 @@ services:
     ports:
       - "9024:9024"
     network_mode: host
+    healthcheck:
+      test: ["CMD-SHELL", "pidof kaguya"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      pgvector-svc:
+        condition: service_healthy
 
-  pgvector:
+  pgvector-svc:
     image: pgvector/pgvector:pg18-trixie
     container_name: pgvector-svc
     hostname: pgvector-svc

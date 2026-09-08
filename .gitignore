@@ -22,3 +22,5 @@ web/node_modules/
 web/dist/
 internal/api/v1/system/frontend/
 __debug_bin*
+ui.html
+docker-compose-dev.yml
