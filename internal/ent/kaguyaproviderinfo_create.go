@@ -73,14 +73,6 @@ func (_c *KaguyaProviderInfoCreate) SetProviderName(v string) *KaguyaProviderInf
 	return _c
 }
 
-// SetNillableProviderName sets the "provider_name" field if the given value is not nil.
-func (_c *KaguyaProviderInfoCreate) SetNillableProviderName(v *string) *KaguyaProviderInfoCreate {
-	if v != nil {
-		_c.SetProviderName(*v)
-	}
-	return _c
-}
-
 // SetAPIProtocol sets the "api_protocol" field.
 func (_c *KaguyaProviderInfoCreate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoCreate {
 	_c.mutation.SetAPIProtocol(v)
@@ -224,6 +216,14 @@ func (_c *KaguyaProviderInfoCreate) check() error {
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "KaguyaProviderInfo.updated_at"`)}
+	}
+	if _, ok := _c.mutation.ProviderName(); !ok {
+		return &ValidationError{Name: "provider_name", err: errors.New(`ent: missing required field "KaguyaProviderInfo.provider_name"`)}
+	}
+	if v, ok := _c.mutation.ProviderName(); ok {
+		if err := kaguyaproviderinfo.ProviderNameValidator(v); err != nil {
+			return &ValidationError{Name: "provider_name", err: fmt.Errorf(`ent: validator failed for field "KaguyaProviderInfo.provider_name": %w`, err)}
+		}
 	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := kaguyaproviderinfo.IDValidator(v); err != nil {
@@ -404,12 +404,6 @@ func (u *KaguyaProviderInfoUpsert) UpdateProviderName() *KaguyaProviderInfoUpser
 	return u
 }
 
-// ClearProviderName clears the value of the "provider_name" field.
-func (u *KaguyaProviderInfoUpsert) ClearProviderName() *KaguyaProviderInfoUpsert {
-	u.SetNull(kaguyaproviderinfo.FieldProviderName)
-	return u
-}
-
 // SetAPIProtocol sets the "api_protocol" field.
 func (u *KaguyaProviderInfoUpsert) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpsert {
 	u.Set(kaguyaproviderinfo.FieldAPIProtocol, v)
@@ -561,13 +555,6 @@ func (u *KaguyaProviderInfoUpsertOne) SetProviderName(v string) *KaguyaProviderI
 func (u *KaguyaProviderInfoUpsertOne) UpdateProviderName() *KaguyaProviderInfoUpsertOne {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.UpdateProviderName()
-	})
-}
-
-// ClearProviderName clears the value of the "provider_name" field.
-func (u *KaguyaProviderInfoUpsertOne) ClearProviderName() *KaguyaProviderInfoUpsertOne {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.ClearProviderName()
 	})
 }
 
@@ -898,13 +885,6 @@ func (u *KaguyaProviderInfoUpsertBulk) SetProviderName(v string) *KaguyaProvider
 func (u *KaguyaProviderInfoUpsertBulk) UpdateProviderName() *KaguyaProviderInfoUpsertBulk {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.UpdateProviderName()
-	})
-}
-
-// ClearProviderName clears the value of the "provider_name" field.
-func (u *KaguyaProviderInfoUpsertBulk) ClearProviderName() *KaguyaProviderInfoUpsertBulk {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.ClearProviderName()
 	})
 }
 

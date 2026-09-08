@@ -183,6 +183,512 @@
                     }
                 }
             }
+        },
+        "/v1/system/model": {
+            "post": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "创建模型",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemModelSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemModelResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/model/label": {
+            "get": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "获取模型下拉选项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "provider_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/system.SystemModelLabelResp"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/model/page": {
+            "get": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "获取模型分页列表",
+                "parameters": [
+                    {
+                        "enum": [
+                            -1,
+                            1,
+                            2
+                        ],
+                        "type": "integer",
+                        "x-enum-varnames": [
+                            "IsUnknown",
+                            "IsTrue",
+                            "IsFalse"
+                        ],
+                        "name": "is_default",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 10,
+                        "type": "integer",
+                        "default": 10,
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "name": "provider_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemModelListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/model/{id}": {
+            "get": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "获取模型详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模型 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemModelResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "修改模型",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模型 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "请求参数",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemModelSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemModelResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "删除模型",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "模型 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/provider": {
+            "post": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "创建提供商",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemProviderSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemProviderResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/provider/label": {
+            "get": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "获取提供商下拉选项",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/system.SystemProviderLabelResp"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/provider/page": {
+            "get": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "获取提供商分页列表",
+                "parameters": [
+                    {
+                        "enum": [
+                            "openai-chat",
+                            "anthropic",
+                            "openai-response"
+                        ],
+                        "type": "string",
+                        "x-enum-varnames": [
+                            "ProtocolOpenAIChat",
+                            "ProtocolAnthropic",
+                            "ProtocolOpenAIResponses"
+                        ],
+                        "name": "api_protocol",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 10,
+                        "type": "integer",
+                        "default": 10,
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "name": "provider_name",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemProviderListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/provider/{id}": {
+            "get": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "获取提供商详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "提供商 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemProviderResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "修改提供商",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "提供商 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "请求参数",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemProviderSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemProviderResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "删除提供商及其模型",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "提供商 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -334,6 +840,32 @@
                 "ProtocolOpenAIResponses"
             ]
         },
+        "consts.ReasoningEffort": {
+            "type": "string",
+            "enum": [
+                "low",
+                "medium",
+                "high"
+            ],
+            "x-enum-varnames": [
+                "ReasoningEffortLow",
+                "ReasoningEffortMedium",
+                "ReasoningEffortHigh"
+            ]
+        },
+        "consts.Status": {
+            "type": "integer",
+            "enum": [
+                -1,
+                1,
+                2
+            ],
+            "x-enum-varnames": [
+                "IsUnknown",
+                "IsTrue",
+                "IsFalse"
+            ]
+        },
         "github_com_lyonmu_kaguya_internal_dto_code.Response": {
             "type": "object",
             "properties": {
@@ -409,6 +941,290 @@
                 },
                 "platform": {
                     "description": "操作平台",
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemModelLabelResp": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemModelListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.SystemModelResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "system.SystemModelResp": {
+            "type": "object",
+            "properties": {
+                "capability_structured_output": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "capability_tool_use": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "capability_vision": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_default": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "reasoning_effort": {
+                    "$ref": "#/definitions/consts.ReasoningEffort"
+                },
+                "reasoning_enabled": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "token_context_window": {
+                    "type": "integer"
+                },
+                "token_max_output_tokens": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemModelSaveReq": {
+            "type": "object",
+            "required": [
+                "capability_structured_output",
+                "capability_tool_use",
+                "capability_vision",
+                "is_default",
+                "model_id",
+                "model_name",
+                "provider_id",
+                "reasoning_effort",
+                "reasoning_enabled"
+            ],
+            "properties": {
+                "capability_structured_output": {
+                    "enum": [
+                        1,
+                        2
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.Status"
+                        }
+                    ]
+                },
+                "capability_tool_use": {
+                    "enum": [
+                        1,
+                        2
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.Status"
+                        }
+                    ]
+                },
+                "capability_vision": {
+                    "enum": [
+                        1,
+                        2
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.Status"
+                        }
+                    ]
+                },
+                "is_default": {
+                    "enum": [
+                        1,
+                        2
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.Status"
+                        }
+                    ]
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "reasoning_effort": {
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.ReasoningEffort"
+                        }
+                    ]
+                },
+                "reasoning_enabled": {
+                    "enum": [
+                        1,
+                        2
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.Status"
+                        }
+                    ]
+                },
+                "token_context_window": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "token_max_output_tokens": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "system.SystemProviderLabelResp": {
+            "type": "object",
+            "properties": {
+                "label": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemProviderListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.SystemProviderResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "system.SystemProviderResp": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string"
+                },
+                "api_protocol": {
+                    "$ref": "#/definitions/consts.ProviderProtocol"
+                },
+                "base_url": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.SystemModelResp"
+                    }
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemProviderSaveReq": {
+            "type": "object",
+            "required": [
+                "api_protocol",
+                "provider_name"
+            ],
+            "properties": {
+                "api_key": {
+                    "description": "API Key",
+                    "type": "string"
+                },
+                "api_protocol": {
+                    "description": "API 协议类型",
+                    "enum": [
+                        "openai-chat",
+                        "anthropic",
+                        "openai-response"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.ProviderProtocol"
+                        }
+                    ]
+                },
+                "base_url": {
+                    "description": "Base URL",
+                    "type": "string"
+                },
+                "provider_name": {
+                    "description": "提供商名称",
                     "type": "string"
                 }
             }

@@ -105,6 +105,26 @@ definitions:
     - ProtocolOpenAIChat
     - ProtocolAnthropic
     - ProtocolOpenAIResponses
+  consts.ReasoningEffort:
+    enum:
+    - low
+    - medium
+    - high
+    type: string
+    x-enum-varnames:
+    - ReasoningEffortLow
+    - ReasoningEffortMedium
+    - ReasoningEffortHigh
+  consts.Status:
+    enum:
+    - -1
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - IsUnknown
+    - IsTrue
+    - IsFalse
   github_com_lyonmu_kaguya_internal_dto_code.Response:
     properties:
       code:
@@ -161,6 +181,189 @@ definitions:
       platform:
         description: 操作平台
         type: string
+    type: object
+  system.SystemModelLabelResp:
+    properties:
+      label:
+        type: string
+      model_id:
+        type: string
+      provider_id:
+        type: string
+      value:
+        type: string
+    type: object
+  system.SystemModelListResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/system.SystemModelResp'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  system.SystemModelResp:
+    properties:
+      capability_structured_output:
+        $ref: '#/definitions/consts.Status'
+      capability_tool_use:
+        $ref: '#/definitions/consts.Status'
+      capability_vision:
+        $ref: '#/definitions/consts.Status'
+      created_at:
+        type: string
+      id:
+        type: string
+      is_default:
+        $ref: '#/definitions/consts.Status'
+      model_id:
+        type: string
+      model_name:
+        type: string
+      provider_id:
+        type: string
+      provider_name:
+        type: string
+      reasoning_effort:
+        $ref: '#/definitions/consts.ReasoningEffort'
+      reasoning_enabled:
+        $ref: '#/definitions/consts.Status'
+      token_context_window:
+        type: integer
+      token_max_output_tokens:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  system.SystemModelSaveReq:
+    properties:
+      capability_structured_output:
+        allOf:
+        - $ref: '#/definitions/consts.Status'
+        enum:
+        - 1
+        - 2
+      capability_tool_use:
+        allOf:
+        - $ref: '#/definitions/consts.Status'
+        enum:
+        - 1
+        - 2
+      capability_vision:
+        allOf:
+        - $ref: '#/definitions/consts.Status'
+        enum:
+        - 1
+        - 2
+      is_default:
+        allOf:
+        - $ref: '#/definitions/consts.Status'
+        enum:
+        - 1
+        - 2
+      model_id:
+        type: string
+      model_name:
+        type: string
+      provider_id:
+        type: string
+      reasoning_effort:
+        allOf:
+        - $ref: '#/definitions/consts.ReasoningEffort'
+        enum:
+        - low
+        - medium
+        - high
+      reasoning_enabled:
+        allOf:
+        - $ref: '#/definitions/consts.Status'
+        enum:
+        - 1
+        - 2
+      token_context_window:
+        minimum: 0
+        type: integer
+      token_max_output_tokens:
+        minimum: 0
+        type: integer
+    required:
+    - capability_structured_output
+    - capability_tool_use
+    - capability_vision
+    - is_default
+    - model_id
+    - model_name
+    - provider_id
+    - reasoning_effort
+    - reasoning_enabled
+    type: object
+  system.SystemProviderLabelResp:
+    properties:
+      label:
+        type: string
+      value:
+        type: string
+    type: object
+  system.SystemProviderListResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/system.SystemProviderResp'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  system.SystemProviderResp:
+    properties:
+      api_key:
+        type: string
+      api_protocol:
+        $ref: '#/definitions/consts.ProviderProtocol'
+      base_url:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      models:
+        items:
+          $ref: '#/definitions/system.SystemModelResp'
+        type: array
+      provider_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  system.SystemProviderSaveReq:
+    properties:
+      api_key:
+        description: API Key
+        type: string
+      api_protocol:
+        allOf:
+        - $ref: '#/definitions/consts.ProviderProtocol'
+        description: API 协议类型
+        enum:
+        - openai-chat
+        - anthropic
+        - openai-response
+      base_url:
+        description: Base URL
+        type: string
+      provider_name:
+        description: 提供商名称
+        type: string
+    required:
+    - api_protocol
+    - provider_name
     type: object
 host: http://localhost:9024
 info:
@@ -277,6 +480,308 @@ paths:
       summary: SystemAccessLogPage
       tags:
       - System
+  /v1/system/model:
+    post:
+      parameters:
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemModelSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemModelResp'
+              type: object
+      summary: 创建模型
+      tags:
+      - System Model
+  /v1/system/model/{id}:
+    delete:
+      parameters:
+      - description: 模型 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+      summary: 删除模型
+      tags:
+      - System Model
+    get:
+      parameters:
+      - description: 模型 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemModelResp'
+              type: object
+      summary: 获取模型详情
+      tags:
+      - System Model
+    put:
+      parameters:
+      - description: 模型 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemModelSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemModelResp'
+              type: object
+      summary: 修改模型
+      tags:
+      - System Model
+  /v1/system/model/label:
+    get:
+      parameters:
+      - in: query
+        name: keyword
+        type: string
+      - in: query
+        name: provider_id
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/system.SystemModelLabelResp'
+                  type: array
+              type: object
+      summary: 获取模型下拉选项
+      tags:
+      - System Model
+  /v1/system/model/page:
+    get:
+      parameters:
+      - enum:
+        - -1
+        - 1
+        - 2
+        in: query
+        name: is_default
+        type: integer
+        x-enum-varnames:
+        - IsUnknown
+        - IsTrue
+        - IsFalse
+      - in: query
+        name: keyword
+        type: string
+      - default: 1
+        in: query
+        minimum: 1
+        name: page
+        required: true
+        type: integer
+      - default: 10
+        in: query
+        maximum: 1000
+        minimum: 10
+        name: page_size
+        required: true
+        type: integer
+      - in: query
+        name: provider_id
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemModelListResp'
+              type: object
+      summary: 获取模型分页列表
+      tags:
+      - System Model
+  /v1/system/provider:
+    post:
+      parameters:
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemProviderSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemProviderResp'
+              type: object
+      summary: 创建提供商
+      tags:
+      - System Provider
+  /v1/system/provider/{id}:
+    delete:
+      parameters:
+      - description: 提供商 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+      summary: 删除提供商及其模型
+      tags:
+      - System Provider
+    get:
+      parameters:
+      - description: 提供商 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemProviderResp'
+              type: object
+      summary: 获取提供商详情
+      tags:
+      - System Provider
+    put:
+      parameters:
+      - description: 提供商 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemProviderSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemProviderResp'
+              type: object
+      summary: 修改提供商
+      tags:
+      - System Provider
+  /v1/system/provider/label:
+    get:
+      parameters:
+      - in: query
+        name: keyword
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/system.SystemProviderLabelResp'
+                  type: array
+              type: object
+      summary: 获取提供商下拉选项
+      tags:
+      - System Provider
+  /v1/system/provider/page:
+    get:
+      parameters:
+      - enum:
+        - openai-chat
+        - anthropic
+        - openai-response
+        in: query
+        name: api_protocol
+        type: string
+        x-enum-varnames:
+        - ProtocolOpenAIChat
+        - ProtocolAnthropic
+        - ProtocolOpenAIResponses
+      - default: 1
+        in: query
+        minimum: 1
+        name: page
+        required: true
+        type: integer
+      - default: 10
+        in: query
+        maximum: 1000
+        minimum: 10
+        name: page_size
+        required: true
+        type: integer
+      - in: query
+        name: provider_name
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemProviderListResp'
+              type: object
+      summary: 获取提供商分页列表
+      tags:
+      - System Provider
 schemes:
 - http
 swagger: "2.0"

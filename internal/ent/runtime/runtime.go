@@ -80,6 +80,18 @@ func init() {
 	kaguyamodelsinfo.DefaultUpdatedAt = kaguyamodelsinfoDescUpdatedAt.Default.(func() time.Time)
 	// kaguyamodelsinfo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	kaguyamodelsinfo.UpdateDefaultUpdatedAt = kaguyamodelsinfoDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamodelsinfoDescProviderID is the schema descriptor for provider_id field.
+	kaguyamodelsinfoDescProviderID := kaguyamodelsinfoFields[0].Descriptor()
+	// kaguyamodelsinfo.ProviderIDValidator is a validator for the "provider_id" field. It is called by the builders before save.
+	kaguyamodelsinfo.ProviderIDValidator = kaguyamodelsinfoDescProviderID.Validators[0].(func(string) error)
+	// kaguyamodelsinfoDescModelName is the schema descriptor for model_name field.
+	kaguyamodelsinfoDescModelName := kaguyamodelsinfoFields[1].Descriptor()
+	// kaguyamodelsinfo.ModelNameValidator is a validator for the "model_name" field. It is called by the builders before save.
+	kaguyamodelsinfo.ModelNameValidator = kaguyamodelsinfoDescModelName.Validators[0].(func(string) error)
+	// kaguyamodelsinfoDescModelID is the schema descriptor for model_id field.
+	kaguyamodelsinfoDescModelID := kaguyamodelsinfoFields[2].Descriptor()
+	// kaguyamodelsinfo.ModelIDValidator is a validator for the "model_id" field. It is called by the builders before save.
+	kaguyamodelsinfo.ModelIDValidator = kaguyamodelsinfoDescModelID.Validators[0].(func(string) error)
 	// kaguyamodelsinfoDescIsDefault is the schema descriptor for is_default field.
 	kaguyamodelsinfoDescIsDefault := kaguyamodelsinfoFields[3].Descriptor()
 	// kaguyamodelsinfo.DefaultIsDefault holds the default value on creation for the is_default field.
@@ -144,6 +156,10 @@ func init() {
 	kaguyaproviderinfo.DefaultUpdatedAt = kaguyaproviderinfoDescUpdatedAt.Default.(func() time.Time)
 	// kaguyaproviderinfo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	kaguyaproviderinfo.UpdateDefaultUpdatedAt = kaguyaproviderinfoDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyaproviderinfoDescProviderName is the schema descriptor for provider_name field.
+	kaguyaproviderinfoDescProviderName := kaguyaproviderinfoFields[0].Descriptor()
+	// kaguyaproviderinfo.ProviderNameValidator is a validator for the "provider_name" field. It is called by the builders before save.
+	kaguyaproviderinfo.ProviderNameValidator = kaguyaproviderinfoDescProviderName.Validators[0].(func(string) error)
 	// kaguyaproviderinfoDescAPIProtocol is the schema descriptor for api_protocol field.
 	kaguyaproviderinfoDescAPIProtocol := kaguyaproviderinfoFields[1].Descriptor()
 	// kaguyaproviderinfo.DefaultAPIProtocol holds the default value on creation for the api_protocol field.

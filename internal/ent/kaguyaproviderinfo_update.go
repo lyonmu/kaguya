@@ -71,12 +71,6 @@ func (_u *KaguyaProviderInfoUpdate) SetNillableProviderName(v *string) *KaguyaPr
 	return _u
 }
 
-// ClearProviderName clears the value of the "provider_name" field.
-func (_u *KaguyaProviderInfoUpdate) ClearProviderName() *KaguyaProviderInfoUpdate {
-	_u.mutation.ClearProviderName()
-	return _u
-}
-
 // SetAPIProtocol sets the "api_protocol" field.
 func (_u *KaguyaProviderInfoUpdate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpdate {
 	_u.mutation.SetAPIProtocol(v)
@@ -220,6 +214,16 @@ func (_u *KaguyaProviderInfoUpdate) defaults() error {
 	return nil
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *KaguyaProviderInfoUpdate) check() error {
+	if v, ok := _u.mutation.ProviderName(); ok {
+		if err := kaguyaproviderinfo.ProviderNameValidator(v); err != nil {
+			return &ValidationError{Name: "provider_name", err: fmt.Errorf(`ent: validator failed for field "KaguyaProviderInfo.provider_name": %w`, err)}
+		}
+	}
+	return nil
+}
+
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
 func (_u *KaguyaProviderInfoUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *KaguyaProviderInfoUpdate {
 	_u.modifiers = append(_u.modifiers, modifiers...)
@@ -227,6 +231,9 @@ func (_u *KaguyaProviderInfoUpdate) Modify(modifiers ...func(u *sql.UpdateBuilde
 }
 
 func (_u *KaguyaProviderInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(kaguyaproviderinfo.Table, kaguyaproviderinfo.Columns, sqlgraph.NewFieldSpec(kaguyaproviderinfo.FieldID, field.TypeString))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -246,9 +253,6 @@ func (_u *KaguyaProviderInfoUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if value, ok := _u.mutation.ProviderName(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderName, field.TypeString, value)
-	}
-	if _u.mutation.ProviderNameCleared() {
-		_spec.ClearField(kaguyaproviderinfo.FieldProviderName, field.TypeString)
 	}
 	if value, ok := _u.mutation.APIProtocol(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString, value)
@@ -372,12 +376,6 @@ func (_u *KaguyaProviderInfoUpdateOne) SetNillableProviderName(v *string) *Kaguy
 	if v != nil {
 		_u.SetProviderName(*v)
 	}
-	return _u
-}
-
-// ClearProviderName clears the value of the "provider_name" field.
-func (_u *KaguyaProviderInfoUpdateOne) ClearProviderName() *KaguyaProviderInfoUpdateOne {
-	_u.mutation.ClearProviderName()
 	return _u
 }
 
@@ -537,6 +535,16 @@ func (_u *KaguyaProviderInfoUpdateOne) defaults() error {
 	return nil
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *KaguyaProviderInfoUpdateOne) check() error {
+	if v, ok := _u.mutation.ProviderName(); ok {
+		if err := kaguyaproviderinfo.ProviderNameValidator(v); err != nil {
+			return &ValidationError{Name: "provider_name", err: fmt.Errorf(`ent: validator failed for field "KaguyaProviderInfo.provider_name": %w`, err)}
+		}
+	}
+	return nil
+}
+
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
 func (_u *KaguyaProviderInfoUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *KaguyaProviderInfoUpdateOne {
 	_u.modifiers = append(_u.modifiers, modifiers...)
@@ -544,6 +552,9 @@ func (_u *KaguyaProviderInfoUpdateOne) Modify(modifiers ...func(u *sql.UpdateBui
 }
 
 func (_u *KaguyaProviderInfoUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaProviderInfo, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(kaguyaproviderinfo.Table, kaguyaproviderinfo.Columns, sqlgraph.NewFieldSpec(kaguyaproviderinfo.FieldID, field.TypeString))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -580,9 +591,6 @@ func (_u *KaguyaProviderInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	}
 	if value, ok := _u.mutation.ProviderName(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderName, field.TypeString, value)
-	}
-	if _u.mutation.ProviderNameCleared() {
-		_spec.ClearField(kaguyaproviderinfo.FieldProviderName, field.TypeString)
 	}
 	if value, ok := _u.mutation.APIProtocol(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString, value)

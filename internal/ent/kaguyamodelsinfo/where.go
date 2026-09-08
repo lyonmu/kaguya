@@ -327,16 +327,6 @@ func ProviderIDHasSuffix(v string) predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldHasSuffix(FieldProviderID, v))
 }
 
-// ProviderIDIsNil applies the IsNil predicate on the "provider_id" field.
-func ProviderIDIsNil() predicate.KaguyaModelsInfo {
-	return predicate.KaguyaModelsInfo(sql.FieldIsNull(FieldProviderID))
-}
-
-// ProviderIDNotNil applies the NotNil predicate on the "provider_id" field.
-func ProviderIDNotNil() predicate.KaguyaModelsInfo {
-	return predicate.KaguyaModelsInfo(sql.FieldNotNull(FieldProviderID))
-}
-
 // ProviderIDEqualFold applies the EqualFold predicate on the "provider_id" field.
 func ProviderIDEqualFold(v string) predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldEqualFold(FieldProviderID, v))
@@ -402,16 +392,6 @@ func ModelNameHasSuffix(v string) predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldHasSuffix(FieldModelName, v))
 }
 
-// ModelNameIsNil applies the IsNil predicate on the "model_name" field.
-func ModelNameIsNil() predicate.KaguyaModelsInfo {
-	return predicate.KaguyaModelsInfo(sql.FieldIsNull(FieldModelName))
-}
-
-// ModelNameNotNil applies the NotNil predicate on the "model_name" field.
-func ModelNameNotNil() predicate.KaguyaModelsInfo {
-	return predicate.KaguyaModelsInfo(sql.FieldNotNull(FieldModelName))
-}
-
 // ModelNameEqualFold applies the EqualFold predicate on the "model_name" field.
 func ModelNameEqualFold(v string) predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldEqualFold(FieldModelName, v))
@@ -475,16 +455,6 @@ func ModelIDHasPrefix(v string) predicate.KaguyaModelsInfo {
 // ModelIDHasSuffix applies the HasSuffix predicate on the "model_id" field.
 func ModelIDHasSuffix(v string) predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldHasSuffix(FieldModelID, v))
-}
-
-// ModelIDIsNil applies the IsNil predicate on the "model_id" field.
-func ModelIDIsNil() predicate.KaguyaModelsInfo {
-	return predicate.KaguyaModelsInfo(sql.FieldIsNull(FieldModelID))
-}
-
-// ModelIDNotNil applies the NotNil predicate on the "model_id" field.
-func ModelIDNotNil() predicate.KaguyaModelsInfo {
-	return predicate.KaguyaModelsInfo(sql.FieldNotNull(FieldModelID))
 }
 
 // ModelIDEqualFold applies the EqualFold predicate on the "model_id" field.

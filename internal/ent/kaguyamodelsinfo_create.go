@@ -73,39 +73,15 @@ func (_c *KaguyaModelsInfoCreate) SetProviderID(v string) *KaguyaModelsInfoCreat
 	return _c
 }
 
-// SetNillableProviderID sets the "provider_id" field if the given value is not nil.
-func (_c *KaguyaModelsInfoCreate) SetNillableProviderID(v *string) *KaguyaModelsInfoCreate {
-	if v != nil {
-		_c.SetProviderID(*v)
-	}
-	return _c
-}
-
 // SetModelName sets the "model_name" field.
 func (_c *KaguyaModelsInfoCreate) SetModelName(v string) *KaguyaModelsInfoCreate {
 	_c.mutation.SetModelName(v)
 	return _c
 }
 
-// SetNillableModelName sets the "model_name" field if the given value is not nil.
-func (_c *KaguyaModelsInfoCreate) SetNillableModelName(v *string) *KaguyaModelsInfoCreate {
-	if v != nil {
-		_c.SetModelName(*v)
-	}
-	return _c
-}
-
 // SetModelID sets the "model_id" field.
 func (_c *KaguyaModelsInfoCreate) SetModelID(v string) *KaguyaModelsInfoCreate {
 	_c.mutation.SetModelID(v)
-	return _c
-}
-
-// SetNillableModelID sets the "model_id" field if the given value is not nil.
-func (_c *KaguyaModelsInfoCreate) SetNillableModelID(v *string) *KaguyaModelsInfoCreate {
-	if v != nil {
-		_c.SetModelID(*v)
-	}
 	return _c
 }
 
@@ -333,10 +309,37 @@ func (_c *KaguyaModelsInfoCreate) check() error {
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "KaguyaModelsInfo.updated_at"`)}
 	}
+	if _, ok := _c.mutation.ProviderID(); !ok {
+		return &ValidationError{Name: "provider_id", err: errors.New(`ent: missing required field "KaguyaModelsInfo.provider_id"`)}
+	}
+	if v, ok := _c.mutation.ProviderID(); ok {
+		if err := kaguyamodelsinfo.ProviderIDValidator(v); err != nil {
+			return &ValidationError{Name: "provider_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.provider_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ModelName(); !ok {
+		return &ValidationError{Name: "model_name", err: errors.New(`ent: missing required field "KaguyaModelsInfo.model_name"`)}
+	}
+	if v, ok := _c.mutation.ModelName(); ok {
+		if err := kaguyamodelsinfo.ModelNameValidator(v); err != nil {
+			return &ValidationError{Name: "model_name", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_name": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ModelID(); !ok {
+		return &ValidationError{Name: "model_id", err: errors.New(`ent: missing required field "KaguyaModelsInfo.model_id"`)}
+	}
+	if v, ok := _c.mutation.ModelID(); ok {
+		if err := kaguyamodelsinfo.ModelIDValidator(v); err != nil {
+			return &ValidationError{Name: "model_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_id": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := kaguyamodelsinfo.IDValidator(v); err != nil {
 			return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.id": %w`, err)}
 		}
+	}
+	if len(_c.mutation.ProviderIDs()) == 0 {
+		return &ValidationError{Name: "provider", err: errors.New(`ent: missing required edge "KaguyaModelsInfo.provider"`)}
 	}
 	return nil
 }
@@ -537,12 +540,6 @@ func (u *KaguyaModelsInfoUpsert) UpdateProviderID() *KaguyaModelsInfoUpsert {
 	return u
 }
 
-// ClearProviderID clears the value of the "provider_id" field.
-func (u *KaguyaModelsInfoUpsert) ClearProviderID() *KaguyaModelsInfoUpsert {
-	u.SetNull(kaguyamodelsinfo.FieldProviderID)
-	return u
-}
-
 // SetModelName sets the "model_name" field.
 func (u *KaguyaModelsInfoUpsert) SetModelName(v string) *KaguyaModelsInfoUpsert {
 	u.Set(kaguyamodelsinfo.FieldModelName, v)
@@ -555,12 +552,6 @@ func (u *KaguyaModelsInfoUpsert) UpdateModelName() *KaguyaModelsInfoUpsert {
 	return u
 }
 
-// ClearModelName clears the value of the "model_name" field.
-func (u *KaguyaModelsInfoUpsert) ClearModelName() *KaguyaModelsInfoUpsert {
-	u.SetNull(kaguyamodelsinfo.FieldModelName)
-	return u
-}
-
 // SetModelID sets the "model_id" field.
 func (u *KaguyaModelsInfoUpsert) SetModelID(v string) *KaguyaModelsInfoUpsert {
 	u.Set(kaguyamodelsinfo.FieldModelID, v)
@@ -570,12 +561,6 @@ func (u *KaguyaModelsInfoUpsert) SetModelID(v string) *KaguyaModelsInfoUpsert {
 // UpdateModelID sets the "model_id" field to the value that was provided on create.
 func (u *KaguyaModelsInfoUpsert) UpdateModelID() *KaguyaModelsInfoUpsert {
 	u.SetExcluded(kaguyamodelsinfo.FieldModelID)
-	return u
-}
-
-// ClearModelID clears the value of the "model_id" field.
-func (u *KaguyaModelsInfoUpsert) ClearModelID() *KaguyaModelsInfoUpsert {
-	u.SetNull(kaguyamodelsinfo.FieldModelID)
 	return u
 }
 
@@ -865,13 +850,6 @@ func (u *KaguyaModelsInfoUpsertOne) UpdateProviderID() *KaguyaModelsInfoUpsertOn
 	})
 }
 
-// ClearProviderID clears the value of the "provider_id" field.
-func (u *KaguyaModelsInfoUpsertOne) ClearProviderID() *KaguyaModelsInfoUpsertOne {
-	return u.Update(func(s *KaguyaModelsInfoUpsert) {
-		s.ClearProviderID()
-	})
-}
-
 // SetModelName sets the "model_name" field.
 func (u *KaguyaModelsInfoUpsertOne) SetModelName(v string) *KaguyaModelsInfoUpsertOne {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
@@ -886,13 +864,6 @@ func (u *KaguyaModelsInfoUpsertOne) UpdateModelName() *KaguyaModelsInfoUpsertOne
 	})
 }
 
-// ClearModelName clears the value of the "model_name" field.
-func (u *KaguyaModelsInfoUpsertOne) ClearModelName() *KaguyaModelsInfoUpsertOne {
-	return u.Update(func(s *KaguyaModelsInfoUpsert) {
-		s.ClearModelName()
-	})
-}
-
 // SetModelID sets the "model_id" field.
 func (u *KaguyaModelsInfoUpsertOne) SetModelID(v string) *KaguyaModelsInfoUpsertOne {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
@@ -904,13 +875,6 @@ func (u *KaguyaModelsInfoUpsertOne) SetModelID(v string) *KaguyaModelsInfoUpsert
 func (u *KaguyaModelsInfoUpsertOne) UpdateModelID() *KaguyaModelsInfoUpsertOne {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.UpdateModelID()
-	})
-}
-
-// ClearModelID clears the value of the "model_id" field.
-func (u *KaguyaModelsInfoUpsertOne) ClearModelID() *KaguyaModelsInfoUpsertOne {
-	return u.Update(func(s *KaguyaModelsInfoUpsert) {
-		s.ClearModelID()
 	})
 }
 
@@ -1398,13 +1362,6 @@ func (u *KaguyaModelsInfoUpsertBulk) UpdateProviderID() *KaguyaModelsInfoUpsertB
 	})
 }
 
-// ClearProviderID clears the value of the "provider_id" field.
-func (u *KaguyaModelsInfoUpsertBulk) ClearProviderID() *KaguyaModelsInfoUpsertBulk {
-	return u.Update(func(s *KaguyaModelsInfoUpsert) {
-		s.ClearProviderID()
-	})
-}
-
 // SetModelName sets the "model_name" field.
 func (u *KaguyaModelsInfoUpsertBulk) SetModelName(v string) *KaguyaModelsInfoUpsertBulk {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
@@ -1419,13 +1376,6 @@ func (u *KaguyaModelsInfoUpsertBulk) UpdateModelName() *KaguyaModelsInfoUpsertBu
 	})
 }
 
-// ClearModelName clears the value of the "model_name" field.
-func (u *KaguyaModelsInfoUpsertBulk) ClearModelName() *KaguyaModelsInfoUpsertBulk {
-	return u.Update(func(s *KaguyaModelsInfoUpsert) {
-		s.ClearModelName()
-	})
-}
-
 // SetModelID sets the "model_id" field.
 func (u *KaguyaModelsInfoUpsertBulk) SetModelID(v string) *KaguyaModelsInfoUpsertBulk {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
@@ -1437,13 +1387,6 @@ func (u *KaguyaModelsInfoUpsertBulk) SetModelID(v string) *KaguyaModelsInfoUpser
 func (u *KaguyaModelsInfoUpsertBulk) UpdateModelID() *KaguyaModelsInfoUpsertBulk {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.UpdateModelID()
-	})
-}
-
-// ClearModelID clears the value of the "model_id" field.
-func (u *KaguyaModelsInfoUpsertBulk) ClearModelID() *KaguyaModelsInfoUpsertBulk {
-	return u.Update(func(s *KaguyaModelsInfoUpsert) {
-		s.ClearModelID()
 	})
 }
 

@@ -99,6 +99,12 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// ProviderIDValidator is a validator for the "provider_id" field. It is called by the builders before save.
+	ProviderIDValidator func(string) error
+	// ModelNameValidator is a validator for the "model_name" field. It is called by the builders before save.
+	ModelNameValidator func(string) error
+	// ModelIDValidator is a validator for the "model_id" field. It is called by the builders before save.
+	ModelIDValidator func(string) error
 	// DefaultIsDefault holds the default value on creation for the "is_default" field.
 	DefaultIsDefault consts.Status
 	// DefaultReasoningEnabled holds the default value on creation for the "reasoning_enabled" field.

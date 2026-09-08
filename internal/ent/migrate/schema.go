@@ -69,8 +69,8 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
-		{Name: "model_name", Type: field.TypeString, Nullable: true, Comment: "模型显示名称"},
-		{Name: "model_id", Type: field.TypeString, Nullable: true, Comment: "调用 API 时使用的模型标识符"},
+		{Name: "model_name", Type: field.TypeString, Comment: "模型显示名称"},
+		{Name: "model_id", Type: field.TypeString, Comment: "调用 API 时使用的模型标识符"},
 		{Name: "is_default", Type: field.TypeInt, Nullable: true, Comment: "是否为该提供方下的默认模型", Default: 1},
 		{Name: "reasoning_enabled", Type: field.TypeInt, Nullable: true, Comment: "是否启用思考模式", Default: 1},
 		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true, Comment: "思考努力程度，影响推理深度和响应速度", Default: "medium"},
@@ -79,7 +79,7 @@ var (
 		{Name: "capability_tool_use", Type: field.TypeInt, Nullable: true, Comment: "是否支持工具调用（function calling）", Default: 1},
 		{Name: "capability_vision", Type: field.TypeInt, Nullable: true, Comment: "是否支持图像理解", Default: 1},
 		{Name: "capability_structured_output", Type: field.TypeInt, Nullable: true, Comment: "是否支持结构化输出（如 JSON schema 约束）", Default: 1},
-		{Name: "provider_id", Type: field.TypeString, Nullable: true, Size: 64, Comment: "提供商id"},
+		{Name: "provider_id", Type: field.TypeString, Size: 64, Comment: "提供商id"},
 	}
 	// KaguyaModelsInfoTable holds the schema information for the "kaguya_models_info" table.
 	KaguyaModelsInfoTable = &schema.Table{
@@ -92,7 +92,7 @@ var (
 				Symbol:     "kaguya_models_info_kaguya_provider_info_models",
 				Columns:    []*schema.Column{KaguyaModelsInfoColumns[14]},
 				RefColumns: []*schema.Column{KaguyaProviderInfoColumns[0]},
-				OnDelete:   schema.SetNull,
+				OnDelete:   schema.NoAction,
 			},
 		},
 		Indexes: []*schema.Index{
@@ -127,6 +127,11 @@ var (
 				Columns: []*schema.Column{KaguyaModelsInfoColumns[5]},
 			},
 			{
+				Name:    "kaguyamodelsinfo_provider_id_model_id",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[14], KaguyaModelsInfoColumns[5]},
+			},
+			{
 				Name:    "kaguyamodelsinfo_is_default",
 				Unique:  false,
 				Columns: []*schema.Column{KaguyaModelsInfoColumns[6]},
@@ -139,7 +144,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
-		{Name: "provider_name", Type: field.TypeString, Unique: true, Nullable: true, Comment: "提供商名称"},
+		{Name: "provider_name", Type: field.TypeString, Unique: true, Comment: "提供商名称"},
 		{Name: "api_protocol", Type: field.TypeString, Nullable: true, Comment: "API 协议类型", Default: "openai-chat"},
 		{Name: "api_key", Type: field.TypeString, Nullable: true, Comment: "API Key"},
 		{Name: "base_url", Type: field.TypeString, Nullable: true, Comment: "Base URL"},

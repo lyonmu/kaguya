@@ -22,9 +22,9 @@ type KaguyaModelsInfo struct {
 // Fields of the KaguyaModelsInfo.
 func (KaguyaModelsInfo) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("provider_id").Optional().Comment("提供商id"),
-		field.String("model_name").Optional().Comment("模型显示名称"),
-		field.String("model_id").Optional().Comment("调用 API 时使用的模型标识符"),
+		field.String("provider_id").NotEmpty().Comment("提供商id"),
+		field.String("model_name").NotEmpty().Comment("模型显示名称"),
+		field.String("model_id").NotEmpty().Comment("调用 API 时使用的模型标识符"),
 		field.Int("is_default").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否为该提供方下的默认模型"),
 		field.Int("reasoning_enabled").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否启用思考模式"),
 		field.String("reasoning_effort").Optional().GoType(consts.ReasoningEffort("")).Default(string(consts.ReasoningEffortMedium)).Comment("思考努力程度，影响推理深度和响应速度"),
@@ -43,6 +43,7 @@ func (KaguyaModelsInfo) Edges() []ent.Edge {
 			Ref("models").
 			Field("provider_id").
 			Unique().
+			Required().
 			Comment("所属模型提供商"),
 	}
 }
@@ -65,6 +66,7 @@ func (KaguyaModelsInfo) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("provider_id"),
 		index.Fields("model_id"),
+		index.Fields("provider_id", "model_id").Unique(),
 		index.Fields("is_default"),
 	}
 }

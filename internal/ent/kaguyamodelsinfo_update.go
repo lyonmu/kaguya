@@ -71,12 +71,6 @@ func (_u *KaguyaModelsInfoUpdate) SetNillableProviderID(v *string) *KaguyaModels
 	return _u
 }
 
-// ClearProviderID clears the value of the "provider_id" field.
-func (_u *KaguyaModelsInfoUpdate) ClearProviderID() *KaguyaModelsInfoUpdate {
-	_u.mutation.ClearProviderID()
-	return _u
-}
-
 // SetModelName sets the "model_name" field.
 func (_u *KaguyaModelsInfoUpdate) SetModelName(v string) *KaguyaModelsInfoUpdate {
 	_u.mutation.SetModelName(v)
@@ -91,12 +85,6 @@ func (_u *KaguyaModelsInfoUpdate) SetNillableModelName(v *string) *KaguyaModelsI
 	return _u
 }
 
-// ClearModelName clears the value of the "model_name" field.
-func (_u *KaguyaModelsInfoUpdate) ClearModelName() *KaguyaModelsInfoUpdate {
-	_u.mutation.ClearModelName()
-	return _u
-}
-
 // SetModelID sets the "model_id" field.
 func (_u *KaguyaModelsInfoUpdate) SetModelID(v string) *KaguyaModelsInfoUpdate {
 	_u.mutation.SetModelID(v)
@@ -108,12 +96,6 @@ func (_u *KaguyaModelsInfoUpdate) SetNillableModelID(v *string) *KaguyaModelsInf
 	if v != nil {
 		_u.SetModelID(*v)
 	}
-	return _u
-}
-
-// ClearModelID clears the value of the "model_id" field.
-func (_u *KaguyaModelsInfoUpdate) ClearModelID() *KaguyaModelsInfoUpdate {
-	_u.mutation.ClearModelID()
 	return _u
 }
 
@@ -384,6 +366,29 @@ func (_u *KaguyaModelsInfoUpdate) defaults() error {
 	return nil
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *KaguyaModelsInfoUpdate) check() error {
+	if v, ok := _u.mutation.ProviderID(); ok {
+		if err := kaguyamodelsinfo.ProviderIDValidator(v); err != nil {
+			return &ValidationError{Name: "provider_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.provider_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelName(); ok {
+		if err := kaguyamodelsinfo.ModelNameValidator(v); err != nil {
+			return &ValidationError{Name: "model_name", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelID(); ok {
+		if err := kaguyamodelsinfo.ModelIDValidator(v); err != nil {
+			return &ValidationError{Name: "model_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_id": %w`, err)}
+		}
+	}
+	if _u.mutation.ProviderCleared() && len(_u.mutation.ProviderIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "KaguyaModelsInfo.provider"`)
+	}
+	return nil
+}
+
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
 func (_u *KaguyaModelsInfoUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *KaguyaModelsInfoUpdate {
 	_u.modifiers = append(_u.modifiers, modifiers...)
@@ -391,6 +396,9 @@ func (_u *KaguyaModelsInfoUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)
 }
 
 func (_u *KaguyaModelsInfoUpdate) sqlSave(ctx context.Context) (_node int, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(kaguyamodelsinfo.Table, kaguyamodelsinfo.Columns, sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString))
 	if ps := _u.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
@@ -411,14 +419,8 @@ func (_u *KaguyaModelsInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.ModelName(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldModelName, field.TypeString, value)
 	}
-	if _u.mutation.ModelNameCleared() {
-		_spec.ClearField(kaguyamodelsinfo.FieldModelName, field.TypeString)
-	}
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldModelID, field.TypeString, value)
-	}
-	if _u.mutation.ModelIDCleared() {
-		_spec.ClearField(kaguyamodelsinfo.FieldModelID, field.TypeString)
 	}
 	if value, ok := _u.mutation.IsDefault(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldIsDefault, field.TypeInt, value)
@@ -580,12 +582,6 @@ func (_u *KaguyaModelsInfoUpdateOne) SetNillableProviderID(v *string) *KaguyaMod
 	return _u
 }
 
-// ClearProviderID clears the value of the "provider_id" field.
-func (_u *KaguyaModelsInfoUpdateOne) ClearProviderID() *KaguyaModelsInfoUpdateOne {
-	_u.mutation.ClearProviderID()
-	return _u
-}
-
 // SetModelName sets the "model_name" field.
 func (_u *KaguyaModelsInfoUpdateOne) SetModelName(v string) *KaguyaModelsInfoUpdateOne {
 	_u.mutation.SetModelName(v)
@@ -600,12 +596,6 @@ func (_u *KaguyaModelsInfoUpdateOne) SetNillableModelName(v *string) *KaguyaMode
 	return _u
 }
 
-// ClearModelName clears the value of the "model_name" field.
-func (_u *KaguyaModelsInfoUpdateOne) ClearModelName() *KaguyaModelsInfoUpdateOne {
-	_u.mutation.ClearModelName()
-	return _u
-}
-
 // SetModelID sets the "model_id" field.
 func (_u *KaguyaModelsInfoUpdateOne) SetModelID(v string) *KaguyaModelsInfoUpdateOne {
 	_u.mutation.SetModelID(v)
@@ -617,12 +607,6 @@ func (_u *KaguyaModelsInfoUpdateOne) SetNillableModelID(v *string) *KaguyaModels
 	if v != nil {
 		_u.SetModelID(*v)
 	}
-	return _u
-}
-
-// ClearModelID clears the value of the "model_id" field.
-func (_u *KaguyaModelsInfoUpdateOne) ClearModelID() *KaguyaModelsInfoUpdateOne {
-	_u.mutation.ClearModelID()
 	return _u
 }
 
@@ -906,6 +890,29 @@ func (_u *KaguyaModelsInfoUpdateOne) defaults() error {
 	return nil
 }
 
+// check runs all checks and user-defined validators on the builder.
+func (_u *KaguyaModelsInfoUpdateOne) check() error {
+	if v, ok := _u.mutation.ProviderID(); ok {
+		if err := kaguyamodelsinfo.ProviderIDValidator(v); err != nil {
+			return &ValidationError{Name: "provider_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.provider_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelName(); ok {
+		if err := kaguyamodelsinfo.ModelNameValidator(v); err != nil {
+			return &ValidationError{Name: "model_name", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelID(); ok {
+		if err := kaguyamodelsinfo.ModelIDValidator(v); err != nil {
+			return &ValidationError{Name: "model_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_id": %w`, err)}
+		}
+	}
+	if _u.mutation.ProviderCleared() && len(_u.mutation.ProviderIDs()) > 0 {
+		return errors.New(`ent: clearing a required unique edge "KaguyaModelsInfo.provider"`)
+	}
+	return nil
+}
+
 // Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
 func (_u *KaguyaModelsInfoUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *KaguyaModelsInfoUpdateOne {
 	_u.modifiers = append(_u.modifiers, modifiers...)
@@ -913,6 +920,9 @@ func (_u *KaguyaModelsInfoUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuild
 }
 
 func (_u *KaguyaModelsInfoUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaModelsInfo, err error) {
+	if err := _u.check(); err != nil {
+		return _node, err
+	}
 	_spec := sqlgraph.NewUpdateSpec(kaguyamodelsinfo.Table, kaguyamodelsinfo.Columns, sqlgraph.NewFieldSpec(kaguyamodelsinfo.FieldID, field.TypeString))
 	id, ok := _u.mutation.ID()
 	if !ok {
@@ -950,14 +960,8 @@ func (_u *KaguyaModelsInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	if value, ok := _u.mutation.ModelName(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldModelName, field.TypeString, value)
 	}
-	if _u.mutation.ModelNameCleared() {
-		_spec.ClearField(kaguyamodelsinfo.FieldModelName, field.TypeString)
-	}
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldModelID, field.TypeString, value)
-	}
-	if _u.mutation.ModelIDCleared() {
-		_spec.ClearField(kaguyamodelsinfo.FieldModelID, field.TypeString)
 	}
 	if value, ok := _u.mutation.IsDefault(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldIsDefault, field.TypeInt, value)

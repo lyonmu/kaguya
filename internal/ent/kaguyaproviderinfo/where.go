@@ -287,16 +287,6 @@ func ProviderNameHasSuffix(v string) predicate.KaguyaProviderInfo {
 	return predicate.KaguyaProviderInfo(sql.FieldHasSuffix(FieldProviderName, v))
 }
 
-// ProviderNameIsNil applies the IsNil predicate on the "provider_name" field.
-func ProviderNameIsNil() predicate.KaguyaProviderInfo {
-	return predicate.KaguyaProviderInfo(sql.FieldIsNull(FieldProviderName))
-}
-
-// ProviderNameNotNil applies the NotNil predicate on the "provider_name" field.
-func ProviderNameNotNil() predicate.KaguyaProviderInfo {
-	return predicate.KaguyaProviderInfo(sql.FieldNotNull(FieldProviderName))
-}
-
 // ProviderNameEqualFold applies the EqualFold predicate on the "provider_name" field.
 func ProviderNameEqualFold(v string) predicate.KaguyaProviderInfo {
 	return predicate.KaguyaProviderInfo(sql.FieldEqualFold(FieldProviderName, v))

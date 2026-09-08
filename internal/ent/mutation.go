@@ -1405,22 +1405,9 @@ func (m *KaguyaModelsInfoMutation) OldProviderID(ctx context.Context) (v string,
 	return oldValue.ProviderID, nil
 }
 
-// ClearProviderID clears the value of the "provider_id" field.
-func (m *KaguyaModelsInfoMutation) ClearProviderID() {
-	m.provider = nil
-	m.clearedFields[kaguyamodelsinfo.FieldProviderID] = struct{}{}
-}
-
-// ProviderIDCleared returns if the "provider_id" field was cleared in this mutation.
-func (m *KaguyaModelsInfoMutation) ProviderIDCleared() bool {
-	_, ok := m.clearedFields[kaguyamodelsinfo.FieldProviderID]
-	return ok
-}
-
 // ResetProviderID resets all changes to the "provider_id" field.
 func (m *KaguyaModelsInfoMutation) ResetProviderID() {
 	m.provider = nil
-	delete(m.clearedFields, kaguyamodelsinfo.FieldProviderID)
 }
 
 // SetModelName sets the "model_name" field.
@@ -1454,22 +1441,9 @@ func (m *KaguyaModelsInfoMutation) OldModelName(ctx context.Context) (v string, 
 	return oldValue.ModelName, nil
 }
 
-// ClearModelName clears the value of the "model_name" field.
-func (m *KaguyaModelsInfoMutation) ClearModelName() {
-	m.model_name = nil
-	m.clearedFields[kaguyamodelsinfo.FieldModelName] = struct{}{}
-}
-
-// ModelNameCleared returns if the "model_name" field was cleared in this mutation.
-func (m *KaguyaModelsInfoMutation) ModelNameCleared() bool {
-	_, ok := m.clearedFields[kaguyamodelsinfo.FieldModelName]
-	return ok
-}
-
 // ResetModelName resets all changes to the "model_name" field.
 func (m *KaguyaModelsInfoMutation) ResetModelName() {
 	m.model_name = nil
-	delete(m.clearedFields, kaguyamodelsinfo.FieldModelName)
 }
 
 // SetModelID sets the "model_id" field.
@@ -1503,22 +1477,9 @@ func (m *KaguyaModelsInfoMutation) OldModelID(ctx context.Context) (v string, er
 	return oldValue.ModelID, nil
 }
 
-// ClearModelID clears the value of the "model_id" field.
-func (m *KaguyaModelsInfoMutation) ClearModelID() {
-	m.model_id = nil
-	m.clearedFields[kaguyamodelsinfo.FieldModelID] = struct{}{}
-}
-
-// ModelIDCleared returns if the "model_id" field was cleared in this mutation.
-func (m *KaguyaModelsInfoMutation) ModelIDCleared() bool {
-	_, ok := m.clearedFields[kaguyamodelsinfo.FieldModelID]
-	return ok
-}
-
 // ResetModelID resets all changes to the "model_id" field.
 func (m *KaguyaModelsInfoMutation) ResetModelID() {
 	m.model_id = nil
-	delete(m.clearedFields, kaguyamodelsinfo.FieldModelID)
 }
 
 // SetIsDefault sets the "is_default" field.
@@ -2068,7 +2029,7 @@ func (m *KaguyaModelsInfoMutation) ClearProvider() {
 
 // ProviderCleared reports if the "provider" edge to the KaguyaProviderInfo entity was cleared.
 func (m *KaguyaModelsInfoMutation) ProviderCleared() bool {
-	return m.ProviderIDCleared() || m.clearedprovider
+	return m.clearedprovider
 }
 
 // ProviderIDs returns the "provider" edge IDs in the mutation.
@@ -2464,15 +2425,6 @@ func (m *KaguyaModelsInfoMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyamodelsinfo.FieldDeletedAt) {
 		fields = append(fields, kaguyamodelsinfo.FieldDeletedAt)
 	}
-	if m.FieldCleared(kaguyamodelsinfo.FieldProviderID) {
-		fields = append(fields, kaguyamodelsinfo.FieldProviderID)
-	}
-	if m.FieldCleared(kaguyamodelsinfo.FieldModelName) {
-		fields = append(fields, kaguyamodelsinfo.FieldModelName)
-	}
-	if m.FieldCleared(kaguyamodelsinfo.FieldModelID) {
-		fields = append(fields, kaguyamodelsinfo.FieldModelID)
-	}
 	if m.FieldCleared(kaguyamodelsinfo.FieldIsDefault) {
 		fields = append(fields, kaguyamodelsinfo.FieldIsDefault)
 	}
@@ -2513,15 +2465,6 @@ func (m *KaguyaModelsInfoMutation) ClearField(name string) error {
 	switch name {
 	case kaguyamodelsinfo.FieldDeletedAt:
 		m.ClearDeletedAt()
-		return nil
-	case kaguyamodelsinfo.FieldProviderID:
-		m.ClearProviderID()
-		return nil
-	case kaguyamodelsinfo.FieldModelName:
-		m.ClearModelName()
-		return nil
-	case kaguyamodelsinfo.FieldModelID:
-		m.ClearModelID()
 		return nil
 	case kaguyamodelsinfo.FieldIsDefault:
 		m.ClearIsDefault()
@@ -2953,22 +2896,9 @@ func (m *KaguyaProviderInfoMutation) OldProviderName(ctx context.Context) (v str
 	return oldValue.ProviderName, nil
 }
 
-// ClearProviderName clears the value of the "provider_name" field.
-func (m *KaguyaProviderInfoMutation) ClearProviderName() {
-	m.provider_name = nil
-	m.clearedFields[kaguyaproviderinfo.FieldProviderName] = struct{}{}
-}
-
-// ProviderNameCleared returns if the "provider_name" field was cleared in this mutation.
-func (m *KaguyaProviderInfoMutation) ProviderNameCleared() bool {
-	_, ok := m.clearedFields[kaguyaproviderinfo.FieldProviderName]
-	return ok
-}
-
 // ResetProviderName resets all changes to the "provider_name" field.
 func (m *KaguyaProviderInfoMutation) ResetProviderName() {
 	m.provider_name = nil
-	delete(m.clearedFields, kaguyaproviderinfo.FieldProviderName)
 }
 
 // SetAPIProtocol sets the "api_protocol" field.
@@ -3364,9 +3294,6 @@ func (m *KaguyaProviderInfoMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyaproviderinfo.FieldDeletedAt) {
 		fields = append(fields, kaguyaproviderinfo.FieldDeletedAt)
 	}
-	if m.FieldCleared(kaguyaproviderinfo.FieldProviderName) {
-		fields = append(fields, kaguyaproviderinfo.FieldProviderName)
-	}
 	if m.FieldCleared(kaguyaproviderinfo.FieldAPIProtocol) {
 		fields = append(fields, kaguyaproviderinfo.FieldAPIProtocol)
 	}
@@ -3392,9 +3319,6 @@ func (m *KaguyaProviderInfoMutation) ClearField(name string) error {
 	switch name {
 	case kaguyaproviderinfo.FieldDeletedAt:
 		m.ClearDeletedAt()
-		return nil
-	case kaguyaproviderinfo.FieldProviderName:
-		m.ClearProviderName()
 		return nil
 	case kaguyaproviderinfo.FieldAPIProtocol:
 		m.ClearAPIProtocol()
