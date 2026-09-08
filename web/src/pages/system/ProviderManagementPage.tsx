@@ -165,17 +165,17 @@ export function ProviderManagementPage() {
     setEditingModel(undefined)
     modelForm.setFieldsValue({
       provider_id: selectedProvider.id,
-      model_name: '',
-      model_id: '',
+      model_name: "",
+      model_id: "",
       is_default: selectedProvider.models.length === 0 ? 1 : 2,
       reasoning_enabled: 1,
-      reasoning_effort: 'medium',
-      token_context_window: 128000,
-      token_max_output_tokens: 8192,
+      reasoning_effort: "medium",
+      token_context_window: 1000000,
+      token_max_output_tokens: 272000,
       capability_tool_use: 1,
       capability_vision: 1,
       capability_structured_output: 1,
-    })
+    });
     setModelModalOpen(true)
   }
 
