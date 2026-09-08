@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"errors"
 	"github.com/gin-gonic/gin"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
@@ -10,6 +11,11 @@ import (
 )
 
 func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
+	// 客户端取消过期请求或断开连接是正常生命周期，不再写响应或记录服务异常。
+	// 同时检查请求 context，避免吞掉服务内部独立任务的取消错误。
+	if errors.Is(err, context.Canceled) && errors.Is(c.Request.Context().Err(), context.Canceled) {
+		return
+	}
 	switch {
 	case errors.Is(err, serviceagent.ErrConversationNotFound):
 		dtocode.ConversationNotFound.Failure(c)
@@ -61,6 +67,56 @@ func (b *ChatApiV1Group) ConversationDetail(c *gin.Context) {
 		conversationFailure(c, err, dtocode.ConversationQueryFailure)
 		return
 	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// ConversationTitleWait
+// @Tags Chat History
+// @Summary 等待首轮标题生成并返回已保存标题
+// @Description 首轮 SSE done 后调用一次，最多等待30秒，不重新生成标题。生成失败或超时返回当前标题，无需轮询。仅等待当前进程的任务；多实例部署需将 SSE 和此请求路由到同一实例，否则直接返回当前标题。不存在或已删除会话返回会话不存在。
+// @Param id path string true "会话雪花 ID"
+// @Success 200 {object} dtocode.Response{data=dtochat.ConversationTitleResp}
+// @Router /v1/chat/conversation/{id}/title/wait [get]
+func (b *ChatApiV1Group) ConversationTitleWait(c *gin.Context) {
+	var uri dtochat.ConversationIDReq
+	if err := c.ShouldBindUri(&uri); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := agentvc.ConversationTitleWait(c.Request.Context(), uri.ID)
+	if c.Request.Context().Err() != nil {
+		return
+	}
+	if err != nil {
+		conversationFailure(c, err, dtocode.ConversationQueryFailure)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// ConversationTitleGenerate
+// @Tags Chat History
+// @Summary 默认标题生成或重试，并等待已保存标题
+// @Description 每轮成功结束且标题仍为“新对话”时调用一次。已有任务则等待，无任务则根据已保存首轮问答生成并条件更新数据库，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试。
+// @Param id path string true "会话雪花 ID"
+// @Success 200 {object} dtocode.Response{data=dtochat.ConversationTitleResp}
+// @Router /v1/chat/conversation/{id}/title/wait [post]
+func (b *ChatApiV1Group) ConversationTitleGenerate(c *gin.Context) {
+	var uri dtochat.ConversationIDReq
+	if err := c.ShouldBindUri(&uri); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := agentvc.ConversationTitleGenerate(c.Request.Context(), uri.ID)
+	if c.Request.Context().Err() != nil {
+		return
+	}
+	if err != nil {
+		conversationFailure(c, err, dtocode.ConversationQueryFailure)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
 	dtocode.SystemSuccess.Success(resp, c)
 }
 

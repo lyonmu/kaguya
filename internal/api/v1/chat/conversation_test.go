@@ -63,6 +63,8 @@ func TestConversationAPI(t *testing.T) {
 	router.GET("/conversation/page", api.ConversationPage)
 	router.GET("/conversation/:id", api.ConversationDetail)
 	router.GET("/conversation/:id/turns", api.ConversationTurns)
+	router.GET("/conversation/:id/title/wait", api.ConversationTitleWait)
+	router.POST("/conversation/:id/title/wait", api.ConversationTitleGenerate)
 	router.PUT("/conversation/:id", api.ConversationUpdate)
 	router.DELETE("/conversation/:id", api.ConversationDelete)
 	request := func(method, path, body string, wantCode int) map[string]any {
@@ -118,8 +120,22 @@ func TestConversationAPI(t *testing.T) {
 	if list["total"] != float64(0) {
 		t.Fatalf("favorite: %+v", list)
 	}
+	title := request("GET", "/conversation/123/title/wait", "", ok)
+	if title["id"] != "123" || title["title"] != "重命名" || len(title) != 2 {
+		t.Fatalf("title: %+v", title)
+	}
+	title = request("POST", "/conversation/123/title/wait", "", ok)
+	if title["id"] != "123" || title["title"] != "重命名" || len(title) != 2 {
+		t.Fatalf("generation must preserve manual title: %+v", title)
+	}
+	request("POST", "/conversation/"+strings.Repeat("1", 65)+"/title/wait", "", bad)
+	request("POST", "/conversation/unknown/title/wait", "", missing)
+	request("GET", "/conversation/"+strings.Repeat("1", 65)+"/title/wait", "", bad)
+	request("GET", "/conversation/unknown/title/wait", "", missing)
 	request("GET", "/conversation/unknown", "", missing)
 	request("DELETE", "/conversation/123", "", ok)
+	request("POST", "/conversation/123/title/wait", "", missing)
+	request("GET", "/conversation/123/title/wait", "", missing)
 	request("GET", "/conversation/123/turns", "", missing)
 	request("GET", "/conversation/123", "", missing)
 	request("PUT", "/conversation/123", `{"title":"resurrect"}`, missing)

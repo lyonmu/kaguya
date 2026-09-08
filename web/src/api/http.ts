@@ -24,7 +24,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-function buildUrl(path: string, query?: Record<string, QueryValue>) {
+export function buildUrl(path: string, query?: Record<string, QueryValue>) {
   const searchParams = new URLSearchParams()
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
@@ -115,8 +115,8 @@ export function get<T>(
   return request<T>('GET', path, { query, signal })
 }
 
-export function post<T>(path: string, body?: unknown): Promise<T> {
-  return request<T>('POST', path, { body })
+export function post<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  return request<T>('POST', path, { body, signal })
 }
 
 export function put<T>(path: string, body?: unknown): Promise<T> {

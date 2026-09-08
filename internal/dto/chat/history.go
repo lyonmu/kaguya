@@ -16,6 +16,11 @@ type ConversationUpdateReq struct {
 	Favorite *bool   `json:"favorite"`
 }
 
+type ConversationTitleResp struct {
+	ID    string `json:"id"`
+	Title string `json:"title"` // 当前已保存标题；生成失败或等待超时保留原标题
+}
+
 // TurnPageReq 以完整轮次分页，不截断工具输入输出；首屏最近若干轮，返回值始终按时间正序。
 type TurnPageReq struct {
 	Before int64 `form:"before" binding:"min=0"` // 上页 next_before；0 表示最新
@@ -23,7 +28,7 @@ type TurnPageReq struct {
 }
 type ConversationResp struct {
 	ID            string    `json:"id"`
-	Title         string    `json:"title"` // 首轮成功后异步生成，AI 标题最多20字符；等待/失败时为“新对话”，可轮询刷新
+	Title         string    `json:"title"` // 首轮成功后异步生成，AI 标题最多20字符；等待/失败时为“新对话”，每轮 done 后仍为默认标题时可 POST title/wait 生成或重试
 	Favorite      bool      `json:"favorite"`
 	TurnCount     int64     `json:"turn_count"`
 	ModelID       string    `json:"model_id"`

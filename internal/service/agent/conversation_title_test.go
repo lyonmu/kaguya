@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -104,6 +105,29 @@ func TestConversationTitleBackgroundResult(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal(ctx.Err())
 			}
+			// 多个等待者收到同一个完成广播，不竞争消费 result channel。
+			type waitResult struct {
+				resp *dtochat.ConversationTitleResp
+				err  error
+			}
+			waits := make(chan waitResult, 2)
+			for range 2 {
+				go func() {
+					resp, err := (&AgentSvc{}).ConversationTitleWait(ctx, "123")
+					waits <- waitResult{resp, err}
+				}()
+			}
+			select {
+			case result := <-waits:
+				t.Fatalf("wait returned before title completed: %+v", result)
+			case <-time.After(20 * time.Millisecond):
+			}
+			// 取消一个 HTTP 等待不能终止后台生成任务。
+			cancelCtx, cancel := context.WithCancel(ctx)
+			cancel()
+			if _, err := (&AgentSvc{}).ConversationTitleWait(cancelCtx, "123"); !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancelled wait: %v", err)
+			}
 			if mode == "manual" {
 				title := "用户自定义标题"
 				if _, err := (&AgentSvc{}).ConversationUpdate(ctx, "123", &dtochat.ConversationUpdateReq{Title: &title}); err != nil {
@@ -149,6 +173,26 @@ func TestConversationTitleBackgroundResult(t *testing.T) {
 				if generated.Err == nil || generated.Updated {
 					t.Fatalf("expected fallback: %+v", generated)
 				}
+			}
+			for range 2 {
+				select {
+				case result := <-waits:
+					if mode == "deleted" {
+						if !errors.Is(result.err, ErrConversationNotFound) {
+							t.Fatalf("deleted wait: %+v", result)
+						}
+					} else if result.err != nil || result.resp.ID != "123" || result.resp.Title != want {
+						t.Fatalf("wait result: %+v, want title %q", result, want)
+					}
+				case <-ctx.Done():
+					t.Fatal(ctx.Err())
+				}
+			}
+			conversationTitles.Lock()
+			_, pending := conversationTitles.pending["123"]
+			conversationTitles.Unlock()
+			if pending {
+				t.Fatal("completed title task was not removed")
 			}
 			if row.Title != want {
 				t.Fatalf("title=%q want=%q", row.Title, want)

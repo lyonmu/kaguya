@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react'
 import {
   ApiOutlined,
+  CommentOutlined,
   FileSearchOutlined,
   MoonOutlined,
   RobotOutlined,
@@ -14,7 +15,7 @@ import kaguyaIcon from '../../assets/kaguya.png'
 
 const { Content, Header, Sider } = Layout
 
-export type SystemPage = 'access-logs' | 'ai-providers'
+export type SystemPage = 'chat' | 'access-logs' | 'ai-providers'
 
 interface AppLayoutProps extends PropsWithChildren {
   colorMode: ColorMode
@@ -55,19 +56,32 @@ export function AppLayout({
 
           <div className="my-3 h-px w-7 bg-k-border-soft" />
 
+          <Tooltip placement="right" title="对话管理">
+            <Button
+              aria-label="对话管理"
+              className={`mb-2 h-11! w-11! rounded-xl! ${currentPage === 'chat' ? 'bg-k-selected! text-k-primary!' : 'text-k-text-muted!'}`}
+              icon={<CommentOutlined />}
+              type="text"
+              onClick={() => onPageChange('chat')}
+            />
+          </Tooltip>
           <Tooltip placement="right" title="系统管理">
             <div className="relative">
-              <span className="absolute top-[11px] -left-[11px] h-[22px] w-[3px] rounded-full bg-k-primary" />
+              {currentPage !== 'chat' && <span className="absolute top-[11px] -left-[11px] h-[22px] w-[3px] rounded-full bg-k-primary" />}
               <Button
                 aria-label="系统管理"
-                className="h-11! w-11! rounded-xl! border-k-border! bg-k-selected! text-k-primary!"
+                className={`h-11! w-11! rounded-xl! ${currentPage !== 'chat' ? 'bg-k-selected! text-k-primary!' : 'text-k-text-muted!'}`}
                 icon={<SettingOutlined />}
                 type="text"
+                onClick={() => onPageChange('access-logs')}
               />
             </div>
           </Tooltip>
 
           <div className="flex-1" />
+          <Tooltip title={isDark ? '切换到明亮模式' : '切换到暗黑模式'}>
+            <Button className="mb-4" type="text" aria-label="切换颜色模式" icon={isDark ? <SunOutlined /> : <MoonOutlined />} onClick={onToggleColorMode} />
+          </Tooltip>
           <Tooltip placement="right" title="Console ready">
             <span
               aria-label="Console ready"
@@ -80,7 +94,7 @@ export function AppLayout({
         </div>
       </Sider>
 
-      <Layout className="min-w-0 bg-k-canvas" hasSider>
+      {currentPage === 'chat' ? <Content className="min-h-0 min-w-0">{children}</Content> : <Layout className="min-w-0 bg-k-canvas" hasSider>
         <Sider
           className="border-r border-k-border bg-k-panel! max-[720px]:hidden!"
           theme={isDark ? 'dark' : 'light'}
@@ -181,7 +195,7 @@ export function AppLayout({
             {children}
           </Content>
         </Layout>
-      </Layout>
+      </Layout>}
     </Layout>
   )
 }
