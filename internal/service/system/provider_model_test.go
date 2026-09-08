@@ -124,6 +124,51 @@ func TestProviderAndModelCRUD(t *testing.T) {
 	}
 }
 
+func TestDefaultModelIsUniqueGlobally(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	svc := &SystemSvc{}
+
+	firstProvider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{
+		ProviderName: "OpenAI", APIProtocol: consts.ProtocolOpenAIChat,
+	})
+	if err != nil {
+		t.Fatalf("create first provider: %v", err)
+	}
+	secondProvider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{
+		ProviderName: "Anthropic", APIProtocol: consts.ProtocolAnthropic,
+	})
+	if err != nil {
+		t.Fatalf("create second provider: %v", err)
+	}
+
+	firstModel, err := svc.ModelCreate(ctx, modelSaveReq(firstProvider.ID, "GPT", "gpt", consts.IsTrue))
+	if err != nil {
+		t.Fatalf("create first default model: %v", err)
+	}
+	secondModel, err := svc.ModelCreate(ctx, modelSaveReq(secondProvider.ID, "Claude", "claude", consts.IsTrue))
+	if err != nil {
+		t.Fatalf("create second default model: %v", err)
+	}
+	firstModelRow, err := db.EntClient.KaguyaModelsInfo.Get(ctx, firstModel.ID)
+	if err != nil || firstModelRow.IsDefault != consts.IsFalse {
+		t.Fatalf("creating a global default should clear the old one: model=%+v err=%v", firstModelRow, err)
+	}
+
+	if _, err = svc.ModelUpdate(ctx, firstModel.ID, modelSaveReq(firstProvider.ID, "GPT", "gpt", consts.IsTrue)); err != nil {
+		t.Fatalf("set first model as default: %v", err)
+	}
+	secondModelRow, err := db.EntClient.KaguyaModelsInfo.Get(ctx, secondModel.ID)
+	if err != nil || secondModelRow.IsDefault != consts.IsFalse {
+		t.Fatalf("updating a global default should clear the old one: model=%+v err=%v", secondModelRow, err)
+	}
+	defaultCount, err := db.EntClient.KaguyaModelsInfo.Query().
+		Where(kaguyamodelsinfo.DeletedAtIsNil(), kaguyamodelsinfo.IsDefaultEQ(consts.IsTrue)).
+		Count(ctx)
+	if err != nil || defaultCount != 1 {
+		t.Fatalf("expected exactly one global default model: count=%d err=%v", defaultCount, err)
+	}
+}
+
 func TestProviderAndModelDuplicateValidation(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	svc := &SystemSvc{}

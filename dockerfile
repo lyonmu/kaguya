@@ -29,6 +29,8 @@ FROM busybox:musl AS runtime
 WORKDIR /kaguya
 
 COPY --from=builder /kaguya/target/kaguya /bin/kaguya
+# busybox:musl 不包含系统根证书，Go HTTPS 客户端需要该文件校验上游模型服务证书。
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 EXPOSE 9024
 

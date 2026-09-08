@@ -79,7 +79,7 @@ func (s *SystemSvc) ModelDetail(ctx context.Context, id string) (*dtosystem.Syst
 	return resp, nil
 }
 
-// ModelCreate 创建模型；同一提供商最多只有一个默认模型。
+// ModelCreate 创建模型；数据库内最多只有一个默认模型。
 func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelSaveReq) (*dtosystem.SystemModelResp, error) {
 	tx, err := db.EntClient.Tx(ctx)
 	if err != nil {
@@ -99,12 +99,16 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 		return nil, err
 	}
 	if req.IsDefault == consts.IsTrue {
-		if _, err = client.KaguyaModelsInfo.Update().
-			Where(kaguyamodelsinfo.ProviderIDEQ(req.ProviderID), kaguyamodelsinfo.DeletedAtIsNil()).
+		updated, clearErr := client.KaguyaModelsInfo.Update().
+			Where(kaguyamodelsinfo.DeletedAtIsNil(), kaguyamodelsinfo.IsDefaultEQ(consts.IsTrue)).
 			SetIsDefault(consts.IsFalse).
-			Save(ctx); err != nil {
-			global.Logger.Sugar().Errorf("clear provider default model failed: provider_id=%s, err=%v", req.ProviderID, err)
-			return nil, err
+			Save(ctx)
+		if clearErr != nil {
+			global.Logger.Sugar().Errorf("clear existing default model failed: err=%v", clearErr)
+			return nil, clearErr
+		}
+		if updated > 0 {
+			global.Logger.Sugar().Infof("existing default model cleared before create: count=%d", updated)
 		}
 	}
 
@@ -140,7 +144,7 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 	return resp, nil
 }
 
-// ModelUpdate 修改模型；同一提供商最多只有一个默认模型。
+// ModelUpdate 修改模型；数据库内最多只有一个默认模型。
 func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.SystemModelSaveReq) (*dtosystem.SystemModelResp, error) {
 	tx, err := db.EntClient.Tx(ctx)
 	if err != nil {
@@ -169,12 +173,20 @@ func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.S
 		return nil, err
 	}
 	if req.IsDefault == consts.IsTrue {
-		if _, err = client.KaguyaModelsInfo.Update().
-			Where(kaguyamodelsinfo.ProviderIDEQ(req.ProviderID), kaguyamodelsinfo.DeletedAtIsNil(), kaguyamodelsinfo.IDNEQ(id)).
+		updated, clearErr := client.KaguyaModelsInfo.Update().
+			Where(
+				kaguyamodelsinfo.DeletedAtIsNil(),
+				kaguyamodelsinfo.IsDefaultEQ(consts.IsTrue),
+				kaguyamodelsinfo.IDNEQ(id),
+			).
 			SetIsDefault(consts.IsFalse).
-			Save(ctx); err != nil {
-			global.Logger.Sugar().Errorf("clear provider default model failed: provider_id=%s, err=%v", req.ProviderID, err)
-			return nil, err
+			Save(ctx)
+		if clearErr != nil {
+			global.Logger.Sugar().Errorf("clear existing default model failed before update: id=%s, err=%v", id, clearErr)
+			return nil, clearErr
+		}
+		if updated > 0 {
+			global.Logger.Sugar().Infof("existing default model cleared before update: id=%s, count=%d", id, updated)
 		}
 	}
 

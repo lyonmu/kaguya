@@ -24,7 +24,7 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 	var req dtochat.ChatReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		global.Logger.Sugar().Errorf("Request parameter error : %+v", err)
+		global.Logger.Sugar().Warnf("Request parameter error: %v", err)
 		dtocode.RequestParameterError.Failure(c)
 		return
 	}
