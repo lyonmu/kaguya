@@ -14,7 +14,7 @@ import (
 // ChatSSE
 // @Tags      Chat
 // @Summary   ChatSSE
-// @Description 简单SSE对话：流式返回模型回答，首帧携带会话ID与模型信息，末帧携带完整内容与token用量
+// @Description SSE 对话：chat.id 为会话雪花 ID，后续请求沿用该 ID；chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end。正文与思考的 block_end 不重复内容；唯一的整轮 done 仅携带 Token 用量
 // @Param     data  body      dtochat.ChatReq      true  "用户发起的对话（conversation_id 为空时开启新对话）"
 // @Produce   json
 // @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatResp,message=string}  "SSE 流式响应，每帧为一个 ChatResp"
@@ -45,7 +45,6 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 	dataChan := make(chan *dtochat.ChatResp)
 	go agentvc.Chat(c.Request.Context(), dataChan, &req)
 
-	first := true
 	for {
 		select {
 		case <-c.Request.Context().Done():
@@ -57,8 +56,7 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 			}
 
 			// 与 WS 下行帧共用同一套 flag 映射（start/delta/done/error）
-			re, isErr := mapFrame(v, first)
-			first = false
+			re, isErr := mapFrame(v)
 
 			data, err := json.Marshal(re)
 			if err != nil {

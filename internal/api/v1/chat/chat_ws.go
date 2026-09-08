@@ -14,7 +14,7 @@ import (
 // ChatWS
 // @Tags      Chat
 // @Summary   ChatWS
-// @Description WebSocket 流式对话：长连接多轮对话。上行帧 ChatWSReq（flag=chat/cancel），下行帧 dtocode.Response 包 ChatWSResp（flag=start/delta/done/error）
+// @Description WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID；下行 chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的 block_end 不重复内容，唯一的整轮 done 仅携带 Usage
 // @Produce   json
 // @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatResp,message=string}  "WS 帧，每帧为一个 dtocode.Response"
 // @Router    /v1/chat/ws [GET]
@@ -114,10 +114,8 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 					mu.Unlock()
 				}()
 
-				first := true
 				for v := range dataChan {
-					resp, _ := mapFrame(v, first)
-					first = false
+					resp, _ := mapFrame(v)
 
 					select {
 					case <-turnCtx.Done():
@@ -146,22 +144,17 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 }
 
 // mapFrame 将一条 ChatResp 映射为下行 dtocode.Response（SSE 与 WS 共用），
-// 并按帧类型填充 Chat.Flag（start/delta/done/error）。
-// 返回的 bool 表示是否为错误帧（error 分支仅带 flag，不带 ChatResp）。
-func mapFrame(v *dtochat.ChatResp, first bool) (dtocode.Response, bool) {
+// 生命周期由 Service 显式设置，不再根据 Token 数量推断结束帧。
+// 返回的 bool 表示是否为错误帧；不向客户端暴露内部 error。
+func mapFrame(v *dtochat.ChatResp) (dtocode.Response, bool) {
 	resp := dtocode.SystemSuccess
 	if v.Err != nil {
 		resp = dtocode.ChatSSEFailure
-		resp.Data = dtochat.ChatResp{Chat: dtochat.Chat{Flag: dtochat.WSFlagError}}
+		chat := v.Chat
+		chat.Flag = dtochat.WSFlagError
+		resp.Data = dtochat.ChatResp{Chat: chat}
 		return resp, true
 	}
-	flag := dtochat.WSFlagDelta
-	if first {
-		flag = dtochat.WSFlagStart
-	} else if v.Usage.TotalTokens > 0 {
-		flag = dtochat.WSFlagDone
-	}
-	v.Chat.Flag = flag
 	resp.Data = v
 	return resp, false
 }

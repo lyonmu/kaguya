@@ -20,11 +20,12 @@ import (
 
 // ProviderConfig 描述如何通过提供商协议构造底层模型。
 type ProviderConfig struct {
-	Name     string                  // 提供商名称（记录元数据用）
-	Protocol consts.ProviderProtocol // 模型协议类型
-	BaseURL  string                  // 可选，留空使用提供商官方默认地址
-	APIKey   string                  // API Key
-	ModelID  string                  // 调用 API 时使用的模型标识符
+	Name           string                  // 提供商名称（记录元数据用）
+	Protocol       consts.ProviderProtocol // 模型协议类型
+	BaseURL        string                  // 可选，留空使用提供商官方默认地址
+	APIKey         string                  // API Key
+	ModelID        string                  // 调用 API 时使用的模型标识符
+	ConversationID string                  // 本地会话雪花 ID，通过 X-Conversation-ID 透传；不是上游托管会话 ID
 }
 
 // Option 配置 Agent 的可选参数。
@@ -166,22 +167,31 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 		err      error
 	)
 
+	headers := map[string]string{}
+	if cfg.ConversationID != "" {
+		headers["X-Conversation-ID"] = cfg.ConversationID
+	}
 	switch cfg.Protocol {
 	case consts.ProtocolOpenAIChat:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
 			openai.WithBaseURL(cfg.BaseURL),
+			openai.WithHeaders(headers),
 		)
 	case consts.ProtocolOpenAIResponses:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
 			openai.WithBaseURL(cfg.BaseURL),
+			openai.WithHeaders(headers),
 			openai.WithUseResponsesAPI(),
+			// 协议由用户显式指定，不应因自定义模型名称退回 Chat API。
+			openai.WithResponsesAPIFunc(func(string) bool { return true }),
 		)
 	case consts.ProtocolAnthropic:
 		provider, err = anthropic.New(
 			anthropic.WithAPIKey(cfg.APIKey),
 			anthropic.WithBaseURL(cfg.BaseURL),
+			anthropic.WithHeaders(headers),
 		)
 	default:
 		return nil, fmt.Errorf("unsupported provider protocol %q", cfg.Protocol)

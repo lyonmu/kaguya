@@ -51,24 +51,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return
 	}
 
-	// 组装 Agent（每次请求新建）
-	ag, err := agentruntime.New(
-		agentruntime.WithProvider(agentruntime.ProviderConfig{
-			Name:     provider.ProviderName,
-			Protocol: consts.ProviderProtocol(provider.APIProtocol),
-			BaseURL:  provider.BaseURL,
-			APIKey:   provider.APIKey,
-			ModelID:  model.ModelID,
-		}),
-		agentruntime.WithSystemPrompt(chatSystemPrompt),
-	)
-	if err != nil {
-		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
-		return
-	}
-
-	// 会话管理：空 ID 生成新会话，否则沿用历史
+	// 会话管理：仅新会话生成雪花 ID；同一 ID 用于历史查找及上游请求关联。
 	convID := req.ID
 	if convID == "" {
 		id, gerr := global.Id.GenID()
@@ -81,9 +64,27 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	}
 	history := conversationStoreInstance.history(convID)
 
+	// 组装 Agent（每次请求新建）
+	ag, err := agentruntime.New(
+		agentruntime.WithProvider(agentruntime.ProviderConfig{
+			Name:           provider.ProviderName,
+			Protocol:       consts.ProviderProtocol(provider.APIProtocol),
+			BaseURL:        provider.BaseURL,
+			APIKey:         provider.APIKey,
+			ModelID:        model.ModelID,
+			ConversationID: convID,
+		}),
+		agentruntime.WithSystemPrompt(chatSystemPrompt),
+	)
+	if err != nil {
+		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
+		return
+	}
+
 	// 首条消息：携带会话 ID 与模型信息
 	first := &dtochat.ChatResp{
-		Chat:        dtochat.Chat{ID: convID},
+		Chat:        dtochat.Chat{ID: convID, Flag: dtochat.WSFlagStart},
 		APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
 		Created:     time.Now().Unix(),
 		ModelID:     model.ModelID,
@@ -94,46 +95,52 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	}
 
 	// 流式执行对话
-	streamCtx := token.WithConversationID(token.WithMessageID(ctx, convID+"-"+time.Now().Format("150405")), convID)
-	result, err := ag.Stream(streamCtx, fantasy.AgentStreamCall{
-		Prompt:   req.Messages,
-		Messages: history,
-		OnTextDelta: func(_ string, delta string) error {
-			if !send(ctx, dataChan, &dtochat.ChatResp{
-				Chat:        dtochat.Chat{ID: convID, Content: delta},
-				APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
-				Created:     time.Now().Unix(),
-				ModelID:     model.ModelID,
-				ModelName:   model.ModelName,
-			}) {
-				return ctx.Err()
-			}
-			return nil
-		},
+	streamCtx := token.WithConversationID(ctx, convID)
+	stream := newChatStream(func(block dtochat.ContentBlock) error {
+		chat := dtochat.Chat{ID: convID, Flag: dtochat.WSFlagDelta, Block: &block}
+		if block.Type == dtochat.BlockTypeText && block.Phase == dtochat.BlockPhaseDelta {
+			chat.Content = block.Text
+		}
+		if !send(ctx, dataChan, &dtochat.ChatResp{
+			Chat:        chat,
+			APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
+			Created:     time.Now().Unix(), ModelID: model.ModelID, ModelName: model.ModelName,
+		}) {
+			return ctx.Err()
+		}
+		return nil
 	})
+	call := stream.callbacks()
+	call.Prompt = req.Messages
+	call.Messages = history
+	result, err := ag.Stream(streamCtx, call)
 	if err != nil {
 		global.Logger.Sugar().Errorf("stream chat failed, err is %+v", err)
-		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID}})
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
 		return
 	}
 
-	// 该轮消息追加进历史（与 conversation_test.go 的 appendHistory 一致）
-	convMsgs := make([]fantasy.Message, 0, len(result.Steps))
+	// step.Messages 只有模型/工具消息，不包含 Prompt；必须同时保存用户提问。
+	convMsgs := make([]fantasy.Message, 0, 1+len(result.Steps))
+	convMsgs = append(convMsgs, fantasy.NewUserMessage(req.Messages))
 	for _, step := range result.Steps {
 		convMsgs = append(convMsgs, step.Messages...)
 	}
 	conversationStoreInstance.append(convID, convMsgs...)
 
-	// 末条消息：完整回答 + Usage
+	// 唯一的整轮结束帧：仅 Usage，不重复发送已推送的正文/思考/工具内容
 	usage := token.FromFantasyUsage(result.TotalUsage)
+	global.Logger.Sugar().Infof("chat usage: conversation_id=%s input_tokens=%d output_tokens=%d total_tokens=%d reasoning_tokens=%d cached_tokens=%d",
+		convID, usage.InputTokens, usage.OutputTokens, usage.TotalTokens, usage.ReasoningTokens, usage.CacheHitTokens)
 	send(ctx, dataChan, &dtochat.ChatResp{
-		Chat:        dtochat.Chat{ID: convID, Content: result.Response.Content.Text()},
+		Chat:        dtochat.Chat{ID: convID, Flag: dtochat.WSFlagDone},
 		APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
 		Usage: dtochat.Usage{
-			InputTokens:  int(usage.InputTokens),
-			OutputTokens: int(usage.OutputTokens),
-			TotalTokens:  int(usage.TotalTokens),
-			CachedTokens: int(usage.CacheHitTokens),
+			InputTokens:     int(usage.InputTokens),
+			OutputTokens:    int(usage.OutputTokens),
+			TotalTokens:     int(usage.TotalTokens),
+			CachedTokens:    int(usage.CacheHitTokens),
+			ReasoningTokens: int(usage.ReasoningTokens),
 		},
 		Created:   time.Now().Unix(),
 		ModelID:   model.ModelID,

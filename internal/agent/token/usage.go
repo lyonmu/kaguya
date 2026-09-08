@@ -16,36 +16,36 @@ type UsageRecorder interface {
 // NormalizedUsage 一次回答（或单个 step）的 token 用量。
 // 字段经过 FromFantasyUsage 归一化：非负且 TotalTokens 始终有效。
 type NormalizedUsage struct {
-	InputTokens    int64 `json:"input_tokens"`     // 输入 token 数量
-	OutputTokens   int64 `json:"output_tokens"`    // 输出 token 数量
-	TotalTokens    int64 `json:"total_tokens"`     // 总 token 数量
-	CacheHitTokens int64 `json:"cache_hit_tokens"` // 缓存命中的 token 数量（来自 CacheRead）
+	InputTokens     int64 `json:"input_tokens"`     // 输入 token 数量
+	OutputTokens    int64 `json:"output_tokens"`    // 输出 token 数量
+	TotalTokens     int64 `json:"total_tokens"`     // 总 token 数量
+	CacheHitTokens  int64 `json:"cache_hit_tokens"` // 缓存命中的 token 数量（来自 CacheRead）
+	ReasoningTokens int64 `json:"reasoning_tokens"` // 思考 token 数量（包含在输出中，不重复计入总量）
 }
 
 // FromFantasyUsage 将 fantasy.Usage 归一化为 NormalizedUsage。
-// TotalTokens 缺失时用 input+output 兜底；所有字段做非负钳制。
+// Fantasy 的 InputTokens 不含缓存读取/写入量；TotalTokens 缺失时将它们计入总量。
+// 所有字段先做非负钳制；提供商未报告的思考和缓存量保留为 0。
 func FromFantasyUsage(u fantasy.Usage) NormalizedUsage {
-	if u.TotalTokens <= 0 {
-		u.TotalTokens = u.InputTokens + u.OutputTokens
-	}
 	if u.InputTokens < 0 {
 		u.InputTokens = 0
 	}
 	if u.OutputTokens < 0 {
 		u.OutputTokens = 0
 	}
-	if u.TotalTokens < 0 {
-		u.TotalTokens = 0
-	}
-	if u.CacheReadTokens < 0 {
-		u.CacheReadTokens = 0
+	u.CacheReadTokens = max(u.CacheReadTokens, 0)
+	u.CacheCreationTokens = max(u.CacheCreationTokens, 0)
+	u.ReasoningTokens = max(u.ReasoningTokens, 0)
+	if u.TotalTokens <= 0 {
+		u.TotalTokens = u.InputTokens + u.OutputTokens + u.CacheReadTokens + u.CacheCreationTokens
 	}
 
 	return NormalizedUsage{
-		InputTokens:    u.InputTokens,
-		OutputTokens:   u.OutputTokens,
-		TotalTokens:    u.TotalTokens,
-		CacheHitTokens: u.CacheReadTokens,
+		InputTokens:     u.InputTokens,
+		OutputTokens:    u.OutputTokens,
+		TotalTokens:     u.TotalTokens,
+		CacheHitTokens:  u.CacheReadTokens,
+		ReasoningTokens: u.ReasoningTokens,
 	}
 }
 

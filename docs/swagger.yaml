@@ -1,14 +1,40 @@
 basePath: /kaguya/api
 definitions:
+  chat.BlockPhase:
+    enum:
+    - start
+    - delta
+    - block_end
+    type: string
+    x-enum-varnames:
+    - BlockPhaseStart
+    - BlockPhaseDelta
+    - BlockPhaseEnd
+  chat.BlockType:
+    enum:
+    - text
+    - reasoning
+    - tool_call
+    - tool_result
+    type: string
+    x-enum-varnames:
+    - BlockTypeText
+    - BlockTypeReasoning
+    - BlockTypeToolCall
+    - BlockTypeToolResult
   chat.Chat:
     properties:
+      block:
+        allOf:
+        - $ref: '#/definitions/chat.ContentBlock'
+        description: delta 帧的内容块事件；整轮 done 不携带内容
       content:
-        description: 模型返回的内容
+        description: 兼容字段：仅正文增量，与 block.text 二选一消费
         type: string
       flag:
         $ref: '#/definitions/chat.WSFlag'
       id:
-        description: 对话id
+        description: 会话雪花 ID；后续请求沿用此 ID 恢复上下文
         type: string
     type: object
   chat.ChatReq:
@@ -50,6 +76,51 @@ definitions:
         - $ref: '#/definitions/chat.Usage'
         description: token 使用信息
     type: object
+  chat.ContentBlock:
+    properties:
+      error_message:
+        type: string
+      input:
+        type: string
+      is_error:
+        type: boolean
+      output:
+        $ref: '#/definitions/chat.ToolOutput'
+      phase:
+        $ref: '#/definitions/chat.BlockPhase'
+      provider_executed:
+        type: boolean
+      text:
+        type: string
+      tool_call_id:
+        type: string
+      tool_name:
+        type: string
+      type:
+        $ref: '#/definitions/chat.BlockType'
+    type: object
+  chat.ToolOutput:
+    properties:
+      data:
+        description: base64 媒体数据
+        type: string
+      media_type:
+        type: string
+      text:
+        type: string
+      type:
+        $ref: '#/definitions/chat.ToolOutputType'
+    type: object
+  chat.ToolOutputType:
+    enum:
+    - text
+    - error
+    - media
+    type: string
+    x-enum-varnames:
+    - ToolOutputText
+    - ToolOutputError
+    - ToolOutputMedia
   chat.Usage:
     properties:
       cached_tokens:
@@ -60,6 +131,9 @@ definitions:
         type: integer
       output_tokens:
         description: 输出 Token 数
+        type: integer
+      reasoning_tokens:
+        description: 思考 Token 数（提供商未报告时为 0）
         type: integer
       total_tokens:
         description: 总 Token 数
@@ -78,7 +152,7 @@ definitions:
       WSFlagCancel: 上行：取消当前生成
       WSFlagChat: 上行：发起一轮对话
       WSFlagDelta: 下行：增量内容帧
-      WSFlagDone: 下行：本轮末帧（完整回答 + Usage）
+      WSFlagDone: 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
       WSFlagError: 下行：出错或被取消
       WSFlagStart: 下行：本轮首帧（会话 ID + 模型信息）
     x-enum-descriptions:
@@ -86,7 +160,7 @@ definitions:
     - 上行：取消当前生成
     - 下行：本轮首帧（会话 ID + 模型信息）
     - 下行：增量内容帧
-    - 下行：本轮末帧（完整回答 + Usage）
+    - 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
     - 下行：出错或被取消
     x-enum-varnames:
     - WSFlagChat
@@ -380,7 +454,9 @@ info:
 paths:
   /v1/chat/sse:
     post:
-      description: 简单SSE对话：流式返回模型回答，首帧携带会话ID与模型信息，末帧携带完整内容与token用量
+      description: SSE 对话：chat.id 为会话雪花 ID，后续请求沿用该 ID；chat.flag=start/delta/done/error。delta
+        携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end。正文与思考的
+        block_end 不重复内容；唯一的整轮 done 仅携带 Token 用量
       parameters:
       - description: 用户发起的对话（conversation_id 为空时开启新对话）
         in: body
@@ -409,8 +485,9 @@ paths:
       - Chat
   /v1/chat/ws:
     get:
-      description: WebSocket 流式对话：长连接多轮对话。上行帧 ChatWSReq（flag=chat/cancel），下行帧 dtocode.Response
-        包 ChatWSResp（flag=start/delta/done/error）
+      description: WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID；下行 chat.flag=start/delta/done/error。delta
+        携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的
+        block_end 不重复内容，唯一的整轮 done 仅携带 Usage
       produces:
       - application/json
       responses:

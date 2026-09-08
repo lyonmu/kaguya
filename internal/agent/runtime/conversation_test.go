@@ -30,10 +30,10 @@ type flowRecorder struct {
 }
 
 func (r *flowRecorder) RecordUsage(_ context.Context, usage token.TurnUsage) error {
-	r.t.Logf("运行信息: mode=%s 总耗时=%v 思考时长=%v 工具调用=%d 结束原因=%s 输入token=%d 输出token=%d 总token=%d 缓存命中=%d",
+	r.t.Logf("运行信息: mode=%s 总耗时=%v 思考时长=%v 工具调用=%d 结束原因=%s 输入token=%d 输出token=%d 总token=%d 缓存命中=%d 思考token=%d",
 		usage.Mode, usage.TotalDuration, usage.ReasoningDuration, usage.ToolCalls,
 		usage.FinishReason, usage.Total.InputTokens, usage.Total.OutputTokens,
-		usage.Total.TotalTokens, usage.Total.CacheHitTokens)
+		usage.Total.TotalTokens, usage.Total.CacheHitTokens, usage.Total.ReasoningTokens)
 	return nil
 }
 
