@@ -14,7 +14,9 @@
 .chat-session-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; color: var(--k-text-muted); margin-top: 7px; }
 .chat-session-meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-session-meta time { flex-shrink: 0; }
-.chat-sidebar-footer { padding: 12px; border-top: 1px solid var(--k-border-soft); display: grid; justify-items: center; gap: 8px; }
+.chat-sidebar-footer, .chat-bottom-actions { flex-shrink: 0; border-top: 1px solid var(--k-border-soft); background: var(--k-panel); }
+.chat-bottom-actions-mobile { display: none; }
+@media (max-width: 760px) { .chat-bottom-actions-mobile { display: block; } }
 .chat-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .chat-header { min-height: 60px; padding: 10px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--k-border-soft); background: var(--k-surface); gap: 10px; }
 .chat-header-title, .chat-header-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }

@@ -14,7 +14,7 @@ const globals = {
 }
 const previous = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
 for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value })
-const { render, fireEvent, cleanup, waitFor, act } = await import('@testing-library/react')
+const { render, fireEvent, cleanup, waitFor, act, within } = await import('@testing-library/react')
 const { App } = await import('antd')
 const { ChatPage } = await import('./ChatPage')
 const { AppLayout } = await import('../../components/layout/AppLayout')
@@ -52,6 +52,31 @@ it('hides runtime details, toggles the conversation panel and offers model selec
   fireEvent.click(await view.findByText('提供商 A'))
   fireEvent.click(await view.findByText('模型 A'))
   await waitFor(() => assert.ok(selector.closest('.ant-select')?.textContent?.includes('提供商 A / 模型 A')))
+})
+
+it('groups navigation with refresh and keeps it accessible after collapsing the conversation list', async () => {
+  globalThis.fetch = (async url => response(String(url).includes('/model/label') ? [] : { items: [], total: 0 })) as typeof fetch
+  let page = ''
+  let toggles = 0
+  const view = render(<App><AppLayout colorMode="light" currentPage="chat" onPageChange={value => { page = value }} onToggleColorMode={() => { toggles++ }}><ChatPage /></AppLayout></App>)
+  assert.equal(view.container.querySelector('.ant-layout-sider'), null)
+  assert.equal(view.queryByLabelText('Console ready'), null)
+  assert.equal(view.queryByText('K'), null)
+  const footer = within(view.container.querySelector('.chat-sidebar-footer')! as HTMLElement)
+  for (const name of ['Kaguya', '对话管理', '系统管理', '切换颜色模式', '刷新列表']) assert.ok(footer.getByRole('button', { name }))
+  fireEvent.click(footer.getByLabelText('系统管理'))
+  assert.equal(page, 'ai-providers')
+  fireEvent.click(footer.getByLabelText('切换颜色模式'))
+  assert.equal(toggles, 1)
+  fireEvent.click(footer.getByLabelText('收起快捷操作'))
+  assert.equal(footer.queryByLabelText('刷新列表'), null)
+  assert.equal(footer.getByLabelText('展开快捷操作').getAttribute('aria-expanded'), 'false')
+  fireEvent.click(view.getByLabelText('收起会话列表'))
+  const bottom = within(view.container.querySelector('.chat-bottom-actions')! as HTMLElement)
+  fireEvent.click(bottom.getByLabelText('展开快捷操作'))
+  fireEvent.click(bottom.getByLabelText('对话管理'))
+  assert.equal(page, 'chat')
+  await waitFor(() => assert.equal(bottom.getByLabelText('刷新列表').hasAttribute('disabled'), false))
 })
 
 it('virtualizes long lists and updates the visible window on scroll', () => {
@@ -94,7 +119,7 @@ it('shows one dash per message page and synchronizes the selected page', () => {
 
 it('opens AI providers when entering system settings', () => {
   let page = ''
-  const view = render(<AppLayout colorMode="light" currentPage="chat" onPageChange={value => { page = value }} onToggleColorMode={() => {}} />)
+  const view = render(<AppLayout colorMode="light" currentPage="system-info" onPageChange={value => { page = value }} onToggleColorMode={() => {}} />)
   fireEvent.click(view.getByLabelText('系统管理'))
   assert.equal(page, 'ai-providers')
 })
