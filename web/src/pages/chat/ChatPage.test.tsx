@@ -98,7 +98,7 @@ it('uses the supplied images for conversation avatars and the welcome logo', () 
   const props = { loading: false, streaming: false, page: 1, totalPages: 1, initialEnd: false, onPageChange: async () => {} }
   const view = render(<MessageList {...props} turns={[]} />)
   const welcomeSource = view.getByAltText('Kaguya').getAttribute('src')
-  assert.ok(welcomeSource?.endsWith('/images/kaguya.png'))
+  assert.ok(welcomeSource?.endsWith('/assets/kaguya.png'))
   view.rerender(<MessageList {...props} turns={[{ turn_index: 1, user_content: '你好', model_name: '', model_id: '', api_protocol: '', started_at: new Date().toISOString(), duration_ms: 0, tool_calls: 0, blocks: [] }]} />)
   assert.equal(view.getByAltText('Kaguya 头像').getAttribute('src'), welcomeSource)
   assert.ok(view.getByAltText('用户头像').getAttribute('src')?.endsWith('/assets/lyonmu.png'))

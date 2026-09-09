@@ -9,6 +9,8 @@ bin/
 *.dylib
 data/
 logs/
+pgvector/
+images/
 target/
 config.yml
 superpowers/

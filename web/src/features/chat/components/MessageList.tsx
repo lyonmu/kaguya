@@ -4,7 +4,7 @@ import { VirtualList } from "./VirtualList";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Block, Turn } from "../types";
-import kaguyaAvatar from "../../../../../images/kaguya.png";
+import kaguyaAvatar from "../../../assets/kaguya.png";
 import userAvatar from "../../../assets/lyonmu.png";
 
 export function ContentBlock({ block }: { block: Block }) {
