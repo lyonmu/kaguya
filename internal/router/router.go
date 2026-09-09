@@ -5,7 +5,6 @@ import (
 	_ "github.com/lyonmu/kaguya/docs"
 	apiv1 "github.com/lyonmu/kaguya/internal/api/v1"
 	"github.com/lyonmu/kaguya/internal/global"
-	"github.com/lyonmu/kaguya/internal/middleware"
 	routerv1 "github.com/lyonmu/kaguya/internal/router/v1"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -27,12 +26,12 @@ func InitRouter(e *gin.Engine) {
 	e.NoRoute(v1api.Front)
 
 	// 创建操作日志中间件
-	accessLogMiddleware := middleware.NewAccessLogMiddleware()
+	// accessLogMiddleware := middleware.NewAccessLogMiddleware()
 
 	// Router group
 	group := e.Group(global.Cfg.RouterPrefix)
 
-	group.Use(accessLogMiddleware.AccessLog())
+	// group.Use(accessLogMiddleware.AccessLog())
 
 	// swagger
 	swaggerRouter := group.Group("swagger")

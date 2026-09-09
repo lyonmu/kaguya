@@ -2,7 +2,7 @@ import { useState, type PropsWithChildren } from 'react'
 import {
   ApiOutlined,
   BarChartOutlined,
-  FileSearchOutlined,
+  // FileSearchOutlined,
   MenuOutlined,
   RobotOutlined,
   RightOutlined,
@@ -92,11 +92,8 @@ export function AppLayout({
               className="border-0! bg-transparent!"
               items={[
                 { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' },
-                {
-                  key: 'access-logs',
-                  icon: <FileSearchOutlined />,
-                  label: '访问日志',
-                },
+                // 暂时隐藏访问日志入口，保留页面实现。
+                // { key: 'access-logs', icon: <FileSearchOutlined />, label: '访问日志' },
               ]}
               mode="inline"
               onClick={({ key }) => onPageChange(key as SystemPage)}
@@ -122,7 +119,11 @@ export function AppLayout({
         </Sider>
 
         <Drawer title="系统管理" placement="left" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
-          <Menu selectedKeys={[currentPage]} items={[...configurationItems, { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' }, { key: 'access-logs', icon: <FileSearchOutlined />, label: '访问日志' }]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
+          <Menu selectedKeys={[currentPage]} items={[
+            ...configurationItems,
+            { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' },
+            // { key: 'access-logs', icon: <FileSearchOutlined />, label: '访问日志' },
+          ]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
         </Drawer>
         <Layout className="min-w-0 bg-k-canvas">
           <Header className="flex h-[60px]! min-h-[60px] items-center justify-between border-b border-k-border-soft bg-k-surface/95! px-7! leading-none! backdrop-blur-md max-[720px]:h-14! max-[720px]:min-h-14 max-[720px]:px-[18px]!">
