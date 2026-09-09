@@ -48,10 +48,10 @@ func TestProviderUsage(t *testing.T) {
 				if got := r.Header.Get("X-Conversation-ID"); got != "123456789012345" {
 					t.Errorf("conversation header = %q", got)
 				}
-				wantPath := "/chat/completions"
+				wantPath := "/v1/chat/completions"
 				switch tt.protocol {
 				case consts.ProtocolOpenAIResponses:
-					wantPath = "/responses"
+					wantPath = "/v1/responses"
 				case consts.ProtocolAnthropic:
 					wantPath = "/v1/messages"
 				}

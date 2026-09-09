@@ -167,6 +167,11 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 		err      error
 	)
 
+	cfg.BaseURL, err = normalizeProviderBaseURL(cfg.BaseURL, cfg.Protocol)
+	if err != nil {
+		return nil, err
+	}
+
 	headers := map[string]string{}
 	if cfg.ConversationID != "" {
 		headers["X-Conversation-ID"] = cfg.ConversationID
