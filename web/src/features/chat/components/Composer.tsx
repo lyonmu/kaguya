@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Input, Select } from 'antd'
+import { Alert, Button, Input, Tooltip } from 'antd'
+import { ModelCascader } from '../../providers/ModelCascader'
 import { fetchModelLabels } from '../../providers/api'
 import type { ModelLabelOption } from '../../providers/types'
 import { SendOutlined, StopOutlined } from '@ant-design/icons'
@@ -54,29 +55,28 @@ export function Composer({ conversationId, turnCount, modelId, onModelChange, va
           }}
         />
         <div className="chat-composer-bottom">
-          <Select
+          <ModelCascader
             aria-label="对话模型"
             className="chat-model-select"
             value={modelId}
             onChange={onModelChange}
             disabled={streaming || disabled}
             loading={loading}
-            showSearch={{ optionFilterProp: 'label' }}
-            options={[{ label: '默认模型', value: '' }, ...models.map(model => ({
-              label: `${model.provider_name} / ${model.label}`, value: model.value,
-            }))]}
+            models={models}
+            defaultOption
           />
           <div className="chat-composer-actions">
           <ContextProgress conversationId={conversationId} turnCount={turnCount} />
           {streaming ? (
             <Button danger icon={<StopOutlined />} onClick={onStop}>停止</Button>
           ) : (
-            <Button type="primary" aria-label="发送消息" icon={<SendOutlined />} disabled={!value.trim() || disabled} onClick={onSend} />
+            <Tooltip title="Enter 发送，Shift + Enter 换行。AI 内容可能有误，请核实重要信息。">
+              <span><Button type="primary" aria-label="发送消息" icon={<SendOutlined />} disabled={!value.trim() || disabled} onClick={onSend} /></span>
+            </Tooltip>
           )}
           </div>
         </div>
       </div>
-      <p className="chat-composer-hint">Enter 发送 / Shift + Enter 换行 · AI 生成的内容可能有误，请核实重要信息。</p>
     </div>
   )
 }

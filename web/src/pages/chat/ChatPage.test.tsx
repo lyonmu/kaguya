@@ -49,8 +49,8 @@ it('hides runtime details, toggles the conversation panel and offers model selec
   assert.ok(view.container.querySelector('.chat-sidebar'))
   const selector = view.getByLabelText('对话模型')
   fireEvent.mouseDown(selector.closest('.ant-select')!.querySelector('.ant-select-selector') ?? selector)
-  await waitFor(() => assert.ok(view.getByText('提供商 A / 模型 A')))
-  fireEvent.click(view.getByText('提供商 A / 模型 A'))
+  fireEvent.click(await view.findByText('提供商 A'))
+  fireEvent.click(await view.findByText('模型 A'))
   await waitFor(() => assert.ok(selector.closest('.ant-select')?.textContent?.includes('提供商 A / 模型 A')))
 })
 

@@ -16,6 +16,7 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const { render, fireEvent, cleanup, waitFor, act, within } = await import('@testing-library/react')
 const { App } = await import('antd')
 const { SystemInfoPage } = await import('./SystemInfoPage')
+const { ModelCascader } = await import('../../features/providers/ModelCascader')
 const { AppLayout } = await import('../../components/layout/AppLayout')
 const originalFetch = globalThis.fetch
 const response = (data: unknown) => Response.json({ code: 100000, data })
@@ -47,20 +48,48 @@ it('loads, edits and saves system config with local model record IDs', async () 
   await waitFor(() => assert.ok(view.getByText('只读基础人设')))
   fireEvent.change(view.getByLabelText('User-Agent'), { target: { value: 'Configured/2' } })
   fireEvent.change(view.getByLabelText('自定义系统提示词'), { target: { value: '请简洁回答' } })
-  for (const [label, option] of [['默认对话模型', '提供商 A / 聊天模型'], ['后台任务模型', '提供商 B / 任务模型']]) {
+  assert.equal(view.queryByText('模型选择统一在这里管理'), null)
+  assert.equal(view.queryByText('用于服务端的聊天和标题生成请求，不修改浏览器请求头。'), null)
+  for (const [label, provider, model] of [['默认对话模型', '提供商 A', '聊天模型'], ['后台任务模型', '提供商 B', '任务模型']]) {
     const selector = view.getByRole('combobox', { name: label })
     fireEvent.mouseDown(selector.closest('.ant-select')!.querySelector('.ant-select-selector') ?? selector)
     const popup = await waitFor(() => {
-      const list = dom.document.getElementById(selector.getAttribute('aria-controls')!)
-      const element = list?.closest('.ant-select-dropdown')
+      const element = Array.from(dom.document.querySelectorAll('.ant-cascader-dropdown:not(.ant-select-dropdown-hidden)')).at(-1)
       assert.ok(element)
       return element as unknown as HTMLElement
     })
-    fireEvent.click(within(popup).getByText(option))
+    fireEvent.click(within(popup).getByText(provider))
+    fireEvent.click(await within(popup).findByText(model))
   }
   fireEvent.click(view.getByRole('button', { name: /保存配置/ }))
   await waitFor(() => assert.deepEqual(saved, { system_prompt: '请简洁回答', user_agent: 'Configured/2', default_model_id: 'local-chat', task_model_id: 'local-task' }))
   assert.ok(view.getByText('只读基础人设'))
+})
+
+it('searches models by API ID, clears configuration and restores the chat default', async () => {
+  const models = [
+    { label: '同名模型', value: 'local-a', provider_name: '提供商 A', provider_id: 'a', model_id: 'api-alpha' },
+    { label: '同名模型', value: 'local-b', provider_name: '提供商 B', provider_id: 'b', model_id: 'api-beta' },
+  ]
+  let selected = ''
+  const view = render(<ModelCascader aria-label="模型" models={models} onChange={value => { selected = value }} />)
+  const input = view.getByRole('combobox', { name: '模型' })
+  fireEvent.change(input, { target: { value: 'API-BETA' } })
+  const result = await view.findByText('提供商 B / 同名模型')
+  fireEvent.click(result)
+  assert.equal(selected, 'local-b')
+  view.rerender(<ModelCascader aria-label="模型" models={models} value={selected} onChange={value => { selected = value }} />)
+  const clear = view.container.querySelector('.ant-select-clear')
+  assert.ok(clear)
+  fireEvent.click(clear)
+  assert.equal(selected, '')
+  view.unmount()
+  selected = 'local-a'
+  const chat = render(<ModelCascader aria-label="模型" models={models} value={selected} defaultOption onChange={value => { selected = value }} />)
+  const chatInput = chat.getByRole('combobox', { name: '模型' })
+  fireEvent.mouseDown(chatInput.closest('.ant-select')!.querySelector('.ant-select-selector') ?? chatInput)
+  fireEvent.click(await chat.findByText('默认模型'))
+  assert.equal(selected, '')
 })
 
 it('shows a config loading error instead of an editable empty form', async () => {

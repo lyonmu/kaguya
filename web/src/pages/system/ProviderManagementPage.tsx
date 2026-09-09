@@ -388,7 +388,6 @@ export function ProviderManagementPage() {
         <div>
           <span className="mb-2 block text-[9px] font-bold tracking-[1.4px] text-k-text-subtle">SYSTEM / AI CONFIGURATION</span>
           <h2 className="m-0 text-[22px] font-semibold tracking-[-0.25px] text-k-text">AI 提供商管理</h2>
-          <p className="mt-1.5 mb-0 text-xs text-k-text-muted">配置模型服务提供商、访问凭证及其可用模型。</p>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={reload}>刷新</Button>
@@ -477,10 +476,10 @@ export function ProviderManagementPage() {
           <Form.Item label="API 协议" name="api_protocol" rules={[{ required: true, message: '请选择 API 协议' }]}>
             <Select options={protocolOptions} />
           </Form.Item>
-          <Form.Item label="提供商类型" name="provider_type" rules={[{ required: true }]} extra="OpenCode Go 会在请求头 x-opencode-session 中传入会话 ID。">
+          <Form.Item label="提供商类型" name="provider_type" rules={[{ required: true }]} tooltip="OpenCode Go 会在请求头 x-opencode-session 中传入会话 ID。">
             <Select options={[{ label: '标准（normal）', value: 'normal' }, { label: 'OpenCode Go', value: 'opencode-go' }]} />
           </Form.Item>
-          <Form.Item label="完整请求 URL" name="base_url" rules={[{ required: true, message: '请输入包含实际端点的完整请求 URL' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} extra="原样请求，不自动追加 /v1、/responses、/chat/completions 或 /messages。">
+          <Form.Item label="完整请求 URL" name="base_url" rules={[{ required: true, message: '请输入包含实际端点的完整请求 URL' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="原样请求，不自动追加 /v1、/responses、/chat/completions 或 /messages。">
             <Input placeholder="例如 https://api.example.com/v1/chat/completions" />
           </Form.Item>
           <Form.Item label="API Key" name="api_key">
@@ -491,19 +490,12 @@ export function ProviderManagementPage() {
 
       <Drawer
         destroyOnHidden
-        extra={<Button icon={<PlusOutlined />} onClick={showCreateModel} type="primary">新增模型</Button>}
+        extra={<Tooltip title="此处管理模型信息；默认对话模型和后台任务模型请在系统配置中选择。"><Button icon={<PlusOutlined />} onClick={showCreateModel} type="primary">新增模型</Button></Tooltip>}
         onClose={() => setSelectedProviderID(undefined)}
         open={Boolean(selectedProvider)}
         size="large"
         title={<span className="inline-flex items-center gap-2"><RobotOutlined />{selectedProvider?.provider_name} · 模型管理</span>}
       >
-        <Alert
-          className="mb-4"
-          message={`${selectedProvider?.models.length ?? 0} 个可用模型`}
-          description="这里只管理模型信息。请前往系统配置页面选择默认对话模型和后台任务模型。"
-          showIcon
-          type="info"
-        />
         <Table<AIModel>
           columns={modelColumns}
           dataSource={selectedProvider?.models ?? []}
