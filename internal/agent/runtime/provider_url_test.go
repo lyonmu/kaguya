@@ -30,6 +30,9 @@ func TestProviderRequestURL(t *testing.T) {
 					if r.RequestURI != want {
 						t.Errorf("URI = %q, want %q", r.RequestURI, want)
 					}
+					if r.Header.Get("User-Agent") != "ConfiguredAgent/1.0" {
+						t.Errorf("User-Agent=%q", r.Header.Get("User-Agent"))
+					}
 					if r.Method != http.MethodPost {
 						t.Errorf("method = %s", r.Method)
 					}
@@ -59,7 +62,7 @@ func TestProviderRequestURL(t *testing.T) {
 					_, _ = w.Write([]byte(`{"error":{"type":"invalid_request_error","message":"test"}}`))
 				}))
 				defer server.Close()
-				a, err := New(WithProvider(ProviderConfig{Protocol: protocol, Type: consts.ProviderTypeOpenCodeGo, BaseURL: server.URL + path, APIKey: "test", ModelID: "test", ConversationID: "123"}))
+				a, err := New(WithProvider(ProviderConfig{Protocol: protocol, Type: consts.ProviderTypeOpenCodeGo, BaseURL: server.URL + path, APIKey: "test", ModelID: "test", ConversationID: "123", UserAgent: "ConfiguredAgent/1.0"}))
 				if err != nil {
 					t.Fatal(err)
 				}

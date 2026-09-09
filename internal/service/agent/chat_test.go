@@ -19,6 +19,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
+	initialize "github.com/lyonmu/kaguya/internal/init"
 	"go.uber.org/zap"
 )
 
@@ -43,6 +44,9 @@ func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
 	gen.value.Store(123456789012340)
 	db.EntClient, global.Id, global.Logger = client, gen, zap.NewNop()
 	t.Cleanup(func() { db.EntClient, global.Id, global.Logger = oldClient, oldID, oldLogger })
+	if err := initialize.Run(ctx, client); err != nil {
+		t.Fatal(err)
+	}
 	return ctx, client
 }
 
@@ -93,8 +97,11 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("test").SetModelID("test").SetIsDefault(consts.IsTrue).SetIsTask(consts.IsTrue).Save(ctx)
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("test").SetModelID("test").Save(ctx)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetDefaultModelID(model.ID).SetTaskModelID(model.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	run := func(id, prompt string) (string, request) {

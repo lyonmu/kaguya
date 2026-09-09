@@ -11,6 +11,8 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 	systemRouter := group.Group("v1/system")
 	{
 		systemRouter.GET("accesslog/page", apiGroup.SystemAccessLogPage)
+		systemRouter.GET("info", apiGroup.SystemInfo)
+		systemRouter.PUT("info", apiGroup.SystemInfoUpdate)
 
 		systemRouter.GET("provider/page", apiGroup.SystemProviderPage)
 		systemRouter.GET("provider/label", apiGroup.SystemProviderLabels)

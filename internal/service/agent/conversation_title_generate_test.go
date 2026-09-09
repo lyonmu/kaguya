@@ -51,7 +51,11 @@ func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
 	if err := client.KaguyaProviderInfo.UpdateOne(provider).SetProviderType(consts.ProviderTypeOpenCodeGo).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("background-model").SetIsTask(consts.IsTrue).SetIsDefault(consts.IsFalse).Save(ctx); err != nil {
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("background-model").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetTaskModelID(model.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	svc := &AgentSvc{}
@@ -119,7 +123,11 @@ func TestConversationTitleGenerateSharesPendingTask(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("task").SetIsTask(consts.IsTrue).Save(ctx); err != nil {
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("task").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetTaskModelID(model.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	turn := testCompletedTurn("123", 0)

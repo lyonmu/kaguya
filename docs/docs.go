@@ -474,6 +474,72 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/system/info": {
+            "get": {
+                "tags": [
+                    "System Info"
+                ],
+                "summary": "读取全局系统配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemInfoResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "默认模型及任务模型使用本地记录 ID，空字符串取消选择。User-Agent 必须为非空可打印 ASCII。保存后新发起的聊天和标题请求立即生效，不影响正在执行的请求。",
+                "tags": [
+                    "System Info"
+                ],
+                "summary": "保存全局系统配置",
+                "parameters": [
+                    {
+                        "description": "系统配置",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemInfoSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemInfoResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/system/model": {
             "post": {
                 "tags": [
@@ -563,21 +629,6 @@ const docTemplate = `{
                 ],
                 "summary": "获取模型分页列表",
                 "parameters": [
-                    {
-                        "enum": [
-                            -1,
-                            1,
-                            2
-                        ],
-                        "type": "integer",
-                        "x-enum-varnames": [
-                            "IsUnknown",
-                            "IsTrue",
-                            "IsFalse"
-                        ],
-                        "name": "is_default",
-                        "in": "query"
-                    },
                     {
                         "type": "string",
                         "name": "keyword",
@@ -1561,6 +1612,58 @@ const docTemplate = `{
                 }
             }
         },
+        "system.SystemInfoResp": {
+            "type": "object",
+            "required": [
+                "user_agent"
+            ],
+            "properties": {
+                "default_model_id": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "global_system_prompt": {
+                    "description": "只读基础人设，与自定义提示词拼接后用于聊天",
+                    "type": "string"
+                },
+                "system_prompt": {
+                    "type": "string",
+                    "maxLength": 20000
+                },
+                "task_model_id": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "user_agent": {
+                    "type": "string",
+                    "maxLength": 512
+                }
+            }
+        },
+        "system.SystemInfoSaveReq": {
+            "type": "object",
+            "required": [
+                "user_agent"
+            ],
+            "properties": {
+                "default_model_id": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "system_prompt": {
+                    "type": "string",
+                    "maxLength": 20000
+                },
+                "task_model_id": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "user_agent": {
+                    "type": "string",
+                    "maxLength": 512
+                }
+            }
+        },
         "system.SystemModelLabelResp": {
             "type": "object",
             "properties": {
@@ -1619,12 +1722,6 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "is_default": {
-                    "$ref": "#/definitions/consts.Status"
-                },
-                "is_task": {
-                    "$ref": "#/definitions/consts.Status"
-                },
                 "model_id": {
                     "type": "string"
                 },
@@ -1660,7 +1757,6 @@ const docTemplate = `{
                 "capability_structured_output",
                 "capability_tool_use",
                 "capability_vision",
-                "is_default",
                 "model_id",
                 "model_name",
                 "provider_id",
@@ -1691,28 +1787,6 @@ const docTemplate = `{
                     ]
                 },
                 "capability_vision": {
-                    "enum": [
-                        1,
-                        2
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/consts.Status"
-                        }
-                    ]
-                },
-                "is_default": {
-                    "enum": [
-                        1,
-                        2
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/consts.Status"
-                        }
-                    ]
-                },
-                "is_task": {
                     "enum": [
                         1,
                         2

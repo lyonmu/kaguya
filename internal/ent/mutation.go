@@ -20,6 +20,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 )
 
@@ -38,6 +39,7 @@ const (
 	TypeKaguyaConversation = "KaguyaConversation"
 	TypeKaguyaModelsInfo   = "KaguyaModelsInfo"
 	TypeKaguyaProviderInfo = "KaguyaProviderInfo"
+	TypeKaguyaSystemInfo   = "KaguyaSystemInfo"
 )
 
 // KaguyaAccessLogMutation represents an operation that mutates the KaguyaAccessLog nodes in the graph.
@@ -8511,4 +8513,682 @@ func (m *KaguyaProviderInfoMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaProviderInfo edge %s", name)
+}
+
+// KaguyaSystemInfoMutation represents an operation that mutates the KaguyaSystemInfo nodes in the graph.
+type KaguyaSystemInfoMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *string
+	created_at       *time.Time
+	updated_at       *time.Time
+	deleted_at       *time.Time
+	system_prompt    *string
+	user_agent       *string
+	default_model_id *string
+	task_model_id    *string
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*KaguyaSystemInfo, error)
+	predicates       []predicate.KaguyaSystemInfo
+}
+
+var _ ent.Mutation = (*KaguyaSystemInfoMutation)(nil)
+
+// kaguyasysteminfoOption allows management of the mutation configuration using functional options.
+type kaguyasysteminfoOption func(*KaguyaSystemInfoMutation)
+
+// newKaguyaSystemInfoMutation creates new mutation for the KaguyaSystemInfo entity.
+func newKaguyaSystemInfoMutation(c config, op Op, opts ...kaguyasysteminfoOption) *KaguyaSystemInfoMutation {
+	m := &KaguyaSystemInfoMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKaguyaSystemInfo,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKaguyaSystemInfoID sets the ID field of the mutation.
+func withKaguyaSystemInfoID(id string) kaguyasysteminfoOption {
+	return func(m *KaguyaSystemInfoMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KaguyaSystemInfo
+		)
+		m.oldValue = func(ctx context.Context) (*KaguyaSystemInfo, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KaguyaSystemInfo.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKaguyaSystemInfo sets the old KaguyaSystemInfo of the mutation.
+func withKaguyaSystemInfo(node *KaguyaSystemInfo) kaguyasysteminfoOption {
+	return func(m *KaguyaSystemInfoMutation) {
+		m.oldValue = func(context.Context) (*KaguyaSystemInfo, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KaguyaSystemInfoMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KaguyaSystemInfoMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of KaguyaSystemInfo entities.
+func (m *KaguyaSystemInfoMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KaguyaSystemInfoMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KaguyaSystemInfoMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KaguyaSystemInfo.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KaguyaSystemInfoMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KaguyaSystemInfoMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KaguyaSystemInfoMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KaguyaSystemInfoMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KaguyaSystemInfoMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KaguyaSystemInfoMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *KaguyaSystemInfoMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *KaguyaSystemInfoMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *KaguyaSystemInfoMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[kaguyasysteminfo.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *KaguyaSystemInfoMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyasysteminfo.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *KaguyaSystemInfoMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, kaguyasysteminfo.FieldDeletedAt)
+}
+
+// SetSystemPrompt sets the "system_prompt" field.
+func (m *KaguyaSystemInfoMutation) SetSystemPrompt(s string) {
+	m.system_prompt = &s
+}
+
+// SystemPrompt returns the value of the "system_prompt" field in the mutation.
+func (m *KaguyaSystemInfoMutation) SystemPrompt() (r string, exists bool) {
+	v := m.system_prompt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemPrompt returns the old "system_prompt" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldSystemPrompt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemPrompt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemPrompt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemPrompt: %w", err)
+	}
+	return oldValue.SystemPrompt, nil
+}
+
+// ResetSystemPrompt resets all changes to the "system_prompt" field.
+func (m *KaguyaSystemInfoMutation) ResetSystemPrompt() {
+	m.system_prompt = nil
+}
+
+// SetUserAgent sets the "user_agent" field.
+func (m *KaguyaSystemInfoMutation) SetUserAgent(s string) {
+	m.user_agent = &s
+}
+
+// UserAgent returns the value of the "user_agent" field in the mutation.
+func (m *KaguyaSystemInfoMutation) UserAgent() (r string, exists bool) {
+	v := m.user_agent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserAgent returns the old "user_agent" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldUserAgent(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserAgent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserAgent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserAgent: %w", err)
+	}
+	return oldValue.UserAgent, nil
+}
+
+// ResetUserAgent resets all changes to the "user_agent" field.
+func (m *KaguyaSystemInfoMutation) ResetUserAgent() {
+	m.user_agent = nil
+}
+
+// SetDefaultModelID sets the "default_model_id" field.
+func (m *KaguyaSystemInfoMutation) SetDefaultModelID(s string) {
+	m.default_model_id = &s
+}
+
+// DefaultModelID returns the value of the "default_model_id" field in the mutation.
+func (m *KaguyaSystemInfoMutation) DefaultModelID() (r string, exists bool) {
+	v := m.default_model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDefaultModelID returns the old "default_model_id" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldDefaultModelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDefaultModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDefaultModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDefaultModelID: %w", err)
+	}
+	return oldValue.DefaultModelID, nil
+}
+
+// ResetDefaultModelID resets all changes to the "default_model_id" field.
+func (m *KaguyaSystemInfoMutation) ResetDefaultModelID() {
+	m.default_model_id = nil
+}
+
+// SetTaskModelID sets the "task_model_id" field.
+func (m *KaguyaSystemInfoMutation) SetTaskModelID(s string) {
+	m.task_model_id = &s
+}
+
+// TaskModelID returns the value of the "task_model_id" field in the mutation.
+func (m *KaguyaSystemInfoMutation) TaskModelID() (r string, exists bool) {
+	v := m.task_model_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTaskModelID returns the old "task_model_id" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldTaskModelID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTaskModelID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTaskModelID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTaskModelID: %w", err)
+	}
+	return oldValue.TaskModelID, nil
+}
+
+// ResetTaskModelID resets all changes to the "task_model_id" field.
+func (m *KaguyaSystemInfoMutation) ResetTaskModelID() {
+	m.task_model_id = nil
+}
+
+// Where appends a list predicates to the KaguyaSystemInfoMutation builder.
+func (m *KaguyaSystemInfoMutation) Where(ps ...predicate.KaguyaSystemInfo) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KaguyaSystemInfoMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KaguyaSystemInfoMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KaguyaSystemInfo, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KaguyaSystemInfoMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KaguyaSystemInfoMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KaguyaSystemInfo).
+func (m *KaguyaSystemInfoMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KaguyaSystemInfoMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.created_at != nil {
+		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, kaguyasysteminfo.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, kaguyasysteminfo.FieldDeletedAt)
+	}
+	if m.system_prompt != nil {
+		fields = append(fields, kaguyasysteminfo.FieldSystemPrompt)
+	}
+	if m.user_agent != nil {
+		fields = append(fields, kaguyasysteminfo.FieldUserAgent)
+	}
+	if m.default_model_id != nil {
+		fields = append(fields, kaguyasysteminfo.FieldDefaultModelID)
+	}
+	if m.task_model_id != nil {
+		fields = append(fields, kaguyasysteminfo.FieldTaskModelID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyasysteminfo.FieldCreatedAt:
+		return m.CreatedAt()
+	case kaguyasysteminfo.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case kaguyasysteminfo.FieldDeletedAt:
+		return m.DeletedAt()
+	case kaguyasysteminfo.FieldSystemPrompt:
+		return m.SystemPrompt()
+	case kaguyasysteminfo.FieldUserAgent:
+		return m.UserAgent()
+	case kaguyasysteminfo.FieldDefaultModelID:
+		return m.DefaultModelID()
+	case kaguyasysteminfo.FieldTaskModelID:
+		return m.TaskModelID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kaguyasysteminfo.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kaguyasysteminfo.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case kaguyasysteminfo.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case kaguyasysteminfo.FieldSystemPrompt:
+		return m.OldSystemPrompt(ctx)
+	case kaguyasysteminfo.FieldUserAgent:
+		return m.OldUserAgent(ctx)
+	case kaguyasysteminfo.FieldDefaultModelID:
+		return m.OldDefaultModelID(ctx)
+	case kaguyasysteminfo.FieldTaskModelID:
+		return m.OldTaskModelID(ctx)
+	}
+	return nil, fmt.Errorf("unknown KaguyaSystemInfo field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kaguyasysteminfo.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kaguyasysteminfo.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case kaguyasysteminfo.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case kaguyasysteminfo.FieldSystemPrompt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemPrompt(v)
+		return nil
+	case kaguyasysteminfo.FieldUserAgent:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserAgent(v)
+		return nil
+	case kaguyasysteminfo.FieldDefaultModelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDefaultModelID(v)
+		return nil
+	case kaguyasysteminfo.FieldTaskModelID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTaskModelID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaSystemInfo field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KaguyaSystemInfoMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KaguyaSystemInfoMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaSystemInfoMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown KaguyaSystemInfo numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KaguyaSystemInfoMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kaguyasysteminfo.FieldDeletedAt) {
+		fields = append(fields, kaguyasysteminfo.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KaguyaSystemInfoMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KaguyaSystemInfoMutation) ClearField(name string) error {
+	switch name {
+	case kaguyasysteminfo.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaSystemInfo nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
+	switch name {
+	case kaguyasysteminfo.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kaguyasysteminfo.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case kaguyasysteminfo.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case kaguyasysteminfo.FieldSystemPrompt:
+		m.ResetSystemPrompt()
+		return nil
+	case kaguyasysteminfo.FieldUserAgent:
+		m.ResetUserAgent()
+		return nil
+	case kaguyasysteminfo.FieldDefaultModelID:
+		m.ResetDefaultModelID()
+		return nil
+	case kaguyasysteminfo.FieldTaskModelID:
+		m.ResetTaskModelID()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaSystemInfo field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KaguyaSystemInfoMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KaguyaSystemInfoMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KaguyaSystemInfoMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KaguyaSystemInfoMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KaguyaSystemInfoMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown KaguyaSystemInfo unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KaguyaSystemInfoMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown KaguyaSystemInfo edge %s", name)
 }

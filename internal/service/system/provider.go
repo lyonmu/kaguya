@@ -153,6 +153,13 @@ func (s *SystemSvc) ProviderDelete(ctx context.Context, id string) error {
 		return ErrProviderNotFound
 	}
 
+	ids, err := client.KaguyaModelsInfo.Query().Where(kaguyamodelsinfo.ProviderIDEQ(id)).IDs(ctx)
+	if err != nil {
+		return err
+	}
+	if err := clearModelSelections(ctx, client, ids...); err != nil {
+		return err
+	}
 	now := time.Now()
 	if _, err = client.KaguyaModelsInfo.Update().
 		Where(kaguyamodelsinfo.ProviderIDEQ(id), kaguyamodelsinfo.DeletedAtIsNil()).

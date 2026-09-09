@@ -8,6 +8,9 @@ var (
 	// 系统通用响应
 	RequestParameterError = Response{Code: 100001, Message: "请求参数错误"}
 
+	SystemInfoQueryFailure  = Response{Code: 104000, Message: "系统配置查询失败"}
+	SystemInfoUpdateFailure = Response{Code: 104001, Message: "系统配置保存失败"}
+
 	// 操作日志相关
 	AccessLogQueryFailure = Response{Code: 101000, Message: "访问日志查询失败"}
 

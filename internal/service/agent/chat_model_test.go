@@ -38,6 +38,9 @@ func TestChatSelectedModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetDefaultModelID(def.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
 	selected, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("selected").SetModelID("selected-api").SetIsDefault(consts.IsFalse).Save(ctx)
 	if err != nil {
 		t.Fatal(err)

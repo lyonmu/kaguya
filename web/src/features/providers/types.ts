@@ -4,13 +4,11 @@ export type Status = 1 | 2
 export type ReasoningEffort = 'low' | 'medium' | 'high'
 
 export interface AIModel {
-  is_task: Status
   id: string
   provider_id: string
   provider_name: string
   model_name: string
   model_id: string
-  is_default: Status
   reasoning_enabled: Status
   reasoning_effort: ReasoningEffort
   token_context_window: number
@@ -57,11 +55,9 @@ export interface ProviderPayload {
 }
 
 export interface ModelPayload {
-  is_task: Status
   provider_id: string
   model_name: string
   model_id: string
-  is_default: Status
   reasoning_enabled: Status
   reasoning_effort: ReasoningEffort
   token_context_window: number

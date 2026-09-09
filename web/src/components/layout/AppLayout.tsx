@@ -1,21 +1,22 @@
-import type { PropsWithChildren } from 'react'
+import { useState, type PropsWithChildren } from 'react'
 import {
   ApiOutlined,
   CommentOutlined,
   FileSearchOutlined,
   MoonOutlined,
+  MenuOutlined,
   RobotOutlined,
   RightOutlined,
   SettingOutlined,
   SunOutlined,
 } from '@ant-design/icons'
-import { Breadcrumb, Button, Layout, Menu, Tooltip } from 'antd'
+import { Breadcrumb, Button, Drawer, Layout, Menu, Tooltip } from 'antd'
 import type { ColorMode } from '../../app/colorMode'
 import kaguyaIcon from '../../assets/kaguya.png'
 
 const { Content, Header, Sider } = Layout
 
-export type SystemPage = 'chat' | 'access-logs' | 'ai-providers'
+export type SystemPage = 'chat' | 'access-logs' | 'ai-providers' | 'system-info'
 
 interface AppLayoutProps extends PropsWithChildren {
   colorMode: ColorMode
@@ -32,6 +33,12 @@ export function AppLayout({
   onToggleColorMode,
 }: AppLayoutProps) {
   const isDark = colorMode === 'dark'
+  const [systemCollapsed, setSystemCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const configurationItems = [
+    { key: 'ai-providers', icon: <RobotOutlined />, label: 'AI 提供商' },
+    { key: 'system-info', icon: <SettingOutlined />, label: '系统配置' },
+  ]
 
   return (
     <Layout className="h-svh w-full overflow-hidden bg-k-canvas" hasSider>
@@ -99,6 +106,9 @@ export function AppLayout({
           className="border-r border-k-border bg-k-panel! max-[720px]:hidden!"
           theme={isDark ? 'dark' : 'light'}
           width={232}
+          collapsed={systemCollapsed}
+          collapsedWidth={0}
+          trigger={null}
         >
           <div className="flex h-full flex-col px-3 pb-4">
             <div className="border-b border-k-border-soft px-2.5 pt-[23px] pb-5">
@@ -118,13 +128,7 @@ export function AppLayout({
             </div>
             <Menu
               className="border-0! bg-transparent!"
-              items={[
-                {
-                  key: 'ai-providers',
-                  icon: <RobotOutlined />,
-                  label: 'AI 提供商',
-                },
-              ]}
+              items={configurationItems}
               mode="inline"
               onClick={({ key }) => onPageChange(key as SystemPage)}
               selectedKeys={[currentPage]}
@@ -166,15 +170,22 @@ export function AppLayout({
           </div>
         </Sider>
 
+        <Drawer title="系统管理" placement="left" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
+          <Menu selectedKeys={[currentPage]} items={[...configurationItems, { key: 'access-logs', icon: <FileSearchOutlined />, label: '访问日志' }]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
+        </Drawer>
         <Layout className="min-w-0 bg-k-canvas">
           <Header className="flex h-[60px]! min-h-[60px] items-center justify-between border-b border-k-border-soft bg-k-surface/95! px-7! leading-none! backdrop-blur-md max-[720px]:h-14! max-[720px]:min-h-14 max-[720px]:px-[18px]!">
+            <div className="flex min-w-0 items-center gap-2">
+            <Button className="max-[720px]:hidden!" type="text" aria-label={systemCollapsed ? '展开系统菜单' : '收起系统菜单'} aria-expanded={!systemCollapsed} icon={<MenuOutlined />} onClick={() => setSystemCollapsed(value => !value)} />
+            <Button className="min-[721px]:hidden!" type="text" aria-label="打开系统菜单" aria-expanded={mobileMenuOpen} icon={<MenuOutlined />} onClick={() => setMobileMenuOpen(true)} />
             <Breadcrumb
               items={[
                 { title: '系统管理' },
-                { title: currentPage === 'ai-providers' ? 'AI 提供商' : '访问日志' },
+                { title: currentPage === 'ai-providers' ? 'AI 提供商' : currentPage === 'system-info' ? '系统配置' : '访问日志' },
               ]}
               separator={<RightOutlined className="text-[8px]" />}
             />
+            </div>
             <div className="flex items-center gap-2">
               <div className="mr-1 flex items-center gap-2 text-[11px] text-k-text-subtle max-[520px]:hidden">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />

@@ -15,10 +15,8 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
+	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
-
-// chatSystemPrompt 组装 Agent 时使用的系统提示词。
-const chatSystemPrompt = "你是一个乐于助人的 AI 助手。"
 
 // send 向 dataChan 推送一条消息；客户端已断开（ctx 取消）或 channel 已关闭时返回 false。
 func send(ctx context.Context, dataChan chan *dtochat.ChatResp, resp *dtochat.ChatResp) bool {
@@ -34,15 +32,24 @@ func send(ctx context.Context, dataChan chan *dtochat.ChatResp, resp *dtochat.Ch
 func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, req *dtochat.ChatReq) {
 	defer close(dataChan)
 
+	info, err := (&servicesystem.SystemSvc{}).Info(ctx)
+	if err != nil {
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
+		return
+	}
+	modelID := req.ModelID
+	if modelID == "" {
+		modelID = info.DefaultModelID
+	}
+	if modelID == "" {
+		send(ctx, dataChan, &dtochat.ChatResp{Err: fmt.Errorf("请先在系统配置中选择默认模型，或在输入框选择模型")})
+		return
+	}
 	// 使用本地模型记录 ID，避免不同提供商相同 API 模型名冲突。
 	query := db.EntClient.KaguyaModelsInfo.Query().
 		Where(kaguyamodelsinfo.DeletedAtIsNil(), kaguyamodelsinfo.HasProviderWith(kaguyaproviderinfo.DeletedAtIsNil())).
 		WithProvider()
-	if req.ModelID != "" {
-		query.Where(kaguyamodelsinfo.IDEQ(req.ModelID))
-	} else {
-		query.Where(kaguyamodelsinfo.IsDefault(consts.IsTrue))
-	}
+	query.Where(kaguyamodelsinfo.IDEQ(modelID))
 	model, err := query.First(ctx)
 	if err != nil {
 		global.Logger.Sugar().Errorf("query chat model failed, err is %+v", err)
@@ -84,11 +91,11 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	// 组装 Agent（每次请求新建）
 	providerCfg := agentruntime.ProviderConfig{
 		Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(provider.APIProtocol),
-		BaseURL: provider.BaseURL, APIKey: provider.APIKey, ModelID: model.ModelID, ConversationID: convID,
+		BaseURL: provider.BaseURL, APIKey: provider.APIKey, ModelID: model.ModelID, ConversationID: convID, UserAgent: info.UserAgent,
 	}
 	ag, err := agentruntime.New(
 		agentruntime.WithProvider(providerCfg),
-		agentruntime.WithSystemPrompt(chatSystemPrompt),
+		agentruntime.WithSystemPrompt(servicesystem.ChatSystemPrompt(info.SystemPrompt)),
 	)
 	if err != nil {
 		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)

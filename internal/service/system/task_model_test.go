@@ -6,8 +6,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
-	"github.com/lyonmu/kaguya/internal/ent"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 )
 
 func TestTaskModelUniqueAndIndependent(t *testing.T) {
@@ -27,70 +25,64 @@ func TestTaskModelUniqueAndIndependent(t *testing.T) {
 	if p2.ProviderType != consts.ProviderTypeOpenCodeGo {
 		t.Fatal("provider type not saved")
 	}
-	r1 := modelSaveReq(p1.ID, "first", "same-api-id", consts.IsTrue)
-	r1.IsTask = consts.IsTrue
+	r1, r2 := modelSaveReq(p1.ID, "first", "same-api-id"), modelSaveReq(p2.ID, "second", "same-api-id")
 	m1, err := svc.ModelCreate(ctx, r1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	r2 := modelSaveReq(p2.ID, "second", "same-api-id", consts.IsFalse)
-	r2.IsTask = consts.IsTrue
 	m2, err := svc.ModelCreate(ctx, r2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	check := func(want string) {
+	config := dtosystem.SystemInfoSaveReq{UserAgent: "test", DefaultModelID: m1.ID, TaskModelID: m1.ID}
+	check := func(defaultID, taskID string) {
 		t.Helper()
-		rows, err := db.EntClient.KaguyaModelsInfo.Query().Where(kaguyamodelsinfo.IsTaskNotNil()).All(ctx)
-		if err != nil {
-			t.Fatal(err)
+		info, err := svc.Info(ctx)
+		if err != nil || info.DefaultModelID != defaultID || info.TaskModelID != taskID {
+			t.Fatalf("system config=%+v err=%v", info, err)
 		}
-		if want == "" {
-			if len(rows) != 0 {
-				t.Fatal("task slot not released")
-			}
-			return
-		}
-		if len(rows) != 1 || rows[0].ID != want {
-			t.Fatalf("task models = %+v, want %s", rows, want)
+		if n, err := db.EntClient.KaguyaSystemInfo.Query().Count(ctx); err != nil || n != 1 {
+			t.Fatalf("singleton count=%d err=%v", n, err)
 		}
 	}
-	check(m2.ID)
-	first, err := svc.ModelDetail(ctx, m1.ID)
-	if err != nil || first.IsTask != consts.IsFalse || first.IsDefault != consts.IsTrue {
-		t.Fatalf("default changed: %+v %v", first, err)
+	if _, err := svc.InfoUpdate(ctx, &config); err != nil {
+		t.Fatal(err)
 	}
-	// 数据库约束阻止绕过服务层创建第二个任务模型。
-	if err := db.EntClient.KaguyaModelsInfo.UpdateOneID(m1.ID).SetIsTask(consts.IsTrue).Exec(ctx); !ent.IsConstraintError(err) {
-		t.Fatalf("missing unique constraint: %v", err)
+	check(m1.ID, m1.ID)
+	config.TaskModelID = m2.ID
+	if _, err := svc.InfoUpdate(ctx, &config); err != nil {
+		t.Fatal(err)
 	}
+	check(m1.ID, m2.ID)
 	if _, err := svc.ModelUpdate(ctx, m1.ID, r1); err != nil {
 		t.Fatal(err)
 	}
-	check(m1.ID)
-	// 失败的创建必须回滚先前清除的任务标记。
+	check(m1.ID, m2.ID)
 	if _, err := svc.ModelCreate(ctx, r2); err == nil {
 		t.Fatal("expected duplicate model failure")
 	}
-	check(m1.ID)
-	r1.IsTask = consts.IsFalse
-	if _, err := svc.ModelUpdate(ctx, m1.ID, r1); err != nil {
+	check(m1.ID, m2.ID)
+	invalid := config
+	invalid.TaskModelID = "missing"
+	if _, err := svc.InfoUpdate(ctx, &invalid); err != ErrModelNotFound {
+		t.Fatalf("invalid selection: %v", err)
+	}
+	check(m1.ID, m2.ID)
+	config.TaskModelID = ""
+	if _, err := svc.InfoUpdate(ctx, &config); err != nil {
 		t.Fatal(err)
 	}
-	check("")
-	r1.IsTask = consts.IsTrue
-	if _, err := svc.ModelUpdate(ctx, m1.ID, r1); err != nil {
+	check(m1.ID, "")
+	config.TaskModelID = m2.ID
+	if _, err := svc.InfoUpdate(ctx, &config); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.ModelDelete(ctx, m1.ID); err != nil {
 		t.Fatal(err)
 	}
-	check("")
-	if _, err := svc.ModelUpdate(ctx, m2.ID, r2); err != nil {
-		t.Fatal(err)
-	}
+	check("", m2.ID)
 	if err := svc.ProviderDelete(ctx, p2.ID); err != nil {
 		t.Fatal(err)
 	}
-	check("")
+	check("", "")
 }

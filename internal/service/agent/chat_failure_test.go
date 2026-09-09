@@ -60,7 +60,11 @@ func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("test").SetModelID("test").SetIsDefault(consts.IsTrue).Save(ctx); err != nil {
+			model, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("test").SetModelID("test").Save(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetDefaultModelID(model.ID).Exec(ctx); err != nil {
 				t.Fatal(err)
 			}
 			for _, id := range []string{"123", ""} {

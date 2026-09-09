@@ -18,6 +18,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -84,6 +85,7 @@ func checkColumn(t, c string) error {
 			kaguyaconversation.Table: kaguyaconversation.ValidColumn,
 			kaguyamodelsinfo.Table:   kaguyamodelsinfo.ValidColumn,
 			kaguyaproviderinfo.Table: kaguyaproviderinfo.ValidColumn,
+			kaguyasysteminfo.Table:   kaguyasysteminfo.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

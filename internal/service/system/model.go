@@ -37,9 +37,6 @@ func (s *SystemSvc) ModelPage(ctx context.Context, req *dtosystem.SystemModelPag
 			kaguyamodelsinfo.ModelIDContains(req.Keyword),
 		))
 	}
-	if req.IsDefault != nil {
-		query.Where(kaguyamodelsinfo.IsDefaultEQ(*req.IsDefault))
-	}
 
 	total, err := query.Count(ctx)
 	if err != nil {
@@ -79,7 +76,7 @@ func (s *SystemSvc) ModelDetail(ctx context.Context, id string) (*dtosystem.Syst
 	return resp, nil
 }
 
-// ModelCreate 创建模型；数据库内最多只有一个默认模型。
+// ModelCreate 只创建模型，默认/任务模型统一由系统配置管理。
 func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelSaveReq) (*dtosystem.SystemModelResp, error) {
 	tx, err := db.EntClient.Tx(ctx)
 	if err != nil {
@@ -98,41 +95,19 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 		global.Logger.Sugar().Errorf("query provider before creating model failed: provider_id=%s, err=%v", req.ProviderID, err)
 		return nil, err
 	}
-	if req.IsDefault == consts.IsTrue {
-		updated, clearErr := client.KaguyaModelsInfo.Update().
-			Where(kaguyamodelsinfo.DeletedAtIsNil(), kaguyamodelsinfo.IsDefaultEQ(consts.IsTrue)).
-			SetIsDefault(consts.IsFalse).
-			Save(ctx)
-		if clearErr != nil {
-			global.Logger.Sugar().Errorf("clear existing default model failed: err=%v", clearErr)
-			return nil, clearErr
-		}
-		if updated > 0 {
-			global.Logger.Sugar().Infof("existing default model cleared before create: count=%d", updated)
-		}
-	}
-
-	if req.IsTask == consts.IsTrue {
-		if _, err := client.KaguyaModelsInfo.Update().Where(kaguyamodelsinfo.IsTaskNotNil()).ClearIsTask().Save(ctx); err != nil {
-			return nil, err
-		}
-	}
-	builder := client.KaguyaModelsInfo.Create().
+	row, err := client.KaguyaModelsInfo.Create().
 		SetProviderID(req.ProviderID).
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
-		SetIsDefault(req.IsDefault).
+		SetIsDefault(consts.IsFalse). // 旧列不再参与模型选择，新模型不写选择标记。
 		SetReasoningEnabled(req.ReasoningEnabled).
 		SetReasoningEffort(req.ReasoningEffort).
 		SetTokenContextWindow(req.TokenContextWindow).
 		SetTokenMaxOutputTokens(req.TokenMaxOutputTokens).
 		SetCapabilityToolUse(req.CapabilityToolUse).
 		SetCapabilityVision(req.CapabilityVision).
-		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput)
-	if req.IsTask == consts.IsTrue {
-		builder.SetIsTask(consts.IsTrue)
-	}
-	row, err := builder.Save(ctx)
+		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput).
+		Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			global.Logger.Sugar().Warnf("model ID already exists: provider_id=%s, model_id=%s", req.ProviderID, req.ModelID)
@@ -152,7 +127,7 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 	return resp, nil
 }
 
-// ModelUpdate 修改模型；数据库内最多只有一个默认模型。
+// ModelUpdate 修改模型信息，不改变系统配置中的模型选择。
 func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.SystemModelSaveReq) (*dtosystem.SystemModelResp, error) {
 	tx, err := db.EntClient.Tx(ctx)
 	if err != nil {
@@ -180,48 +155,19 @@ func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.S
 		global.Logger.Sugar().Errorf("query provider before updating model failed: provider_id=%s, err=%v", req.ProviderID, err)
 		return nil, err
 	}
-	if req.IsDefault == consts.IsTrue {
-		updated, clearErr := client.KaguyaModelsInfo.Update().
-			Where(
-				kaguyamodelsinfo.DeletedAtIsNil(),
-				kaguyamodelsinfo.IsDefaultEQ(consts.IsTrue),
-				kaguyamodelsinfo.IDNEQ(id),
-			).
-			SetIsDefault(consts.IsFalse).
-			Save(ctx)
-		if clearErr != nil {
-			global.Logger.Sugar().Errorf("clear existing default model failed before update: id=%s, err=%v", id, clearErr)
-			return nil, clearErr
-		}
-		if updated > 0 {
-			global.Logger.Sugar().Infof("existing default model cleared before update: id=%s, count=%d", id, updated)
-		}
-	}
-
-	if req.IsTask == consts.IsTrue {
-		if _, err := client.KaguyaModelsInfo.Update().Where(kaguyamodelsinfo.IsTaskNotNil()).ClearIsTask().Save(ctx); err != nil {
-			return nil, err
-		}
-	}
-	builder := client.KaguyaModelsInfo.UpdateOneID(id).
+	row, err := client.KaguyaModelsInfo.UpdateOneID(id).
 		Where(kaguyamodelsinfo.DeletedAtIsNil()).
 		SetProviderID(req.ProviderID).
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
-		SetIsDefault(req.IsDefault).
 		SetReasoningEnabled(req.ReasoningEnabled).
 		SetReasoningEffort(req.ReasoningEffort).
 		SetTokenContextWindow(req.TokenContextWindow).
 		SetTokenMaxOutputTokens(req.TokenMaxOutputTokens).
 		SetCapabilityToolUse(req.CapabilityToolUse).
 		SetCapabilityVision(req.CapabilityVision).
-		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput)
-	if req.IsTask == consts.IsTrue {
-		builder.SetIsTask(consts.IsTrue)
-	} else {
-		builder.ClearIsTask()
-	}
-	row, err := builder.Save(ctx)
+		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput).
+		Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			global.Logger.Sugar().Warnf("model ID already exists: id=%s, provider_id=%s, model_id=%s", id, req.ProviderID, req.ModelID)
@@ -243,7 +189,12 @@ func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.S
 
 // ModelDelete 软删除模型。
 func (s *SystemSvc) ModelDelete(ctx context.Context, id string) error {
-	row, err := db.EntClient.KaguyaModelsInfo.UpdateOneID(id).
+	tx, err := db.EntClient.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	row, err := tx.KaguyaModelsInfo.UpdateOneID(id).
 		Where(kaguyamodelsinfo.DeletedAtIsNil()).
 		SetDeletedAt(time.Now()).
 		ClearIsTask().
@@ -254,6 +205,12 @@ func (s *SystemSvc) ModelDelete(ctx context.Context, id string) error {
 			return ErrModelNotFound
 		}
 		global.Logger.Sugar().Errorf("delete model failed: id=%s, err=%v", id, err)
+		return err
+	}
+	if err := clearModelSelections(ctx, tx.Client(), id); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
 		return err
 	}
 	global.Logger.Sugar().Infof("model deleted: id=%s, provider_id=%s", row.ID, row.ProviderID)

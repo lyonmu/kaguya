@@ -21,6 +21,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
+	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 	"go.uber.org/zap"
 )
 
@@ -98,8 +99,15 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 		if err != nil {
 			return nil, err
 		}
+		info, err := (&servicesystem.SystemSvc{}).Info(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if info.TaskModelID == "" {
+			return nil, ErrTaskModelNotConfigured
+		}
 		model, err := db.EntClient.KaguyaModelsInfo.Query().Where(
-			kaguyamodelsinfo.IsTaskEQ(consts.IsTrue), kaguyamodelsinfo.DeletedAtIsNil(),
+			kaguyamodelsinfo.IDEQ(info.TaskModelID), kaguyamodelsinfo.DeletedAtIsNil(),
 			kaguyamodelsinfo.HasProviderWith(kaguyaproviderinfo.DeletedAtIsNil()),
 		).WithProvider().Only(ctx)
 		if ent.IsNotFound(err) {
@@ -115,7 +123,7 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 		}
 		cfg := agentruntime.ProviderConfig{
 			Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(provider.APIProtocol),
-			BaseURL: provider.BaseURL, APIKey: provider.APIKey, ModelID: model.ModelID, ConversationID: id,
+			BaseURL: provider.BaseURL, APIKey: provider.APIKey, ModelID: model.ModelID, ConversationID: id, UserAgent: info.UserAgent,
 		}
 		if err := ctx.Err(); err != nil {
 			return nil, err

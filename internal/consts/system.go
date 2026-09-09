@@ -1,5 +1,13 @@
 package consts
 
+// GlobalSystemPrompt 是 Kaguya 的基础人设，自定义系统提示词在其后追加。
+const GlobalSystemPrompt = "你是 Kaguya（辉夜），一个安静、理性、可控的 AI 助手。清晰简洁地帮助用户，诚实说明不确定性，尊重用户的意图与决定。"
+
+const (
+	SystemInfoID     = "global"
+	DefaultUserAgent = "kaguya"
+)
+
 type Status int
 
 const (

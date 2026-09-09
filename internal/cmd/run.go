@@ -1,14 +1,17 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	pkgid "github.com/lyonmu/gopkg/id"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
+	initialize "github.com/lyonmu/kaguya/internal/init"
 	"github.com/lyonmu/kaguya/internal/router"
 	"github.com/lyonmu/kaguya/pkg"
 	"go.uber.org/zap"
@@ -87,6 +90,15 @@ func Run() {
 		}
 		db.EntClient = entcli
 
+	}
+
+	global.Logger.Info("start init application data")
+	initCtx, cancelInit := context.WithTimeout(context.Background(), 30*time.Second)
+	initErr := initialize.Run(initCtx, db.EntClient)
+	cancelInit()
+	if initErr != nil {
+		global.Logger.Error("initialize application data failed", zap.Error(initErr))
+		os.Exit(1)
 	}
 
 	global.Metrics = pkg.NewPrometheusRegistry()

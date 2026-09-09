@@ -169,8 +169,6 @@ export function ProviderManagementPage() {
       provider_id: selectedProvider.id,
       model_name: "",
       model_id: "",
-      is_default: selectedProvider.models.length === 0 ? 1 : 2,
-      is_task: 2,
       reasoning_enabled: 1,
       reasoning_effort: "medium",
       token_context_window: 1000000,
@@ -188,8 +186,6 @@ export function ProviderManagementPage() {
       provider_id: model.provider_id,
       model_name: model.model_name,
       model_id: model.model_id,
-      is_default: model.is_default,
-      is_task: model.is_task,
       reasoning_enabled: model.reasoning_enabled,
       reasoning_effort: model.reasoning_effort,
       token_context_window: model.token_context_window,
@@ -331,10 +327,9 @@ export function ProviderManagementPage() {
       dataIndex: 'model_name',
       key: 'model_name',
       width: 180,
-      render: (value: string, model) => (
+      render: (value: string) => (
         <span className="font-medium text-k-text">
-          {value} {model.is_default === 1 ? <Tag color="gold">默认</Tag> : null}
-          {model.is_task === 1 ? <Tag color="purple">任务</Tag> : null}
+          {value}
         </span>
       ),
     },
@@ -505,7 +500,7 @@ export function ProviderManagementPage() {
         <Alert
           className="mb-4"
           message={`${selectedProvider?.models.length ?? 0} 个可用模型`}
-          description="默认模型与任务模型分别全局唯一，可以是同一个模型；设置后会取消其他模型的对应标记。任务模型用于生成对话标题等后台任务。"
+          description="这里只管理模型信息。请前往系统配置页面选择默认对话模型和后台任务模型。"
           showIcon
           type="info"
         />
@@ -540,12 +535,6 @@ export function ProviderManagementPage() {
             </Form.Item>
             <Form.Item label="API 模型标识" name="model_id" rules={[{ required: true, message: '请输入模型标识' }]}>
               <Input className="font-mono" placeholder="例如 gpt-5" />
-            </Form.Item>
-            <Form.Item label="默认模型" name="is_default" rules={[{ required: true }]}>
-              <Select options={[{ label: '是', value: 1 }, { label: '否', value: 2 }]} />
-            </Form.Item>
-            <Form.Item label="任务模型（全局唯一）" name="is_task" rules={[{ required: true }]}>
-              <Select options={[{ label: '是', value: 1 }, { label: '否', value: 2 }]} />
             </Form.Item>
             <Form.Item label="推理模式" name="reasoning_enabled" rules={[{ required: true }]}>
               <Select options={statusOptions} />

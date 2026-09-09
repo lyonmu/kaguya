@@ -81,6 +81,18 @@ func (f KaguyaProviderInfoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaProviderInfoMutation", m)
 }
 
+// The KaguyaSystemInfoFunc type is an adapter to allow the use of ordinary
+// function as KaguyaSystemInfo mutator.
+type KaguyaSystemInfoFunc func(context.Context, *ent.KaguyaSystemInfoMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaSystemInfoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaSystemInfoMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaSystemInfoMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

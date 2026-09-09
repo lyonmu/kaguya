@@ -10,6 +10,8 @@ import { ChatPage } from './pages/chat/ChatPage'
 const AccessLogPage = lazy(() => import('./pages/system/AccessLogPage').then(module => ({ default: module.AccessLogPage })))
 const ProviderManagementPage = lazy(() => import('./pages/system/ProviderManagementPage').then(module => ({ default: module.ProviderManagementPage })))
 
+const SystemInfoPage = lazy(() => import('./pages/system/SystemInfoPage').then(module => ({ default: module.SystemInfoPage })))
+
 function App() {
   const { colorMode, toggleColorMode } = useColorMode()
   const [currentPage, setCurrentPage] = useState<SystemPage>('chat')
@@ -27,6 +29,8 @@ function App() {
           <Suspense fallback={<div className="grid h-full place-items-center"><Spin /></div>}>
           {currentPage === 'chat' ? (
             <ChatPage />
+          ) : currentPage === 'system-info' ? (
+            <SystemInfoPage />
           ) : currentPage === 'ai-providers' ? (
             <ProviderManagementPage />
           ) : (

@@ -50,11 +50,9 @@ type SystemProviderLabelReq struct {
 
 // SystemModelSaveReq 模型新增/修改请求。
 type SystemModelSaveReq struct {
-	IsTask                     consts.Status          `json:"is_task" binding:"omitempty,oneof=1 2"`
 	ProviderID                 string                 `json:"provider_id" binding:"required"`
 	ModelName                  string                 `json:"model_name" binding:"required"`
 	ModelID                    string                 `json:"model_id" binding:"required"`
-	IsDefault                  consts.Status          `json:"is_default" binding:"required,oneof=1 2"`
 	ReasoningEnabled           consts.Status          `json:"reasoning_enabled" binding:"required,oneof=1 2"`
 	ReasoningEffort            consts.ReasoningEffort `json:"reasoning_effort" binding:"required,oneof=low medium high"`
 	TokenContextWindow         int                    `json:"token_context_window" binding:"min=0"`
@@ -66,11 +64,10 @@ type SystemModelSaveReq struct {
 
 // SystemModelPageReq 模型分页查询请求。
 type SystemModelPageReq struct {
-	ProviderID string         `json:"provider_id,omitempty" form:"provider_id"`
-	Keyword    string         `json:"keyword,omitempty" form:"keyword"`
-	IsDefault  *consts.Status `json:"is_default,omitempty" form:"is_default" binding:"omitempty,oneof=1 2"`
-	Page       int            `json:"page,omitempty" form:"page" binding:"required,min=1" minimum:"1" default:"1"`
-	PageSize   int            `json:"page_size,omitempty" form:"page_size" binding:"required,min=10,max=1000" minimum:"10" maximum:"1000" default:"10"`
+	ProviderID string `json:"provider_id,omitempty" form:"provider_id"`
+	Keyword    string `json:"keyword,omitempty" form:"keyword"`
+	Page       int    `json:"page,omitempty" form:"page" binding:"required,min=1" minimum:"1" default:"1"`
+	PageSize   int    `json:"page_size,omitempty" form:"page_size" binding:"required,min=10,max=1000" minimum:"10" maximum:"1000" default:"10"`
 }
 
 // SystemModelLabelReq 模型下拉选项查询请求；ProviderID 为空时返回全部模型。

@@ -403,6 +403,43 @@ definitions:
         description: 操作平台
         type: string
     type: object
+  system.SystemInfoResp:
+    properties:
+      default_model_id:
+        maxLength: 64
+        type: string
+      global_system_prompt:
+        description: 只读基础人设，与自定义提示词拼接后用于聊天
+        type: string
+      system_prompt:
+        maxLength: 20000
+        type: string
+      task_model_id:
+        maxLength: 64
+        type: string
+      user_agent:
+        maxLength: 512
+        type: string
+    required:
+    - user_agent
+    type: object
+  system.SystemInfoSaveReq:
+    properties:
+      default_model_id:
+        maxLength: 64
+        type: string
+      system_prompt:
+        maxLength: 20000
+        type: string
+      task_model_id:
+        maxLength: 64
+        type: string
+      user_agent:
+        maxLength: 512
+        type: string
+    required:
+    - user_agent
+    type: object
   system.SystemModelLabelResp:
     properties:
       label:
@@ -441,10 +478,6 @@ definitions:
         type: string
       id:
         type: string
-      is_default:
-        $ref: '#/definitions/consts.Status'
-      is_task:
-        $ref: '#/definitions/consts.Status'
       model_id:
         type: string
       model_name:
@@ -484,18 +517,6 @@ definitions:
         enum:
         - 1
         - 2
-      is_default:
-        allOf:
-        - $ref: '#/definitions/consts.Status'
-        enum:
-        - 1
-        - 2
-      is_task:
-        allOf:
-        - $ref: '#/definitions/consts.Status'
-        enum:
-        - 1
-        - 2
       model_id:
         type: string
       model_name:
@@ -525,7 +546,6 @@ definitions:
     - capability_structured_output
     - capability_tool_use
     - capability_vision
-    - is_default
     - model_id
     - model_name
     - provider_id
@@ -896,6 +916,43 @@ paths:
       summary: SystemAccessLogPage
       tags:
       - System
+  /v1/system/info:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemInfoResp'
+              type: object
+      summary: 读取全局系统配置
+      tags:
+      - System Info
+    put:
+      description: 默认模型及任务模型使用本地记录 ID，空字符串取消选择。User-Agent 必须为非空可打印 ASCII。保存后新发起的聊天和标题请求立即生效，不影响正在执行的请求。
+      parameters:
+      - description: 系统配置
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemInfoSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemInfoResp'
+              type: object
+      summary: 保存全局系统配置
+      tags:
+      - System Info
   /v1/system/model:
     post:
       parameters:
@@ -1007,17 +1064,6 @@ paths:
   /v1/system/model/page:
     get:
       parameters:
-      - enum:
-        - -1
-        - 1
-        - 2
-        in: query
-        name: is_default
-        type: integer
-        x-enum-varnames:
-        - IsUnknown
-        - IsTrue
-        - IsFalse
       - in: query
         name: keyword
         type: string

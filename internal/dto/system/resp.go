@@ -83,13 +83,11 @@ type SystemProviderLabelResp struct {
 
 // SystemModelResp 模型详情。
 type SystemModelResp struct {
-	IsTask                     consts.Status          `json:"is_task"`
 	ID                         string                 `json:"id"`
 	ProviderID                 string                 `json:"provider_id"`
 	ProviderName               string                 `json:"provider_name"`
 	ModelName                  string                 `json:"model_name"`
 	ModelID                    string                 `json:"model_id"`
-	IsDefault                  consts.Status          `json:"is_default"`
 	ReasoningEnabled           consts.Status          `json:"reasoning_enabled"`
 	ReasoningEffort            consts.ReasoningEffort `json:"reasoning_effort"`
 	TokenContextWindow         int                    `json:"token_context_window"`
@@ -106,11 +104,6 @@ func (r *SystemModelResp) LoadDb(e *ent.KaguyaModelsInfo) {
 	r.ProviderID = e.ProviderID
 	r.ModelName = e.ModelName
 	r.ModelID = e.ModelID
-	r.IsDefault = e.IsDefault
-	r.IsTask = consts.IsFalse
-	if e.IsTask != nil {
-		r.IsTask = *e.IsTask
-	}
 	r.ReasoningEnabled = e.ReasoningEnabled
 	r.ReasoningEffort = e.ReasoningEffort
 	r.TokenContextWindow = e.TokenContextWindow

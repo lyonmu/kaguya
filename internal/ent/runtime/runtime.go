@@ -12,6 +12,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
@@ -493,6 +494,48 @@ func init() {
 			return nil
 		}
 	}()
+	kaguyasysteminfoMixin := schema.KaguyaSystemInfo{}.Mixin()
+	kaguyasysteminfoMixinHooks0 := kaguyasysteminfoMixin[0].Hooks()
+	kaguyasysteminfo.Hooks[0] = kaguyasysteminfoMixinHooks0[0]
+	kaguyasysteminfo.Hooks[1] = kaguyasysteminfoMixinHooks0[1]
+	kaguyasysteminfoMixinFields0 := kaguyasysteminfoMixin[0].Fields()
+	_ = kaguyasysteminfoMixinFields0
+	kaguyasysteminfoFields := schema.KaguyaSystemInfo{}.Fields()
+	_ = kaguyasysteminfoFields
+	// kaguyasysteminfoDescCreatedAt is the schema descriptor for created_at field.
+	kaguyasysteminfoDescCreatedAt := kaguyasysteminfoMixinFields0[0].Descriptor()
+	// kaguyasysteminfo.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyasysteminfo.DefaultCreatedAt = kaguyasysteminfoDescCreatedAt.Default.(func() time.Time)
+	// kaguyasysteminfoDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyasysteminfoDescUpdatedAt := kaguyasysteminfoMixinFields0[1].Descriptor()
+	// kaguyasysteminfo.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyasysteminfo.DefaultUpdatedAt = kaguyasysteminfoDescUpdatedAt.Default.(func() time.Time)
+	// kaguyasysteminfo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyasysteminfo.UpdateDefaultUpdatedAt = kaguyasysteminfoDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyasysteminfoDescSystemPrompt is the schema descriptor for system_prompt field.
+	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[1].Descriptor()
+	// kaguyasysteminfo.DefaultSystemPrompt holds the default value on creation for the system_prompt field.
+	kaguyasysteminfo.DefaultSystemPrompt = kaguyasysteminfoDescSystemPrompt.Default.(string)
+	// kaguyasysteminfoDescUserAgent is the schema descriptor for user_agent field.
+	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[2].Descriptor()
+	// kaguyasysteminfo.DefaultUserAgent holds the default value on creation for the user_agent field.
+	kaguyasysteminfo.DefaultUserAgent = kaguyasysteminfoDescUserAgent.Default.(string)
+	// kaguyasysteminfo.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
+	kaguyasysteminfo.UserAgentValidator = kaguyasysteminfoDescUserAgent.Validators[0].(func(string) error)
+	// kaguyasysteminfoDescDefaultModelID is the schema descriptor for default_model_id field.
+	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[3].Descriptor()
+	// kaguyasysteminfo.DefaultDefaultModelID holds the default value on creation for the default_model_id field.
+	kaguyasysteminfo.DefaultDefaultModelID = kaguyasysteminfoDescDefaultModelID.Default.(string)
+	// kaguyasysteminfoDescTaskModelID is the schema descriptor for task_model_id field.
+	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[4].Descriptor()
+	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
+	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
+	// kaguyasysteminfoDescID is the schema descriptor for id field.
+	kaguyasysteminfoDescID := kaguyasysteminfoFields[0].Descriptor()
+	// kaguyasysteminfo.DefaultID holds the default value on creation for the id field.
+	kaguyasysteminfo.DefaultID = kaguyasysteminfoDescID.Default.(string)
+	// kaguyasysteminfo.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyasysteminfo.IDValidator = kaguyasysteminfoDescID.Validators[0].(func(string) error)
 }
 
 const (

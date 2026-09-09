@@ -386,6 +386,46 @@ var (
 			},
 		},
 	}
+	// KaguyaSystemInfoColumns holds the columns for the "kaguya_system_info" table.
+	KaguyaSystemInfoColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "system_prompt", Type: field.TypeString, Size: 2147483647, Comment: "追加到全局人设后的自定义提示词", Default: ""},
+		{Name: "user_agent", Type: field.TypeString, Size: 512, Comment: "出站模型 API 请求的 User-Agent", Default: "kaguya"},
+		{Name: "default_model_id", Type: field.TypeString, Comment: "默认聊天模型的本地记录 ID，空值表示未配置", Default: ""},
+		{Name: "task_model_id", Type: field.TypeString, Comment: "后台任务模型的本地记录 ID，空值表示未配置", Default: ""},
+	}
+	// KaguyaSystemInfoTable holds the schema information for the "kaguya_system_info" table.
+	KaguyaSystemInfoTable = &schema.Table{
+		Name:       "kaguya_system_info",
+		Comment:    "全局系统配置",
+		Columns:    KaguyaSystemInfoColumns,
+		PrimaryKey: []*schema.Column{KaguyaSystemInfoColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyasysteminfo_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaSystemInfoColumns[1]},
+			},
+			{
+				Name:    "kaguyasysteminfo_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaSystemInfoColumns[2]},
+			},
+			{
+				Name:    "kaguyasysteminfo_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaSystemInfoColumns[3]},
+			},
+			{
+				Name:    "kaguyasysteminfo_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaSystemInfoColumns[0]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		KaguyaAccessLogTable,
@@ -394,6 +434,7 @@ var (
 		KaguyaConversationTable,
 		KaguyaModelsInfoTable,
 		KaguyaProviderInfoTable,
+		KaguyaSystemInfoTable,
 	}
 )
 
@@ -428,6 +469,11 @@ func init() {
 	}
 	KaguyaProviderInfoTable.Annotation = &entsql.Annotation{
 		Table:     "kaguya_provider_info",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	}
+	KaguyaSystemInfoTable.Annotation = &entsql.Annotation{
+		Table:     "kaguya_system_info",
 		Charset:   "utf8mb4",
 		Collation: "utf8mb4_general_ci",
 	}

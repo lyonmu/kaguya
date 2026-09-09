@@ -26,6 +26,8 @@ type Tx struct {
 	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProviderInfo is the client for interacting with the KaguyaProviderInfo builders.
 	KaguyaProviderInfo *KaguyaProviderInfoClient
+	// KaguyaSystemInfo is the client for interacting with the KaguyaSystemInfo builders.
+	KaguyaSystemInfo *KaguyaSystemInfoClient
 
 	// lazily loaded.
 	client     *Client
@@ -163,6 +165,7 @@ func (tx *Tx) init() {
 	tx.KaguyaConversation = NewKaguyaConversationClient(tx.config)
 	tx.KaguyaModelsInfo = NewKaguyaModelsInfoClient(tx.config)
 	tx.KaguyaProviderInfo = NewKaguyaProviderInfoClient(tx.config)
+	tx.KaguyaSystemInfo = NewKaguyaSystemInfoClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

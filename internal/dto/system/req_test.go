@@ -36,17 +36,14 @@ func TestProviderRequestURLValidation(t *testing.T) {
 	}
 }
 
-func TestTaskModelValidation(t *testing.T) {
-	for _, status := range []consts.Status{0, consts.IsTrue, consts.IsFalse, 3, -1} {
-		req := SystemModelSaveReq{
-			ProviderID: "p", ModelName: "test", ModelID: "test", IsDefault: consts.IsFalse, IsTask: status,
-			ReasoningEnabled: consts.IsTrue, ReasoningEffort: consts.ReasoningEffortMedium,
-			CapabilityToolUse: consts.IsTrue, CapabilityVision: consts.IsTrue, CapabilityStructuredOutput: consts.IsTrue,
-		}
-		err := binding.Validator.ValidateStruct(req)
-		if (err != nil) != (status == 3 || status == -1) {
-			t.Errorf("is_task %d: %v", status, err)
-		}
+func TestModelNoLongerRequiresSelectionFlags(t *testing.T) {
+	req := SystemModelSaveReq{
+		ProviderID: "p", ModelName: "test", ModelID: "test",
+		ReasoningEnabled: consts.IsTrue, ReasoningEffort: consts.ReasoningEffortMedium,
+		CapabilityToolUse: consts.IsTrue, CapabilityVision: consts.IsTrue, CapabilityStructuredOutput: consts.IsTrue,
+	}
+	if err := binding.Validator.ValidateStruct(req); err != nil {
+		t.Fatal(err)
 	}
 }
 

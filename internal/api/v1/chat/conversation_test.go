@@ -20,6 +20,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
+	initialize "github.com/lyonmu/kaguya/internal/init"
 	"go.uber.org/zap"
 )
 
@@ -40,6 +41,9 @@ func TestConversationAPI(t *testing.T) {
 	oldClient, oldID, oldLogger := db.EntClient, global.Id, global.Logger
 	db.EntClient, global.Id, global.Logger = client, &historyAPIID{}, zap.NewNop()
 	defer func() { db.EntClient, global.Id, global.Logger = oldClient, oldID, oldLogger }()
+	if err := initialize.Run(ctx, client); err != nil {
+		t.Fatal(err)
+	}
 	at := time.Now()
 	if _, err := client.KaguyaConversation.Create().SetID("123").SetTitle("Kubernetes 分析").SetModelID("test").SetModelName("test").SetLastMessageAt(at).SetTurnCount(2).Save(ctx); err != nil {
 		t.Fatal(err)
