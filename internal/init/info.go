@@ -15,7 +15,9 @@ func Info(ctx context.Context, client *ent.Client) error {
 	return client.KaguyaSystemInfo.Create().
 		SetID(consts.SystemInfoID).
 		SetUserAgent(consts.DefaultUserAgent).
-		SetSystemPrompt("").
+		SetSystemPrompt(`## Language
+
+* Communicate with the user in Chinese by default.`).
 		OnConflictColumns(kaguyasysteminfo.FieldID).
 		Ignore().
 		Exec(ctx)
