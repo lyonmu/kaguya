@@ -8,6 +8,8 @@ COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY web/ ./
+# 对话头像引用仓库根目录的原图，前端构建阶段也需要复制。
+COPY images/kaguya.png /kaguya/images/kaguya.png
 RUN bun run build
 
 FROM golang:1.27-alpine AS builder

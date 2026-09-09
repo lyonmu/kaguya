@@ -96,6 +96,10 @@ export interface Turn {
 }
 
 export interface TurnPage {
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
   items: Turn[]
   has_more: boolean
   next_before: number

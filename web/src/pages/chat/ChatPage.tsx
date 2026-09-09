@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Pagination, Segmented, Spin, Tooltip } from 'antd'
+import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Segmented, Spin, Tooltip } from 'antd'
 import { DeleteOutlined, EditOutlined, MenuOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons'
 import { deleteConversation, updateConversation } from '../../features/chat/api'
 import { useConversations } from '../../features/chat/useConversations'
 import { useChat } from '../../features/chat/useChat'
+import { VirtualList } from '../../features/chat/components/VirtualList'
 import { MessageList } from '../../features/chat/components/MessageList'
 import { Composer } from '../../features/chat/components/Composer'
 import './chat.css'
@@ -62,13 +63,13 @@ export function ChatPage() {
       <Input aria-label="搜索对话标题前缀" placeholder="搜索对话（标题前缀）" prefix={<SearchOutlined />} value={sessions.keyword} onChange={event => sessions.search(event.target.value)} allowClear maxLength={200} />
       <Segmented size="small" value={sessions.favorite ? '收藏' : '全部'} options={['全部', '收藏']} onChange={value => sessions.filter(value === '收藏')} />
     </div>
-    <div className="chat-session-list">
+    <div className="chat-session-status">
       {sessions.error && <Alert type="error" title={sessions.error} action={<Button size="small" onClick={sessions.refresh}>重试</Button>} />}
       {sessions.loading && !sessions.items.length && <div className="chat-center"><Spin size="small" /></div>}
       {!sessions.loading && !sessions.error && !sessions.items.length && <p className="chat-center chat-muted">暂无{sessions.favorite ? '收藏' : ''}对话</p>}
-      {sessions.items.map(item => <button className={`chat-session ${chat.id === item.id ? 'active' : ''}`} key={item.id} disabled={chat.streaming || saving} onClick={() => select(item.id)}><span className="chat-session-title">{item.favorite && <StarFilled />} {item.title}</span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span><time>{new Date(item.last_message_at).toLocaleDateString()}</time></span></button>)}
     </div>
-    <div className="chat-sidebar-footer"><Pagination simple size="small" current={sessions.page} total={sessions.total} pageSize={20} onChange={sessions.setPage} hideOnSinglePage /><Button type="text" size="small" icon={<ReloadOutlined />} onClick={sessions.refresh}>刷新列表</Button></div>
+    <VirtualList key={`${sessions.keyword}:${sessions.favorite}`} className="chat-session-list" items={sessions.items} itemKey={item => item.id} estimate={76} onEnd={sessions.loadMore} renderItem={item => <button className={`chat-session ${chat.id === item.id ? 'active' : ''}`} key={item.id} disabled={chat.streaming || saving} onClick={() => select(item.id)}><span className="chat-session-title">{item.favorite && <StarFilled />} {item.title}</span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span><time>{new Date(item.last_message_at).toLocaleDateString()}</time></span></button>} />
+    <div className="chat-sidebar-footer">{sessions.loading && !!sessions.items.length && <Spin size="small" />} <Button type="text" size="small" icon={<ReloadOutlined />} onClick={sessions.refresh}>刷新列表</Button></div>
   </div>
   return <div className="chat-workspace">
     {!sidebarCollapsed && <aside className="chat-sidebar">{sidebar}</aside>}
@@ -84,7 +85,7 @@ export function ChatPage() {
         </div>
       </header>
       {chat.error && <Alert type="error" title={chat.error} showIcon />}
-      <MessageList key={chat.viewKey} turns={chat.turns} loading={chat.loading} hasMore={chat.hasMore} streaming={chat.streaming} onLoadMore={chat.loadMore} />
+      <MessageList key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
       <Composer conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} streaming={chat.streaming} disabled={chat.loading || saving || (!!chat.id && !chat.conversation)} onSend={send} onStop={chat.stop} />
     </section>
     <Modal title="重命名对话" open={renaming} confirmLoading={saving} onCancel={() => setRenaming(false)} onOk={() => void update({ title: title.trim() })} okButtonProps={{ disabled: !title.trim() }}><Input aria-label="对话标题" value={title} maxLength={200} onChange={event => setTitle(event.target.value)} /></Modal>

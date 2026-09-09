@@ -1,6 +1,6 @@
 package chat
 
-// ConversationContextResp 上下文占用与累计计费用量不同，不累加历史轮次或工具 step。
+// ConversationContextResp 累计所有已完成轮次的 total_tokens（含跨模型），以最新轮次的模型窗口计算占比；不是实际上下文占用。
 type ConversationContextResp struct {
 	ConversationID   string   `json:"conversation_id"`
 	TurnIndex        int64    `json:"turn_index"`

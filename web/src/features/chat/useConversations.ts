@@ -5,7 +5,8 @@ import type { Conversation, ConversationTitle } from './types'
 export function useConversations() {
   const [keyword, setKeyword] = useState('')
   const [favorite, setFavorite] = useState(false)
-  const [page, setPage] = useState(1)
+  const page = useRef(1)
+  const busy = useRef(false)
   const [version, setVersion] = useState(0)
   const [items, setItems] = useState<Conversation[]>([])
   const [total, setTotal] = useState(0)
@@ -15,7 +16,9 @@ export function useConversations() {
   const titleUpdates = useRef(new Map<string, string>())
   const refresh = useCallback(() => setVersion(value => value + 1), [])
 
-  const load = useCallback(async (foreground: boolean) => {
+  const load = useCallback(async (foreground: boolean, append = false) => {
+    if (append && busy.current) return
+    busy.current = true
     request.current?.abort()
     const controller = new AbortController()
     request.current = controller
@@ -25,16 +28,20 @@ export function useConversations() {
     if (foreground) setLoading(true)
     setError('')
     try {
-      const result = await fetchConversations(keyword, favorite, page, controller.signal)
+      const nextPage = append ? page.current + 1 : page.current
+      const results = await Promise.all((append ? [nextPage] : Array.from({ length: nextPage }, (_, index) => index + 1))
+        .map(value => fetchConversations(keyword, favorite, value, controller.signal)))
       if (controller.signal.aborted) return
-      setItems((result.items ?? []).map(item => patches.has(item.id) ? { ...item, title: patches.get(item.id)! } : item))
-      setTotal(result.total)
+      const loaded = results.flatMap(result => result.items ?? []).map(item => patches.has(item.id) ? { ...item, title: patches.get(item.id)! } : item)
+      setItems(current => [...new Map((append ? [...current, ...loaded] : loaded).map(item => [item.id, item])).values()])
+      page.current = nextPage
+      setTotal(results[0].total)
     } catch (error) {
       if (!controller.signal.aborted) setError(error instanceof Error ? error.message : '加载会话失败')
     } finally {
-      if (!controller.signal.aborted) setLoading(false)
+      if (!controller.signal.aborted) { setLoading(false); busy.current = false }
     }
-  }, [keyword, favorite, page])
+  }, [keyword, favorite])
 
   useEffect(() => {
     const timer = setTimeout(() => void load(true), 250)
@@ -51,8 +58,9 @@ export function useConversations() {
   }, [])
 
   return {
-    items, total, loading, error, keyword, favorite, page, refresh, refreshQuietly, updateTitle, setPage,
-    search: (value: string) => { setKeyword(value); setPage(1) },
-    filter: (value: boolean) => { setFavorite(value); setPage(1) },
+    items, total, loading, error, keyword, favorite, refresh, refreshQuietly, updateTitle,
+    loadMore: () => { if (!loading && !error && items.length < total) void load(true, true) },
+    search: (value: string) => { request.current?.abort(); page.current = 1; setItems([]); setTotal(0); setLoading(true); setKeyword(value) },
+    filter: (value: boolean) => { request.current?.abort(); page.current = 1; setItems([]); setTotal(0); setLoading(true); setFavorite(value) },
   }
 }

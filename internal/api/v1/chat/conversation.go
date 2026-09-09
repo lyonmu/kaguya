@@ -125,7 +125,7 @@ func (b *ChatApiV1Group) ConversationTitleGenerate(c *gin.Context) {
 // ConversationTurns
 // @Tags Chat History
 // @Summary 按原始执行顺序读取完整轮次（聊天/Trace/工具详情）
-// @Description 首屏最新 limit 轮，返回正序；用 next_before 向前加载并前插。轮内 blocks 按 sequence 正序；工具输入输出合并一行，start_order/end_order 可还原并行工具时间线。不返回用于模型恢复的私有 metadata。
+// @Description page>0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 兼容原游标：首屏最新 limit 轮，用 next_before 向前加载。has_more 表示仍有更早轮次。所有结果与 blocks 均正序；工具输入输出合并，不返回模型私有 metadata。
 // @Param id path string true "会话雪花 ID"
 // @Param data query dtochat.TurnPageReq true "历史游标"
 // @Success 200 {object} dtocode.Response{data=dtochat.TurnListResp}

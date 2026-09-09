@@ -24,6 +24,7 @@ func TestConversationContextUsesLatestCompletedModel(t *testing.T) {
 	first.ModelID, first.ContextWindow = "large", 1000
 	tokens := int64(450)
 	first.ContextTokens = &tokens
+	first.Usage.TotalTokens = 450
 	if err := saveCompletedTurn(ctx, first); err != nil {
 		t.Fatal(err)
 	}
@@ -33,11 +34,12 @@ func TestConversationContextUsesLatestCompletedModel(t *testing.T) {
 	}
 	second := testCompletedTurn("context", 1)
 	second.ModelID, second.ContextWindow, second.ContextTokens = "small", 500, &tokens
+	second.Usage.TotalTokens = 450
 	if err := saveCompletedTurn(ctx, second); err != nil {
 		t.Fatal(err)
 	}
 	got, err = svc.ConversationContext(ctx, "context")
-	if err != nil || got.ModelID != "small" || got.TurnIndex != 2 || got.EffectiveWindow != 450 || *got.Percent != 100 {
+	if err != nil || got.ModelID != "small" || got.TurnIndex != 2 || got.EffectiveWindow != 450 || *got.Percent != 200 || *got.ContextTokens != 900 {
 		t.Fatalf("latest context=%+v err=%v", got, err)
 	}
 	second.Version, second.ContextWindow = 2, 100
@@ -45,10 +47,12 @@ func TestConversationContextUsesLatestCompletedModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err = svc.ConversationContext(ctx, "context")
-	if err != nil || *got.Percent != 500 {
+	if err != nil || *got.Percent != 1500 {
 		t.Fatalf("overflow percentage should not be clamped: %+v %v", got, err)
 	}
-	if err := saveCompletedTurn(ctx, testCompletedTurn("legacy", 0)); err != nil {
+	legacy := testCompletedTurn("legacy", 0)
+	legacy.Usage.TotalTokens = 0
+	if err := saveCompletedTurn(ctx, legacy); err != nil {
 		t.Fatal(err)
 	}
 	got, err = svc.ConversationContext(ctx, "legacy")

@@ -23,7 +23,8 @@ type ConversationTitleResp struct {
 
 // TurnPageReq 以完整轮次分页，不截断工具输入输出；首屏最近若干轮，返回值始终按时间正序。
 type TurnPageReq struct {
-	Before int64 `form:"before" binding:"min=0"` // 上页 next_before；0 表示最新
+	Page   int   `form:"page" binding:"min=0,max=1000000"` // 1 起按时间正序分页；0 使用原有 before 游标，与 before 互斥
+	Before int64 `form:"before" binding:"min=0"`           // 上页 next_before；0 表示最新
 	Limit  int   `form:"limit,default=20" binding:"min=1,max=100"`
 }
 type ConversationResp struct {
@@ -79,6 +80,10 @@ type StoredTurn struct {
 	Blocks       []StoredBlock `json:"blocks"`
 }
 type TurnListResp struct {
+	Total      int64        `json:"total"`
+	Page       int          `json:"page"` // 页码模式为实际页码；游标模式为 0
+	PageSize   int          `json:"page_size"`
+	TotalPages int          `json:"total_pages"`
 	Items      []StoredTurn `json:"items"` // 按 turn_index 升序，每轮 blocks 按 sequence 升序
 	HasMore    bool         `json:"has_more"`
 	NextBefore int64        `json:"next_before"` // 向前加载更早轮次的游标

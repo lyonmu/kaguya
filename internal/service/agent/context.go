@@ -32,7 +32,7 @@ func contextResponse(turn *ent.KaguyaChatTurn) *dtochat.ConversationContextResp 
 	return resp
 }
 
-// ConversationContext 使用最新完整轮次的窗口快照，跨模型对话不沿用首轮模型。
+// ConversationContext 累计会话所有已完成轮次（不区分模型）的 token，使用最新轮次的模型窗口。
 func (s *AgentSvc) ConversationContext(ctx context.Context, id string) (*dtochat.ConversationContextResp, error) {
 	turn, err := db.EntClient.KaguyaChatTurn.Query().
 		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.HasConversationWith(kaguyaconversation.DeletedAtIsNil())).
@@ -43,6 +43,20 @@ func (s *AgentSvc) ConversationContext(ctx context.Context, id string) (*dtochat
 	}
 	if err != nil {
 		return nil, err
+	}
+	var usage []struct {
+		Total int64 `json:"total"`
+	}
+	err = db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(turn.TurnIndex)).
+		Aggregate(ent.As(ent.Sum(kaguyachatturn.FieldTotalTokens), "total")).Scan(ctx, &usage)
+	if err != nil {
+		return nil, err
+	}
+	total := usage[0].Total
+	turn.ContextTokens = nil
+	if total > 0 {
+		turn.ContextTokens = &total
 	}
 	return contextResponse(turn), nil
 }

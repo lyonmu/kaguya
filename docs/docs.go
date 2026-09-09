@@ -186,11 +186,11 @@ const docTemplate = `{
         },
         "/v1/chat/conversation/{id}/context": {
             "get": {
-                "description": "以最后一次模型调用输入（含缓存）与输出估算上下文，分母为该轮模型窗口的90%；不累加历史计费用量，不裁剪消息。旧记录或供应商未报告用量时 percent 为 null。",
+                "description": "累计所有已完成轮次的 total_tokens（含跨模型和工具 step），分母为最新完整轮次模型窗口的90%；不代表实际上下文占用，不裁剪消息。无累计用量或模型窗口时 percent 为 null。",
                 "tags": [
                     "Chat History"
                 ],
-                "summary": "最近完整轮次的整个会话上下文占用",
+                "summary": "整个会话累计 token 占比",
                 "parameters": [
                     {
                         "type": "string",
@@ -298,7 +298,7 @@ const docTemplate = `{
         },
         "/v1/chat/conversation/{id}/turns": {
             "get": {
-                "description": "首屏最新 limit 轮，返回正序；用 next_before 向前加载并前插。轮内 blocks 按 sequence 正序；工具输入输出合并一行，start_order/end_order 可还原并行工具时间线。不返回用于模型恢复的私有 metadata。",
+                "description": "page\u003e0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 兼容原游标：首屏最新 limit 轮，用 next_before 向前加载。has_more 表示仍有更早轮次。所有结果与 blocks 均正序；工具输入输出合并，不返回模型私有 metadata。",
                 "tags": [
                     "Chat History"
                 ],
@@ -323,6 +323,14 @@ const docTemplate = `{
                         "minimum": 1,
                         "type": "integer",
                         "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000000,
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "1 起按时间正序分页；0 使用原有 before 游标，与 before 互斥",
+                        "name": "page",
                         "in": "query"
                     }
                 ],
@@ -1547,6 +1555,19 @@ const docTemplate = `{
                 },
                 "next_before": {
                     "description": "向前加载更早轮次的游标",
+                    "type": "integer"
+                },
+                "page": {
+                    "description": "页码模式为实际页码；游标模式为 0",
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
                     "type": "integer"
                 }
             }

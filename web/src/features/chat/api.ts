@@ -20,6 +20,9 @@ export function generateConversationTitle(id: string, signal?: AbortSignal) {
 export function fetchTurns(id: string, before = 0, signal?: AbortSignal) {
   return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { before, limit: 20 }, signal)
 }
+export function fetchTurnPage(id: string, page: number, signal?: AbortSignal) {
+  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: 20 }, signal)
+}
 export function updateConversation(id: string, payload: { title?: string; favorite?: boolean }) {
   return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload)
 }

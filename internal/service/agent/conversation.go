@@ -233,12 +233,20 @@ func (s *AgentSvc) ConversationDelete(ctx context.Context, id string) error {
 	return err
 }
 func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtochat.TurnPageReq) (*dtochat.TurnListResp, error) {
+	if req.Limit < 1 || req.Limit > 100 || req.Page < 0 || req.Before < 0 || (req.Page > 0 && req.Before > 0) {
+		return nil, ErrConversationUpdate
+	}
 	conv, err := s.ConversationDetail(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	q := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(conv.TurnCount))
-	if req.Before > 0 {
+	totalPages := int((conv.TurnCount + int64(req.Limit) - 1) / int64(req.Limit))
+	page := req.Page
+	if page > 0 {
+		page = min(page, max(totalPages, 1))
+		q.Where(kaguyachatturn.TurnIndexGT(int64(page-1)*int64(req.Limit)), kaguyachatturn.TurnIndexLTE(int64(page)*int64(req.Limit)))
+	} else if req.Before > 0 {
 		q.Where(kaguyachatturn.TurnIndexLT(req.Before))
 	}
 	// 展示查询不读取体积较大且包含 provider 私有元数据的模型上下文。
@@ -253,7 +261,8 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 	if err != nil {
 		return nil, err
 	}
-	resp := &dtochat.TurnListResp{Items: make([]dtochat.StoredTurn, 0), HasMore: len(rows) > req.Limit}
+	resp := &dtochat.TurnListResp{Items: make([]dtochat.StoredTurn, 0), HasMore: len(rows) > req.Limit,
+		Total: conv.TurnCount, Page: page, PageSize: req.Limit, TotalPages: totalPages}
 	if resp.HasMore {
 		rows = rows[:req.Limit]
 	}
@@ -277,7 +286,10 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 		}
 		resp.Items = append(resp.Items, turn)
 	}
-	if resp.HasMore {
+	if page > 0 {
+		resp.HasMore = page > 1
+	}
+	if resp.HasMore && len(resp.Items) > 0 {
 		resp.NextBefore = resp.Items[0].TurnIndex
 	}
 	return resp, nil

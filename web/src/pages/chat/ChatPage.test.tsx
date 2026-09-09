@@ -18,6 +18,8 @@ const { render, fireEvent, cleanup, waitFor, act } = await import('@testing-libr
 const { App } = await import('antd')
 const { ChatPage } = await import('./ChatPage')
 const { AppLayout } = await import('../../components/layout/AppLayout')
+const { VirtualList } = await import('../../features/chat/components/VirtualList')
+const { MessageList } = await import('../../features/chat/components/MessageList')
 const originalFetch = globalThis.fetch
 const response = (data: unknown) => Response.json({ code: 100000, data })
 afterEach(async () => {
@@ -50,6 +52,44 @@ it('hides runtime details, toggles the conversation panel and offers model selec
   await waitFor(() => assert.ok(view.getByText('提供商 A / 模型 A')))
   fireEvent.click(view.getByText('提供商 A / 模型 A'))
   await waitFor(() => assert.ok(selector.closest('.ant-select')?.textContent?.includes('提供商 A / 模型 A')))
+})
+
+it('virtualizes long lists and updates the visible window on scroll', () => {
+  const original = dom.HTMLElement.prototype.getBoundingClientRect
+  dom.HTMLElement.prototype.getBoundingClientRect = () => new dom.DOMRect(0, 0, 500, 100)
+  try {
+    const view = render(<VirtualList items={Array.from({ length: 1000 }, (_, index) => index)} itemKey={item => item} estimate={100} renderItem={item => <span data-testid="row">{item}</span>} />)
+    assert.ok(view.getAllByTestId('row').length < 20)
+    const viewport = view.container.firstElementChild!
+    Object.defineProperty(viewport, 'clientHeight', { value: 500, configurable: true })
+    fireEvent.scroll(viewport, { target: { scrollTop: 5000 } })
+    assert.ok(view.getAllByTestId('row').length < 20)
+    assert.ok(view.getByText('50'))
+    assert.equal(view.queryByText('0'), null)
+  } finally { dom.HTMLElement.prototype.getBoundingClientRect = original }
+})
+
+it('uses the supplied images for conversation avatars and the welcome logo', () => {
+  const props = { loading: false, streaming: false, page: 1, totalPages: 1, initialEnd: false, onPageChange: async () => {} }
+  const view = render(<MessageList {...props} turns={[]} />)
+  const welcomeSource = view.getByAltText('Kaguya').getAttribute('src')
+  assert.ok(welcomeSource?.endsWith('/images/kaguya.png'))
+  view.rerender(<MessageList {...props} turns={[{ turn_index: 1, user_content: '你好', model_name: '', model_id: '', api_protocol: '', started_at: new Date().toISOString(), duration_ms: 0, tool_calls: 0, blocks: [] }]} />)
+  assert.equal(view.getByAltText('Kaguya 头像').getAttribute('src'), welcomeSource)
+  assert.ok(view.getByAltText('用户头像').getAttribute('src')?.endsWith('/assets/lyonmu.png'))
+})
+
+it('shows one dash per message page and synchronizes the selected page', () => {
+  let selected = 0
+  const props = { turns: [], loading: false, streaming: false, totalPages: 3, initialEnd: false, onPageChange: async (page: number) => { selected = page } }
+  const view = render(<MessageList {...props} page={3} />)
+  assert.equal(view.getByLabelText('第 3 页').getAttribute('aria-current'), 'page')
+  fireEvent.click(view.getByLabelText('第 1 页'))
+  assert.equal(selected, 1)
+  view.rerender(<MessageList {...props} page={1} />)
+  assert.equal(view.getByLabelText('第 1 页').getAttribute('aria-current'), 'page')
+  assert.equal(view.getByLabelText('第 3 页').getAttribute('aria-current'), null)
+  assert.equal(view.container.querySelectorAll('.chat-page-rail button').length, 3)
 })
 
 it('opens AI providers when entering system settings', () => {

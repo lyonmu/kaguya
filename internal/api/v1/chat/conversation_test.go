@@ -96,7 +96,7 @@ func TestConversationAPI(t *testing.T) {
 	}
 	ok, bad, missing := dtocode.SystemSuccess.Code, dtocode.RequestParameterError.Code, dtocode.ConversationNotFound.Code
 	usage := request("GET", "/conversation/123/context", "", ok)
-	if usage["percent"] != float64(50) || usage["turn_index"] != float64(2) {
+	if usage["percent"] != float64(6)/900*100 || usage["context_tokens"] != float64(6) || usage["turn_index"] != float64(2) {
 		t.Fatalf("context: %+v", usage)
 	}
 	request("GET", "/conversation/unknown/context", "", missing)
@@ -107,6 +107,16 @@ func TestConversationAPI(t *testing.T) {
 	}
 	request("GET", "/conversation/page?page_size=101", "", bad)
 	request("GET", "/conversation/123/turns?limit=0", "", bad)
+	request("GET", "/conversation/123/turns?page=-1", "", bad)
+	request("GET", "/conversation/123/turns?page=1&before=2", "", bad)
+	for _, page := range []int{1, 2, 999} {
+		result := request("GET", fmt.Sprintf("/conversation/123/turns?page=%d&limit=1", page), "", ok)
+		want := float64(min(page, 2))
+		items := result["items"].([]any)
+		if result["page"] != want || result["total"] != float64(2) || result["total_pages"] != float64(2) || len(items) != 1 || items[0].(map[string]any)["turn_index"] != want {
+			t.Fatalf("page %d: %+v", page, result)
+		}
+	}
 	request("GET", "/conversation/123/turns?before=-1", "", bad)
 	page := request("GET", "/conversation/123/turns?limit=1", "", ok)
 	if page["has_more"] != true || page["next_before"] != float64(2) {
