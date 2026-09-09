@@ -40,7 +40,7 @@ build: frontend
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
 
 install: build
-	install -m 0755 ./target/$(PROJECT_NAME) /usr/bin/$(PROJECT_NAME)
+	install -m 0755 ./target/$(PROJECT_NAME) ~/.local/bin/$(PROJECT_NAME)
 
 .PHONY: docker
 docker:
