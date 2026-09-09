@@ -73,7 +73,7 @@ export function AppLayout({
                 className={`h-11! w-11! rounded-xl! ${currentPage !== 'chat' ? 'bg-k-selected! text-k-primary!' : 'text-k-text-muted!'}`}
                 icon={<SettingOutlined />}
                 type="text"
-                onClick={() => onPageChange('access-logs')}
+                onClick={() => onPageChange('ai-providers')}
               />
             </div>
           </Tooltip>

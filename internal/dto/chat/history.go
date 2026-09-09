@@ -28,7 +28,7 @@ type TurnPageReq struct {
 }
 type ConversationResp struct {
 	ID            string    `json:"id"`
-	Title         string    `json:"title"` // 首轮成功后异步生成，AI 标题最多20字符；等待/失败时为“新对话”，每轮 done 后仍为默认标题时可 POST title/wait 生成或重试
+	Title         string    `json:"title"` // AI 标题最多20字符；每轮 done 后仍为“新对话”时，由前端 POST title/wait 使用全局任务模型生成或重试
 	Favorite      bool      `json:"favorite"`
 	TurnCount     int64     `json:"turn_count"`
 	ModelID       string    `json:"model_id"`

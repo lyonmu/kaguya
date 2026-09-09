@@ -133,6 +133,8 @@ func TestConversationAPI(t *testing.T) {
 	request("GET", "/conversation/"+strings.Repeat("1", 65)+"/title/wait", "", bad)
 	request("GET", "/conversation/unknown/title/wait", "", missing)
 	request("GET", "/conversation/unknown", "", missing)
+	request("PUT", "/conversation/123", `{"title":"新对话"}`, ok)
+	request("POST", "/conversation/123/title/wait", "", dtocode.TaskModelNotConfigured.Code)
 	request("DELETE", "/conversation/123", "", ok)
 	request("POST", "/conversation/123/title/wait", "", missing)
 	request("GET", "/conversation/123/title/wait", "", missing)

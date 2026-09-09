@@ -92,6 +92,12 @@ func APIProtocol(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	return predicate.KaguyaProviderInfo(sql.FieldEQ(FieldAPIProtocol, vc))
 }
 
+// ProviderType applies equality check predicate on the "provider_type" field. It's identical to ProviderTypeEQ.
+func ProviderType(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldEQ(FieldProviderType, vc))
+}
+
 // APIKey applies equality check predicate on the "api_key" field. It's identical to APIKeyEQ.
 func APIKey(v string) predicate.KaguyaProviderInfo {
 	return predicate.KaguyaProviderInfo(sql.FieldEQ(FieldAPIKey, v))
@@ -389,6 +395,90 @@ func APIProtocolEqualFold(v consts.ProviderProtocol) predicate.KaguyaProviderInf
 func APIProtocolContainsFold(v consts.ProviderProtocol) predicate.KaguyaProviderInfo {
 	vc := string(v)
 	return predicate.KaguyaProviderInfo(sql.FieldContainsFold(FieldAPIProtocol, vc))
+}
+
+// ProviderTypeEQ applies the EQ predicate on the "provider_type" field.
+func ProviderTypeEQ(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldEQ(FieldProviderType, vc))
+}
+
+// ProviderTypeNEQ applies the NEQ predicate on the "provider_type" field.
+func ProviderTypeNEQ(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldNEQ(FieldProviderType, vc))
+}
+
+// ProviderTypeIn applies the In predicate on the "provider_type" field.
+func ProviderTypeIn(vs ...consts.ProviderType) predicate.KaguyaProviderInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = string(vs[i])
+	}
+	return predicate.KaguyaProviderInfo(sql.FieldIn(FieldProviderType, v...))
+}
+
+// ProviderTypeNotIn applies the NotIn predicate on the "provider_type" field.
+func ProviderTypeNotIn(vs ...consts.ProviderType) predicate.KaguyaProviderInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = string(vs[i])
+	}
+	return predicate.KaguyaProviderInfo(sql.FieldNotIn(FieldProviderType, v...))
+}
+
+// ProviderTypeGT applies the GT predicate on the "provider_type" field.
+func ProviderTypeGT(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldGT(FieldProviderType, vc))
+}
+
+// ProviderTypeGTE applies the GTE predicate on the "provider_type" field.
+func ProviderTypeGTE(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldGTE(FieldProviderType, vc))
+}
+
+// ProviderTypeLT applies the LT predicate on the "provider_type" field.
+func ProviderTypeLT(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldLT(FieldProviderType, vc))
+}
+
+// ProviderTypeLTE applies the LTE predicate on the "provider_type" field.
+func ProviderTypeLTE(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldLTE(FieldProviderType, vc))
+}
+
+// ProviderTypeContains applies the Contains predicate on the "provider_type" field.
+func ProviderTypeContains(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldContains(FieldProviderType, vc))
+}
+
+// ProviderTypeHasPrefix applies the HasPrefix predicate on the "provider_type" field.
+func ProviderTypeHasPrefix(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldHasPrefix(FieldProviderType, vc))
+}
+
+// ProviderTypeHasSuffix applies the HasSuffix predicate on the "provider_type" field.
+func ProviderTypeHasSuffix(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldHasSuffix(FieldProviderType, vc))
+}
+
+// ProviderTypeEqualFold applies the EqualFold predicate on the "provider_type" field.
+func ProviderTypeEqualFold(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldEqualFold(FieldProviderType, vc))
+}
+
+// ProviderTypeContainsFold applies the ContainsFold predicate on the "provider_type" field.
+func ProviderTypeContainsFold(v consts.ProviderType) predicate.KaguyaProviderInfo {
+	vc := string(v)
+	return predicate.KaguyaProviderInfo(sql.FieldContainsFold(FieldProviderType, vc))
 }
 
 // APIKeyEQ applies the EQ predicate on the "api_key" field.

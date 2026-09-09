@@ -103,6 +103,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 			dataChan := make(chan *dtochat.ChatResp)
 			go agentvc.Chat(turnCtx, dataChan, &dtochat.ChatReq{
 				ID:       req.ID,
+				ModelID:  req.ModelID,
 				Messages: req.Messages,
 			})
 

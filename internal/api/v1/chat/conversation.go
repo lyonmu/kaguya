@@ -17,6 +17,8 @@ func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
 		return
 	}
 	switch {
+	case errors.Is(err, serviceagent.ErrTaskModelNotConfigured):
+		dtocode.TaskModelNotConfigured.Failure(c)
 	case errors.Is(err, serviceagent.ErrConversationNotFound):
 		dtocode.ConversationNotFound.Failure(c)
 	case errors.Is(err, serviceagent.ErrConversationBusy):
@@ -72,8 +74,8 @@ func (b *ChatApiV1Group) ConversationDetail(c *gin.Context) {
 
 // ConversationTitleWait
 // @Tags Chat History
-// @Summary 等待首轮标题生成并返回已保存标题
-// @Description 首轮 SSE done 后调用一次，最多等待30秒，不重新生成标题。生成失败或超时返回当前标题，无需轮询。仅等待当前进程的任务；多实例部署需将 SSE 和此请求路由到同一实例，否则直接返回当前标题。不存在或已删除会话返回会话不存在。
+// @Summary 等待已有标题任务并返回已保存标题
+// @Description 兼容等待接口，不启动生成任务；无任务时直接返回当前标题。仅等待当前进程的任务，最多30秒。新客户端应使用 POST 接口生成标题。不存在或已删除会话返回会话不存在。
 // @Param id path string true "会话雪花 ID"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationTitleResp}
 // @Router /v1/chat/conversation/{id}/title/wait [get]
@@ -98,7 +100,7 @@ func (b *ChatApiV1Group) ConversationTitleWait(c *gin.Context) {
 // ConversationTitleGenerate
 // @Tags Chat History
 // @Summary 默认标题生成或重试，并等待已保存标题
-// @Description 每轮成功结束且标题仍为“新对话”时调用一次。已有任务则等待，无任务则根据已保存首轮问答生成并条件更新数据库，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试。
+// @Description 每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。
 // @Param id path string true "会话雪花 ID"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationTitleResp}
 // @Router /v1/chat/conversation/{id}/title/wait [post]

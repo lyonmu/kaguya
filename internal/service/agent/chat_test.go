@@ -93,7 +93,7 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("test").SetModelID("test").SetIsDefault(consts.IsTrue).Save(ctx)
+	_, err = client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("test").SetModelID("test").SetIsDefault(consts.IsTrue).SetIsTask(consts.IsTrue).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,12 +145,18 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 		}
 	}
 	id, _ := run("", "first-question")
-	// 标题请求被阻塞时，聊天仍已返回 done；结束请求不应取消后台生成。
+	// 聊天完成不自动生成标题，必须由客户端显式请求。
+	if titleCalls.Load() != 0 {
+		t.Fatal("chat automatically generated title")
+	}
 	initial, err := client.KaguyaConversation.Get(ctx, id)
 	if err != nil || initial.Title != defaultConversationTitle {
 		t.Fatalf("initial title: %+v %v", initial, err)
 	}
 	close(titleGate)
+	if _, err := (&AgentSvc{}).ConversationTitleGenerate(ctx, id); err != nil {
+		t.Fatal(err)
+	}
 	waitConversationTitle(t, ctx, client, id, "会话测试标题")
 	resumed, req := run(id, "second-question")
 	count, err := client.KaguyaConversation.Query().Count(ctx)
@@ -170,9 +176,15 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 	if other == id || strings.Contains(string(req.messages), "first-question") {
 		t.Fatal("new conversation reused old history")
 	}
+	if titleCalls.Load() != 1 {
+		t.Fatal("chat generated another title without a request")
+	}
+	if _, err := (&AgentSvc{}).ConversationTitleGenerate(ctx, other); err != nil {
+		t.Fatal(err)
+	}
 	waitConversationTitle(t, ctx, client, other, "会话测试标题")
 	if titleCalls.Load() != 2 {
-		t.Fatalf("title calls=%d; only first turns should generate titles", titleCalls.Load())
+		t.Fatalf("title calls=%d; only explicit requests should generate titles", titleCalls.Load())
 	}
 }
 

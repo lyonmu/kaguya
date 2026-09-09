@@ -18,13 +18,20 @@ func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
 	ctx, client := setupChatTest(t)
 	var calls atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("x-opencode-session") != "123" {
+			t.Error("missing task session header")
+		}
 		var body struct {
+			Model    string `json:"model"`
 			Messages []struct {
 				Content string `json:"content"`
 			} `json:"messages"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
+		}
+		if body.Model != "background-model" {
+			t.Errorf("task model = %q", body.Model)
 		}
 		if len(body.Messages) != 2 || !strings.Contains(body.Messages[1].Content, "你好") || !strings.Contains(body.Messages[1].Content, "回答") || strings.Contains(body.Messages[1].Content, "思考") || strings.Contains(body.Messages[1].Content, "找到") {
 			t.Errorf("title input must contain only visible first-turn text: %+v", body)
@@ -41,10 +48,17 @@ func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := client.KaguyaProviderInfo.UpdateOne(provider).SetProviderType(consts.ProviderTypeOpenCodeGo).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("background-model").SetIsTask(consts.IsTrue).SetIsDefault(consts.IsFalse).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
 	svc := &AgentSvc{}
 	for version := int64(0); version < 2; version++ {
 		turn := testCompletedTurn("123", version)
-		turn.ProviderID = provider.ID
+		// 原聊天提供商不可用，也必须使用独立任务模型。
+		turn.ProviderID = "deleted-chat-provider"
 		if err := saveCompletedTurn(ctx, turn); err != nil {
 			t.Fatal(err)
 		}
@@ -103,6 +117,9 @@ func TestConversationTitleGenerateSharesPendingTask(t *testing.T) {
 	}()
 	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("task").SetIsTask(consts.IsTrue).Save(ctx); err != nil {
 		t.Fatal(err)
 	}
 	turn := testCompletedTurn("123", 0)

@@ -19,7 +19,7 @@ import (
 const (
 	flowProviderName = ""                        // 提供商名称（仅用于运行信息记录）
 	flowProtocol     = consts.ProtocolOpenAIChat // 协议：openai-chat / openai-response / anthropic
-	flowBaseURL      = ""                        // Base URL，留空使用提供商官方默认地址
+	flowBaseURL      = ""                        // 必填完整请求 URL，例如 https://api.openai.com/v1/chat/completions
 	flowAPIKey       = ""                        // API Key
 	flowModelID      = ""                        // 模型 ID，例如 gpt-4o-mini
 )

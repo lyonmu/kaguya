@@ -20,9 +20,10 @@ import (
 
 // ProviderConfig 描述如何通过提供商协议构造底层模型。
 type ProviderConfig struct {
+	Type           consts.ProviderType     // normal 使用标准协议；opencode-go 追加会话请求头
 	Name           string                  // 提供商名称（记录元数据用）
 	Protocol       consts.ProviderProtocol // 模型协议类型
-	BaseURL        string                  // 可选，留空使用提供商官方默认地址
+	BaseURL        string                  // 必填完整请求 URL，原样使用，不补全路径
 	APIKey         string                  // API Key
 	ModelID        string                  // 调用 API 时使用的模型标识符
 	ConversationID string                  // 本地会话雪花 ID，通过 X-Conversation-ID 透传；不是上游托管会话 ID
@@ -167,7 +168,7 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 		err      error
 	)
 
-	cfg.BaseURL, err = normalizeProviderBaseURL(cfg.BaseURL, cfg.Protocol)
+	client, err := newProviderHTTPClient(cfg.BaseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -176,17 +177,28 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 	if cfg.ConversationID != "" {
 		headers["X-Conversation-ID"] = cfg.ConversationID
 	}
+	switch cfg.Type {
+	case "", consts.ProviderTypeNormal:
+	case consts.ProviderTypeOpenCodeGo:
+		if cfg.ConversationID != "" {
+			headers["x-opencode-session"] = cfg.ConversationID
+		}
+	default:
+		return nil, fmt.Errorf("unsupported provider type %q", cfg.Type)
+	}
 	switch cfg.Protocol {
 	case consts.ProtocolOpenAIChat:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
 			openai.WithBaseURL(cfg.BaseURL),
+			openai.WithHTTPClient(client),
 			openai.WithHeaders(headers),
 		)
 	case consts.ProtocolOpenAIResponses:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
 			openai.WithBaseURL(cfg.BaseURL),
+			openai.WithHTTPClient(client),
 			openai.WithHeaders(headers),
 			openai.WithUseResponsesAPI(),
 			// 协议由用户显式指定，不应因自定义模型名称退回 Chat API。
@@ -196,6 +208,7 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 		provider, err = anthropic.New(
 			anthropic.WithAPIKey(cfg.APIKey),
 			anthropic.WithBaseURL(cfg.BaseURL),
+			anthropic.WithHTTPClient(client),
 			anthropic.WithHeaders(headers),
 		)
 	default:

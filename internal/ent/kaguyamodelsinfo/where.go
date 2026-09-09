@@ -102,6 +102,12 @@ func IsDefault(v consts.Status) predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldIsDefault, vc))
 }
 
+// IsTask applies equality check predicate on the "is_task" field. It's identical to IsTaskEQ.
+func IsTask(v consts.Status) predicate.KaguyaModelsInfo {
+	vc := int(v)
+	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldIsTask, vc))
+}
+
 // ReasoningEnabled applies equality check predicate on the "reasoning_enabled" field. It's identical to ReasoningEnabledEQ.
 func ReasoningEnabled(v consts.Status) predicate.KaguyaModelsInfo {
 	vc := int(v)
@@ -529,6 +535,70 @@ func IsDefaultIsNil() predicate.KaguyaModelsInfo {
 // IsDefaultNotNil applies the NotNil predicate on the "is_default" field.
 func IsDefaultNotNil() predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldNotNull(FieldIsDefault))
+}
+
+// IsTaskEQ applies the EQ predicate on the "is_task" field.
+func IsTaskEQ(v consts.Status) predicate.KaguyaModelsInfo {
+	vc := int(v)
+	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldIsTask, vc))
+}
+
+// IsTaskNEQ applies the NEQ predicate on the "is_task" field.
+func IsTaskNEQ(v consts.Status) predicate.KaguyaModelsInfo {
+	vc := int(v)
+	return predicate.KaguyaModelsInfo(sql.FieldNEQ(FieldIsTask, vc))
+}
+
+// IsTaskIn applies the In predicate on the "is_task" field.
+func IsTaskIn(vs ...consts.Status) predicate.KaguyaModelsInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = int(vs[i])
+	}
+	return predicate.KaguyaModelsInfo(sql.FieldIn(FieldIsTask, v...))
+}
+
+// IsTaskNotIn applies the NotIn predicate on the "is_task" field.
+func IsTaskNotIn(vs ...consts.Status) predicate.KaguyaModelsInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = int(vs[i])
+	}
+	return predicate.KaguyaModelsInfo(sql.FieldNotIn(FieldIsTask, v...))
+}
+
+// IsTaskGT applies the GT predicate on the "is_task" field.
+func IsTaskGT(v consts.Status) predicate.KaguyaModelsInfo {
+	vc := int(v)
+	return predicate.KaguyaModelsInfo(sql.FieldGT(FieldIsTask, vc))
+}
+
+// IsTaskGTE applies the GTE predicate on the "is_task" field.
+func IsTaskGTE(v consts.Status) predicate.KaguyaModelsInfo {
+	vc := int(v)
+	return predicate.KaguyaModelsInfo(sql.FieldGTE(FieldIsTask, vc))
+}
+
+// IsTaskLT applies the LT predicate on the "is_task" field.
+func IsTaskLT(v consts.Status) predicate.KaguyaModelsInfo {
+	vc := int(v)
+	return predicate.KaguyaModelsInfo(sql.FieldLT(FieldIsTask, vc))
+}
+
+// IsTaskLTE applies the LTE predicate on the "is_task" field.
+func IsTaskLTE(v consts.Status) predicate.KaguyaModelsInfo {
+	vc := int(v)
+	return predicate.KaguyaModelsInfo(sql.FieldLTE(FieldIsTask, vc))
+}
+
+// IsTaskIsNil applies the IsNil predicate on the "is_task" field.
+func IsTaskIsNil() predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldIsNull(FieldIsTask))
+}
+
+// IsTaskNotNil applies the NotNil predicate on the "is_task" field.
+func IsTaskNotNil() predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldNotNull(FieldIsTask))
 }
 
 // ReasoningEnabledEQ applies the EQ predicate on the "reasoning_enabled" field.

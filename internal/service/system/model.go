@@ -112,7 +112,12 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 		}
 	}
 
-	row, err := client.KaguyaModelsInfo.Create().
+	if req.IsTask == consts.IsTrue {
+		if _, err := client.KaguyaModelsInfo.Update().Where(kaguyamodelsinfo.IsTaskNotNil()).ClearIsTask().Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	builder := client.KaguyaModelsInfo.Create().
 		SetProviderID(req.ProviderID).
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
@@ -123,8 +128,11 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 		SetTokenMaxOutputTokens(req.TokenMaxOutputTokens).
 		SetCapabilityToolUse(req.CapabilityToolUse).
 		SetCapabilityVision(req.CapabilityVision).
-		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput).
-		Save(ctx)
+		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput)
+	if req.IsTask == consts.IsTrue {
+		builder.SetIsTask(consts.IsTrue)
+	}
+	row, err := builder.Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			global.Logger.Sugar().Warnf("model ID already exists: provider_id=%s, model_id=%s", req.ProviderID, req.ModelID)
@@ -190,7 +198,12 @@ func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.S
 		}
 	}
 
-	row, err := client.KaguyaModelsInfo.UpdateOneID(id).
+	if req.IsTask == consts.IsTrue {
+		if _, err := client.KaguyaModelsInfo.Update().Where(kaguyamodelsinfo.IsTaskNotNil()).ClearIsTask().Save(ctx); err != nil {
+			return nil, err
+		}
+	}
+	builder := client.KaguyaModelsInfo.UpdateOneID(id).
 		Where(kaguyamodelsinfo.DeletedAtIsNil()).
 		SetProviderID(req.ProviderID).
 		SetModelName(req.ModelName).
@@ -202,8 +215,13 @@ func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.S
 		SetTokenMaxOutputTokens(req.TokenMaxOutputTokens).
 		SetCapabilityToolUse(req.CapabilityToolUse).
 		SetCapabilityVision(req.CapabilityVision).
-		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput).
-		Save(ctx)
+		SetCapabilityStructuredOutput(req.CapabilityStructuredOutput)
+	if req.IsTask == consts.IsTrue {
+		builder.SetIsTask(consts.IsTrue)
+	} else {
+		builder.ClearIsTask()
+	}
+	row, err := builder.Save(ctx)
 	if err != nil {
 		if ent.IsConstraintError(err) {
 			global.Logger.Sugar().Warnf("model ID already exists: id=%s, provider_id=%s, model_id=%s", id, req.ProviderID, req.ModelID)
@@ -228,6 +246,7 @@ func (s *SystemSvc) ModelDelete(ctx context.Context, id string) error {
 	row, err := db.EntClient.KaguyaModelsInfo.UpdateOneID(id).
 		Where(kaguyamodelsinfo.DeletedAtIsNil()).
 		SetDeletedAt(time.Now()).
+		ClearIsTask().
 		Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -261,7 +280,7 @@ func (s *SystemSvc) ModelLabels(ctx context.Context, req *dtosystem.SystemModelL
 	items := make([]*dtosystem.SystemModelLabelResp, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, &dtosystem.SystemModelLabelResp{
-			Label: row.ModelName, Value: row.ID, ProviderID: row.ProviderID, ModelID: row.ModelID,
+			Label: row.ModelName, Value: row.ID, ProviderID: row.ProviderID, ModelID: row.ModelID, ProviderName: row.Edges.Provider.ProviderName,
 		})
 	}
 	return items, nil

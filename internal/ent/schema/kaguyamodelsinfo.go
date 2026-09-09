@@ -26,6 +26,13 @@ func (KaguyaModelsInfo) Fields() []ent.Field {
 		field.String("model_name").NotEmpty().Comment("模型显示名称"),
 		field.String("model_id").NotEmpty().Comment("调用 API 时使用的模型标识符"),
 		field.Int("is_default").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否为该提供方下的默认模型"),
+		// NULL 表示非任务模型，唯一索引保证跨进程最多一个任务模型。
+		field.Int("is_task").Optional().Nillable().Unique().GoType(consts.Status(0)).Validate(func(v int) error {
+			if v != int(consts.IsTrue) {
+				return fmt.Errorf("is_task must be 1 or NULL")
+			}
+			return nil
+		}).Comment("全局后台任务模型；非任务模型为 NULL"),
 		field.Int("reasoning_enabled").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否启用思考模式"),
 		field.String("reasoning_effort").Optional().GoType(consts.ReasoningEffort("")).Default(string(consts.ReasoningEffortMedium)).Comment("思考努力程度，影响推理深度和响应速度"),
 		field.Int("token_context_window").Optional().Comment("模型支持的最大上下文窗口大小（token 数）"),

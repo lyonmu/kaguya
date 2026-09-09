@@ -397,24 +397,28 @@ func init() {
 	kaguyamodelsinfoDescIsDefault := kaguyamodelsinfoFields[3].Descriptor()
 	// kaguyamodelsinfo.DefaultIsDefault holds the default value on creation for the is_default field.
 	kaguyamodelsinfo.DefaultIsDefault = consts.Status(kaguyamodelsinfoDescIsDefault.Default.(int))
+	// kaguyamodelsinfoDescIsTask is the schema descriptor for is_task field.
+	kaguyamodelsinfoDescIsTask := kaguyamodelsinfoFields[4].Descriptor()
+	// kaguyamodelsinfo.IsTaskValidator is a validator for the "is_task" field. It is called by the builders before save.
+	kaguyamodelsinfo.IsTaskValidator = kaguyamodelsinfoDescIsTask.Validators[0].(func(int) error)
 	// kaguyamodelsinfoDescReasoningEnabled is the schema descriptor for reasoning_enabled field.
-	kaguyamodelsinfoDescReasoningEnabled := kaguyamodelsinfoFields[4].Descriptor()
+	kaguyamodelsinfoDescReasoningEnabled := kaguyamodelsinfoFields[5].Descriptor()
 	// kaguyamodelsinfo.DefaultReasoningEnabled holds the default value on creation for the reasoning_enabled field.
 	kaguyamodelsinfo.DefaultReasoningEnabled = consts.Status(kaguyamodelsinfoDescReasoningEnabled.Default.(int))
 	// kaguyamodelsinfoDescReasoningEffort is the schema descriptor for reasoning_effort field.
-	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[5].Descriptor()
+	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[6].Descriptor()
 	// kaguyamodelsinfo.DefaultReasoningEffort holds the default value on creation for the reasoning_effort field.
 	kaguyamodelsinfo.DefaultReasoningEffort = consts.ReasoningEffort(kaguyamodelsinfoDescReasoningEffort.Default.(string))
 	// kaguyamodelsinfoDescCapabilityToolUse is the schema descriptor for capability_tool_use field.
-	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[8].Descriptor()
+	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[9].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityToolUse holds the default value on creation for the capability_tool_use field.
 	kaguyamodelsinfo.DefaultCapabilityToolUse = consts.Status(kaguyamodelsinfoDescCapabilityToolUse.Default.(int))
 	// kaguyamodelsinfoDescCapabilityVision is the schema descriptor for capability_vision field.
-	kaguyamodelsinfoDescCapabilityVision := kaguyamodelsinfoFields[9].Descriptor()
+	kaguyamodelsinfoDescCapabilityVision := kaguyamodelsinfoFields[10].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityVision holds the default value on creation for the capability_vision field.
 	kaguyamodelsinfo.DefaultCapabilityVision = consts.Status(kaguyamodelsinfoDescCapabilityVision.Default.(int))
 	// kaguyamodelsinfoDescCapabilityStructuredOutput is the schema descriptor for capability_structured_output field.
-	kaguyamodelsinfoDescCapabilityStructuredOutput := kaguyamodelsinfoFields[10].Descriptor()
+	kaguyamodelsinfoDescCapabilityStructuredOutput := kaguyamodelsinfoFields[11].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityStructuredOutput holds the default value on creation for the capability_structured_output field.
 	kaguyamodelsinfo.DefaultCapabilityStructuredOutput = consts.Status(kaguyamodelsinfoDescCapabilityStructuredOutput.Default.(int))
 	// kaguyamodelsinfoDescID is the schema descriptor for id field.
@@ -465,6 +469,10 @@ func init() {
 	kaguyaproviderinfoDescAPIProtocol := kaguyaproviderinfoFields[1].Descriptor()
 	// kaguyaproviderinfo.DefaultAPIProtocol holds the default value on creation for the api_protocol field.
 	kaguyaproviderinfo.DefaultAPIProtocol = consts.ProviderProtocol(kaguyaproviderinfoDescAPIProtocol.Default.(string))
+	// kaguyaproviderinfoDescProviderType is the schema descriptor for provider_type field.
+	kaguyaproviderinfoDescProviderType := kaguyaproviderinfoFields[2].Descriptor()
+	// kaguyaproviderinfo.DefaultProviderType holds the default value on creation for the provider_type field.
+	kaguyaproviderinfo.DefaultProviderType = consts.ProviderType(kaguyaproviderinfoDescProviderType.Default.(string))
 	// kaguyaproviderinfoDescID is the schema descriptor for id field.
 	kaguyaproviderinfoDescID := kaguyaproviderinfoMixinFields0[0].Descriptor()
 	// kaguyaproviderinfo.DefaultID holds the default value on creation for the id field.

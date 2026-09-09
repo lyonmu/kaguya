@@ -126,6 +126,33 @@ func (_u *KaguyaModelsInfoUpdate) ClearIsDefault() *KaguyaModelsInfoUpdate {
 	return _u
 }
 
+// SetIsTask sets the "is_task" field.
+func (_u *KaguyaModelsInfoUpdate) SetIsTask(v consts.Status) *KaguyaModelsInfoUpdate {
+	_u.mutation.ResetIsTask()
+	_u.mutation.SetIsTask(v)
+	return _u
+}
+
+// SetNillableIsTask sets the "is_task" field if the given value is not nil.
+func (_u *KaguyaModelsInfoUpdate) SetNillableIsTask(v *consts.Status) *KaguyaModelsInfoUpdate {
+	if v != nil {
+		_u.SetIsTask(*v)
+	}
+	return _u
+}
+
+// AddIsTask adds value to the "is_task" field.
+func (_u *KaguyaModelsInfoUpdate) AddIsTask(v consts.Status) *KaguyaModelsInfoUpdate {
+	_u.mutation.AddIsTask(v)
+	return _u
+}
+
+// ClearIsTask clears the value of the "is_task" field.
+func (_u *KaguyaModelsInfoUpdate) ClearIsTask() *KaguyaModelsInfoUpdate {
+	_u.mutation.ClearIsTask()
+	return _u
+}
+
 // SetReasoningEnabled sets the "reasoning_enabled" field.
 func (_u *KaguyaModelsInfoUpdate) SetReasoningEnabled(v consts.Status) *KaguyaModelsInfoUpdate {
 	_u.mutation.ResetReasoningEnabled()
@@ -383,6 +410,11 @@ func (_u *KaguyaModelsInfoUpdate) check() error {
 			return &ValidationError{Name: "model_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.IsTask(); ok {
+		if err := kaguyamodelsinfo.IsTaskValidator(int(v)); err != nil {
+			return &ValidationError{Name: "is_task", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.is_task": %w`, err)}
+		}
+	}
 	if _u.mutation.ProviderCleared() && len(_u.mutation.ProviderIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaModelsInfo.provider"`)
 	}
@@ -430,6 +462,15 @@ func (_u *KaguyaModelsInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.IsDefaultCleared() {
 		_spec.ClearField(kaguyamodelsinfo.FieldIsDefault, field.TypeInt)
+	}
+	if value, ok := _u.mutation.IsTask(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldIsTask, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedIsTask(); ok {
+		_spec.AddField(kaguyamodelsinfo.FieldIsTask, field.TypeInt, value)
+	}
+	if _u.mutation.IsTaskCleared() {
+		_spec.ClearField(kaguyamodelsinfo.FieldIsTask, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)
@@ -634,6 +675,33 @@ func (_u *KaguyaModelsInfoUpdateOne) AddIsDefault(v consts.Status) *KaguyaModels
 // ClearIsDefault clears the value of the "is_default" field.
 func (_u *KaguyaModelsInfoUpdateOne) ClearIsDefault() *KaguyaModelsInfoUpdateOne {
 	_u.mutation.ClearIsDefault()
+	return _u
+}
+
+// SetIsTask sets the "is_task" field.
+func (_u *KaguyaModelsInfoUpdateOne) SetIsTask(v consts.Status) *KaguyaModelsInfoUpdateOne {
+	_u.mutation.ResetIsTask()
+	_u.mutation.SetIsTask(v)
+	return _u
+}
+
+// SetNillableIsTask sets the "is_task" field if the given value is not nil.
+func (_u *KaguyaModelsInfoUpdateOne) SetNillableIsTask(v *consts.Status) *KaguyaModelsInfoUpdateOne {
+	if v != nil {
+		_u.SetIsTask(*v)
+	}
+	return _u
+}
+
+// AddIsTask adds value to the "is_task" field.
+func (_u *KaguyaModelsInfoUpdateOne) AddIsTask(v consts.Status) *KaguyaModelsInfoUpdateOne {
+	_u.mutation.AddIsTask(v)
+	return _u
+}
+
+// ClearIsTask clears the value of the "is_task" field.
+func (_u *KaguyaModelsInfoUpdateOne) ClearIsTask() *KaguyaModelsInfoUpdateOne {
+	_u.mutation.ClearIsTask()
 	return _u
 }
 
@@ -907,6 +975,11 @@ func (_u *KaguyaModelsInfoUpdateOne) check() error {
 			return &ValidationError{Name: "model_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_id": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.IsTask(); ok {
+		if err := kaguyamodelsinfo.IsTaskValidator(int(v)); err != nil {
+			return &ValidationError{Name: "is_task", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.is_task": %w`, err)}
+		}
+	}
 	if _u.mutation.ProviderCleared() && len(_u.mutation.ProviderIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaModelsInfo.provider"`)
 	}
@@ -971,6 +1044,15 @@ func (_u *KaguyaModelsInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if _u.mutation.IsDefaultCleared() {
 		_spec.ClearField(kaguyamodelsinfo.FieldIsDefault, field.TypeInt)
+	}
+	if value, ok := _u.mutation.IsTask(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldIsTask, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedIsTask(); ok {
+		_spec.AddField(kaguyamodelsinfo.FieldIsTask, field.TypeInt, value)
+	}
+	if _u.mutation.IsTaskCleared() {
+		_spec.ClearField(kaguyamodelsinfo.FieldIsTask, field.TypeInt)
 	}
 	if value, ok := _u.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)

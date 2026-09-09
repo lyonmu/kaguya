@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	"github.com/lyonmu/kaguya/internal/ent"
@@ -74,7 +75,12 @@ func (s *SystemSvc) ProviderDetail(ctx context.Context, id string) (*dtosystem.S
 
 // ProviderCreate 创建提供商。
 func (s *SystemSvc) ProviderCreate(ctx context.Context, req *dtosystem.SystemProviderSaveReq) (*dtosystem.SystemProviderResp, error) {
+	kind := req.ProviderType
+	if kind == "" {
+		kind = consts.ProviderTypeNormal
+	}
 	row, err := db.EntClient.KaguyaProviderInfo.Create().
+		SetProviderType(kind).
 		SetProviderName(req.ProviderName).
 		SetAPIProtocol(req.APIProtocol).
 		SetAPIKey(req.APIKey).
@@ -96,9 +102,14 @@ func (s *SystemSvc) ProviderCreate(ctx context.Context, req *dtosystem.SystemPro
 
 // ProviderUpdate 修改提供商。
 func (s *SystemSvc) ProviderUpdate(ctx context.Context, id string, req *dtosystem.SystemProviderSaveReq) (*dtosystem.SystemProviderResp, error) {
+	kind := req.ProviderType
+	if kind == "" {
+		kind = consts.ProviderTypeNormal
+	}
 	row, err := db.EntClient.KaguyaProviderInfo.UpdateOneID(id).
 		Where(kaguyaproviderinfo.DeletedAtIsNil()).
 		SetProviderName(req.ProviderName).
+		SetProviderType(kind).
 		SetAPIProtocol(req.APIProtocol).
 		SetAPIKey(req.APIKey).
 		SetBaseURL(req.BaseURL).
@@ -146,6 +157,7 @@ func (s *SystemSvc) ProviderDelete(ctx context.Context, id string) error {
 	if _, err = client.KaguyaModelsInfo.Update().
 		Where(kaguyamodelsinfo.ProviderIDEQ(id), kaguyamodelsinfo.DeletedAtIsNil()).
 		SetDeletedAt(now).
+		ClearIsTask().
 		Save(ctx); err != nil {
 		global.Logger.Sugar().Errorf("delete provider models failed: id=%s, err=%v", id, err)
 		return err

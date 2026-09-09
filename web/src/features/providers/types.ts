@@ -1,8 +1,10 @@
 export type ProviderProtocol = 'openai-chat' | 'anthropic' | 'openai-response'
+export type ProviderType = 'normal' | 'opencode-go'
 export type Status = 1 | 2
 export type ReasoningEffort = 'low' | 'medium' | 'high'
 
 export interface AIModel {
+  is_task: Status
   id: string
   provider_id: string
   provider_name: string
@@ -21,6 +23,7 @@ export interface AIModel {
 }
 
 export interface AIProvider {
+  provider_type: ProviderType
   id: string
   provider_name: string
   api_protocol: ProviderProtocol
@@ -46,6 +49,7 @@ export interface ProviderQuery {
 }
 
 export interface ProviderPayload {
+  provider_type: ProviderType
   provider_name: string
   api_protocol: ProviderProtocol
   api_key: string
@@ -53,6 +57,7 @@ export interface ProviderPayload {
 }
 
 export interface ModelPayload {
+  is_task: Status
   provider_id: string
   model_name: string
   model_id: string
@@ -64,6 +69,14 @@ export interface ModelPayload {
   capability_tool_use: Status
   capability_vision: Status
   capability_structured_output: Status
+}
+
+export interface ModelLabelOption {
+  label: string
+  value: string
+  provider_id: string
+  provider_name: string
+  model_id: string
 }
 
 export interface LabelOption {

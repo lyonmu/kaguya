@@ -13,6 +13,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
 )
 
@@ -29,24 +30,29 @@ func send(ctx context.Context, dataChan chan *dtochat.ChatResp, resp *dtochat.Ch
 	}
 }
 
-// Chat 执行一次流式对话：查询默认模型 → 组装 Agent → Stream 增量推送。
+// Chat 执行一次流式对话：查询所选模型（空值用默认）→ 组装 Agent → Stream 增量推送。
 func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, req *dtochat.ChatReq) {
 	defer close(dataChan)
 
-	// 查询默认模型及其 provider 配置
-	model, err := db.EntClient.KaguyaModelsInfo.Query().
-		Where(kaguyamodelsinfo.IsDefault(consts.IsTrue)).
-		Where(kaguyamodelsinfo.DeletedAtIsNil()).
-		WithProvider().
-		First(ctx)
+	// 使用本地模型记录 ID，避免不同提供商相同 API 模型名冲突。
+	query := db.EntClient.KaguyaModelsInfo.Query().
+		Where(kaguyamodelsinfo.DeletedAtIsNil(), kaguyamodelsinfo.HasProviderWith(kaguyaproviderinfo.DeletedAtIsNil())).
+		WithProvider()
+	if req.ModelID != "" {
+		query.Where(kaguyamodelsinfo.IDEQ(req.ModelID))
+	} else {
+		query.Where(kaguyamodelsinfo.IsDefault(consts.IsTrue))
+	}
+	model, err := query.First(ctx)
 	if err != nil {
-		global.Logger.Sugar().Errorf("query default model failed, err is %+v", err)
+		global.Logger.Sugar().Errorf("query chat model failed, err is %+v", err)
 		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
 		return
 	}
 	provider := model.Edges.Provider
 	if provider == nil {
-		global.Logger.Sugar().Errorf("default model %q has no provider", model.ModelID)
+		err = fmt.Errorf("chat model %q has no provider", model.ModelID)
+		global.Logger.Sugar().Error(err)
 		send(ctx, dataChan, &dtochat.ChatResp{Err: err})
 		return
 	}
@@ -77,7 +83,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 
 	// 组装 Agent（每次请求新建）
 	providerCfg := agentruntime.ProviderConfig{
-		Name: provider.ProviderName, Protocol: consts.ProviderProtocol(provider.APIProtocol),
+		Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(provider.APIProtocol),
 		BaseURL: provider.BaseURL, APIKey: provider.APIKey, ModelID: model.ModelID, ConversationID: convID,
 	}
 	ag, err := agentruntime.New(
@@ -164,11 +170,6 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		global.Logger.Sugar().Errorf("persist completed conversation failed: id=%s err=%v", convID, err)
 		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
 		return
-	}
-
-	if version == 0 {
-		// 首轮只启动一次；异步生成/回写，不等待标题，也不向聊天流追加帧。
-		startConversationTitle(db.EntClient, global.Logger, providerCfg, req.Messages, result.Response.Content.Text())
 	}
 
 	// 事务提交后才发唯一 done；落库失败不能向前端报告本轮成功。

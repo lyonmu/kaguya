@@ -29,6 +29,14 @@ const (
 	ProtocolOpenAIResponses ProviderProtocol = "openai-response"
 )
 
+// ProviderType 定义协议之外的提供商特定请求行为。
+type ProviderType string
+
+const (
+	ProviderTypeNormal     ProviderType = "normal"
+	ProviderTypeOpenCodeGo ProviderType = "opencode-go"
+)
+
 // ReasoningEffort 定义模型思考/推理的努力程度
 type ReasoningEffort string
 

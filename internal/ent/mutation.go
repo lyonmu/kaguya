@@ -6034,6 +6034,8 @@ type KaguyaModelsInfoMutation struct {
 	model_id                        *string
 	is_default                      *consts.Status
 	addis_default                   *consts.Status
+	is_task                         *consts.Status
+	addis_task                      *consts.Status
 	reasoning_enabled               *consts.Status
 	addreasoning_enabled            *consts.Status
 	reasoning_effort                *consts.ReasoningEffort
@@ -6456,6 +6458,76 @@ func (m *KaguyaModelsInfoMutation) ResetIsDefault() {
 	m.is_default = nil
 	m.addis_default = nil
 	delete(m.clearedFields, kaguyamodelsinfo.FieldIsDefault)
+}
+
+// SetIsTask sets the "is_task" field.
+func (m *KaguyaModelsInfoMutation) SetIsTask(c consts.Status) {
+	m.is_task = &c
+	m.addis_task = nil
+}
+
+// IsTask returns the value of the "is_task" field in the mutation.
+func (m *KaguyaModelsInfoMutation) IsTask() (r consts.Status, exists bool) {
+	v := m.is_task
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsTask returns the old "is_task" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldIsTask(ctx context.Context) (v *consts.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsTask is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsTask requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsTask: %w", err)
+	}
+	return oldValue.IsTask, nil
+}
+
+// AddIsTask adds c to the "is_task" field.
+func (m *KaguyaModelsInfoMutation) AddIsTask(c consts.Status) {
+	if m.addis_task != nil {
+		*m.addis_task += c
+	} else {
+		m.addis_task = &c
+	}
+}
+
+// AddedIsTask returns the value that was added to the "is_task" field in this mutation.
+func (m *KaguyaModelsInfoMutation) AddedIsTask() (r consts.Status, exists bool) {
+	v := m.addis_task
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearIsTask clears the value of the "is_task" field.
+func (m *KaguyaModelsInfoMutation) ClearIsTask() {
+	m.is_task = nil
+	m.addis_task = nil
+	m.clearedFields[kaguyamodelsinfo.FieldIsTask] = struct{}{}
+}
+
+// IsTaskCleared returns if the "is_task" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) IsTaskCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldIsTask]
+	return ok
+}
+
+// ResetIsTask resets all changes to the "is_task" field.
+func (m *KaguyaModelsInfoMutation) ResetIsTask() {
+	m.is_task = nil
+	m.addis_task = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldIsTask)
 }
 
 // SetReasoningEnabled sets the "reasoning_enabled" field.
@@ -6988,7 +7060,7 @@ func (m *KaguyaModelsInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaModelsInfoMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldCreatedAt)
 	}
@@ -7009,6 +7081,9 @@ func (m *KaguyaModelsInfoMutation) Fields() []string {
 	}
 	if m.is_default != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldIsDefault)
+	}
+	if m.is_task != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldIsTask)
 	}
 	if m.reasoning_enabled != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
@@ -7053,6 +7128,8 @@ func (m *KaguyaModelsInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelID()
 	case kaguyamodelsinfo.FieldIsDefault:
 		return m.IsDefault()
+	case kaguyamodelsinfo.FieldIsTask:
+		return m.IsTask()
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		return m.ReasoningEnabled()
 	case kaguyamodelsinfo.FieldReasoningEffort:
@@ -7090,6 +7167,8 @@ func (m *KaguyaModelsInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldModelID(ctx)
 	case kaguyamodelsinfo.FieldIsDefault:
 		return m.OldIsDefault(ctx)
+	case kaguyamodelsinfo.FieldIsTask:
+		return m.OldIsTask(ctx)
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		return m.OldReasoningEnabled(ctx)
 	case kaguyamodelsinfo.FieldReasoningEffort:
@@ -7162,6 +7241,13 @@ func (m *KaguyaModelsInfoMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetIsDefault(v)
 		return nil
+	case kaguyamodelsinfo.FieldIsTask:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsTask(v)
+		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		v, ok := value.(consts.Status)
 		if !ok {
@@ -7222,6 +7308,9 @@ func (m *KaguyaModelsInfoMutation) AddedFields() []string {
 	if m.addis_default != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldIsDefault)
 	}
+	if m.addis_task != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldIsTask)
+	}
 	if m.addreasoning_enabled != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
 	}
@@ -7250,6 +7339,8 @@ func (m *KaguyaModelsInfoMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case kaguyamodelsinfo.FieldIsDefault:
 		return m.AddedIsDefault()
+	case kaguyamodelsinfo.FieldIsTask:
+		return m.AddedIsTask()
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		return m.AddedReasoningEnabled()
 	case kaguyamodelsinfo.FieldTokenContextWindow:
@@ -7277,6 +7368,13 @@ func (m *KaguyaModelsInfoMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddIsDefault(v)
+		return nil
+	case kaguyamodelsinfo.FieldIsTask:
+		v, ok := value.(consts.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddIsTask(v)
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		v, ok := value.(consts.Status)
@@ -7334,6 +7432,9 @@ func (m *KaguyaModelsInfoMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyamodelsinfo.FieldIsDefault) {
 		fields = append(fields, kaguyamodelsinfo.FieldIsDefault)
 	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldIsTask) {
+		fields = append(fields, kaguyamodelsinfo.FieldIsTask)
+	}
 	if m.FieldCleared(kaguyamodelsinfo.FieldReasoningEnabled) {
 		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
 	}
@@ -7374,6 +7475,9 @@ func (m *KaguyaModelsInfoMutation) ClearField(name string) error {
 		return nil
 	case kaguyamodelsinfo.FieldIsDefault:
 		m.ClearIsDefault()
+		return nil
+	case kaguyamodelsinfo.FieldIsTask:
+		m.ClearIsTask()
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		m.ClearReasoningEnabled()
@@ -7424,6 +7528,9 @@ func (m *KaguyaModelsInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyamodelsinfo.FieldIsDefault:
 		m.ResetIsDefault()
+		return nil
+	case kaguyamodelsinfo.FieldIsTask:
+		m.ResetIsTask()
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		m.ResetReasoningEnabled()
@@ -7535,6 +7642,7 @@ type KaguyaProviderInfoMutation struct {
 	deleted_at    *time.Time
 	provider_name *string
 	api_protocol  *consts.ProviderProtocol
+	provider_type *consts.ProviderType
 	api_key       *string
 	base_url      *string
 	clearedFields map[string]struct{}
@@ -7856,6 +7964,42 @@ func (m *KaguyaProviderInfoMutation) ResetAPIProtocol() {
 	delete(m.clearedFields, kaguyaproviderinfo.FieldAPIProtocol)
 }
 
+// SetProviderType sets the "provider_type" field.
+func (m *KaguyaProviderInfoMutation) SetProviderType(ct consts.ProviderType) {
+	m.provider_type = &ct
+}
+
+// ProviderType returns the value of the "provider_type" field in the mutation.
+func (m *KaguyaProviderInfoMutation) ProviderType() (r consts.ProviderType, exists bool) {
+	v := m.provider_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderType returns the old "provider_type" field's value of the KaguyaProviderInfo entity.
+// If the KaguyaProviderInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaProviderInfoMutation) OldProviderType(ctx context.Context) (v consts.ProviderType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderType: %w", err)
+	}
+	return oldValue.ProviderType, nil
+}
+
+// ResetProviderType resets all changes to the "provider_type" field.
+func (m *KaguyaProviderInfoMutation) ResetProviderType() {
+	m.provider_type = nil
+}
+
 // SetAPIKey sets the "api_key" field.
 func (m *KaguyaProviderInfoMutation) SetAPIKey(s string) {
 	m.api_key = &s
@@ -8042,7 +8186,7 @@ func (m *KaguyaProviderInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaProviderInfoMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 8)
 	if m.created_at != nil {
 		fields = append(fields, kaguyaproviderinfo.FieldCreatedAt)
 	}
@@ -8057,6 +8201,9 @@ func (m *KaguyaProviderInfoMutation) Fields() []string {
 	}
 	if m.api_protocol != nil {
 		fields = append(fields, kaguyaproviderinfo.FieldAPIProtocol)
+	}
+	if m.provider_type != nil {
+		fields = append(fields, kaguyaproviderinfo.FieldProviderType)
 	}
 	if m.api_key != nil {
 		fields = append(fields, kaguyaproviderinfo.FieldAPIKey)
@@ -8082,6 +8229,8 @@ func (m *KaguyaProviderInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.ProviderName()
 	case kaguyaproviderinfo.FieldAPIProtocol:
 		return m.APIProtocol()
+	case kaguyaproviderinfo.FieldProviderType:
+		return m.ProviderType()
 	case kaguyaproviderinfo.FieldAPIKey:
 		return m.APIKey()
 	case kaguyaproviderinfo.FieldBaseURL:
@@ -8105,6 +8254,8 @@ func (m *KaguyaProviderInfoMutation) OldField(ctx context.Context, name string) 
 		return m.OldProviderName(ctx)
 	case kaguyaproviderinfo.FieldAPIProtocol:
 		return m.OldAPIProtocol(ctx)
+	case kaguyaproviderinfo.FieldProviderType:
+		return m.OldProviderType(ctx)
 	case kaguyaproviderinfo.FieldAPIKey:
 		return m.OldAPIKey(ctx)
 	case kaguyaproviderinfo.FieldBaseURL:
@@ -8152,6 +8303,13 @@ func (m *KaguyaProviderInfoMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAPIProtocol(v)
+		return nil
+	case kaguyaproviderinfo.FieldProviderType:
+		v, ok := value.(consts.ProviderType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderType(v)
 		return nil
 	case kaguyaproviderinfo.FieldAPIKey:
 		v, ok := value.(string)
@@ -8257,6 +8415,9 @@ func (m *KaguyaProviderInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyaproviderinfo.FieldAPIProtocol:
 		m.ResetAPIProtocol()
+		return nil
+	case kaguyaproviderinfo.FieldProviderType:
+		m.ResetProviderType()
 		return nil
 	case kaguyaproviderinfo.FieldAPIKey:
 		m.ResetAPIKey()

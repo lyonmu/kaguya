@@ -23,12 +23,12 @@ export function updateConversation(id: string, payload: { title?: string; favori
 export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }
-export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void) {
+export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string) {
   const response = await fetch(buildUrl('/v1/chat/sse'), {
     method: 'POST',
     headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat' }),
+    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined }),
     signal,
   })
   if (!response.ok || !response.headers.get('content-type')?.includes('text/event-stream')) {

@@ -44,16 +44,16 @@ func TestProviderUsage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			wantPath := "/v1/chat/completions"
+			switch tt.protocol {
+			case consts.ProtocolOpenAIResponses:
+				wantPath = "/v1/responses"
+			case consts.ProtocolAnthropic:
+				wantPath = "/v1/messages"
+			}
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if got := r.Header.Get("X-Conversation-ID"); got != "123456789012345" {
 					t.Errorf("conversation header = %q", got)
-				}
-				wantPath := "/v1/chat/completions"
-				switch tt.protocol {
-				case consts.ProtocolOpenAIResponses:
-					wantPath = "/v1/responses"
-				case consts.ProtocolAnthropic:
-					wantPath = "/v1/messages"
 				}
 				if r.URL.Path != wantPath {
 					t.Errorf("request path = %s, want %s", r.URL.Path, wantPath)
@@ -67,7 +67,7 @@ func TestProviderUsage(t *testing.T) {
 			}))
 			defer server.Close()
 			recorder := &usageTestRecorder{}
-			a, err := New(WithProvider(ProviderConfig{Protocol: tt.protocol, BaseURL: server.URL, APIKey: "test", ModelID: "test", ConversationID: "123456789012345"}), WithRecorder(recorder))
+			a, err := New(WithProvider(ProviderConfig{Protocol: tt.protocol, BaseURL: server.URL + wantPath, APIKey: "test", ModelID: "test", ConversationID: "123456789012345"}), WithRecorder(recorder))
 			if err != nil {
 				t.Fatal(err)
 			}

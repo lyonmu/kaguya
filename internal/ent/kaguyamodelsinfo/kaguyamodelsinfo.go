@@ -30,6 +30,8 @@ const (
 	FieldModelID = "model_id"
 	// FieldIsDefault holds the string denoting the is_default field in the database.
 	FieldIsDefault = "is_default"
+	// FieldIsTask holds the string denoting the is_task field in the database.
+	FieldIsTask = "is_task"
 	// FieldReasoningEnabled holds the string denoting the reasoning_enabled field in the database.
 	FieldReasoningEnabled = "reasoning_enabled"
 	// FieldReasoningEffort holds the string denoting the reasoning_effort field in the database.
@@ -67,6 +69,7 @@ var Columns = []string{
 	FieldModelName,
 	FieldModelID,
 	FieldIsDefault,
+	FieldIsTask,
 	FieldReasoningEnabled,
 	FieldReasoningEffort,
 	FieldTokenContextWindow,
@@ -107,6 +110,8 @@ var (
 	ModelIDValidator func(string) error
 	// DefaultIsDefault holds the default value on creation for the "is_default" field.
 	DefaultIsDefault consts.Status
+	// IsTaskValidator is a validator for the "is_task" field. It is called by the builders before save.
+	IsTaskValidator func(int) error
 	// DefaultReasoningEnabled holds the default value on creation for the "reasoning_enabled" field.
 	DefaultReasoningEnabled consts.Status
 	// DefaultReasoningEffort holds the default value on creation for the "reasoning_effort" field.
@@ -164,6 +169,11 @@ func ByModelID(opts ...sql.OrderTermOption) OrderOption {
 // ByIsDefault orders the results by the is_default field.
 func ByIsDefault(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsDefault, opts...).ToFunc()
+}
+
+// ByIsTask orders the results by the is_task field.
+func ByIsTask(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIsTask, opts...).ToFunc()
 }
 
 // ByReasoningEnabled orders the results by the reasoning_enabled field.

@@ -2,42 +2,29 @@ package agent
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
-	"strings"
-
-	"github.com/lyonmu/kaguya/internal/consts"
 )
 
-// normalizeProviderBaseURL 将域名或完整端点转换为 SDK 需要的基础地址。
-// 自定义基础路径保持不变；端点由 SDK 按协议追加，不修改持久化配置。
-func normalizeProviderBaseURL(raw string, protocol consts.ProviderProtocol) (string, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "", nil // 使用 SDK 官方默认地址。
-	}
+// providerHTTPClient 使用配置的完整请求 URL，禁止 SDK 追加或修改端点路径。
+// SDK 仍负责请求体、认证、流式解析；这里仅指定最终请求地址。
+type providerHTTPClient struct {
+	endpoint url.URL
+	client   *http.Client
+}
+
+func newProviderHTTPClient(raw string) (*providerHTTPClient, error) {
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return "", fmt.Errorf("provider base URL must be an absolute HTTP(S) URL")
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Fragment != "" {
+		return nil, fmt.Errorf("provider request URL must be a complete HTTP(S) URL without userinfo or fragment")
 	}
-	path := strings.TrimRight(u.Path, "/")
-	switch protocol {
-	case consts.ProtocolOpenAIChat, consts.ProtocolOpenAIResponses:
-		endpoint := "/chat/completions"
-		if protocol == consts.ProtocolOpenAIResponses {
-			endpoint = "/responses"
-		}
-		path = strings.TrimSuffix(path, endpoint)
-		if path == "" {
-			path = "/v1"
-		}
-	case consts.ProtocolAnthropic:
-		// Anthropic SDK 自行追加 v1/messages，而 OpenAI SDK 不追加 v1。
-		path = strings.TrimSuffix(path, "/messages")
-		path = strings.TrimSuffix(path, "/v1")
-	}
-	if path != strings.TrimRight(u.Path, "/") {
-		u.Path = path
-		u.RawPath = ""
-	}
-	return u.String(), nil
+	return &providerHTTPClient{endpoint: *u, client: http.DefaultClient}, nil
+}
+
+func (c *providerHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	request := req.Clone(req.Context())
+	endpoint := c.endpoint
+	request.URL = &endpoint
+	request.Host = endpoint.Host
+	return c.client.Do(request)
 }

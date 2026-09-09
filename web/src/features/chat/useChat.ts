@@ -85,7 +85,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     }
   }
 
-  const send = async (text: string) => {
+  const send = async (text: string, modelId?: string) => {
     if (!text.trim() || stream.current || loading) return
     const controller = new AbortController()
     stream.current = controller
@@ -113,7 +113,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         }
         updateLast(turn => applyFrame(turn, frame))
         completed = frame.chat.flag === 'done'
-      })
+      }, modelId)
     } catch (error) {
       updateLast(turn => ({ ...turn, status: controller.signal.aborted ? 'stopped' : 'error', error: controller.signal.aborted ? '已停止生成；本轮可能未保存，可重新加载历史确认' : errorText(error) }))
     } finally {

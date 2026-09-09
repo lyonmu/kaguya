@@ -28,10 +28,11 @@ type SystemIDReq struct {
 
 // SystemProviderSaveReq 提供商新增/修改请求。
 type SystemProviderSaveReq struct {
+	ProviderType consts.ProviderType     `json:"provider_type" binding:"omitempty,oneof=normal opencode-go"`
 	ProviderName string                  `json:"provider_name" binding:"required"`                                            // 提供商名称
 	APIProtocol  consts.ProviderProtocol `json:"api_protocol" binding:"required,oneof=openai-chat anthropic openai-response"` // API 协议类型
 	APIKey       string                  `json:"api_key"`                                                                     // API Key
-	BaseURL      string                  `json:"base_url"`                                                                    // Base URL
+	BaseURL      string                  `json:"base_url" binding:"required,http_url"`                                        // 完整请求 URL，必须包含实际端点；不补全或裁剪路径
 }
 
 // SystemProviderPageReq 提供商分页查询请求。
@@ -49,6 +50,7 @@ type SystemProviderLabelReq struct {
 
 // SystemModelSaveReq 模型新增/修改请求。
 type SystemModelSaveReq struct {
+	IsTask                     consts.Status          `json:"is_task" binding:"omitempty,oneof=1 2"`
 	ProviderID                 string                 `json:"provider_id" binding:"required"`
 	ModelName                  string                 `json:"model_name" binding:"required"`
 	ModelID                    string                 `json:"model_id" binding:"required"`

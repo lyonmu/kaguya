@@ -268,6 +268,7 @@ var (
 		{Name: "model_name", Type: field.TypeString, Comment: "模型显示名称"},
 		{Name: "model_id", Type: field.TypeString, Comment: "调用 API 时使用的模型标识符"},
 		{Name: "is_default", Type: field.TypeInt, Nullable: true, Comment: "是否为该提供方下的默认模型", Default: 1},
+		{Name: "is_task", Type: field.TypeInt, Unique: true, Nullable: true, Comment: "全局后台任务模型；非任务模型为 NULL"},
 		{Name: "reasoning_enabled", Type: field.TypeInt, Nullable: true, Comment: "是否启用思考模式", Default: 1},
 		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true, Comment: "思考努力程度，影响推理深度和响应速度", Default: "medium"},
 		{Name: "token_context_window", Type: field.TypeInt, Nullable: true, Comment: "模型支持的最大上下文窗口大小（token 数）"},
@@ -286,7 +287,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_models_info_kaguya_provider_info_models",
-				Columns:    []*schema.Column{KaguyaModelsInfoColumns[14]},
+				Columns:    []*schema.Column{KaguyaModelsInfoColumns[15]},
 				RefColumns: []*schema.Column{KaguyaProviderInfoColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -315,7 +316,7 @@ var (
 			{
 				Name:    "kaguyamodelsinfo_provider_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaModelsInfoColumns[14]},
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[15]},
 			},
 			{
 				Name:    "kaguyamodelsinfo_model_id",
@@ -325,7 +326,7 @@ var (
 			{
 				Name:    "kaguyamodelsinfo_provider_id_model_id",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaModelsInfoColumns[14], KaguyaModelsInfoColumns[5]},
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[15], KaguyaModelsInfoColumns[5]},
 			},
 			{
 				Name:    "kaguyamodelsinfo_is_default",
@@ -342,6 +343,7 @@ var (
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "provider_name", Type: field.TypeString, Unique: true, Comment: "提供商名称"},
 		{Name: "api_protocol", Type: field.TypeString, Nullable: true, Comment: "API 协议类型", Default: "openai-chat"},
+		{Name: "provider_type", Type: field.TypeString, Comment: "提供商类型：normal 或 opencode-go", Default: "normal"},
 		{Name: "api_key", Type: field.TypeString, Nullable: true, Comment: "API Key"},
 		{Name: "base_url", Type: field.TypeString, Nullable: true, Comment: "Base URL"},
 	}

@@ -40,6 +40,7 @@ type SystemAccessLogListResp struct {
 
 // SystemProviderResp 提供商详情。
 type SystemProviderResp struct {
+	ProviderType consts.ProviderType     `json:"provider_type"`
 	ID           string                  `json:"id"`
 	ProviderName string                  `json:"provider_name"`
 	APIProtocol  consts.ProviderProtocol `json:"api_protocol"`
@@ -53,6 +54,7 @@ type SystemProviderResp struct {
 func (r *SystemProviderResp) LoadDb(e *ent.KaguyaProviderInfo) {
 	r.ID = e.ID
 	r.ProviderName = e.ProviderName
+	r.ProviderType = e.ProviderType
 	r.APIProtocol = e.APIProtocol
 	r.APIKey = e.APIKey
 	r.BaseURL = e.BaseURL
@@ -81,6 +83,7 @@ type SystemProviderLabelResp struct {
 
 // SystemModelResp 模型详情。
 type SystemModelResp struct {
+	IsTask                     consts.Status          `json:"is_task"`
 	ID                         string                 `json:"id"`
 	ProviderID                 string                 `json:"provider_id"`
 	ProviderName               string                 `json:"provider_name"`
@@ -104,6 +107,10 @@ func (r *SystemModelResp) LoadDb(e *ent.KaguyaModelsInfo) {
 	r.ModelName = e.ModelName
 	r.ModelID = e.ModelID
 	r.IsDefault = e.IsDefault
+	r.IsTask = consts.IsFalse
+	if e.IsTask != nil {
+		r.IsTask = *e.IsTask
+	}
 	r.ReasoningEnabled = e.ReasoningEnabled
 	r.ReasoningEffort = e.ReasoningEffort
 	r.TokenContextWindow = e.TokenContextWindow
@@ -126,8 +133,9 @@ type SystemModelListResp struct {
 }
 
 type SystemModelLabelResp struct {
-	Label      string `json:"label"`
-	Value      string `json:"value"`
-	ProviderID string `json:"provider_id"`
-	ModelID    string `json:"model_id"`
+	ProviderName string `json:"provider_name"`
+	Label        string `json:"label"`
+	Value        string `json:"value"`
+	ProviderID   string `json:"provider_id"`
+	ModelID      string `json:"model_id"`
 }

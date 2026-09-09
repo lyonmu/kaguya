@@ -29,6 +29,8 @@ type KaguyaProviderInfo struct {
 	ProviderName string `json:"provider_name,omitempty"`
 	// API 协议类型
 	APIProtocol consts.ProviderProtocol `json:"api_protocol,omitempty"`
+	// 提供商类型：normal 或 opencode-go
+	ProviderType consts.ProviderType `json:"provider_type,omitempty"`
 	// API Key
 	APIKey string `json:"api_key,omitempty"`
 	// Base URL
@@ -62,7 +64,7 @@ func (*KaguyaProviderInfo) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyaproviderinfo.FieldID, kaguyaproviderinfo.FieldProviderName, kaguyaproviderinfo.FieldAPIProtocol, kaguyaproviderinfo.FieldAPIKey, kaguyaproviderinfo.FieldBaseURL:
+		case kaguyaproviderinfo.FieldID, kaguyaproviderinfo.FieldProviderName, kaguyaproviderinfo.FieldAPIProtocol, kaguyaproviderinfo.FieldProviderType, kaguyaproviderinfo.FieldAPIKey, kaguyaproviderinfo.FieldBaseURL:
 			values[i] = new(sql.NullString)
 		case kaguyaproviderinfo.FieldCreatedAt, kaguyaproviderinfo.FieldUpdatedAt, kaguyaproviderinfo.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -117,6 +119,12 @@ func (_m *KaguyaProviderInfo) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field api_protocol", values[i])
 			} else if value.Valid {
 				_m.APIProtocol = consts.ProviderProtocol(value.String)
+			}
+		case kaguyaproviderinfo.FieldProviderType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_type", values[i])
+			} else if value.Valid {
+				_m.ProviderType = consts.ProviderType(value.String)
 			}
 		case kaguyaproviderinfo.FieldAPIKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -187,6 +195,9 @@ func (_m *KaguyaProviderInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("api_protocol=")
 	builder.WriteString(fmt.Sprintf("%v", _m.APIProtocol))
+	builder.WriteString(", ")
+	builder.WriteString("provider_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProviderType))
 	builder.WriteString(", ")
 	builder.WriteString("api_key=")
 	builder.WriteString(_m.APIKey)

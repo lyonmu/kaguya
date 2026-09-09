@@ -99,6 +99,20 @@ func (_c *KaguyaModelsInfoCreate) SetNillableIsDefault(v *consts.Status) *Kaguya
 	return _c
 }
 
+// SetIsTask sets the "is_task" field.
+func (_c *KaguyaModelsInfoCreate) SetIsTask(v consts.Status) *KaguyaModelsInfoCreate {
+	_c.mutation.SetIsTask(v)
+	return _c
+}
+
+// SetNillableIsTask sets the "is_task" field if the given value is not nil.
+func (_c *KaguyaModelsInfoCreate) SetNillableIsTask(v *consts.Status) *KaguyaModelsInfoCreate {
+	if v != nil {
+		_c.SetIsTask(*v)
+	}
+	return _c
+}
+
 // SetReasoningEnabled sets the "reasoning_enabled" field.
 func (_c *KaguyaModelsInfoCreate) SetReasoningEnabled(v consts.Status) *KaguyaModelsInfoCreate {
 	_c.mutation.SetReasoningEnabled(v)
@@ -333,6 +347,11 @@ func (_c *KaguyaModelsInfoCreate) check() error {
 			return &ValidationError{Name: "model_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_id": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.IsTask(); ok {
+		if err := kaguyamodelsinfo.IsTaskValidator(int(v)); err != nil {
+			return &ValidationError{Name: "is_task", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.is_task": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := kaguyamodelsinfo.IDValidator(v); err != nil {
 			return &ValidationError{Name: "id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.id": %w`, err)}
@@ -400,6 +419,10 @@ func (_c *KaguyaModelsInfoCreate) createSpec() (*KaguyaModelsInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.IsDefault(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldIsDefault, field.TypeInt, value)
 		_node.IsDefault = value
+	}
+	if value, ok := _c.mutation.IsTask(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldIsTask, field.TypeInt, value)
+		_node.IsTask = &value
 	}
 	if value, ok := _c.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)
@@ -585,6 +608,30 @@ func (u *KaguyaModelsInfoUpsert) AddIsDefault(v consts.Status) *KaguyaModelsInfo
 // ClearIsDefault clears the value of the "is_default" field.
 func (u *KaguyaModelsInfoUpsert) ClearIsDefault() *KaguyaModelsInfoUpsert {
 	u.SetNull(kaguyamodelsinfo.FieldIsDefault)
+	return u
+}
+
+// SetIsTask sets the "is_task" field.
+func (u *KaguyaModelsInfoUpsert) SetIsTask(v consts.Status) *KaguyaModelsInfoUpsert {
+	u.Set(kaguyamodelsinfo.FieldIsTask, v)
+	return u
+}
+
+// UpdateIsTask sets the "is_task" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsert) UpdateIsTask() *KaguyaModelsInfoUpsert {
+	u.SetExcluded(kaguyamodelsinfo.FieldIsTask)
+	return u
+}
+
+// AddIsTask adds v to the "is_task" field.
+func (u *KaguyaModelsInfoUpsert) AddIsTask(v consts.Status) *KaguyaModelsInfoUpsert {
+	u.Add(kaguyamodelsinfo.FieldIsTask, v)
+	return u
+}
+
+// ClearIsTask clears the value of the "is_task" field.
+func (u *KaguyaModelsInfoUpsert) ClearIsTask() *KaguyaModelsInfoUpsert {
+	u.SetNull(kaguyamodelsinfo.FieldIsTask)
 	return u
 }
 
@@ -903,6 +950,34 @@ func (u *KaguyaModelsInfoUpsertOne) UpdateIsDefault() *KaguyaModelsInfoUpsertOne
 func (u *KaguyaModelsInfoUpsertOne) ClearIsDefault() *KaguyaModelsInfoUpsertOne {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.ClearIsDefault()
+	})
+}
+
+// SetIsTask sets the "is_task" field.
+func (u *KaguyaModelsInfoUpsertOne) SetIsTask(v consts.Status) *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.SetIsTask(v)
+	})
+}
+
+// AddIsTask adds v to the "is_task" field.
+func (u *KaguyaModelsInfoUpsertOne) AddIsTask(v consts.Status) *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.AddIsTask(v)
+	})
+}
+
+// UpdateIsTask sets the "is_task" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsertOne) UpdateIsTask() *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.UpdateIsTask()
+	})
+}
+
+// ClearIsTask clears the value of the "is_task" field.
+func (u *KaguyaModelsInfoUpsertOne) ClearIsTask() *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.ClearIsTask()
 	})
 }
 
@@ -1415,6 +1490,34 @@ func (u *KaguyaModelsInfoUpsertBulk) UpdateIsDefault() *KaguyaModelsInfoUpsertBu
 func (u *KaguyaModelsInfoUpsertBulk) ClearIsDefault() *KaguyaModelsInfoUpsertBulk {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.ClearIsDefault()
+	})
+}
+
+// SetIsTask sets the "is_task" field.
+func (u *KaguyaModelsInfoUpsertBulk) SetIsTask(v consts.Status) *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.SetIsTask(v)
+	})
+}
+
+// AddIsTask adds v to the "is_task" field.
+func (u *KaguyaModelsInfoUpsertBulk) AddIsTask(v consts.Status) *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.AddIsTask(v)
+	})
+}
+
+// UpdateIsTask sets the "is_task" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsertBulk) UpdateIsTask() *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.UpdateIsTask()
+	})
+}
+
+// ClearIsTask clears the value of the "is_task" field.
+func (u *KaguyaModelsInfoUpsertBulk) ClearIsTask() *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.ClearIsTask()
 	})
 }
 

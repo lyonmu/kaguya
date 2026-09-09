@@ -186,11 +186,11 @@ const docTemplate = `{
         },
         "/v1/chat/conversation/{id}/title/wait": {
             "get": {
-                "description": "首轮 SSE done 后调用一次，最多等待30秒，不重新生成标题。生成失败或超时返回当前标题，无需轮询。仅等待当前进程的任务；多实例部署需将 SSE 和此请求路由到同一实例，否则直接返回当前标题。不存在或已删除会话返回会话不存在。",
+                "description": "兼容等待接口，不启动生成任务；无任务时直接返回当前标题。仅等待当前进程的任务，最多30秒。新客户端应使用 POST 接口生成标题。不存在或已删除会话返回会话不存在。",
                 "tags": [
                     "Chat History"
                 ],
-                "summary": "等待首轮标题生成并返回已保存标题",
+                "summary": "等待已有标题任务并返回已保存标题",
                 "parameters": [
                     {
                         "type": "string",
@@ -222,7 +222,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "每轮成功结束且标题仍为“新对话”时调用一次。已有任务则等待，无任务则根据已保存首轮问答生成并条件更新数据库，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试。",
+                "description": "每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。",
                 "tags": [
                     "Chat History"
                 ],
@@ -1050,6 +1050,10 @@ const docTemplate = `{
                 },
                 "messages": {
                     "type": "string"
+                },
+                "model_id": {
+                    "description": "本地模型记录 ID，空值使用全局默认模型",
+                    "type": "string"
                 }
             }
         },
@@ -1177,7 +1181,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "title": {
-                    "description": "首轮成功后异步生成，AI 标题最多20字符；等待/失败时为“新对话”，每轮 done 后仍为默认标题时可 POST title/wait 生成或重试",
+                    "description": "AI 标题最多20字符；每轮 done 后仍为“新对话”时，由前端 POST title/wait 使用全局任务模型生成或重试",
                     "type": "string"
                 },
                 "tool_calls": {
@@ -1441,6 +1445,17 @@ const docTemplate = `{
                 "ProtocolOpenAIResponses"
             ]
         },
+        "consts.ProviderType": {
+            "type": "string",
+            "enum": [
+                "normal",
+                "opencode-go"
+            ],
+            "x-enum-varnames": [
+                "ProviderTypeNormal",
+                "ProviderTypeOpenCodeGo"
+            ]
+        },
         "consts.ReasoningEffort": {
             "type": "string",
             "enum": [
@@ -1558,6 +1573,9 @@ const docTemplate = `{
                 "provider_id": {
                     "type": "string"
                 },
+                "provider_name": {
+                    "type": "string"
+                },
                 "value": {
                     "type": "string"
                 }
@@ -1602,6 +1620,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "is_default": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "is_task": {
                     "$ref": "#/definitions/consts.Status"
                 },
                 "model_id": {
@@ -1681,6 +1702,17 @@ const docTemplate = `{
                     ]
                 },
                 "is_default": {
+                    "enum": [
+                        1,
+                        2
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.Status"
+                        }
+                    ]
+                },
+                "is_task": {
                     "enum": [
                         1,
                         2
@@ -1791,6 +1823,9 @@ const docTemplate = `{
                 "provider_name": {
                     "type": "string"
                 },
+                "provider_type": {
+                    "$ref": "#/definitions/consts.ProviderType"
+                },
                 "updated_at": {
                     "type": "string"
                 }
@@ -1800,6 +1835,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "api_protocol",
+                "base_url",
                 "provider_name"
             ],
             "properties": {
@@ -1821,12 +1857,23 @@ const docTemplate = `{
                     ]
                 },
                 "base_url": {
-                    "description": "Base URL",
+                    "description": "完整请求 URL，必须包含实际端点；不补全或裁剪路径",
                     "type": "string"
                 },
                 "provider_name": {
                     "description": "提供商名称",
                     "type": "string"
+                },
+                "provider_type": {
+                    "enum": [
+                        "normal",
+                        "opencode-go"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.ProviderType"
+                        }
+                    ]
                 }
             }
         }

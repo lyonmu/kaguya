@@ -52,15 +52,16 @@ describe('chat refresh stability', () => {
   })
 
   it('does not remount the message view when the first SSE frame assigns an ID', async () => {
-    globalThis.fetch = (async url => {
+    globalThis.fetch = (async (url, init) => {
       if (String(url).endsWith('/sse')) {
+        assert.equal(JSON.parse(String(init?.body)).model_id, 'local-model-record-id')
         return new Response(['start', 'done'].map(flag => `data: ${JSON.stringify({ code: 100000, data: { chat: { id: '123', flag }, usage: { total_tokens: 0 } } })}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } })
       }
       return response(detail)
     }) as typeof fetch
     const { result } = renderHook(() => useChat(onCompleted, onTitle))
     const key = result.current.viewKey
-    await act(async () => { await result.current.send('你好') })
+    await act(async () => { await result.current.send('你好', 'local-model-record-id') })
     await waitFor(() => assert.equal(result.current.conversation?.title, '已有标题'))
     assert.equal(result.current.id, '123')
     assert.equal(result.current.viewKey, key)

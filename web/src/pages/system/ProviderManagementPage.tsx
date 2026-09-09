@@ -111,6 +111,7 @@ export function ProviderManagementPage() {
     setEditingProvider(undefined)
     providerForm.setFieldsValue({
       provider_name: '',
+      provider_type: 'normal',
       api_protocol: 'openai-chat',
       api_key: '',
       base_url: '',
@@ -122,6 +123,7 @@ export function ProviderManagementPage() {
     setEditingProvider(provider)
     providerForm.setFieldsValue({
       provider_name: provider.provider_name,
+      provider_type: provider.provider_type,
       api_protocol: provider.api_protocol,
       api_key: provider.api_key,
       base_url: provider.base_url,
@@ -168,6 +170,7 @@ export function ProviderManagementPage() {
       model_name: "",
       model_id: "",
       is_default: selectedProvider.models.length === 0 ? 1 : 2,
+      is_task: 2,
       reasoning_enabled: 1,
       reasoning_effort: "medium",
       token_context_window: 1000000,
@@ -186,6 +189,7 @@ export function ProviderManagementPage() {
       model_name: model.model_name,
       model_id: model.model_id,
       is_default: model.is_default,
+      is_task: model.is_task,
       reasoning_enabled: model.reasoning_enabled,
       reasoning_effort: model.reasoning_effort,
       token_context_window: model.token_context_window,
@@ -243,6 +247,10 @@ export function ProviderManagementPage() {
       ),
     },
     {
+      title: '类型', dataIndex: 'provider_type', key: 'provider_type', width: 130,
+      render: (value: string) => <Tag>{value === 'opencode-go' ? 'OpenCode Go' : '标准'}</Tag>,
+    },
+    {
       title: 'API 协议',
       dataIndex: 'api_protocol',
       key: 'api_protocol',
@@ -254,14 +262,14 @@ export function ProviderManagementPage() {
       ),
     },
     {
-      title: 'Base URL',
+      title: '请求 URL',
       dataIndex: 'base_url',
       key: 'base_url',
       ellipsis: true,
       render: (value: string) => (
-        <Tooltip title={value || '使用协议默认地址'}>
+        <Tooltip title={value || '未配置完整请求 URL'}>
           <span className="font-mono text-[11px] text-k-text-muted">
-            {value || '默认地址'}
+            {value || '未配置'}
           </span>
         </Tooltip>
       ),
@@ -326,6 +334,7 @@ export function ProviderManagementPage() {
       render: (value: string, model) => (
         <span className="font-medium text-k-text">
           {value} {model.is_default === 1 ? <Tag color="gold">默认</Tag> : null}
+          {model.is_task === 1 ? <Tag color="purple">任务</Tag> : null}
         </span>
       ),
     },
@@ -473,8 +482,11 @@ export function ProviderManagementPage() {
           <Form.Item label="API 协议" name="api_protocol" rules={[{ required: true, message: '请选择 API 协议' }]}>
             <Select options={protocolOptions} />
           </Form.Item>
-          <Form.Item label="Base URL" name="base_url">
-            <Input placeholder="留空则使用协议默认地址" />
+          <Form.Item label="提供商类型" name="provider_type" rules={[{ required: true }]} extra="OpenCode Go 会在请求头 x-opencode-session 中传入会话 ID。">
+            <Select options={[{ label: '标准（normal）', value: 'normal' }, { label: 'OpenCode Go', value: 'opencode-go' }]} />
+          </Form.Item>
+          <Form.Item label="完整请求 URL" name="base_url" rules={[{ required: true, message: '请输入包含实际端点的完整请求 URL' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} extra="原样请求，不自动追加 /v1、/responses、/chat/completions 或 /messages。">
+            <Input placeholder="例如 https://api.example.com/v1/chat/completions" />
           </Form.Item>
           <Form.Item label="API Key" name="api_key">
             <Input.Password autoComplete="new-password" placeholder="请输入 API Key" />
@@ -493,7 +505,7 @@ export function ProviderManagementPage() {
         <Alert
           className="mb-4"
           message={`${selectedProvider?.models.length ?? 0} 个可用模型`}
-          description="设为默认模型时，当前提供商原有的默认模型会自动取消。"
+          description="默认模型与任务模型分别全局唯一，可以是同一个模型；设置后会取消其他模型的对应标记。任务模型用于生成对话标题等后台任务。"
           showIcon
           type="info"
         />
@@ -530,6 +542,9 @@ export function ProviderManagementPage() {
               <Input className="font-mono" placeholder="例如 gpt-5" />
             </Form.Item>
             <Form.Item label="默认模型" name="is_default" rules={[{ required: true }]}>
+              <Select options={[{ label: '是', value: 1 }, { label: '否', value: 2 }]} />
+            </Form.Item>
+            <Form.Item label="任务模型（全局唯一）" name="is_task" rules={[{ required: true }]}>
               <Select options={[{ label: '是', value: 1 }, { label: '否', value: 2 }]} />
             </Form.Item>
             <Form.Item label="推理模式" name="reasoning_enabled" rules={[{ required: true }]}>

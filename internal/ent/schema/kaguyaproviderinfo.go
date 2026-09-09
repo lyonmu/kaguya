@@ -24,6 +24,7 @@ func (KaguyaProviderInfo) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("provider_name").Unique().NotEmpty().Comment("提供商名称"),
 		field.String("api_protocol").Optional().GoType(consts.ProviderProtocol("")).Comment("API 协议类型").Default(string(consts.ProtocolOpenAIChat)),
+		field.String("provider_type").GoType(consts.ProviderType("")).Default(string(consts.ProviderTypeNormal)).Comment("提供商类型：normal 或 opencode-go"),
 		field.String("api_key").Optional().Comment("API Key"),
 		field.String("base_url").Optional().Comment("Base URL"),
 	}

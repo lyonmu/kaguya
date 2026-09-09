@@ -91,6 +91,20 @@ func (_u *KaguyaProviderInfoUpdate) ClearAPIProtocol() *KaguyaProviderInfoUpdate
 	return _u
 }
 
+// SetProviderType sets the "provider_type" field.
+func (_u *KaguyaProviderInfoUpdate) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoUpdate {
+	_u.mutation.SetProviderType(v)
+	return _u
+}
+
+// SetNillableProviderType sets the "provider_type" field if the given value is not nil.
+func (_u *KaguyaProviderInfoUpdate) SetNillableProviderType(v *consts.ProviderType) *KaguyaProviderInfoUpdate {
+	if v != nil {
+		_u.SetProviderType(*v)
+	}
+	return _u
+}
+
 // SetAPIKey sets the "api_key" field.
 func (_u *KaguyaProviderInfoUpdate) SetAPIKey(v string) *KaguyaProviderInfoUpdate {
 	_u.mutation.SetAPIKey(v)
@@ -260,6 +274,9 @@ func (_u *KaguyaProviderInfoUpdate) sqlSave(ctx context.Context) (_node int, err
 	if _u.mutation.APIProtocolCleared() {
 		_spec.ClearField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString)
 	}
+	if value, ok := _u.mutation.ProviderType(); ok {
+		_spec.SetField(kaguyaproviderinfo.FieldProviderType, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.APIKey(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldAPIKey, field.TypeString, value)
 	}
@@ -396,6 +413,20 @@ func (_u *KaguyaProviderInfoUpdateOne) SetNillableAPIProtocol(v *consts.Provider
 // ClearAPIProtocol clears the value of the "api_protocol" field.
 func (_u *KaguyaProviderInfoUpdateOne) ClearAPIProtocol() *KaguyaProviderInfoUpdateOne {
 	_u.mutation.ClearAPIProtocol()
+	return _u
+}
+
+// SetProviderType sets the "provider_type" field.
+func (_u *KaguyaProviderInfoUpdateOne) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoUpdateOne {
+	_u.mutation.SetProviderType(v)
+	return _u
+}
+
+// SetNillableProviderType sets the "provider_type" field if the given value is not nil.
+func (_u *KaguyaProviderInfoUpdateOne) SetNillableProviderType(v *consts.ProviderType) *KaguyaProviderInfoUpdateOne {
+	if v != nil {
+		_u.SetProviderType(*v)
+	}
 	return _u
 }
 
@@ -597,6 +628,9 @@ func (_u *KaguyaProviderInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	}
 	if _u.mutation.APIProtocolCleared() {
 		_spec.ClearField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString)
+	}
+	if value, ok := _u.mutation.ProviderType(); ok {
+		_spec.SetField(kaguyaproviderinfo.FieldProviderType, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.APIKey(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldAPIKey, field.TypeString, value)

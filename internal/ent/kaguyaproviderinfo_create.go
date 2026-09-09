@@ -87,6 +87,20 @@ func (_c *KaguyaProviderInfoCreate) SetNillableAPIProtocol(v *consts.ProviderPro
 	return _c
 }
 
+// SetProviderType sets the "provider_type" field.
+func (_c *KaguyaProviderInfoCreate) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoCreate {
+	_c.mutation.SetProviderType(v)
+	return _c
+}
+
+// SetNillableProviderType sets the "provider_type" field if the given value is not nil.
+func (_c *KaguyaProviderInfoCreate) SetNillableProviderType(v *consts.ProviderType) *KaguyaProviderInfoCreate {
+	if v != nil {
+		_c.SetProviderType(*v)
+	}
+	return _c
+}
+
 // SetAPIKey sets the "api_key" field.
 func (_c *KaguyaProviderInfoCreate) SetAPIKey(v string) *KaguyaProviderInfoCreate {
 	_c.mutation.SetAPIKey(v)
@@ -199,6 +213,10 @@ func (_c *KaguyaProviderInfoCreate) defaults() error {
 		v := kaguyaproviderinfo.DefaultAPIProtocol
 		_c.mutation.SetAPIProtocol(v)
 	}
+	if _, ok := _c.mutation.ProviderType(); !ok {
+		v := kaguyaproviderinfo.DefaultProviderType
+		_c.mutation.SetProviderType(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if kaguyaproviderinfo.DefaultID == nil {
 			return fmt.Errorf("ent: uninitialized kaguyaproviderinfo.DefaultID (forgotten import ent/runtime?)")
@@ -224,6 +242,9 @@ func (_c *KaguyaProviderInfoCreate) check() error {
 		if err := kaguyaproviderinfo.ProviderNameValidator(v); err != nil {
 			return &ValidationError{Name: "provider_name", err: fmt.Errorf(`ent: validator failed for field "KaguyaProviderInfo.provider_name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ProviderType(); !ok {
+		return &ValidationError{Name: "provider_type", err: errors.New(`ent: missing required field "KaguyaProviderInfo.provider_type"`)}
 	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := kaguyaproviderinfo.IDValidator(v); err != nil {
@@ -285,6 +306,10 @@ func (_c *KaguyaProviderInfoCreate) createSpec() (*KaguyaProviderInfo, *sqlgraph
 	if value, ok := _c.mutation.APIProtocol(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString, value)
 		_node.APIProtocol = value
+	}
+	if value, ok := _c.mutation.ProviderType(); ok {
+		_spec.SetField(kaguyaproviderinfo.FieldProviderType, field.TypeString, value)
+		_node.ProviderType = value
 	}
 	if value, ok := _c.mutation.APIKey(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldAPIKey, field.TypeString, value)
@@ -419,6 +444,18 @@ func (u *KaguyaProviderInfoUpsert) UpdateAPIProtocol() *KaguyaProviderInfoUpsert
 // ClearAPIProtocol clears the value of the "api_protocol" field.
 func (u *KaguyaProviderInfoUpsert) ClearAPIProtocol() *KaguyaProviderInfoUpsert {
 	u.SetNull(kaguyaproviderinfo.FieldAPIProtocol)
+	return u
+}
+
+// SetProviderType sets the "provider_type" field.
+func (u *KaguyaProviderInfoUpsert) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoUpsert {
+	u.Set(kaguyaproviderinfo.FieldProviderType, v)
+	return u
+}
+
+// UpdateProviderType sets the "provider_type" field to the value that was provided on create.
+func (u *KaguyaProviderInfoUpsert) UpdateProviderType() *KaguyaProviderInfoUpsert {
+	u.SetExcluded(kaguyaproviderinfo.FieldProviderType)
 	return u
 }
 
@@ -576,6 +613,20 @@ func (u *KaguyaProviderInfoUpsertOne) UpdateAPIProtocol() *KaguyaProviderInfoUps
 func (u *KaguyaProviderInfoUpsertOne) ClearAPIProtocol() *KaguyaProviderInfoUpsertOne {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.ClearAPIProtocol()
+	})
+}
+
+// SetProviderType sets the "provider_type" field.
+func (u *KaguyaProviderInfoUpsertOne) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoUpsertOne {
+	return u.Update(func(s *KaguyaProviderInfoUpsert) {
+		s.SetProviderType(v)
+	})
+}
+
+// UpdateProviderType sets the "provider_type" field to the value that was provided on create.
+func (u *KaguyaProviderInfoUpsertOne) UpdateProviderType() *KaguyaProviderInfoUpsertOne {
+	return u.Update(func(s *KaguyaProviderInfoUpsert) {
+		s.UpdateProviderType()
 	})
 }
 
@@ -906,6 +957,20 @@ func (u *KaguyaProviderInfoUpsertBulk) UpdateAPIProtocol() *KaguyaProviderInfoUp
 func (u *KaguyaProviderInfoUpsertBulk) ClearAPIProtocol() *KaguyaProviderInfoUpsertBulk {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.ClearAPIProtocol()
+	})
+}
+
+// SetProviderType sets the "provider_type" field.
+func (u *KaguyaProviderInfoUpsertBulk) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoUpsertBulk {
+	return u.Update(func(s *KaguyaProviderInfoUpsert) {
+		s.SetProviderType(v)
+	})
+}
+
+// UpdateProviderType sets the "provider_type" field to the value that was provided on create.
+func (u *KaguyaProviderInfoUpsertBulk) UpdateProviderType() *KaguyaProviderInfoUpsertBulk {
+	return u.Update(func(s *KaguyaProviderInfoUpsert) {
+		s.UpdateProviderType()
 	})
 }
 

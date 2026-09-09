@@ -4,6 +4,7 @@ import type {
   AIProvider,
   LabelOption,
   ModelPayload,
+  ModelLabelOption,
   ProviderPageResponse,
   ProviderPayload,
   ProviderQuery,
@@ -39,6 +40,10 @@ export function updateProvider(id: string, payload: ProviderPayload) {
 
 export function deleteProvider(id: string) {
   return del(`${PROVIDER_PATH}/${id}`)
+}
+
+export function fetchModelLabels(signal?: AbortSignal) {
+  return get<ModelLabelOption[]>(`${MODEL_PATH}/label`, undefined, signal)
 }
 
 export function createModel(payload: ModelPayload) {
