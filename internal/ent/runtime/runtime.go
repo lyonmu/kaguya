@@ -232,6 +232,16 @@ func init() {
 	kaguyachatturnDescReasoningTokens := kaguyachatturnFields[17].Descriptor()
 	// kaguyachatturn.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
 	kaguyachatturn.ReasoningTokensValidator = kaguyachatturnDescReasoningTokens.Validators[0].(func(int64) error)
+	// kaguyachatturnDescContextTokens is the schema descriptor for context_tokens field.
+	kaguyachatturnDescContextTokens := kaguyachatturnFields[18].Descriptor()
+	// kaguyachatturn.ContextTokensValidator is a validator for the "context_tokens" field. It is called by the builders before save.
+	kaguyachatturn.ContextTokensValidator = kaguyachatturnDescContextTokens.Validators[0].(func(int64) error)
+	// kaguyachatturnDescContextWindow is the schema descriptor for context_window field.
+	kaguyachatturnDescContextWindow := kaguyachatturnFields[19].Descriptor()
+	// kaguyachatturn.DefaultContextWindow holds the default value on creation for the context_window field.
+	kaguyachatturn.DefaultContextWindow = kaguyachatturnDescContextWindow.Default.(int)
+	// kaguyachatturn.ContextWindowValidator is a validator for the "context_window" field. It is called by the builders before save.
+	kaguyachatturn.ContextWindowValidator = kaguyachatturnDescContextWindow.Validators[0].(func(int) error)
 	// kaguyachatturnDescID is the schema descriptor for id field.
 	kaguyachatturnDescID := kaguyachatturnMixinFields0[0].Descriptor()
 	// kaguyachatturn.DefaultID holds the default value on creation for the id field.

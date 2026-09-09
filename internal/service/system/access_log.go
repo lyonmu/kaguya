@@ -35,6 +35,9 @@ func (s *SystemSvc) CreateAccessLog(ctx context.Context, req *dtosystem.SystemAc
 
 // AccessLogPage 分页查询访问日志
 func (s *SystemSvc) AccessLogPage(ctx context.Context, req *dtosystem.SystemAccessLogPageReq) (*dtosystem.SystemAccessLogListResp, error) {
+	if err := dtosystem.ValidateTimeRange(req.StartTime, req.EndTime); err != nil {
+		return nil, err
+	}
 	var (
 		total    int
 		items    = make([]*dtosystem.SystemAccessLogResp, 0)

@@ -150,6 +150,8 @@ var (
 		{Name: "total_tokens", Type: field.TypeInt64},
 		{Name: "cached_tokens", Type: field.TypeInt64},
 		{Name: "reasoning_tokens", Type: field.TypeInt64},
+		{Name: "context_tokens", Type: field.TypeInt64, Nullable: true, Comment: "最后一次模型调用输入（含缓存）及输出，用于估算整段上下文；旧记录未知"},
+		{Name: "context_window", Type: field.TypeInt, Comment: "本轮模型 token_context_window 快照，0 表示未知", Default: 0},
 		{Name: "messages", Type: field.TypeJSON, Comment: "仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"},
 		{Name: "conversation_id", Type: field.TypeString, Size: 64},
 	}
@@ -162,7 +164,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_chat_turn_kaguya_conversation_turns",
-				Columns:    []*schema.Column{KaguyaChatTurnColumns[22]},
+				Columns:    []*schema.Column{KaguyaChatTurnColumns[24]},
 				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -191,7 +193,12 @@ var (
 			{
 				Name:    "kaguyachatturn_conversation_id_turn_index",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaChatTurnColumns[22], KaguyaChatTurnColumns[4]},
+				Columns: []*schema.Column{KaguyaChatTurnColumns[24], KaguyaChatTurnColumns[4]},
+			},
+			{
+				Name:    "kaguyachatturn_finished_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaChatTurnColumns[12]},
 			},
 		},
 	}

@@ -85,7 +85,7 @@ export function ChatPage() {
       </header>
       {chat.error && <Alert type="error" title={chat.error} showIcon />}
       <MessageList key={chat.viewKey} turns={chat.turns} loading={chat.loading} hasMore={chat.hasMore} streaming={chat.streaming} onLoadMore={chat.loadMore} />
-      <Composer modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} streaming={chat.streaming} disabled={chat.loading || saving || (!!chat.id && !chat.conversation)} onSend={send} onStop={chat.stop} />
+      <Composer conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} streaming={chat.streaming} disabled={chat.loading || saving || (!!chat.id && !chat.conversation)} onSend={send} onStop={chat.stop} />
     </section>
     <Modal title="重命名对话" open={renaming} confirmLoading={saving} onCancel={() => setRenaming(false)} onOk={() => void update({ title: title.trim() })} okButtonProps={{ disabled: !title.trim() }}><Input aria-label="对话标题" value={title} maxLength={200} onChange={event => setTitle(event.target.value)} /></Modal>
   </div>

@@ -53,6 +53,7 @@ func TestConversationAPI(t *testing.T) {
 			SetProviderID("p").SetProviderName("test").SetModelID("test").SetModelName("test").SetAPIProtocol("openai-chat").
 			SetStartedAt(at).SetFinishedAt(at).SetDurationMs(0).SetToolCalls(0).SetFinishReason("stop").
 			SetInputTokens(1).SetOutputTokens(2).SetTotalTokens(3).SetCachedTokens(0).SetReasoningTokens(0).
+			SetContextTokens(450).SetContextWindow(1000).
 			SetMessages([]fantasy.Message{fantasy.NewUserMessage("private-context")}).Save(ctx)
 		if err != nil {
 			t.Fatal(err)
@@ -67,6 +68,7 @@ func TestConversationAPI(t *testing.T) {
 	router.GET("/conversation/page", api.ConversationPage)
 	router.GET("/conversation/:id", api.ConversationDetail)
 	router.GET("/conversation/:id/turns", api.ConversationTurns)
+	router.GET("/conversation/:id/context", api.ConversationContext)
 	router.GET("/conversation/:id/title/wait", api.ConversationTitleWait)
 	router.POST("/conversation/:id/title/wait", api.ConversationTitleGenerate)
 	router.PUT("/conversation/:id", api.ConversationUpdate)
@@ -93,6 +95,12 @@ func TestConversationAPI(t *testing.T) {
 		return result.Data
 	}
 	ok, bad, missing := dtocode.SystemSuccess.Code, dtocode.RequestParameterError.Code, dtocode.ConversationNotFound.Code
+	usage := request("GET", "/conversation/123/context", "", ok)
+	if usage["percent"] != float64(50) || usage["turn_index"] != float64(2) {
+		t.Fatalf("context: %+v", usage)
+	}
+	request("GET", "/conversation/unknown/context", "", missing)
+	request("GET", "/conversation/"+strings.Repeat("1", 65)+"/context", "", bad)
 	list := request("GET", "/conversation/page", "", ok)
 	if list["total"] != float64(1) || list["page_size"] != float64(20) {
 		t.Fatalf("list: %+v", list)
@@ -140,6 +148,7 @@ func TestConversationAPI(t *testing.T) {
 	request("PUT", "/conversation/123", `{"title":"新对话"}`, ok)
 	request("POST", "/conversation/123/title/wait", "", dtocode.TaskModelNotConfigured.Code)
 	request("DELETE", "/conversation/123", "", ok)
+	request("GET", "/conversation/123/context", "", missing)
 	request("POST", "/conversation/123/title/wait", "", missing)
 	request("GET", "/conversation/123/title/wait", "", missing)
 	request("GET", "/conversation/123/turns", "", missing)

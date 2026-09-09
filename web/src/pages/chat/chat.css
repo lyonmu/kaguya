@@ -57,9 +57,16 @@
 .chat-welcome p { color: var(--k-text-muted); font-size: 13px; }
 .chat-composer-shell { padding: 12px 24px 8px; }
 .chat-composer { max-width: 880px; margin: auto; background: var(--k-elevated); border: 1px solid var(--k-border); border-radius: 14px; padding: 12px; box-shadow: 0 12px 32px rgb(0 0 0 / 8%); }
-.chat-composer:focus-within { border-color: var(--k-primary); }
+/* 焦点反馈只保留在容器；去除 textarea 的原生缩放斜线、内层边框和焦点轮廓。 */
+.chat-composer:focus-within { box-shadow: 0 12px 32px rgb(0 0 0 / 8%), 0 0 0 2px var(--k-selected); }
+.chat-composer textarea.chat-composer-input,
+.chat-composer textarea.chat-composer-input:hover,
+.chat-composer textarea.chat-composer-input:focus { resize: none; border: 0; outline: none; box-shadow: none; background: transparent; }
+.chat-composer-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.chat-context-progress { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; }
+.chat-context-progress:focus-visible { outline: 2px solid var(--k-primary); outline-offset: 3px; border-radius: 50%; }
 .chat-composer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
-.chat-model-select { width: 280px; max-width: calc(100% - 80px); }
+.chat-model-select { width: 280px; max-width: calc(100% - 130px); }
 .chat-composer-hint { text-align: center; color: var(--k-text-subtle); font-size: 10px; margin: 8px 0; }
 .chat-desktop-inspector { width: 320px; flex-shrink: 0; border-left: 1px solid var(--k-border-soft); background: var(--k-panel); overflow: auto; }
 .chat-inspector { padding: 0 16px 20px; }

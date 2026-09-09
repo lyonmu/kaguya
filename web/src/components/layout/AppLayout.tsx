@@ -1,6 +1,7 @@
 import { useState, type PropsWithChildren } from 'react'
 import {
   ApiOutlined,
+  BarChartOutlined,
   CommentOutlined,
   FileSearchOutlined,
   MoonOutlined,
@@ -16,7 +17,7 @@ import kaguyaIcon from '../../assets/kaguya.png'
 
 const { Content, Header, Sider } = Layout
 
-export type SystemPage = 'chat' | 'access-logs' | 'ai-providers' | 'system-info'
+export type SystemPage = 'chat' | 'access-logs' | 'ai-providers' | 'system-info' | 'token-usage'
 
 interface AppLayoutProps extends PropsWithChildren {
   colorMode: ColorMode
@@ -141,6 +142,7 @@ export function AppLayout({
             <Menu
               className="border-0! bg-transparent!"
               items={[
+                { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' },
                 {
                   key: 'access-logs',
                   icon: <FileSearchOutlined />,
@@ -171,7 +173,7 @@ export function AppLayout({
         </Sider>
 
         <Drawer title="系统管理" placement="left" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
-          <Menu selectedKeys={[currentPage]} items={[...configurationItems, { key: 'access-logs', icon: <FileSearchOutlined />, label: '访问日志' }]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
+          <Menu selectedKeys={[currentPage]} items={[...configurationItems, { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' }, { key: 'access-logs', icon: <FileSearchOutlined />, label: '访问日志' }]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
         </Drawer>
         <Layout className="min-w-0 bg-k-canvas">
           <Header className="flex h-[60px]! min-h-[60px] items-center justify-between border-b border-k-border-soft bg-k-surface/95! px-7! leading-none! backdrop-blur-md max-[720px]:h-14! max-[720px]:min-h-14 max-[720px]:px-[18px]!">
@@ -181,7 +183,7 @@ export function AppLayout({
             <Breadcrumb
               items={[
                 { title: '系统管理' },
-                { title: currentPage === 'ai-providers' ? 'AI 提供商' : currentPage === 'system-info' ? '系统配置' : '访问日志' },
+                { title: currentPage === 'ai-providers' ? 'AI 提供商' : currentPage === 'system-info' ? '系统配置' : currentPage === 'token-usage' ? '用量分析' : '访问日志' },
               ]}
               separator={<RightOutlined className="text-[8px]" />}
             />

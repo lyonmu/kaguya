@@ -173,6 +173,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		ModelName: model.ModelName, APIProtocol: string(provider.APIProtocol),
 		StartedAt: startedAt, FinishedAt: finishedAt, FinishReason: string(result.Response.FinishReason),
 		Usage: usage, Messages: convMsgs, Blocks: trace.blocks,
+		ContextTokens: completedContextTokens(result.Response.Usage), ContextWindow: model.TokenContextWindow,
 	}); err != nil {
 		global.Logger.Sugar().Errorf("persist completed conversation failed: id=%s err=%v", convID, err)
 		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})

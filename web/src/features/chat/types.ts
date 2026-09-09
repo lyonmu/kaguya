@@ -6,6 +6,19 @@ export interface Usage {
   reasoning_tokens: number
 }
 
+export interface ConversationContext {
+  conversation_id: string
+  turn_index: number
+  model_id: string
+  model_name: string
+  context_tokens: number | null
+  context_window: number
+  effective_window: number
+  window_ratio: number
+  percent: number | null
+  max_window_percent: number | null
+}
+
 export interface ToolOutput {
   type: 'text' | 'error' | 'media'
   text?: string

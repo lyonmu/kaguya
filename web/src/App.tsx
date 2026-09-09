@@ -7,6 +7,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import type { SystemPage } from './components/layout/AppLayout'
 import { ChatPage } from './pages/chat/ChatPage'
 
+const TokenUsagePage = lazy(() => import('./pages/system/TokenUsagePage').then(module => ({ default: module.TokenUsagePage })))
 const AccessLogPage = lazy(() => import('./pages/system/AccessLogPage').then(module => ({ default: module.AccessLogPage })))
 const ProviderManagementPage = lazy(() => import('./pages/system/ProviderManagementPage').then(module => ({ default: module.ProviderManagementPage })))
 
@@ -29,6 +30,8 @@ function App() {
           <Suspense fallback={<div className="grid h-full place-items-center"><Spin /></div>}>
           {currentPage === 'chat' ? (
             <ChatPage />
+          ) : currentPage === 'token-usage' ? (
+            <TokenUsagePage />
           ) : currentPage === 'system-info' ? (
             <SystemInfoPage />
           ) : currentPage === 'ai-providers' ? (

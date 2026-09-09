@@ -184,6 +184,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/chat/conversation/{id}/context": {
+            "get": {
+                "description": "以最后一次模型调用输入（含缓存）与输出估算上下文，分母为该轮模型窗口的90%；不累加历史计费用量，不裁剪消息。旧记录或供应商未报告用量时 percent 为 null。",
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "最近完整轮次的整个会话上下文占用",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ConversationContextResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/chat/conversation/{id}/title/wait": {
             "get": {
                 "description": "兼容等待接口，不启动生成任务；无任务时直接返回当前标题。仅等待当前进程的任务，最多30秒。新客户端应使用 POST 接口生成标题。不存在或已删除会话返回会话不存在。",
@@ -399,7 +437,7 @@ const docTemplate = `{
         },
         "/v1/system/accesslog/page": {
             "get": {
-                "description": "获取访问日志分页列表",
+                "description": "获取访问日志分页列表；start_time/end_time 为秒级 Unix 时间戳，首尾秒包含，0 或省略表示不限。不接受日期字符串、负数、毫秒时间戳或反向范围。",
                 "produces": [
                     "application/json"
                 ],
@@ -415,8 +453,11 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "maximum": 253402300799,
+                        "minimum": 0,
                         "type": "integer",
-                        "description": "结束时间",
+                        "example": 1735948799,
+                        "description": "结束时间（Unix 秒，包含）；0 或省略表示不限",
                         "name": "end_time",
                         "in": "query"
                     },
@@ -440,8 +481,11 @@ const docTemplate = `{
                         "required": true
                     },
                     {
+                        "maximum": 253402300799,
+                        "minimum": 0,
                         "type": "integer",
-                        "description": "开始时间",
+                        "example": 1735689600,
+                        "description": "开始时间（Unix 秒，包含）；0 或省略表示不限",
                         "name": "start_time",
                         "in": "query"
                     }
@@ -1030,6 +1074,55 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/system/usage": {
+            "get": {
+                "description": "start_time/end_time 使用秒级 Unix 时间戳，首尾秒包含，精确按秒筛选并按 UTC 自然日聚合；0 或省略使用默认值（结束为今天 UTC 日末，开始为结束日向前一年加一天的日初），最多跨366个 UTC 自然日。不接受日期字符串、负数、毫秒时间戳或反向范围。统计完整聊天轮次（含已删除会话）。会话去重计数；每日活动补零；模型/厂商按用量倒序最多6项。输出已扣除思考，输入含缓存写入。未包含标题任务及失败/取消调用。",
+                "tags": [
+                    "System"
+                ],
+                "summary": "Token 用量分析",
+                "parameters": [
+                    {
+                        "maximum": 253402300799,
+                        "minimum": 0,
+                        "type": "integer",
+                        "example": 1735948799,
+                        "description": "结束时间（Unix 秒，包含整个结束秒），0 或省略表示今天 UTC 日末",
+                        "name": "end_time",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 253402300799,
+                        "minimum": 0,
+                        "type": "integer",
+                        "example": 1735689600,
+                        "description": "开始时间（Unix 秒），0 或省略表示默认范围起点",
+                        "name": "start_time",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.TokenUsageResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1184,6 +1277,41 @@ const docTemplate = `{
                 },
                 "type": {
                     "$ref": "#/definitions/chat.BlockType"
+                }
+            }
+        },
+        "chat.ConversationContextResp": {
+            "type": "object",
+            "properties": {
+                "context_tokens": {
+                    "type": "integer"
+                },
+                "context_window": {
+                    "type": "integer"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "effective_window": {
+                    "type": "integer"
+                },
+                "max_window_percent": {
+                    "type": "number"
+                },
+                "model_id": {
+                    "type": "string"
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "percent": {
+                    "type": "number"
+                },
+                "turn_index": {
+                    "type": "integer"
+                },
+                "window_ratio": {
+                    "type": "number"
                 }
             }
         },
@@ -1948,6 +2076,99 @@ const docTemplate = `{
                             "$ref": "#/definitions/consts.ProviderType"
                         }
                     ]
+                }
+            }
+        },
+        "system.TokenUsageComposition": {
+            "type": "object",
+            "properties": {
+                "cached_tokens": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "input_tokens": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "output_tokens": {
+                    "type": "integer"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "provider_name": {
+                    "type": "string"
+                },
+                "reasoning_tokens": {
+                    "type": "integer"
+                },
+                "total_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "system.TokenUsageDay": {
+            "type": "object",
+            "properties": {
+                "conversations": {
+                    "type": "integer"
+                },
+                "date": {
+                    "type": "string"
+                },
+                "total_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "system.TokenUsageResp": {
+            "type": "object",
+            "properties": {
+                "conversations": {
+                    "type": "integer"
+                },
+                "days": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.TokenUsageDay"
+                    }
+                },
+                "end": {
+                    "type": "string"
+                },
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.TokenUsageComposition"
+                    }
+                },
+                "peak_conversations": {
+                    "type": "integer"
+                },
+                "peak_conversations_date": {
+                    "type": "string"
+                },
+                "peak_tokens": {
+                    "type": "integer"
+                },
+                "peak_tokens_date": {
+                    "type": "string"
+                },
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.TokenUsageComposition"
+                    }
+                },
+                "start": {
+                    "type": "string"
+                },
+                "total_tokens": {
+                    "type": "integer"
                 }
             }
         }

@@ -2623,6 +2623,10 @@ type KaguyaChatTurnMutation struct {
 	addcached_tokens    *int64
 	reasoning_tokens    *int64
 	addreasoning_tokens *int64
+	context_tokens      *int64
+	addcontext_tokens   *int64
+	context_window      *int
+	addcontext_window   *int
 	messages            *[]fantasy.Message
 	appendmessages      []fantasy.Message
 	clearedFields       map[string]struct{}
@@ -3669,6 +3673,132 @@ func (m *KaguyaChatTurnMutation) ResetReasoningTokens() {
 	m.addreasoning_tokens = nil
 }
 
+// SetContextTokens sets the "context_tokens" field.
+func (m *KaguyaChatTurnMutation) SetContextTokens(i int64) {
+	m.context_tokens = &i
+	m.addcontext_tokens = nil
+}
+
+// ContextTokens returns the value of the "context_tokens" field in the mutation.
+func (m *KaguyaChatTurnMutation) ContextTokens() (r int64, exists bool) {
+	v := m.context_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContextTokens returns the old "context_tokens" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldContextTokens(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContextTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContextTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContextTokens: %w", err)
+	}
+	return oldValue.ContextTokens, nil
+}
+
+// AddContextTokens adds i to the "context_tokens" field.
+func (m *KaguyaChatTurnMutation) AddContextTokens(i int64) {
+	if m.addcontext_tokens != nil {
+		*m.addcontext_tokens += i
+	} else {
+		m.addcontext_tokens = &i
+	}
+}
+
+// AddedContextTokens returns the value that was added to the "context_tokens" field in this mutation.
+func (m *KaguyaChatTurnMutation) AddedContextTokens() (r int64, exists bool) {
+	v := m.addcontext_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearContextTokens clears the value of the "context_tokens" field.
+func (m *KaguyaChatTurnMutation) ClearContextTokens() {
+	m.context_tokens = nil
+	m.addcontext_tokens = nil
+	m.clearedFields[kaguyachatturn.FieldContextTokens] = struct{}{}
+}
+
+// ContextTokensCleared returns if the "context_tokens" field was cleared in this mutation.
+func (m *KaguyaChatTurnMutation) ContextTokensCleared() bool {
+	_, ok := m.clearedFields[kaguyachatturn.FieldContextTokens]
+	return ok
+}
+
+// ResetContextTokens resets all changes to the "context_tokens" field.
+func (m *KaguyaChatTurnMutation) ResetContextTokens() {
+	m.context_tokens = nil
+	m.addcontext_tokens = nil
+	delete(m.clearedFields, kaguyachatturn.FieldContextTokens)
+}
+
+// SetContextWindow sets the "context_window" field.
+func (m *KaguyaChatTurnMutation) SetContextWindow(i int) {
+	m.context_window = &i
+	m.addcontext_window = nil
+}
+
+// ContextWindow returns the value of the "context_window" field in the mutation.
+func (m *KaguyaChatTurnMutation) ContextWindow() (r int, exists bool) {
+	v := m.context_window
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContextWindow returns the old "context_window" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldContextWindow(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContextWindow is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContextWindow requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContextWindow: %w", err)
+	}
+	return oldValue.ContextWindow, nil
+}
+
+// AddContextWindow adds i to the "context_window" field.
+func (m *KaguyaChatTurnMutation) AddContextWindow(i int) {
+	if m.addcontext_window != nil {
+		*m.addcontext_window += i
+	} else {
+		m.addcontext_window = &i
+	}
+}
+
+// AddedContextWindow returns the value that was added to the "context_window" field in this mutation.
+func (m *KaguyaChatTurnMutation) AddedContextWindow() (r int, exists bool) {
+	v := m.addcontext_window
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetContextWindow resets all changes to the "context_window" field.
+func (m *KaguyaChatTurnMutation) ResetContextWindow() {
+	m.context_window = nil
+	m.addcontext_window = nil
+}
+
 // SetMessages sets the "messages" field.
 func (m *KaguyaChatTurnMutation) SetMessages(f []fantasy.Message) {
 	m.messages = &f
@@ -3835,7 +3965,7 @@ func (m *KaguyaChatTurnMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaChatTurnMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 24)
 	if m.created_at != nil {
 		fields = append(fields, kaguyachatturn.FieldCreatedAt)
 	}
@@ -3899,6 +4029,12 @@ func (m *KaguyaChatTurnMutation) Fields() []string {
 	if m.reasoning_tokens != nil {
 		fields = append(fields, kaguyachatturn.FieldReasoningTokens)
 	}
+	if m.context_tokens != nil {
+		fields = append(fields, kaguyachatturn.FieldContextTokens)
+	}
+	if m.context_window != nil {
+		fields = append(fields, kaguyachatturn.FieldContextWindow)
+	}
 	if m.messages != nil {
 		fields = append(fields, kaguyachatturn.FieldMessages)
 	}
@@ -3952,6 +4088,10 @@ func (m *KaguyaChatTurnMutation) Field(name string) (ent.Value, bool) {
 		return m.CachedTokens()
 	case kaguyachatturn.FieldReasoningTokens:
 		return m.ReasoningTokens()
+	case kaguyachatturn.FieldContextTokens:
+		return m.ContextTokens()
+	case kaguyachatturn.FieldContextWindow:
+		return m.ContextWindow()
 	case kaguyachatturn.FieldMessages:
 		return m.Messages()
 	}
@@ -4005,6 +4145,10 @@ func (m *KaguyaChatTurnMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldCachedTokens(ctx)
 	case kaguyachatturn.FieldReasoningTokens:
 		return m.OldReasoningTokens(ctx)
+	case kaguyachatturn.FieldContextTokens:
+		return m.OldContextTokens(ctx)
+	case kaguyachatturn.FieldContextWindow:
+		return m.OldContextWindow(ctx)
 	case kaguyachatturn.FieldMessages:
 		return m.OldMessages(ctx)
 	}
@@ -4163,6 +4307,20 @@ func (m *KaguyaChatTurnMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetReasoningTokens(v)
 		return nil
+	case kaguyachatturn.FieldContextTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContextTokens(v)
+		return nil
+	case kaguyachatturn.FieldContextWindow:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContextWindow(v)
+		return nil
 	case kaguyachatturn.FieldMessages:
 		v, ok := value.([]fantasy.Message)
 		if !ok {
@@ -4202,6 +4360,12 @@ func (m *KaguyaChatTurnMutation) AddedFields() []string {
 	if m.addreasoning_tokens != nil {
 		fields = append(fields, kaguyachatturn.FieldReasoningTokens)
 	}
+	if m.addcontext_tokens != nil {
+		fields = append(fields, kaguyachatturn.FieldContextTokens)
+	}
+	if m.addcontext_window != nil {
+		fields = append(fields, kaguyachatturn.FieldContextWindow)
+	}
 	return fields
 }
 
@@ -4226,6 +4390,10 @@ func (m *KaguyaChatTurnMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCachedTokens()
 	case kaguyachatturn.FieldReasoningTokens:
 		return m.AddedReasoningTokens()
+	case kaguyachatturn.FieldContextTokens:
+		return m.AddedContextTokens()
+	case kaguyachatturn.FieldContextWindow:
+		return m.AddedContextWindow()
 	}
 	return nil, false
 }
@@ -4291,6 +4459,20 @@ func (m *KaguyaChatTurnMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddReasoningTokens(v)
 		return nil
+	case kaguyachatturn.FieldContextTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddContextTokens(v)
+		return nil
+	case kaguyachatturn.FieldContextWindow:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddContextWindow(v)
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaChatTurn numeric field %s", name)
 }
@@ -4301,6 +4483,9 @@ func (m *KaguyaChatTurnMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(kaguyachatturn.FieldDeletedAt) {
 		fields = append(fields, kaguyachatturn.FieldDeletedAt)
+	}
+	if m.FieldCleared(kaguyachatturn.FieldContextTokens) {
+		fields = append(fields, kaguyachatturn.FieldContextTokens)
 	}
 	return fields
 }
@@ -4318,6 +4503,9 @@ func (m *KaguyaChatTurnMutation) ClearField(name string) error {
 	switch name {
 	case kaguyachatturn.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case kaguyachatturn.FieldContextTokens:
+		m.ClearContextTokens()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaChatTurn nullable field %s", name)
@@ -4389,6 +4577,12 @@ func (m *KaguyaChatTurnMutation) ResetField(name string) error {
 		return nil
 	case kaguyachatturn.FieldReasoningTokens:
 		m.ResetReasoningTokens()
+		return nil
+	case kaguyachatturn.FieldContextTokens:
+		m.ResetContextTokens()
+		return nil
+	case kaguyachatturn.FieldContextWindow:
+		m.ResetContextWindow()
 		return nil
 	case kaguyachatturn.FieldMessages:
 		m.ResetMessages()

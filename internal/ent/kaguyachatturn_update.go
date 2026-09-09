@@ -367,6 +367,54 @@ func (_u *KaguyaChatTurnUpdate) AddReasoningTokens(v int64) *KaguyaChatTurnUpdat
 	return _u
 }
 
+// SetContextTokens sets the "context_tokens" field.
+func (_u *KaguyaChatTurnUpdate) SetContextTokens(v int64) *KaguyaChatTurnUpdate {
+	_u.mutation.ResetContextTokens()
+	_u.mutation.SetContextTokens(v)
+	return _u
+}
+
+// SetNillableContextTokens sets the "context_tokens" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableContextTokens(v *int64) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetContextTokens(*v)
+	}
+	return _u
+}
+
+// AddContextTokens adds value to the "context_tokens" field.
+func (_u *KaguyaChatTurnUpdate) AddContextTokens(v int64) *KaguyaChatTurnUpdate {
+	_u.mutation.AddContextTokens(v)
+	return _u
+}
+
+// ClearContextTokens clears the value of the "context_tokens" field.
+func (_u *KaguyaChatTurnUpdate) ClearContextTokens() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearContextTokens()
+	return _u
+}
+
+// SetContextWindow sets the "context_window" field.
+func (_u *KaguyaChatTurnUpdate) SetContextWindow(v int) *KaguyaChatTurnUpdate {
+	_u.mutation.ResetContextWindow()
+	_u.mutation.SetContextWindow(v)
+	return _u
+}
+
+// SetNillableContextWindow sets the "context_window" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableContextWindow(v *int) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetContextWindow(*v)
+	}
+	return _u
+}
+
+// AddContextWindow adds value to the "context_window" field.
+func (_u *KaguyaChatTurnUpdate) AddContextWindow(v int) *KaguyaChatTurnUpdate {
+	_u.mutation.AddContextWindow(v)
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdate) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdate {
 	_u.mutation.SetMessages(v)
@@ -520,6 +568,16 @@ func (_u *KaguyaChatTurnUpdate) check() error {
 			return &ValidationError{Name: "reasoning_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.reasoning_tokens": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ContextTokens(); ok {
+		if err := kaguyachatturn.ContextTokensValidator(v); err != nil {
+			return &ValidationError{Name: "context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_tokens": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContextWindow(); ok {
+		if err := kaguyachatturn.ContextWindowValidator(v); err != nil {
+			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
+		}
+	}
 	if _u.mutation.ConversationCleared() && len(_u.mutation.ConversationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaChatTurn.conversation"`)
 	}
@@ -627,6 +685,21 @@ func (_u *KaguyaChatTurnUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedReasoningTokens(); ok {
 		_spec.AddField(kaguyachatturn.FieldReasoningTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ContextTokens(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedContextTokens(); ok {
+		_spec.AddField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.ContextTokensCleared() {
+		_spec.ClearField(kaguyachatturn.FieldContextTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ContextWindow(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContextWindow(); ok {
+		_spec.AddField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -1066,6 +1139,54 @@ func (_u *KaguyaChatTurnUpdateOne) AddReasoningTokens(v int64) *KaguyaChatTurnUp
 	return _u
 }
 
+// SetContextTokens sets the "context_tokens" field.
+func (_u *KaguyaChatTurnUpdateOne) SetContextTokens(v int64) *KaguyaChatTurnUpdateOne {
+	_u.mutation.ResetContextTokens()
+	_u.mutation.SetContextTokens(v)
+	return _u
+}
+
+// SetNillableContextTokens sets the "context_tokens" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableContextTokens(v *int64) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetContextTokens(*v)
+	}
+	return _u
+}
+
+// AddContextTokens adds value to the "context_tokens" field.
+func (_u *KaguyaChatTurnUpdateOne) AddContextTokens(v int64) *KaguyaChatTurnUpdateOne {
+	_u.mutation.AddContextTokens(v)
+	return _u
+}
+
+// ClearContextTokens clears the value of the "context_tokens" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearContextTokens() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearContextTokens()
+	return _u
+}
+
+// SetContextWindow sets the "context_window" field.
+func (_u *KaguyaChatTurnUpdateOne) SetContextWindow(v int) *KaguyaChatTurnUpdateOne {
+	_u.mutation.ResetContextWindow()
+	_u.mutation.SetContextWindow(v)
+	return _u
+}
+
+// SetNillableContextWindow sets the "context_window" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableContextWindow(v *int) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetContextWindow(*v)
+	}
+	return _u
+}
+
+// AddContextWindow adds value to the "context_window" field.
+func (_u *KaguyaChatTurnUpdateOne) AddContextWindow(v int) *KaguyaChatTurnUpdateOne {
+	_u.mutation.AddContextWindow(v)
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdateOne) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdateOne {
 	_u.mutation.SetMessages(v)
@@ -1232,6 +1353,16 @@ func (_u *KaguyaChatTurnUpdateOne) check() error {
 			return &ValidationError{Name: "reasoning_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.reasoning_tokens": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ContextTokens(); ok {
+		if err := kaguyachatturn.ContextTokensValidator(v); err != nil {
+			return &ValidationError{Name: "context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_tokens": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContextWindow(); ok {
+		if err := kaguyachatturn.ContextWindowValidator(v); err != nil {
+			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
+		}
+	}
 	if _u.mutation.ConversationCleared() && len(_u.mutation.ConversationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaChatTurn.conversation"`)
 	}
@@ -1356,6 +1487,21 @@ func (_u *KaguyaChatTurnUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaCh
 	}
 	if value, ok := _u.mutation.AddedReasoningTokens(); ok {
 		_spec.AddField(kaguyachatturn.FieldReasoningTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ContextTokens(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedContextTokens(); ok {
+		_spec.AddField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
+	}
+	if _u.mutation.ContextTokensCleared() {
+		_spec.ClearField(kaguyachatturn.FieldContextTokens, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ContextWindow(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContextWindow(); ok {
+		_spec.AddField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)

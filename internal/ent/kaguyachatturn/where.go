@@ -170,6 +170,16 @@ func ReasoningTokens(v int64) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldReasoningTokens, v))
 }
 
+// ContextTokens applies equality check predicate on the "context_tokens" field. It's identical to ContextTokensEQ.
+func ContextTokens(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextTokens, v))
+}
+
+// ContextWindow applies equality check predicate on the "context_window" field. It's identical to ContextWindowEQ.
+func ContextWindow(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextWindow, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCreatedAt, v))
@@ -1218,6 +1228,96 @@ func ReasoningTokensLT(v int64) predicate.KaguyaChatTurn {
 // ReasoningTokensLTE applies the LTE predicate on the "reasoning_tokens" field.
 func ReasoningTokensLTE(v int64) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldReasoningTokens, v))
+}
+
+// ContextTokensEQ applies the EQ predicate on the "context_tokens" field.
+func ContextTokensEQ(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextTokens, v))
+}
+
+// ContextTokensNEQ applies the NEQ predicate on the "context_tokens" field.
+func ContextTokensNEQ(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldContextTokens, v))
+}
+
+// ContextTokensIn applies the In predicate on the "context_tokens" field.
+func ContextTokensIn(vs ...int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldContextTokens, vs...))
+}
+
+// ContextTokensNotIn applies the NotIn predicate on the "context_tokens" field.
+func ContextTokensNotIn(vs ...int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldContextTokens, vs...))
+}
+
+// ContextTokensGT applies the GT predicate on the "context_tokens" field.
+func ContextTokensGT(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldContextTokens, v))
+}
+
+// ContextTokensGTE applies the GTE predicate on the "context_tokens" field.
+func ContextTokensGTE(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldContextTokens, v))
+}
+
+// ContextTokensLT applies the LT predicate on the "context_tokens" field.
+func ContextTokensLT(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldContextTokens, v))
+}
+
+// ContextTokensLTE applies the LTE predicate on the "context_tokens" field.
+func ContextTokensLTE(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldContextTokens, v))
+}
+
+// ContextTokensIsNil applies the IsNil predicate on the "context_tokens" field.
+func ContextTokensIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldContextTokens))
+}
+
+// ContextTokensNotNil applies the NotNil predicate on the "context_tokens" field.
+func ContextTokensNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldContextTokens))
+}
+
+// ContextWindowEQ applies the EQ predicate on the "context_window" field.
+func ContextWindowEQ(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextWindow, v))
+}
+
+// ContextWindowNEQ applies the NEQ predicate on the "context_window" field.
+func ContextWindowNEQ(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldContextWindow, v))
+}
+
+// ContextWindowIn applies the In predicate on the "context_window" field.
+func ContextWindowIn(vs ...int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldContextWindow, vs...))
+}
+
+// ContextWindowNotIn applies the NotIn predicate on the "context_window" field.
+func ContextWindowNotIn(vs ...int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldContextWindow, vs...))
+}
+
+// ContextWindowGT applies the GT predicate on the "context_window" field.
+func ContextWindowGT(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldContextWindow, v))
+}
+
+// ContextWindowGTE applies the GTE predicate on the "context_window" field.
+func ContextWindowGTE(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldContextWindow, v))
+}
+
+// ContextWindowLT applies the LT predicate on the "context_window" field.
+func ContextWindowLT(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldContextWindow, v))
+}
+
+// ContextWindowLTE applies the LTE predicate on the "context_window" field.
+func ContextWindowLTE(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldContextWindow, v))
 }
 
 // HasConversation applies the HasEdge predicate on the "conversation" edge.

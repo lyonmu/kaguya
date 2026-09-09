@@ -3,8 +3,11 @@ import { Alert, Button, Input, Select } from 'antd'
 import { fetchModelLabels } from '../../providers/api'
 import type { ModelLabelOption } from '../../providers/types'
 import { SendOutlined, StopOutlined } from '@ant-design/icons'
+import { ContextProgress } from './ContextProgress'
 
 interface Props {
+  conversationId?: string
+  turnCount?: number
   modelId: string
   onModelChange: (value: string) => void
   value: string
@@ -15,7 +18,7 @@ interface Props {
   onStop: () => void
 }
 
-export function Composer({ modelId, onModelChange, value, onChange, streaming, disabled, onSend, onStop }: Props) {
+export function Composer({ conversationId, turnCount, modelId, onModelChange, value, onChange, streaming, disabled, onSend, onStop }: Props) {
   const [models, setModels] = useState<ModelLabelOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -37,6 +40,7 @@ export function Composer({ modelId, onModelChange, value, onChange, streaming, d
         {error && <Alert type="error" title={error} action={<Button size="small" onClick={() => setRevision(value => value + 1)}>重试</Button>} />}
         <Input.TextArea
           aria-label="对话消息"
+          className="chat-composer-input"
           placeholder="输入问题，与 Kaguya 对话…"
           value={value}
           onChange={event => onChange(event.target.value)}
@@ -62,11 +66,14 @@ export function Composer({ modelId, onModelChange, value, onChange, streaming, d
               label: `${model.provider_name} / ${model.label}`, value: model.value,
             }))]}
           />
+          <div className="chat-composer-actions">
+          <ContextProgress conversationId={conversationId} turnCount={turnCount} />
           {streaming ? (
             <Button danger icon={<StopOutlined />} onClick={onStop}>停止</Button>
           ) : (
             <Button type="primary" aria-label="发送消息" icon={<SendOutlined />} disabled={!value.trim() || disabled} onClick={onSend} />
           )}
+          </div>
         </div>
       </div>
       <p className="chat-composer-hint">Enter 发送 / Shift + Enter 换行 · AI 生成的内容可能有误，请核实重要信息。</p>

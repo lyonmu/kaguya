@@ -26,8 +26,8 @@ export interface AccessLogPageData {
 
 export interface AccessLogQuery {
   accessIP?: string
-  startTime?: number
-  endTime?: number
+  startTime?: number // Unix 秒，包含；0 或省略表示不限
+  endTime?: number // Unix 秒，包含；0 或省略表示不限
   page: number
   pageSize: number
 }

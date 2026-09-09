@@ -176,6 +176,34 @@ func (_c *KaguyaChatTurnCreate) SetReasoningTokens(v int64) *KaguyaChatTurnCreat
 	return _c
 }
 
+// SetContextTokens sets the "context_tokens" field.
+func (_c *KaguyaChatTurnCreate) SetContextTokens(v int64) *KaguyaChatTurnCreate {
+	_c.mutation.SetContextTokens(v)
+	return _c
+}
+
+// SetNillableContextTokens sets the "context_tokens" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableContextTokens(v *int64) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetContextTokens(*v)
+	}
+	return _c
+}
+
+// SetContextWindow sets the "context_window" field.
+func (_c *KaguyaChatTurnCreate) SetContextWindow(v int) *KaguyaChatTurnCreate {
+	_c.mutation.SetContextWindow(v)
+	return _c
+}
+
+// SetNillableContextWindow sets the "context_window" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableContextWindow(v *int) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetContextWindow(*v)
+	}
+	return _c
+}
+
 // SetMessages sets the "messages" field.
 func (_c *KaguyaChatTurnCreate) SetMessages(v []fantasy.Message) *KaguyaChatTurnCreate {
 	_c.mutation.SetMessages(v)
@@ -266,6 +294,10 @@ func (_c *KaguyaChatTurnCreate) defaults() error {
 		}
 		v := kaguyachatturn.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
+	}
+	if _, ok := _c.mutation.ContextWindow(); !ok {
+		v := kaguyachatturn.DefaultContextWindow
+		_c.mutation.SetContextWindow(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if kaguyachatturn.DefaultID == nil {
@@ -382,6 +414,19 @@ func (_c *KaguyaChatTurnCreate) check() error {
 	if v, ok := _c.mutation.ReasoningTokens(); ok {
 		if err := kaguyachatturn.ReasoningTokensValidator(v); err != nil {
 			return &ValidationError{Name: "reasoning_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.reasoning_tokens": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.ContextTokens(); ok {
+		if err := kaguyachatturn.ContextTokensValidator(v); err != nil {
+			return &ValidationError{Name: "context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_tokens": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ContextWindow(); !ok {
+		return &ValidationError{Name: "context_window", err: errors.New(`ent: missing required field "KaguyaChatTurn.context_window"`)}
+	}
+	if v, ok := _c.mutation.ContextWindow(); ok {
+		if err := kaguyachatturn.ContextWindowValidator(v); err != nil {
+			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Messages(); !ok {
@@ -510,6 +555,14 @@ func (_c *KaguyaChatTurnCreate) createSpec() (*KaguyaChatTurn, *sqlgraph.CreateS
 	if value, ok := _c.mutation.ReasoningTokens(); ok {
 		_spec.SetField(kaguyachatturn.FieldReasoningTokens, field.TypeInt64, value)
 		_node.ReasoningTokens = value
+	}
+	if value, ok := _c.mutation.ContextTokens(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
+		_node.ContextTokens = &value
+	}
+	if value, ok := _c.mutation.ContextWindow(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
+		_node.ContextWindow = value
 	}
 	if value, ok := _c.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -891,6 +944,48 @@ func (u *KaguyaChatTurnUpsert) UpdateReasoningTokens() *KaguyaChatTurnUpsert {
 // AddReasoningTokens adds v to the "reasoning_tokens" field.
 func (u *KaguyaChatTurnUpsert) AddReasoningTokens(v int64) *KaguyaChatTurnUpsert {
 	u.Add(kaguyachatturn.FieldReasoningTokens, v)
+	return u
+}
+
+// SetContextTokens sets the "context_tokens" field.
+func (u *KaguyaChatTurnUpsert) SetContextTokens(v int64) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldContextTokens, v)
+	return u
+}
+
+// UpdateContextTokens sets the "context_tokens" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateContextTokens() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldContextTokens)
+	return u
+}
+
+// AddContextTokens adds v to the "context_tokens" field.
+func (u *KaguyaChatTurnUpsert) AddContextTokens(v int64) *KaguyaChatTurnUpsert {
+	u.Add(kaguyachatturn.FieldContextTokens, v)
+	return u
+}
+
+// ClearContextTokens clears the value of the "context_tokens" field.
+func (u *KaguyaChatTurnUpsert) ClearContextTokens() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldContextTokens)
+	return u
+}
+
+// SetContextWindow sets the "context_window" field.
+func (u *KaguyaChatTurnUpsert) SetContextWindow(v int) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldContextWindow, v)
+	return u
+}
+
+// UpdateContextWindow sets the "context_window" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateContextWindow() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldContextWindow)
+	return u
+}
+
+// AddContextWindow adds v to the "context_window" field.
+func (u *KaguyaChatTurnUpsert) AddContextWindow(v int) *KaguyaChatTurnUpsert {
+	u.Add(kaguyachatturn.FieldContextWindow, v)
 	return u
 }
 
@@ -1297,6 +1392,55 @@ func (u *KaguyaChatTurnUpsertOne) AddReasoningTokens(v int64) *KaguyaChatTurnUps
 func (u *KaguyaChatTurnUpsertOne) UpdateReasoningTokens() *KaguyaChatTurnUpsertOne {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateReasoningTokens()
+	})
+}
+
+// SetContextTokens sets the "context_tokens" field.
+func (u *KaguyaChatTurnUpsertOne) SetContextTokens(v int64) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextTokens(v)
+	})
+}
+
+// AddContextTokens adds v to the "context_tokens" field.
+func (u *KaguyaChatTurnUpsertOne) AddContextTokens(v int64) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddContextTokens(v)
+	})
+}
+
+// UpdateContextTokens sets the "context_tokens" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateContextTokens() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextTokens()
+	})
+}
+
+// ClearContextTokens clears the value of the "context_tokens" field.
+func (u *KaguyaChatTurnUpsertOne) ClearContextTokens() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearContextTokens()
+	})
+}
+
+// SetContextWindow sets the "context_window" field.
+func (u *KaguyaChatTurnUpsertOne) SetContextWindow(v int) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextWindow(v)
+	})
+}
+
+// AddContextWindow adds v to the "context_window" field.
+func (u *KaguyaChatTurnUpsertOne) AddContextWindow(v int) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddContextWindow(v)
+	})
+}
+
+// UpdateContextWindow sets the "context_window" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateContextWindow() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextWindow()
 	})
 }
 
@@ -1872,6 +2016,55 @@ func (u *KaguyaChatTurnUpsertBulk) AddReasoningTokens(v int64) *KaguyaChatTurnUp
 func (u *KaguyaChatTurnUpsertBulk) UpdateReasoningTokens() *KaguyaChatTurnUpsertBulk {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateReasoningTokens()
+	})
+}
+
+// SetContextTokens sets the "context_tokens" field.
+func (u *KaguyaChatTurnUpsertBulk) SetContextTokens(v int64) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextTokens(v)
+	})
+}
+
+// AddContextTokens adds v to the "context_tokens" field.
+func (u *KaguyaChatTurnUpsertBulk) AddContextTokens(v int64) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddContextTokens(v)
+	})
+}
+
+// UpdateContextTokens sets the "context_tokens" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateContextTokens() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextTokens()
+	})
+}
+
+// ClearContextTokens clears the value of the "context_tokens" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearContextTokens() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearContextTokens()
+	})
+}
+
+// SetContextWindow sets the "context_window" field.
+func (u *KaguyaChatTurnUpsertBulk) SetContextWindow(v int) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextWindow(v)
+	})
+}
+
+// AddContextWindow adds v to the "context_window" field.
+func (u *KaguyaChatTurnUpsertBulk) AddContextWindow(v int) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddContextWindow(v)
+	})
+}
+
+// UpdateContextWindow sets the "context_window" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateContextWindow() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextWindow()
 	})
 }
 

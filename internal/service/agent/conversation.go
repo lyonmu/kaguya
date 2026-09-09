@@ -75,6 +75,8 @@ type completedTurn struct {
 	ProviderID, ProviderName, ModelID, ModelName, APIProtocol string
 	StartedAt, FinishedAt                                     time.Time
 	FinishReason                                              string
+	ContextTokens                                             *int64
+	ContextWindow                                             int
 	Usage                                                     token.NormalizedUsage
 	Messages                                                  []fantasy.Message
 	Blocks                                                    []dtochat.StoredBlock
@@ -119,9 +121,10 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	row, err := client.KaguyaChatTurn.Create().SetConversationID(turn.ConversationID).SetTurnIndex(turn.Version + 1).
 		SetUserContent(turn.UserContent).SetProviderID(turn.ProviderID).SetProviderName(turn.ProviderName).
 		SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetAPIProtocol(turn.APIProtocol).
-		SetStartedAt(turn.StartedAt).SetFinishedAt(turn.FinishedAt).SetDurationMs(duration).SetToolCalls(toolCalls).
+		SetStartedAt(turn.StartedAt.UTC()).SetFinishedAt(turn.FinishedAt.UTC()).SetDurationMs(duration).SetToolCalls(toolCalls).
 		SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
 		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
+		SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
 		SetMessages(turn.Messages).Save(ctx)
 	if err != nil {
 		return err

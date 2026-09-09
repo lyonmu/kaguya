@@ -63,6 +63,10 @@ type KaguyaChatTurn struct {
 	CachedTokens int64 `json:"cached_tokens,omitempty"`
 	// ReasoningTokens holds the value of the "reasoning_tokens" field.
 	ReasoningTokens int64 `json:"reasoning_tokens,omitempty"`
+	// 最后一次模型调用输入（含缓存）及输出，用于估算整段上下文；旧记录未知
+	ContextTokens *int64 `json:"context_tokens,omitempty"`
+	// 本轮模型 token_context_window 快照，0 表示未知
+	ContextWindow int `json:"context_window,omitempty"`
 	// 仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端
 	Messages []fantasy.Message `json:"messages,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -109,7 +113,7 @@ func (*KaguyaChatTurn) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyachatturn.FieldMessages:
 			values[i] = new([]byte)
-		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens:
+		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow:
 			values[i] = new(sql.NullInt64)
 		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldFinishReason:
 			values[i] = new(sql.NullString)
@@ -263,6 +267,19 @@ func (_m *KaguyaChatTurn) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ReasoningTokens = value.Int64
 			}
+		case kaguyachatturn.FieldContextTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field context_tokens", values[i])
+			} else if value.Valid {
+				_m.ContextTokens = new(int64)
+				*_m.ContextTokens = value.Int64
+			}
+		case kaguyachatturn.FieldContextWindow:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field context_window", values[i])
+			} else if value.Valid {
+				_m.ContextWindow = int(value.Int64)
+			}
 		case kaguyachatturn.FieldMessages:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field messages", values[i])
@@ -381,6 +398,14 @@ func (_m *KaguyaChatTurn) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("reasoning_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReasoningTokens))
+	builder.WriteString(", ")
+	if v := _m.ContextTokens; v != nil {
+		builder.WriteString("context_tokens=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("context_window=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ContextWindow))
 	builder.WriteString(", ")
 	builder.WriteString("messages=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Messages))

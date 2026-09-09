@@ -21,7 +21,7 @@ it('keeps production chunks below 500 kB and preserves lazy system pages', async
       const size = Buffer.byteLength(chunk.code)
       assert.ok(size <= 500_000, `${chunk.fileName}: ${size} bytes exceeds the 500 kB budget`)
     }
-    for (const page of ['SystemInfoPage', 'ProviderManagementPage', 'AccessLogPage']) {
+    for (const page of ['SystemInfoPage', 'ProviderManagementPage', 'AccessLogPage', 'TokenUsagePage']) {
       assert.ok(chunks.some(chunk => chunk.isDynamicEntry && chunk.name === page), `${page} must remain lazy-loaded`)
     }
   }

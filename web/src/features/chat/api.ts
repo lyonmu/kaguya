@@ -1,7 +1,7 @@
 import { ApiRequestError, buildUrl, del, get, post, put } from '../../api/http'
 import type { ApiResponse } from '../../api/http'
 import { consumeSSE } from './sse'
-import type { ChatFrame, Conversation, ConversationPage, ConversationTitle, TurnPage } from './types'
+import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage } from './types'
 
 const PATH = '/v1/chat/conversation'
 
@@ -10,6 +10,9 @@ export function fetchConversations(keyword: string, favorite: boolean, page: num
 }
 export function fetchConversation(id: string, signal?: AbortSignal) {
   return get<Conversation>(`${PATH}/${encodeURIComponent(id)}`, undefined, signal)
+}
+export function fetchConversationContext(id: string, signal?: AbortSignal) {
+  return get<ConversationContext>(`${PATH}/${encodeURIComponent(id)}/context`, undefined, signal)
 }
 export function generateConversationTitle(id: string, signal?: AbortSignal) {
   return post<ConversationTitle>(`${PATH}/${encodeURIComponent(id)}/title/wait`, undefined, signal)

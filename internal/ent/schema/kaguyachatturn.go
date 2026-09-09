@@ -26,6 +26,8 @@ func (KaguyaChatTurn) Fields() []ent.Field {
 		field.Int64("input_tokens").NonNegative(), field.Int64("output_tokens").NonNegative(),
 		field.Int64("total_tokens").NonNegative(), field.Int64("cached_tokens").NonNegative(),
 		field.Int64("reasoning_tokens").NonNegative(),
+		field.Int64("context_tokens").Optional().Nillable().NonNegative().Comment("最后一次模型调用输入（含缓存）及输出，用于估算整段上下文；旧记录未知"),
+		field.Int("context_window").Default(0).NonNegative().Comment("本轮模型 token_context_window 快照，0 表示未知"),
 		// 不使用展示块重建上下文：工具消息、推理签名和 provider metadata 必须无损保留。
 		field.JSON("messages", []fantasy.Message{}).Comment("仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"),
 	}
@@ -38,7 +40,7 @@ func (KaguyaChatTurn) Edges() []ent.Edge {
 }
 func (KaguyaChatTurn) Mixin() []ent.Mixin { return chatHistoryMixins() }
 func (KaguyaChatTurn) Indexes() []ent.Index {
-	return []ent.Index{index.Fields("conversation_id", "turn_index").Unique()}
+	return []ent.Index{index.Fields("conversation_id", "turn_index").Unique(), index.Fields("finished_at")}
 }
 func (KaguyaChatTurn) Annotations() []schema.Annotation {
 	return chatHistoryAnnotations("kaguya_chat_turn", "已完整提交的问答及累计用量")

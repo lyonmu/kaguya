@@ -57,6 +57,10 @@ const (
 	FieldCachedTokens = "cached_tokens"
 	// FieldReasoningTokens holds the string denoting the reasoning_tokens field in the database.
 	FieldReasoningTokens = "reasoning_tokens"
+	// FieldContextTokens holds the string denoting the context_tokens field in the database.
+	FieldContextTokens = "context_tokens"
+	// FieldContextWindow holds the string denoting the context_window field in the database.
+	FieldContextWindow = "context_window"
 	// FieldMessages holds the string denoting the messages field in the database.
 	FieldMessages = "messages"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
@@ -105,6 +109,8 @@ var Columns = []string{
 	FieldTotalTokens,
 	FieldCachedTokens,
 	FieldReasoningTokens,
+	FieldContextTokens,
+	FieldContextWindow,
 	FieldMessages,
 }
 
@@ -149,6 +155,12 @@ var (
 	CachedTokensValidator func(int64) error
 	// ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
 	ReasoningTokensValidator func(int64) error
+	// ContextTokensValidator is a validator for the "context_tokens" field. It is called by the builders before save.
+	ContextTokensValidator func(int64) error
+	// DefaultContextWindow holds the default value on creation for the "context_window" field.
+	DefaultContextWindow int
+	// ContextWindowValidator is a validator for the "context_window" field. It is called by the builders before save.
+	ContextWindowValidator func(int) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() string
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
@@ -266,6 +278,16 @@ func ByCachedTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByReasoningTokens orders the results by the reasoning_tokens field.
 func ByReasoningTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReasoningTokens, opts...).ToFunc()
+}
+
+// ByContextTokens orders the results by the context_tokens field.
+func ByContextTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContextTokens, opts...).ToFunc()
+}
+
+// ByContextWindow orders the results by the context_window field.
+func ByContextWindow(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContextWindow, opts...).ToFunc()
 }
 
 // ByConversationField orders the results by conversation field.
