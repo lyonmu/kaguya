@@ -17,6 +17,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 )
@@ -84,6 +85,7 @@ func checkColumn(t, c string) error {
 			kaguyachatturn.Table:     kaguyachatturn.ValidColumn,
 			kaguyaconversation.Table: kaguyaconversation.ValidColumn,
 			kaguyamodelsinfo.Table:   kaguyamodelsinfo.ValidColumn,
+			kaguyaproject.Table:      kaguyaproject.ValidColumn,
 			kaguyaproviderinfo.Table: kaguyaproviderinfo.ValidColumn,
 			kaguyasysteminfo.Table:   kaguyasysteminfo.ValidColumn,
 		})

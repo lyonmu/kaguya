@@ -221,6 +221,7 @@ var (
 		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},
 		{Name: "cached_tokens", Type: field.TypeInt64, Default: 0},
 		{Name: "reasoning_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "project_id", Type: field.TypeString, Nullable: true, Size: 64},
 	}
 	// KaguyaConversationTable holds the schema information for the "kaguya_conversation" table.
 	KaguyaConversationTable = &schema.Table{
@@ -228,6 +229,14 @@ var (
 		Comment:    "已完成对话的会话摘要",
 		Columns:    KaguyaConversationColumns,
 		PrimaryKey: []*schema.Column{KaguyaConversationColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "kaguya_conversation_kaguya_project_conversations",
+				Columns:    []*schema.Column{KaguyaConversationColumns[17]},
+				RefColumns: []*schema.Column{KaguyaProjectColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "kaguyaconversation_created_at",
@@ -263,6 +272,11 @@ var (
 				Name:    "kaguyaconversation_deleted_at_title",
 				Unique:  false,
 				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[4]},
+			},
+			{
+				Name:    "kaguyaconversation_project_id_deleted_at_last_message_at_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaConversationColumns[17], KaguyaConversationColumns[3], KaguyaConversationColumns[7], KaguyaConversationColumns[0]},
 			},
 		},
 	}
@@ -339,6 +353,58 @@ var (
 				Name:    "kaguyamodelsinfo_is_default",
 				Unique:  false,
 				Columns: []*schema.Column{KaguyaModelsInfoColumns[6]},
+			},
+		},
+	}
+	// KaguyaProjectColumns holds the columns for the "kaguya_project" table.
+	KaguyaProjectColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "name", Type: field.TypeString, Size: 200},
+		{Name: "path", Type: field.TypeString, Size: 4096},
+		{Name: "description", Type: field.TypeString, Size: 2000, Default: ""},
+	}
+	// KaguyaProjectTable holds the schema information for the "kaguya_project" table.
+	KaguyaProjectTable = &schema.Table{
+		Name:       "kaguya_project",
+		Comment:    "主机目录项目",
+		Columns:    KaguyaProjectColumns,
+		PrimaryKey: []*schema.Column{KaguyaProjectColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyaproject_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaProjectColumns[1]},
+			},
+			{
+				Name:    "kaguyaproject_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaProjectColumns[2]},
+			},
+			{
+				Name:    "kaguyaproject_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaProjectColumns[3]},
+			},
+			{
+				Name:    "kaguyaproject_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaProjectColumns[0]},
+			},
+			{
+				Name:    "kaguyaproject_deleted_at_name_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaProjectColumns[3], KaguyaProjectColumns[4], KaguyaProjectColumns[0]},
+			},
+			{
+				Name:    "kaguyaproject_path",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaProjectColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
 			},
 		},
 	}
@@ -440,6 +506,7 @@ var (
 		KaguyaChatTurnTable,
 		KaguyaConversationTable,
 		KaguyaModelsInfoTable,
+		KaguyaProjectTable,
 		KaguyaProviderInfoTable,
 		KaguyaSystemInfoTable,
 	}
@@ -463,6 +530,7 @@ func init() {
 		Charset:   "utf8mb4",
 		Collation: "utf8mb4_general_ci",
 	}
+	KaguyaConversationTable.ForeignKeys[0].RefTable = KaguyaProjectTable
 	KaguyaConversationTable.Annotation = &entsql.Annotation{
 		Table:     "kaguya_conversation",
 		Charset:   "utf8mb4",
@@ -471,6 +539,11 @@ func init() {
 	KaguyaModelsInfoTable.ForeignKeys[0].RefTable = KaguyaProviderInfoTable
 	KaguyaModelsInfoTable.Annotation = &entsql.Annotation{
 		Table:     "kaguya_models_info",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	}
+	KaguyaProjectTable.Annotation = &entsql.Annotation{
+		Table:     "kaguya_project",
 		Charset:   "utf8mb4",
 		Collation: "utf8mb4_general_ci",
 	}

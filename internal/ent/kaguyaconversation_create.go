@@ -14,6 +14,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 )
 
 // KaguyaConversationCreate is the builder for creating a KaguyaConversation entity.
@@ -69,6 +70,20 @@ func (_c *KaguyaConversationCreate) SetNillableDeletedAt(v *time.Time) *KaguyaCo
 // SetTitle sets the "title" field.
 func (_c *KaguyaConversationCreate) SetTitle(v string) *KaguyaConversationCreate {
 	_c.mutation.SetTitle(v)
+	return _c
+}
+
+// SetProjectID sets the "project_id" field.
+func (_c *KaguyaConversationCreate) SetProjectID(v string) *KaguyaConversationCreate {
+	_c.mutation.SetProjectID(v)
+	return _c
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_c *KaguyaConversationCreate) SetNillableProjectID(v *string) *KaguyaConversationCreate {
+	if v != nil {
+		_c.SetProjectID(*v)
+	}
 	return _c
 }
 
@@ -243,6 +258,11 @@ func (_c *KaguyaConversationCreate) AddTurns(v ...*KaguyaChatTurn) *KaguyaConver
 		ids[i] = v[i].ID
 	}
 	return _c.AddTurnIDs(ids...)
+}
+
+// SetProject sets the "project" edge to the KaguyaProject entity.
+func (_c *KaguyaConversationCreate) SetProject(v *KaguyaProject) *KaguyaConversationCreate {
+	return _c.SetProjectID(v.ID)
 }
 
 // Mutation returns the KaguyaConversationMutation object of the builder.
@@ -555,6 +575,23 @@ func (_c *KaguyaConversationCreate) createSpec() (*KaguyaConversation, *sqlgraph
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.ProjectIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   kaguyaconversation.ProjectTable,
+			Columns: []string{kaguyaconversation.ProjectColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyaproject.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.ProjectID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -646,6 +683,24 @@ func (u *KaguyaConversationUpsert) SetTitle(v string) *KaguyaConversationUpsert 
 // UpdateTitle sets the "title" field to the value that was provided on create.
 func (u *KaguyaConversationUpsert) UpdateTitle() *KaguyaConversationUpsert {
 	u.SetExcluded(kaguyaconversation.FieldTitle)
+	return u
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *KaguyaConversationUpsert) SetProjectID(v string) *KaguyaConversationUpsert {
+	u.Set(kaguyaconversation.FieldProjectID, v)
+	return u
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *KaguyaConversationUpsert) UpdateProjectID() *KaguyaConversationUpsert {
+	u.SetExcluded(kaguyaconversation.FieldProjectID)
+	return u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (u *KaguyaConversationUpsert) ClearProjectID() *KaguyaConversationUpsert {
+	u.SetNull(kaguyaconversation.FieldProjectID)
 	return u
 }
 
@@ -938,6 +993,27 @@ func (u *KaguyaConversationUpsertOne) SetTitle(v string) *KaguyaConversationUpse
 func (u *KaguyaConversationUpsertOne) UpdateTitle() *KaguyaConversationUpsertOne {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.UpdateTitle()
+	})
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *KaguyaConversationUpsertOne) SetProjectID(v string) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetProjectID(v)
+	})
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertOne) UpdateProjectID() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateProjectID()
+	})
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (u *KaguyaConversationUpsertOne) ClearProjectID() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.ClearProjectID()
 	})
 }
 
@@ -1429,6 +1505,27 @@ func (u *KaguyaConversationUpsertBulk) SetTitle(v string) *KaguyaConversationUps
 func (u *KaguyaConversationUpsertBulk) UpdateTitle() *KaguyaConversationUpsertBulk {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.UpdateTitle()
+	})
+}
+
+// SetProjectID sets the "project_id" field.
+func (u *KaguyaConversationUpsertBulk) SetProjectID(v string) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetProjectID(v)
+	})
+}
+
+// UpdateProjectID sets the "project_id" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertBulk) UpdateProjectID() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateProjectID()
+	})
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (u *KaguyaConversationUpsertBulk) ClearProjectID() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.ClearProjectID()
 	})
 }
 

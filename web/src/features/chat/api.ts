@@ -5,8 +5,8 @@ import type { ChatFrame, Conversation, ConversationContext, ConversationPage, Co
 
 const PATH = '/v1/chat/conversation'
 
-export function fetchConversations(keyword: string, favorite: boolean, page: number, signal?: AbortSignal) {
-  return get<ConversationPage>(`${PATH}/page`, { keyword, favorite: favorite || undefined, page, page_size: 20 }, signal)
+export function fetchConversations(keyword: string, favorite: boolean, page: number, signal?: AbortSignal, projectId?: string) {
+  return get<ConversationPage>(`${PATH}/page`, { keyword, favorite: favorite || undefined, project_id: projectId || undefined, page, page_size: 20 }, signal)
 }
 export function fetchConversation(id: string, signal?: AbortSignal) {
   return get<Conversation>(`${PATH}/${encodeURIComponent(id)}`, undefined, signal)
@@ -29,12 +29,12 @@ export function updateConversation(id: string, payload: { title?: string; favori
 export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }
-export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string) {
+export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string) {
   const response = await fetch(buildUrl('/v1/chat/sse'), {
     method: 'POST',
     headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined }),
+    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined, project_id: projectId || undefined }),
     signal,
   })
   if (!response.ok || !response.headers.get('content-type')?.includes('text/event-stream')) {

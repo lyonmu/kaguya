@@ -18,6 +18,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
 )
 
 var (
@@ -69,6 +70,7 @@ func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64,
 }
 
 type completedTurn struct {
+	ProjectID                                                 string
 	ConversationID                                            string
 	Version                                                   int64
 	UserContent                                               string
@@ -93,8 +95,15 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	defer tx.Rollback()
 	client := tx.Client()
 	if turn.Version == 0 {
-		_, err = client.KaguyaConversation.Create().SetID(turn.ConversationID).SetTitle(defaultConversationTitle).
-			SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetLastMessageAt(turn.FinishedAt).Save(ctx)
+		create := client.KaguyaConversation.Create().SetID(turn.ConversationID).SetTitle(defaultConversationTitle).
+			SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetLastMessageAt(turn.FinishedAt)
+		if turn.ProjectID != "" {
+			if err := projectsvc.Lock(ctx, client, turn.ProjectID); err != nil {
+				return err
+			}
+			create.SetProjectID(turn.ProjectID)
+		}
+		_, err = create.Save(ctx)
 		if err != nil {
 			return err
 		}
@@ -152,13 +161,19 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 }
 
 func conversationResp(row *ent.KaguyaConversation) dtochat.ConversationResp {
-	return dtochat.ConversationResp{ID: row.ID, Title: row.Title, Favorite: row.Favorite, TurnCount: row.TurnCount,
+	return dtochat.ConversationResp{ProjectID: row.ProjectID, ID: row.ID, Title: row.Title, Favorite: row.Favorite, TurnCount: row.TurnCount,
 		ModelID: row.ModelID, ModelName: row.ModelName, CreatedAt: row.CreatedAt, LastMessageAt: row.LastMessageAt,
 		DurationMS: row.DurationMs, ToolCalls: row.ToolCalls,
 		Usage: dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)}}
 }
 func (s *AgentSvc) ConversationPage(ctx context.Context, req *dtochat.ConversationPageReq) (*dtochat.ConversationListResp, error) {
 	q := db.EntClient.KaguyaConversation.Query().Where(kaguyaconversation.DeletedAtIsNil())
+	if req.ProjectID != "" {
+		if _, err := (&projectsvc.ProjectSvc{}).Detail(ctx, req.ProjectID); err != nil {
+			return nil, err
+		}
+		q.Where(kaguyaconversation.ProjectIDEQ(req.ProjectID))
+	}
 	if req.Keyword != "" {
 		q.Where(kaguyaconversation.TitleHasPrefix(req.Keyword))
 	}

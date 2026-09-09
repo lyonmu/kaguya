@@ -1,4 +1,4 @@
-.PHONY: build backend frontend clean test docker default
+.PHONY: build backend frontend install clean test docker default
 
 default: build
 
@@ -38,6 +38,9 @@ backend:
 build: frontend
 	mkdir -p target
 	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+
+install: build
+	install -m 0755 ./target/$(PROJECT_NAME) /usr/bin/$(PROJECT_NAME)
 
 .PHONY: docker
 docker:

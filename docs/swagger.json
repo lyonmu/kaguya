@@ -53,6 +53,12 @@
                         "type": "integer",
                         "name": "page_size",
                         "in": "query"
+                    },
+                    {
+                        "maxLength": 64,
+                        "type": "string",
+                        "name": "project_id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -435,6 +441,237 @@
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project": {
+            "post": {
+                "description": "名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 103003",
+                "tags": [
+                    "Project"
+                ],
+                "summary": "新建主机目录项目（不创建主机文件夹）",
+                "parameters": [
+                    {
+                        "description": "项目信息",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.SaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.Resp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project/directories": {
+            "get": {
+                "tags": [
+                    "Project"
+                ],
+                "summary": "浏览运行用户主目录内的文件夹",
+                "parameters": [
+                    {
+                        "maxLength": 4096,
+                        "type": "string",
+                        "name": "path",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.DirectoryResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project/page": {
+            "get": {
+                "tags": [
+                    "Project"
+                ],
+                "summary": "项目分页列表",
+                "parameters": [
+                    {
+                        "maxLength": 200,
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.PageResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project/{id}": {
+            "get": {
+                "tags": [
+                    "Project"
+                ],
+                "summary": "项目详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.Resp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "名称可重复；不能修改为其他未删除项目使用的目录，冲突返回业务码 103003",
+                "tags": [
+                    "Project"
+                ],
+                "summary": "更新项目",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "项目信息",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/project.SaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.Resp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Project"
+                ],
+                "summary": "删除项目并解除对话归属，保留历史和主机文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
                         }
                     }
                 }
@@ -1203,6 +1440,11 @@
                 "model_id": {
                     "description": "本地模型记录 ID，空值使用全局默认模型",
                     "type": "string"
+                },
+                "project_id": {
+                    "description": "仅新对话使用",
+                    "type": "string",
+                    "maxLength": 64
                 }
             }
         },
@@ -1362,6 +1604,9 @@
                     "type": "string"
                 },
                 "model_name": {
+                    "type": "string"
+                },
+                "project_id": {
                     "type": "string"
                 },
                 "title": {
@@ -1690,6 +1935,98 @@
                 "message": {
                     "type": "string",
                     "example": "success"
+                }
+            }
+        },
+        "project.Directory": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.DirectoryResp": {
+            "type": "object",
+            "properties": {
+                "home": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.Directory"
+                    }
+                },
+                "parent": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.PageResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.Resp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.Resp": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.SaveReq": {
+            "type": "object",
+            "required": [
+                "name",
+                "path"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "maxLength": 2000
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "path": {
+                    "type": "string",
+                    "maxLength": 4096
                 }
             }
         },

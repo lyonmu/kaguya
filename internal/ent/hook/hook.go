@@ -69,6 +69,18 @@ func (f KaguyaModelsInfoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.V
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaModelsInfoMutation", m)
 }
 
+// The KaguyaProjectFunc type is an adapter to allow the use of ordinary
+// function as KaguyaProject mutator.
+type KaguyaProjectFunc func(context.Context, *ent.KaguyaProjectMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaProjectFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaProjectMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaProjectMutation", m)
+}
+
 // The KaguyaProviderInfoFunc type is an adapter to allow the use of ordinary
 // function as KaguyaProviderInfo mutator.
 type KaguyaProviderInfoFunc func(context.Context, *ent.KaguyaProviderInfoMutation) (ent.Value, error)

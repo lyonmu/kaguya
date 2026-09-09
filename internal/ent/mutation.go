@@ -19,6 +19,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
@@ -38,6 +39,7 @@ const (
 	TypeKaguyaChatTurn     = "KaguyaChatTurn"
 	TypeKaguyaConversation = "KaguyaConversation"
 	TypeKaguyaModelsInfo   = "KaguyaModelsInfo"
+	TypeKaguyaProject      = "KaguyaProject"
 	TypeKaguyaProviderInfo = "KaguyaProviderInfo"
 	TypeKaguyaSystemInfo   = "KaguyaSystemInfo"
 )
@@ -4727,6 +4729,8 @@ type KaguyaConversationMutation struct {
 	turns               map[string]struct{}
 	removedturns        map[string]struct{}
 	clearedturns        bool
+	project             *string
+	clearedproject      bool
 	done                bool
 	oldValue            func(context.Context) (*KaguyaConversation, error)
 	predicates          []predicate.KaguyaConversation
@@ -4991,6 +4995,55 @@ func (m *KaguyaConversationMutation) OldTitle(ctx context.Context) (v string, er
 // ResetTitle resets all changes to the "title" field.
 func (m *KaguyaConversationMutation) ResetTitle() {
 	m.title = nil
+}
+
+// SetProjectID sets the "project_id" field.
+func (m *KaguyaConversationMutation) SetProjectID(s string) {
+	m.project = &s
+}
+
+// ProjectID returns the value of the "project_id" field in the mutation.
+func (m *KaguyaConversationMutation) ProjectID() (r string, exists bool) {
+	v := m.project
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectID returns the old "project_id" field's value of the KaguyaConversation entity.
+// If the KaguyaConversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaConversationMutation) OldProjectID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectID: %w", err)
+	}
+	return oldValue.ProjectID, nil
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (m *KaguyaConversationMutation) ClearProjectID() {
+	m.project = nil
+	m.clearedFields[kaguyaconversation.FieldProjectID] = struct{}{}
+}
+
+// ProjectIDCleared returns if the "project_id" field was cleared in this mutation.
+func (m *KaguyaConversationMutation) ProjectIDCleared() bool {
+	_, ok := m.clearedFields[kaguyaconversation.FieldProjectID]
+	return ok
+}
+
+// ResetProjectID resets all changes to the "project_id" field.
+func (m *KaguyaConversationMutation) ResetProjectID() {
+	m.project = nil
+	delete(m.clearedFields, kaguyaconversation.FieldProjectID)
 }
 
 // SetFavorite sets the "favorite" field.
@@ -5639,6 +5692,33 @@ func (m *KaguyaConversationMutation) ResetTurns() {
 	m.removedturns = nil
 }
 
+// ClearProject clears the "project" edge to the KaguyaProject entity.
+func (m *KaguyaConversationMutation) ClearProject() {
+	m.clearedproject = true
+	m.clearedFields[kaguyaconversation.FieldProjectID] = struct{}{}
+}
+
+// ProjectCleared reports if the "project" edge to the KaguyaProject entity was cleared.
+func (m *KaguyaConversationMutation) ProjectCleared() bool {
+	return m.ProjectIDCleared() || m.clearedproject
+}
+
+// ProjectIDs returns the "project" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ProjectID instead. It exists only for internal usage by the builders.
+func (m *KaguyaConversationMutation) ProjectIDs() (ids []string) {
+	if id := m.project; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetProject resets all changes to the "project" edge.
+func (m *KaguyaConversationMutation) ResetProject() {
+	m.project = nil
+	m.clearedproject = false
+}
+
 // Where appends a list predicates to the KaguyaConversationMutation builder.
 func (m *KaguyaConversationMutation) Where(ps ...predicate.KaguyaConversation) {
 	m.predicates = append(m.predicates, ps...)
@@ -5673,7 +5753,7 @@ func (m *KaguyaConversationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaConversationMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.created_at != nil {
 		fields = append(fields, kaguyaconversation.FieldCreatedAt)
 	}
@@ -5685,6 +5765,9 @@ func (m *KaguyaConversationMutation) Fields() []string {
 	}
 	if m.title != nil {
 		fields = append(fields, kaguyaconversation.FieldTitle)
+	}
+	if m.project != nil {
+		fields = append(fields, kaguyaconversation.FieldProjectID)
 	}
 	if m.favorite != nil {
 		fields = append(fields, kaguyaconversation.FieldFavorite)
@@ -5738,6 +5821,8 @@ func (m *KaguyaConversationMutation) Field(name string) (ent.Value, bool) {
 		return m.DeletedAt()
 	case kaguyaconversation.FieldTitle:
 		return m.Title()
+	case kaguyaconversation.FieldProjectID:
+		return m.ProjectID()
 	case kaguyaconversation.FieldFavorite:
 		return m.Favorite()
 	case kaguyaconversation.FieldTurnCount:
@@ -5779,6 +5864,8 @@ func (m *KaguyaConversationMutation) OldField(ctx context.Context, name string) 
 		return m.OldDeletedAt(ctx)
 	case kaguyaconversation.FieldTitle:
 		return m.OldTitle(ctx)
+	case kaguyaconversation.FieldProjectID:
+		return m.OldProjectID(ctx)
 	case kaguyaconversation.FieldFavorite:
 		return m.OldFavorite(ctx)
 	case kaguyaconversation.FieldTurnCount:
@@ -5839,6 +5926,13 @@ func (m *KaguyaConversationMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTitle(v)
+		return nil
+	case kaguyaconversation.FieldProjectID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectID(v)
 		return nil
 	case kaguyaconversation.FieldFavorite:
 		v, ok := value.(bool)
@@ -6056,6 +6150,9 @@ func (m *KaguyaConversationMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyaconversation.FieldDeletedAt) {
 		fields = append(fields, kaguyaconversation.FieldDeletedAt)
 	}
+	if m.FieldCleared(kaguyaconversation.FieldProjectID) {
+		fields = append(fields, kaguyaconversation.FieldProjectID)
+	}
 	return fields
 }
 
@@ -6072,6 +6169,9 @@ func (m *KaguyaConversationMutation) ClearField(name string) error {
 	switch name {
 	case kaguyaconversation.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case kaguyaconversation.FieldProjectID:
+		m.ClearProjectID()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaConversation nullable field %s", name)
@@ -6092,6 +6192,9 @@ func (m *KaguyaConversationMutation) ResetField(name string) error {
 		return nil
 	case kaguyaconversation.FieldTitle:
 		m.ResetTitle()
+		return nil
+	case kaguyaconversation.FieldProjectID:
+		m.ResetProjectID()
 		return nil
 	case kaguyaconversation.FieldFavorite:
 		m.ResetFavorite()
@@ -6135,9 +6238,12 @@ func (m *KaguyaConversationMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *KaguyaConversationMutation) AddedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.turns != nil {
 		edges = append(edges, kaguyaconversation.EdgeTurns)
+	}
+	if m.project != nil {
+		edges = append(edges, kaguyaconversation.EdgeProject)
 	}
 	return edges
 }
@@ -6152,13 +6258,17 @@ func (m *KaguyaConversationMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case kaguyaconversation.EdgeProject:
+		if id := m.project; id != nil {
+			return []ent.Value{*id}
+		}
 	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *KaguyaConversationMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.removedturns != nil {
 		edges = append(edges, kaguyaconversation.EdgeTurns)
 	}
@@ -6181,9 +6291,12 @@ func (m *KaguyaConversationMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *KaguyaConversationMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 1)
+	edges := make([]string, 0, 2)
 	if m.clearedturns {
 		edges = append(edges, kaguyaconversation.EdgeTurns)
+	}
+	if m.clearedproject {
+		edges = append(edges, kaguyaconversation.EdgeProject)
 	}
 	return edges
 }
@@ -6194,6 +6307,8 @@ func (m *KaguyaConversationMutation) EdgeCleared(name string) bool {
 	switch name {
 	case kaguyaconversation.EdgeTurns:
 		return m.clearedturns
+	case kaguyaconversation.EdgeProject:
+		return m.clearedproject
 	}
 	return false
 }
@@ -6202,6 +6317,9 @@ func (m *KaguyaConversationMutation) EdgeCleared(name string) bool {
 // if that edge is not defined in the schema.
 func (m *KaguyaConversationMutation) ClearEdge(name string) error {
 	switch name {
+	case kaguyaconversation.EdgeProject:
+		m.ClearProject()
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaConversation unique edge %s", name)
 }
@@ -6212,6 +6330,9 @@ func (m *KaguyaConversationMutation) ResetEdge(name string) error {
 	switch name {
 	case kaguyaconversation.EdgeTurns:
 		m.ResetTurns()
+		return nil
+	case kaguyaconversation.EdgeProject:
+		m.ResetProject()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaConversation edge %s", name)
@@ -7825,6 +7946,723 @@ func (m *KaguyaModelsInfoMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaModelsInfo edge %s", name)
+}
+
+// KaguyaProjectMutation represents an operation that mutates the KaguyaProject nodes in the graph.
+type KaguyaProjectMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *string
+	created_at           *time.Time
+	updated_at           *time.Time
+	deleted_at           *time.Time
+	name                 *string
+	_path                *string
+	description          *string
+	clearedFields        map[string]struct{}
+	conversations        map[string]struct{}
+	removedconversations map[string]struct{}
+	clearedconversations bool
+	done                 bool
+	oldValue             func(context.Context) (*KaguyaProject, error)
+	predicates           []predicate.KaguyaProject
+}
+
+var _ ent.Mutation = (*KaguyaProjectMutation)(nil)
+
+// kaguyaprojectOption allows management of the mutation configuration using functional options.
+type kaguyaprojectOption func(*KaguyaProjectMutation)
+
+// newKaguyaProjectMutation creates new mutation for the KaguyaProject entity.
+func newKaguyaProjectMutation(c config, op Op, opts ...kaguyaprojectOption) *KaguyaProjectMutation {
+	m := &KaguyaProjectMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKaguyaProject,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKaguyaProjectID sets the ID field of the mutation.
+func withKaguyaProjectID(id string) kaguyaprojectOption {
+	return func(m *KaguyaProjectMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KaguyaProject
+		)
+		m.oldValue = func(ctx context.Context) (*KaguyaProject, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KaguyaProject.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKaguyaProject sets the old KaguyaProject of the mutation.
+func withKaguyaProject(node *KaguyaProject) kaguyaprojectOption {
+	return func(m *KaguyaProjectMutation) {
+		m.oldValue = func(context.Context) (*KaguyaProject, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KaguyaProjectMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KaguyaProjectMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of KaguyaProject entities.
+func (m *KaguyaProjectMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KaguyaProjectMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KaguyaProjectMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KaguyaProject.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KaguyaProjectMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KaguyaProjectMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KaguyaProject entity.
+// If the KaguyaProject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaProjectMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KaguyaProjectMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KaguyaProjectMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KaguyaProjectMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KaguyaProject entity.
+// If the KaguyaProject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaProjectMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KaguyaProjectMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *KaguyaProjectMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *KaguyaProjectMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the KaguyaProject entity.
+// If the KaguyaProject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaProjectMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *KaguyaProjectMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[kaguyaproject.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *KaguyaProjectMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyaproject.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *KaguyaProjectMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, kaguyaproject.FieldDeletedAt)
+}
+
+// SetName sets the "name" field.
+func (m *KaguyaProjectMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *KaguyaProjectMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the KaguyaProject entity.
+// If the KaguyaProject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaProjectMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *KaguyaProjectMutation) ResetName() {
+	m.name = nil
+}
+
+// SetPath sets the "path" field.
+func (m *KaguyaProjectMutation) SetPath(s string) {
+	m._path = &s
+}
+
+// Path returns the value of the "path" field in the mutation.
+func (m *KaguyaProjectMutation) Path() (r string, exists bool) {
+	v := m._path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPath returns the old "path" field's value of the KaguyaProject entity.
+// If the KaguyaProject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaProjectMutation) OldPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPath: %w", err)
+	}
+	return oldValue.Path, nil
+}
+
+// ResetPath resets all changes to the "path" field.
+func (m *KaguyaProjectMutation) ResetPath() {
+	m._path = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *KaguyaProjectMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *KaguyaProjectMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the KaguyaProject entity.
+// If the KaguyaProject object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaProjectMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *KaguyaProjectMutation) ResetDescription() {
+	m.description = nil
+}
+
+// AddConversationIDs adds the "conversations" edge to the KaguyaConversation entity by ids.
+func (m *KaguyaProjectMutation) AddConversationIDs(ids ...string) {
+	if m.conversations == nil {
+		m.conversations = make(map[string]struct{})
+	}
+	for i := range ids {
+		m.conversations[ids[i]] = struct{}{}
+	}
+}
+
+// ClearConversations clears the "conversations" edge to the KaguyaConversation entity.
+func (m *KaguyaProjectMutation) ClearConversations() {
+	m.clearedconversations = true
+}
+
+// ConversationsCleared reports if the "conversations" edge to the KaguyaConversation entity was cleared.
+func (m *KaguyaProjectMutation) ConversationsCleared() bool {
+	return m.clearedconversations
+}
+
+// RemoveConversationIDs removes the "conversations" edge to the KaguyaConversation entity by IDs.
+func (m *KaguyaProjectMutation) RemoveConversationIDs(ids ...string) {
+	if m.removedconversations == nil {
+		m.removedconversations = make(map[string]struct{})
+	}
+	for i := range ids {
+		delete(m.conversations, ids[i])
+		m.removedconversations[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedConversations returns the removed IDs of the "conversations" edge to the KaguyaConversation entity.
+func (m *KaguyaProjectMutation) RemovedConversationsIDs() (ids []string) {
+	for id := range m.removedconversations {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ConversationsIDs returns the "conversations" edge IDs in the mutation.
+func (m *KaguyaProjectMutation) ConversationsIDs() (ids []string) {
+	for id := range m.conversations {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetConversations resets all changes to the "conversations" edge.
+func (m *KaguyaProjectMutation) ResetConversations() {
+	m.conversations = nil
+	m.clearedconversations = false
+	m.removedconversations = nil
+}
+
+// Where appends a list predicates to the KaguyaProjectMutation builder.
+func (m *KaguyaProjectMutation) Where(ps ...predicate.KaguyaProject) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KaguyaProjectMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KaguyaProjectMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KaguyaProject, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KaguyaProjectMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KaguyaProjectMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KaguyaProject).
+func (m *KaguyaProjectMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KaguyaProjectMutation) Fields() []string {
+	fields := make([]string, 0, 6)
+	if m.created_at != nil {
+		fields = append(fields, kaguyaproject.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, kaguyaproject.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, kaguyaproject.FieldDeletedAt)
+	}
+	if m.name != nil {
+		fields = append(fields, kaguyaproject.FieldName)
+	}
+	if m._path != nil {
+		fields = append(fields, kaguyaproject.FieldPath)
+	}
+	if m.description != nil {
+		fields = append(fields, kaguyaproject.FieldDescription)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KaguyaProjectMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyaproject.FieldCreatedAt:
+		return m.CreatedAt()
+	case kaguyaproject.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case kaguyaproject.FieldDeletedAt:
+		return m.DeletedAt()
+	case kaguyaproject.FieldName:
+		return m.Name()
+	case kaguyaproject.FieldPath:
+		return m.Path()
+	case kaguyaproject.FieldDescription:
+		return m.Description()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KaguyaProjectMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kaguyaproject.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kaguyaproject.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case kaguyaproject.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case kaguyaproject.FieldName:
+		return m.OldName(ctx)
+	case kaguyaproject.FieldPath:
+		return m.OldPath(ctx)
+	case kaguyaproject.FieldDescription:
+		return m.OldDescription(ctx)
+	}
+	return nil, fmt.Errorf("unknown KaguyaProject field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaProjectMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kaguyaproject.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kaguyaproject.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case kaguyaproject.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case kaguyaproject.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case kaguyaproject.FieldPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPath(v)
+		return nil
+	case kaguyaproject.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaProject field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KaguyaProjectMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KaguyaProjectMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaProjectMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown KaguyaProject numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KaguyaProjectMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kaguyaproject.FieldDeletedAt) {
+		fields = append(fields, kaguyaproject.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KaguyaProjectMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KaguyaProjectMutation) ClearField(name string) error {
+	switch name {
+	case kaguyaproject.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaProject nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KaguyaProjectMutation) ResetField(name string) error {
+	switch name {
+	case kaguyaproject.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kaguyaproject.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case kaguyaproject.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case kaguyaproject.FieldName:
+		m.ResetName()
+		return nil
+	case kaguyaproject.FieldPath:
+		m.ResetPath()
+		return nil
+	case kaguyaproject.FieldDescription:
+		m.ResetDescription()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaProject field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KaguyaProjectMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.conversations != nil {
+		edges = append(edges, kaguyaproject.EdgeConversations)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KaguyaProjectMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case kaguyaproject.EdgeConversations:
+		ids := make([]ent.Value, 0, len(m.conversations))
+		for id := range m.conversations {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KaguyaProjectMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedconversations != nil {
+		edges = append(edges, kaguyaproject.EdgeConversations)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KaguyaProjectMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case kaguyaproject.EdgeConversations:
+		ids := make([]ent.Value, 0, len(m.removedconversations))
+		for id := range m.removedconversations {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KaguyaProjectMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedconversations {
+		edges = append(edges, kaguyaproject.EdgeConversations)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KaguyaProjectMutation) EdgeCleared(name string) bool {
+	switch name {
+	case kaguyaproject.EdgeConversations:
+		return m.clearedconversations
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KaguyaProjectMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown KaguyaProject unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KaguyaProjectMutation) ResetEdge(name string) error {
+	switch name {
+	case kaguyaproject.EdgeConversations:
+		m.ResetConversations()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaProject edge %s", name)
 }
 
 // KaguyaProviderInfoMutation represents an operation that mutates the KaguyaProviderInfo nodes in the graph.

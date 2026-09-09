@@ -6,10 +6,11 @@ type ConversationIDReq struct {
 	ID string `uri:"id" binding:"required,max=64"`
 }
 type ConversationPageReq struct {
-	Keyword  string `form:"keyword" binding:"max=200"` // 标题前缀搜索（走索引）
-	Favorite *bool  `form:"favorite"`
-	Page     int    `form:"page,default=1" binding:"min=1,max=1000000"`
-	PageSize int    `form:"page_size,default=20" binding:"min=1,max=100"`
+	ProjectID string `form:"project_id" binding:"max=64"`
+	Keyword   string `form:"keyword" binding:"max=200"` // 标题前缀搜索（走索引）
+	Favorite  *bool  `form:"favorite"`
+	Page      int    `form:"page,default=1" binding:"min=1,max=1000000"`
+	PageSize  int    `form:"page_size,default=20" binding:"min=1,max=100"`
 }
 type ConversationUpdateReq struct {
 	Title    *string `json:"title" binding:"omitempty,min=1,max=200"`
@@ -28,6 +29,7 @@ type TurnPageReq struct {
 	Limit  int   `form:"limit,default=20" binding:"min=1,max=100"`
 }
 type ConversationResp struct {
+	ProjectID     *string   `json:"project_id"`
 	ID            string    `json:"id"`
 	Title         string    `json:"title"` // AI 标题最多20字符；每轮 done 后仍为“新对话”时，由前端 POST title/wait 使用全局任务模型生成或重试
 	Favorite      bool      `json:"favorite"`

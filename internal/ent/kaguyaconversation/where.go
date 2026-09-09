@@ -85,6 +85,11 @@ func Title(v string) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldEQ(FieldTitle, v))
 }
 
+// ProjectID applies equality check predicate on the "project_id" field. It's identical to ProjectIDEQ.
+func ProjectID(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldProjectID, v))
+}
+
 // Favorite applies equality check predicate on the "favorite" field. It's identical to FavoriteEQ.
 func Favorite(v bool) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldEQ(FieldFavorite, v))
@@ -338,6 +343,81 @@ func TitleEqualFold(v string) predicate.KaguyaConversation {
 // TitleContainsFold applies the ContainsFold predicate on the "title" field.
 func TitleContainsFold(v string) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldContainsFold(FieldTitle, v))
+}
+
+// ProjectIDEQ applies the EQ predicate on the "project_id" field.
+func ProjectIDEQ(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldProjectID, v))
+}
+
+// ProjectIDNEQ applies the NEQ predicate on the "project_id" field.
+func ProjectIDNEQ(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNEQ(FieldProjectID, v))
+}
+
+// ProjectIDIn applies the In predicate on the "project_id" field.
+func ProjectIDIn(vs ...string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIn(FieldProjectID, vs...))
+}
+
+// ProjectIDNotIn applies the NotIn predicate on the "project_id" field.
+func ProjectIDNotIn(vs ...string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotIn(FieldProjectID, vs...))
+}
+
+// ProjectIDGT applies the GT predicate on the "project_id" field.
+func ProjectIDGT(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGT(FieldProjectID, v))
+}
+
+// ProjectIDGTE applies the GTE predicate on the "project_id" field.
+func ProjectIDGTE(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGTE(FieldProjectID, v))
+}
+
+// ProjectIDLT applies the LT predicate on the "project_id" field.
+func ProjectIDLT(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLT(FieldProjectID, v))
+}
+
+// ProjectIDLTE applies the LTE predicate on the "project_id" field.
+func ProjectIDLTE(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLTE(FieldProjectID, v))
+}
+
+// ProjectIDContains applies the Contains predicate on the "project_id" field.
+func ProjectIDContains(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldContains(FieldProjectID, v))
+}
+
+// ProjectIDHasPrefix applies the HasPrefix predicate on the "project_id" field.
+func ProjectIDHasPrefix(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldHasPrefix(FieldProjectID, v))
+}
+
+// ProjectIDHasSuffix applies the HasSuffix predicate on the "project_id" field.
+func ProjectIDHasSuffix(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldHasSuffix(FieldProjectID, v))
+}
+
+// ProjectIDIsNil applies the IsNil predicate on the "project_id" field.
+func ProjectIDIsNil() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIsNull(FieldProjectID))
+}
+
+// ProjectIDNotNil applies the NotNil predicate on the "project_id" field.
+func ProjectIDNotNil() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotNull(FieldProjectID))
+}
+
+// ProjectIDEqualFold applies the EqualFold predicate on the "project_id" field.
+func ProjectIDEqualFold(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEqualFold(FieldProjectID, v))
+}
+
+// ProjectIDContainsFold applies the ContainsFold predicate on the "project_id" field.
+func ProjectIDContainsFold(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldContainsFold(FieldProjectID, v))
 }
 
 // FavoriteEQ applies the EQ predicate on the "favorite" field.
@@ -855,6 +935,29 @@ func HasTurns() predicate.KaguyaConversation {
 func HasTurnsWith(preds ...predicate.KaguyaChatTurn) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(func(s *sql.Selector) {
 		step := newTurnsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasProject applies the HasEdge predicate on the "project" edge.
+func HasProject() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ProjectTable, ProjectColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasProjectWith applies the HasEdge predicate on the "project" edge with a given conditions (other predicates).
+func HasProjectWith(preds ...predicate.KaguyaProject) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(func(s *sql.Selector) {
+		step := newProjectStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

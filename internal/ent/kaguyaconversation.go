@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 )
 
 // 已完成对话的会话摘要
@@ -26,6 +27,8 @@ type KaguyaConversation struct {
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// Title holds the value of the "title" field.
 	Title string `json:"title,omitempty"`
+	// ProjectID holds the value of the "project_id" field.
+	ProjectID *string `json:"project_id,omitempty"`
 	// Favorite holds the value of the "favorite" field.
 	Favorite bool `json:"favorite,omitempty"`
 	// 已提交轮数，同时用于乐观并发校验
@@ -60,9 +63,11 @@ type KaguyaConversation struct {
 type KaguyaConversationEdges struct {
 	// Turns holds the value of the turns edge.
 	Turns []*KaguyaChatTurn `json:"turns,omitempty"`
+	// Project holds the value of the project edge.
+	Project *KaguyaProject `json:"project,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [1]bool
+	loadedTypes [2]bool
 }
 
 // TurnsOrErr returns the Turns value or an error if the edge
@@ -74,6 +79,17 @@ func (e KaguyaConversationEdges) TurnsOrErr() ([]*KaguyaChatTurn, error) {
 	return nil, &NotLoadedError{edge: "turns"}
 }
 
+// ProjectOrErr returns the Project value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e KaguyaConversationEdges) ProjectOrErr() (*KaguyaProject, error) {
+	if e.Project != nil {
+		return e.Project, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: kaguyaproject.Label}
+	}
+	return nil, &NotLoadedError{edge: "project"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*KaguyaConversation) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
@@ -83,7 +99,7 @@ func (*KaguyaConversation) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case kaguyaconversation.FieldTurnCount, kaguyaconversation.FieldDurationMs, kaguyaconversation.FieldToolCalls, kaguyaconversation.FieldInputTokens, kaguyaconversation.FieldOutputTokens, kaguyaconversation.FieldTotalTokens, kaguyaconversation.FieldCachedTokens, kaguyaconversation.FieldReasoningTokens:
 			values[i] = new(sql.NullInt64)
-		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
+		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldProjectID, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
 			values[i] = new(sql.NullString)
 		case kaguyaconversation.FieldCreatedAt, kaguyaconversation.FieldUpdatedAt, kaguyaconversation.FieldDeletedAt, kaguyaconversation.FieldLastMessageAt:
 			values[i] = new(sql.NullTime)
@@ -132,6 +148,13 @@ func (_m *KaguyaConversation) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field title", values[i])
 			} else if value.Valid {
 				_m.Title = value.String
+			}
+		case kaguyaconversation.FieldProjectID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field project_id", values[i])
+			} else if value.Valid {
+				_m.ProjectID = new(string)
+				*_m.ProjectID = value.String
 			}
 		case kaguyaconversation.FieldFavorite:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -223,6 +246,11 @@ func (_m *KaguyaConversation) QueryTurns() *KaguyaChatTurnQuery {
 	return NewKaguyaConversationClient(_m.config).QueryTurns(_m)
 }
 
+// QueryProject queries the "project" edge of the KaguyaConversation entity.
+func (_m *KaguyaConversation) QueryProject() *KaguyaProjectQuery {
+	return NewKaguyaConversationClient(_m.config).QueryProject(_m)
+}
+
 // Update returns a builder for updating this KaguyaConversation.
 // Note that you need to call KaguyaConversation.Unwrap() before calling this method if this KaguyaConversation
 // was returned from a transaction, and the transaction was committed or rolled back.
@@ -259,6 +287,11 @@ func (_m *KaguyaConversation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("title=")
 	builder.WriteString(_m.Title)
+	builder.WriteString(", ")
+	if v := _m.ProjectID; v != nil {
+		builder.WriteString("project_id=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("favorite=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Favorite))

@@ -26,6 +26,23 @@ const onCompleted = async () => {}
 const onTitle = () => {}
 
 describe('chat refresh stability', () => {
+  it('resets pagination and ignores stale results when switching projects', async () => {
+    let release!: (value: Response) => void
+    globalThis.fetch = (async url => {
+      const parsed = new URL(String(url), 'http://localhost')
+      const id = parsed.searchParams.get('project_id')
+      if (id === 'a') return new Promise<Response>(resolve => { release = resolve })
+      assert.equal(parsed.searchParams.get('page'), '1')
+      return response({ items: [{ ...detail, id: 'b-chat', project_id: 'b' }], total: 1 })
+    }) as typeof fetch
+    const { result, rerender } = renderHook(({ id }) => useConversations(id), { initialProps: { id: 'a' } })
+    await waitFor(() => assert.ok(release))
+    rerender({ id: 'b' })
+    await waitFor(() => assert.equal(result.current.items[0]?.id, 'b-chat'))
+    await act(async () => { release(response({ items: [detail], total: 1 })); await new Promise(resolve => setTimeout(resolve, 0)) })
+    assert.deepEqual(result.current.items.map(item => item.id), ['b-chat'])
+  })
+
   it('replaces message pages and continues from the latest saved turn', async () => {
     const requested: number[] = []
     globalThis.fetch = (async url => {

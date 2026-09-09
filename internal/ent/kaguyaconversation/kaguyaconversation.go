@@ -23,6 +23,8 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// FieldTitle holds the string denoting the title field in the database.
 	FieldTitle = "title"
+	// FieldProjectID holds the string denoting the project_id field in the database.
+	FieldProjectID = "project_id"
 	// FieldFavorite holds the string denoting the favorite field in the database.
 	FieldFavorite = "favorite"
 	// FieldTurnCount holds the string denoting the turn_count field in the database.
@@ -49,6 +51,8 @@ const (
 	FieldReasoningTokens = "reasoning_tokens"
 	// EdgeTurns holds the string denoting the turns edge name in mutations.
 	EdgeTurns = "turns"
+	// EdgeProject holds the string denoting the project edge name in mutations.
+	EdgeProject = "project"
 	// Table holds the table name of the kaguyaconversation in the database.
 	Table = "kaguya_conversation"
 	// TurnsTable is the table that holds the turns relation/edge.
@@ -58,6 +62,13 @@ const (
 	TurnsInverseTable = "kaguya_chat_turn"
 	// TurnsColumn is the table column denoting the turns relation/edge.
 	TurnsColumn = "conversation_id"
+	// ProjectTable is the table that holds the project relation/edge.
+	ProjectTable = "kaguya_conversation"
+	// ProjectInverseTable is the table name for the KaguyaProject entity.
+	// It exists in this package in order to avoid circular dependency with the "kaguyaproject" package.
+	ProjectInverseTable = "kaguya_project"
+	// ProjectColumn is the table column denoting the project relation/edge.
+	ProjectColumn = "project_id"
 )
 
 // Columns holds all SQL columns for kaguyaconversation fields.
@@ -67,6 +78,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldDeletedAt,
 	FieldTitle,
+	FieldProjectID,
 	FieldFavorite,
 	FieldTurnCount,
 	FieldLastMessageAt,
@@ -174,6 +186,11 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTitle, opts...).ToFunc()
 }
 
+// ByProjectID orders the results by the project_id field.
+func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
 // ByFavorite orders the results by the favorite field.
 func ByFavorite(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFavorite, opts...).ToFunc()
@@ -247,10 +264,24 @@ func ByTurns(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 		sqlgraph.OrderByNeighborTerms(s, newTurnsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
 }
+
+// ByProjectField orders the results by project field.
+func ByProjectField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newProjectStep(), sql.OrderByField(field, opts...))
+	}
+}
 func newTurnsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TurnsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, TurnsTable, TurnsColumn),
+	)
+}
+func newProjectStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ProjectInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, ProjectTable, ProjectColumn),
 	)
 }

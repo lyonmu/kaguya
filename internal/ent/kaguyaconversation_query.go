@@ -14,18 +14,20 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 )
 
 // KaguyaConversationQuery is the builder for querying KaguyaConversation entities.
 type KaguyaConversationQuery struct {
 	config
-	ctx        *QueryContext
-	order      []kaguyaconversation.OrderOption
-	inters     []Interceptor
-	predicates []predicate.KaguyaConversation
-	withTurns  *KaguyaChatTurnQuery
-	modifiers  []func(*sql.Selector)
+	ctx         *QueryContext
+	order       []kaguyaconversation.OrderOption
+	inters      []Interceptor
+	predicates  []predicate.KaguyaConversation
+	withTurns   *KaguyaChatTurnQuery
+	withProject *KaguyaProjectQuery
+	modifiers   []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -77,6 +79,28 @@ func (_q *KaguyaConversationQuery) QueryTurns() *KaguyaChatTurnQuery {
 			sqlgraph.From(kaguyaconversation.Table, kaguyaconversation.FieldID, selector),
 			sqlgraph.To(kaguyachatturn.Table, kaguyachatturn.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, kaguyaconversation.TurnsTable, kaguyaconversation.TurnsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryProject chains the current query on the "project" edge.
+func (_q *KaguyaConversationQuery) QueryProject() *KaguyaProjectQuery {
+	query := (&KaguyaProjectClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyaconversation.Table, kaguyaconversation.FieldID, selector),
+			sqlgraph.To(kaguyaproject.Table, kaguyaproject.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, kaguyaconversation.ProjectTable, kaguyaconversation.ProjectColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -271,12 +295,13 @@ func (_q *KaguyaConversationQuery) Clone() *KaguyaConversationQuery {
 		return nil
 	}
 	return &KaguyaConversationQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]kaguyaconversation.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.KaguyaConversation{}, _q.predicates...),
-		withTurns:  _q.withTurns.Clone(),
+		config:      _q.config,
+		ctx:         _q.ctx.Clone(),
+		order:       append([]kaguyaconversation.OrderOption{}, _q.order...),
+		inters:      append([]Interceptor{}, _q.inters...),
+		predicates:  append([]predicate.KaguyaConversation{}, _q.predicates...),
+		withTurns:   _q.withTurns.Clone(),
+		withProject: _q.withProject.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -292,6 +317,17 @@ func (_q *KaguyaConversationQuery) WithTurns(opts ...func(*KaguyaChatTurnQuery))
 		opt(query)
 	}
 	_q.withTurns = query
+	return _q
+}
+
+// WithProject tells the query-builder to eager-load the nodes that are connected to
+// the "project" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *KaguyaConversationQuery) WithProject(opts ...func(*KaguyaProjectQuery)) *KaguyaConversationQuery {
+	query := (&KaguyaProjectClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withProject = query
 	return _q
 }
 
@@ -373,8 +409,9 @@ func (_q *KaguyaConversationQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 	var (
 		nodes       = []*KaguyaConversation{}
 		_spec       = _q.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [2]bool{
 			_q.withTurns != nil,
+			_q.withProject != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
@@ -402,6 +439,12 @@ func (_q *KaguyaConversationQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 		if err := _q.loadTurns(ctx, query, nodes,
 			func(n *KaguyaConversation) { n.Edges.Turns = []*KaguyaChatTurn{} },
 			func(n *KaguyaConversation, e *KaguyaChatTurn) { n.Edges.Turns = append(n.Edges.Turns, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withProject; query != nil {
+		if err := _q.loadProject(ctx, query, nodes, nil,
+			func(n *KaguyaConversation, e *KaguyaProject) { n.Edges.Project = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -438,6 +481,38 @@ func (_q *KaguyaConversationQuery) loadTurns(ctx context.Context, query *KaguyaC
 	}
 	return nil
 }
+func (_q *KaguyaConversationQuery) loadProject(ctx context.Context, query *KaguyaProjectQuery, nodes []*KaguyaConversation, init func(*KaguyaConversation), assign func(*KaguyaConversation, *KaguyaProject)) error {
+	ids := make([]string, 0, len(nodes))
+	nodeids := make(map[string][]*KaguyaConversation)
+	for i := range nodes {
+		if nodes[i].ProjectID == nil {
+			continue
+		}
+		fk := *nodes[i].ProjectID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(kaguyaproject.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "project_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
 
 func (_q *KaguyaConversationQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := _q.querySpec()
@@ -466,6 +541,9 @@ func (_q *KaguyaConversationQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != kaguyaconversation.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withProject != nil {
+			_spec.Node.AddColumnOnce(kaguyaconversation.FieldProjectID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

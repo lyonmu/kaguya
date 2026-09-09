@@ -19,6 +19,7 @@ type KaguyaConversation struct{ ent.Schema }
 func (KaguyaConversation) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("title").MaxLen(200).NotEmpty(),
+		field.String("project_id").Optional().Nillable(),
 		field.Bool("favorite").Default(false),
 		field.Int64("turn_count").Default(0).NonNegative().Comment("已提交轮数，同时用于乐观并发校验"),
 		field.Time("last_message_at"),
@@ -34,7 +35,7 @@ func (KaguyaConversation) Fields() []ent.Field {
 	}
 }
 func (KaguyaConversation) Edges() []ent.Edge {
-	return []ent.Edge{edge.To("turns", KaguyaChatTurn.Type)}
+	return []ent.Edge{edge.To("turns", KaguyaChatTurn.Type), edge.From("project", KaguyaProject.Type).Ref("conversations").Field("project_id").Unique()}
 }
 func (KaguyaConversation) Mixin() []ent.Mixin { return chatHistoryMixins() }
 func (KaguyaConversation) Indexes() []ent.Index {
@@ -42,6 +43,7 @@ func (KaguyaConversation) Indexes() []ent.Index {
 		index.Fields("deleted_at", "last_message_at", "id"),
 		index.Fields("deleted_at", "favorite", "last_message_at", "id"),
 		index.Fields("deleted_at", "title"),
+		index.Fields("project_id", "deleted_at", "last_message_at", "id"),
 	}
 }
 func (KaguyaConversation) Annotations() []schema.Annotation {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchConversations } from './api'
 import type { Conversation, ConversationTitle } from './types'
 
-export function useConversations() {
+export function useConversations(projectId?: string) {
   const [keyword, setKeyword] = useState('')
   const [favorite, setFavorite] = useState(false)
   const page = useRef(1)
@@ -30,7 +30,7 @@ export function useConversations() {
     try {
       const nextPage = append ? page.current + 1 : page.current
       const results = await Promise.all((append ? [nextPage] : Array.from({ length: nextPage }, (_, index) => index + 1))
-        .map(value => fetchConversations(keyword, favorite, value, controller.signal)))
+        .map(value => fetchConversations(keyword, favorite, value, controller.signal, projectId)))
       if (controller.signal.aborted) return
       const loaded = results.flatMap(result => result.items ?? []).map(item => patches.has(item.id) ? { ...item, title: patches.get(item.id)! } : item)
       setItems(current => [...new Map((append ? [...current, ...loaded] : loaded).map(item => [item.id, item])).values()])
@@ -41,7 +41,13 @@ export function useConversations() {
     } finally {
       if (!controller.signal.aborted) { setLoading(false); busy.current = false }
     }
-  }, [keyword, favorite])
+  }, [keyword, favorite, projectId])
+
+  useEffect(() => {
+    page.current = 1
+    setItems([])
+    setTotal(0)
+  }, [projectId])
 
   useEffect(() => {
     const timer = setTimeout(() => void load(true), 250)

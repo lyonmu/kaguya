@@ -21,6 +21,9 @@ type KaguyaConversation func(*sql.Selector)
 // KaguyaModelsInfo is the predicate function for kaguyamodelsinfo builders.
 type KaguyaModelsInfo func(*sql.Selector)
 
+// KaguyaProject is the predicate function for kaguyaproject builders.
+type KaguyaProject func(*sql.Selector)
+
 // KaguyaProviderInfo is the predicate function for kaguyaproviderinfo builders.
 type KaguyaProviderInfo func(*sql.Selector)
 

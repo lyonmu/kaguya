@@ -15,6 +15,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
+	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 
@@ -86,6 +87,14 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		global.Logger.Sugar().Errorf("load conversation failed: %v", err)
 		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
 		return
+	}
+
+	if version == 0 && req.ProjectID != "" {
+		if _, err := (&projectsvc.ProjectSvc{}).Detail(ctx, req.ProjectID); err != nil {
+			global.Logger.Sugar().Warnf("invalid chat project: id=%s err=%v", req.ProjectID, err)
+			send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
+			return
+		}
 	}
 
 	// 组装 Agent（每次请求新建）
@@ -168,7 +177,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return
 	}
 	if err := saveCompletedTurn(ctx, completedTurn{
-		ConversationID: convID, Version: version, UserContent: req.Messages,
+		ConversationID: convID, ProjectID: req.ProjectID, Version: version, UserContent: req.Messages,
 		ProviderID: provider.ID, ProviderName: provider.ProviderName, ModelID: model.ModelID,
 		ModelName: model.ModelName, APIProtocol: string(provider.APIProtocol),
 		StartedAt: startedAt, FinishedAt: finishedAt, FinishReason: string(result.Response.FinishReason),

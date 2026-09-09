@@ -5,6 +5,24 @@
 .chat-sidebar-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 8px; }
 .chat-sidebar-title h2 { font-size: 15px; margin: 0; font-weight: 650; }
 .chat-sidebar-head .ant-segmented { margin-top: 12px; }
+.project-panel { padding: 12px; overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.project-panel-list { flex: 1; }
+.project-group { padding: 2px 0 8px; }
+.project-group-header { display: flex; align-items: center; gap: 4px; }
+.project-group-name { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 8px; border: 0; background: transparent; color: var(--k-text); text-align: left; cursor: pointer; font: inherit; font-size: 15px; }
+.project-group-name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-group-name.selected { color: var(--k-primary); }
+.project-group-header > .ant-btn { opacity: 0; }
+.project-group-header:hover > .ant-btn, .project-group-header:focus-within > .ant-btn { opacity: 1; }
+.project-conversation { display: block; width: 100%; padding: 12px 12px 12px 44px; margin: 3px 0; border: 0; border-radius: 14px; text-align: left; background: transparent; color: var(--k-text); font: inherit; font-size: 14px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-conversation:hover { background: var(--k-elevated); }
+.project-conversation.active { background: var(--k-selected); }
+.project-conversation:disabled, .project-group-name:disabled { cursor: not-allowed; }
+@media (hover: none) { .project-group-header > .ant-btn { opacity: 1; } }
+.project-panel h3, .project-panel p { margin: 0; }
+.project-path { display: block; overflow-wrap: anywhere; font-size: 12px; color: var(--k-text-muted); }
+.project-directories { max-height: 280px; overflow: auto; }
+.project-directories .ant-btn { text-align: left; justify-content: flex-start; }
 .chat-session-list { flex: 1; min-height: 0; overflow: auto; padding: 12px 10px; }
 .chat-session { display: block; width: 100%; text-align: left; padding: 12px 10px; margin-bottom: 4px; border: 1px solid transparent; border-radius: 9px; cursor: pointer; background: transparent; color: var(--k-text); }
 .chat-session:hover { background: var(--k-elevated); }

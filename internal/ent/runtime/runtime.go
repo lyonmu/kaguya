@@ -11,6 +11,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
@@ -301,53 +302,53 @@ func init() {
 		}
 	}()
 	// kaguyaconversationDescFavorite is the schema descriptor for favorite field.
-	kaguyaconversationDescFavorite := kaguyaconversationFields[1].Descriptor()
+	kaguyaconversationDescFavorite := kaguyaconversationFields[2].Descriptor()
 	// kaguyaconversation.DefaultFavorite holds the default value on creation for the favorite field.
 	kaguyaconversation.DefaultFavorite = kaguyaconversationDescFavorite.Default.(bool)
 	// kaguyaconversationDescTurnCount is the schema descriptor for turn_count field.
-	kaguyaconversationDescTurnCount := kaguyaconversationFields[2].Descriptor()
+	kaguyaconversationDescTurnCount := kaguyaconversationFields[3].Descriptor()
 	// kaguyaconversation.DefaultTurnCount holds the default value on creation for the turn_count field.
 	kaguyaconversation.DefaultTurnCount = kaguyaconversationDescTurnCount.Default.(int64)
 	// kaguyaconversation.TurnCountValidator is a validator for the "turn_count" field. It is called by the builders before save.
 	kaguyaconversation.TurnCountValidator = kaguyaconversationDescTurnCount.Validators[0].(func(int64) error)
 	// kaguyaconversationDescDurationMs is the schema descriptor for duration_ms field.
-	kaguyaconversationDescDurationMs := kaguyaconversationFields[6].Descriptor()
+	kaguyaconversationDescDurationMs := kaguyaconversationFields[7].Descriptor()
 	// kaguyaconversation.DefaultDurationMs holds the default value on creation for the duration_ms field.
 	kaguyaconversation.DefaultDurationMs = kaguyaconversationDescDurationMs.Default.(int64)
 	// kaguyaconversation.DurationMsValidator is a validator for the "duration_ms" field. It is called by the builders before save.
 	kaguyaconversation.DurationMsValidator = kaguyaconversationDescDurationMs.Validators[0].(func(int64) error)
 	// kaguyaconversationDescToolCalls is the schema descriptor for tool_calls field.
-	kaguyaconversationDescToolCalls := kaguyaconversationFields[7].Descriptor()
+	kaguyaconversationDescToolCalls := kaguyaconversationFields[8].Descriptor()
 	// kaguyaconversation.DefaultToolCalls holds the default value on creation for the tool_calls field.
 	kaguyaconversation.DefaultToolCalls = kaguyaconversationDescToolCalls.Default.(int64)
 	// kaguyaconversation.ToolCallsValidator is a validator for the "tool_calls" field. It is called by the builders before save.
 	kaguyaconversation.ToolCallsValidator = kaguyaconversationDescToolCalls.Validators[0].(func(int64) error)
 	// kaguyaconversationDescInputTokens is the schema descriptor for input_tokens field.
-	kaguyaconversationDescInputTokens := kaguyaconversationFields[8].Descriptor()
+	kaguyaconversationDescInputTokens := kaguyaconversationFields[9].Descriptor()
 	// kaguyaconversation.DefaultInputTokens holds the default value on creation for the input_tokens field.
 	kaguyaconversation.DefaultInputTokens = kaguyaconversationDescInputTokens.Default.(int64)
 	// kaguyaconversation.InputTokensValidator is a validator for the "input_tokens" field. It is called by the builders before save.
 	kaguyaconversation.InputTokensValidator = kaguyaconversationDescInputTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescOutputTokens is the schema descriptor for output_tokens field.
-	kaguyaconversationDescOutputTokens := kaguyaconversationFields[9].Descriptor()
+	kaguyaconversationDescOutputTokens := kaguyaconversationFields[10].Descriptor()
 	// kaguyaconversation.DefaultOutputTokens holds the default value on creation for the output_tokens field.
 	kaguyaconversation.DefaultOutputTokens = kaguyaconversationDescOutputTokens.Default.(int64)
 	// kaguyaconversation.OutputTokensValidator is a validator for the "output_tokens" field. It is called by the builders before save.
 	kaguyaconversation.OutputTokensValidator = kaguyaconversationDescOutputTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescTotalTokens is the schema descriptor for total_tokens field.
-	kaguyaconversationDescTotalTokens := kaguyaconversationFields[10].Descriptor()
+	kaguyaconversationDescTotalTokens := kaguyaconversationFields[11].Descriptor()
 	// kaguyaconversation.DefaultTotalTokens holds the default value on creation for the total_tokens field.
 	kaguyaconversation.DefaultTotalTokens = kaguyaconversationDescTotalTokens.Default.(int64)
 	// kaguyaconversation.TotalTokensValidator is a validator for the "total_tokens" field. It is called by the builders before save.
 	kaguyaconversation.TotalTokensValidator = kaguyaconversationDescTotalTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescCachedTokens is the schema descriptor for cached_tokens field.
-	kaguyaconversationDescCachedTokens := kaguyaconversationFields[11].Descriptor()
+	kaguyaconversationDescCachedTokens := kaguyaconversationFields[12].Descriptor()
 	// kaguyaconversation.DefaultCachedTokens holds the default value on creation for the cached_tokens field.
 	kaguyaconversation.DefaultCachedTokens = kaguyaconversationDescCachedTokens.Default.(int64)
 	// kaguyaconversation.CachedTokensValidator is a validator for the "cached_tokens" field. It is called by the builders before save.
 	kaguyaconversation.CachedTokensValidator = kaguyaconversationDescCachedTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescReasoningTokens is the schema descriptor for reasoning_tokens field.
-	kaguyaconversationDescReasoningTokens := kaguyaconversationFields[12].Descriptor()
+	kaguyaconversationDescReasoningTokens := kaguyaconversationFields[13].Descriptor()
 	// kaguyaconversation.DefaultReasoningTokens holds the default value on creation for the reasoning_tokens field.
 	kaguyaconversation.DefaultReasoningTokens = kaguyaconversationDescReasoningTokens.Default.(int64)
 	// kaguyaconversation.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
@@ -439,6 +440,88 @@ func init() {
 	// kaguyamodelsinfo.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	kaguyamodelsinfo.IDValidator = func() func(string) error {
 		validators := kaguyamodelsinfoDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyaprojectMixin := schema.KaguyaProject{}.Mixin()
+	kaguyaprojectMixinHooks1 := kaguyaprojectMixin[1].Hooks()
+	kaguyaproject.Hooks[0] = kaguyaprojectMixinHooks1[0]
+	kaguyaproject.Hooks[1] = kaguyaprojectMixinHooks1[1]
+	kaguyaprojectMixinFields0 := kaguyaprojectMixin[0].Fields()
+	_ = kaguyaprojectMixinFields0
+	kaguyaprojectMixinFields1 := kaguyaprojectMixin[1].Fields()
+	_ = kaguyaprojectMixinFields1
+	kaguyaprojectFields := schema.KaguyaProject{}.Fields()
+	_ = kaguyaprojectFields
+	// kaguyaprojectDescCreatedAt is the schema descriptor for created_at field.
+	kaguyaprojectDescCreatedAt := kaguyaprojectMixinFields1[0].Descriptor()
+	// kaguyaproject.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyaproject.DefaultCreatedAt = kaguyaprojectDescCreatedAt.Default.(func() time.Time)
+	// kaguyaprojectDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyaprojectDescUpdatedAt := kaguyaprojectMixinFields1[1].Descriptor()
+	// kaguyaproject.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyaproject.DefaultUpdatedAt = kaguyaprojectDescUpdatedAt.Default.(func() time.Time)
+	// kaguyaproject.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyaproject.UpdateDefaultUpdatedAt = kaguyaprojectDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyaprojectDescName is the schema descriptor for name field.
+	kaguyaprojectDescName := kaguyaprojectFields[0].Descriptor()
+	// kaguyaproject.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	kaguyaproject.NameValidator = func() func(string) error {
+		validators := kaguyaprojectDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyaprojectDescPath is the schema descriptor for path field.
+	kaguyaprojectDescPath := kaguyaprojectFields[1].Descriptor()
+	// kaguyaproject.PathValidator is a validator for the "path" field. It is called by the builders before save.
+	kaguyaproject.PathValidator = func() func(string) error {
+		validators := kaguyaprojectDescPath.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(_path string) error {
+			for _, fn := range fns {
+				if err := fn(_path); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyaprojectDescDescription is the schema descriptor for description field.
+	kaguyaprojectDescDescription := kaguyaprojectFields[2].Descriptor()
+	// kaguyaproject.DefaultDescription holds the default value on creation for the description field.
+	kaguyaproject.DefaultDescription = kaguyaprojectDescDescription.Default.(string)
+	// kaguyaproject.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	kaguyaproject.DescriptionValidator = kaguyaprojectDescDescription.Validators[0].(func(string) error)
+	// kaguyaprojectDescID is the schema descriptor for id field.
+	kaguyaprojectDescID := kaguyaprojectMixinFields0[0].Descriptor()
+	// kaguyaproject.DefaultID holds the default value on creation for the id field.
+	kaguyaproject.DefaultID = kaguyaprojectDescID.Default.(func() string)
+	// kaguyaproject.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyaproject.IDValidator = func() func(string) error {
+		validators := kaguyaprojectDescID.Validators
 		fns := [...]func(string) error{
 			validators[0].(func(string) error),
 			validators[1].(func(string) error),

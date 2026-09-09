@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 )
 
@@ -67,6 +68,26 @@ func (_u *KaguyaConversationUpdate) SetNillableTitle(v *string) *KaguyaConversat
 	if v != nil {
 		_u.SetTitle(*v)
 	}
+	return _u
+}
+
+// SetProjectID sets the "project_id" field.
+func (_u *KaguyaConversationUpdate) SetProjectID(v string) *KaguyaConversationUpdate {
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *KaguyaConversationUpdate) SetNillableProjectID(v *string) *KaguyaConversationUpdate {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *KaguyaConversationUpdate) ClearProjectID() *KaguyaConversationUpdate {
+	_u.mutation.ClearProjectID()
 	return _u
 }
 
@@ -309,6 +330,11 @@ func (_u *KaguyaConversationUpdate) AddTurns(v ...*KaguyaChatTurn) *KaguyaConver
 	return _u.AddTurnIDs(ids...)
 }
 
+// SetProject sets the "project" edge to the KaguyaProject entity.
+func (_u *KaguyaConversationUpdate) SetProject(v *KaguyaProject) *KaguyaConversationUpdate {
+	return _u.SetProjectID(v.ID)
+}
+
 // Mutation returns the KaguyaConversationMutation object of the builder.
 func (_u *KaguyaConversationUpdate) Mutation() *KaguyaConversationMutation {
 	return _u.mutation
@@ -333,6 +359,12 @@ func (_u *KaguyaConversationUpdate) RemoveTurns(v ...*KaguyaChatTurn) *KaguyaCon
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTurnIDs(ids...)
+}
+
+// ClearProject clears the "project" edge to the KaguyaProject entity.
+func (_u *KaguyaConversationUpdate) ClearProject() *KaguyaConversationUpdate {
+	_u.mutation.ClearProject()
+	return _u
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -562,6 +594,35 @@ func (_u *KaguyaConversationUpdate) sqlSave(ctx context.Context) (_node int, err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.ProjectCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   kaguyaconversation.ProjectTable,
+			Columns: []string{kaguyaconversation.ProjectColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyaproject.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProjectIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   kaguyaconversation.ProjectTable,
+			Columns: []string{kaguyaconversation.ProjectColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyaproject.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -621,6 +682,26 @@ func (_u *KaguyaConversationUpdateOne) SetNillableTitle(v *string) *KaguyaConver
 	if v != nil {
 		_u.SetTitle(*v)
 	}
+	return _u
+}
+
+// SetProjectID sets the "project_id" field.
+func (_u *KaguyaConversationUpdateOne) SetProjectID(v string) *KaguyaConversationUpdateOne {
+	_u.mutation.SetProjectID(v)
+	return _u
+}
+
+// SetNillableProjectID sets the "project_id" field if the given value is not nil.
+func (_u *KaguyaConversationUpdateOne) SetNillableProjectID(v *string) *KaguyaConversationUpdateOne {
+	if v != nil {
+		_u.SetProjectID(*v)
+	}
+	return _u
+}
+
+// ClearProjectID clears the value of the "project_id" field.
+func (_u *KaguyaConversationUpdateOne) ClearProjectID() *KaguyaConversationUpdateOne {
+	_u.mutation.ClearProjectID()
 	return _u
 }
 
@@ -863,6 +944,11 @@ func (_u *KaguyaConversationUpdateOne) AddTurns(v ...*KaguyaChatTurn) *KaguyaCon
 	return _u.AddTurnIDs(ids...)
 }
 
+// SetProject sets the "project" edge to the KaguyaProject entity.
+func (_u *KaguyaConversationUpdateOne) SetProject(v *KaguyaProject) *KaguyaConversationUpdateOne {
+	return _u.SetProjectID(v.ID)
+}
+
 // Mutation returns the KaguyaConversationMutation object of the builder.
 func (_u *KaguyaConversationUpdateOne) Mutation() *KaguyaConversationMutation {
 	return _u.mutation
@@ -887,6 +973,12 @@ func (_u *KaguyaConversationUpdateOne) RemoveTurns(v ...*KaguyaChatTurn) *Kaguya
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTurnIDs(ids...)
+}
+
+// ClearProject clears the "project" edge to the KaguyaProject entity.
+func (_u *KaguyaConversationUpdateOne) ClearProject() *KaguyaConversationUpdateOne {
+	_u.mutation.ClearProject()
+	return _u
 }
 
 // Where appends a list predicates to the KaguyaConversationUpdate builder.
@@ -1139,6 +1231,35 @@ func (_u *KaguyaConversationUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(kaguyachatturn.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ProjectCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   kaguyaconversation.ProjectTable,
+			Columns: []string{kaguyaconversation.ProjectColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyaproject.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ProjectIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   kaguyaconversation.ProjectTable,
+			Columns: []string{kaguyaconversation.ProjectColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyaproject.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {

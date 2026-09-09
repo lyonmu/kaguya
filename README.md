@@ -20,7 +20,7 @@ The project is intended for learning, personal use, and exploring Agent runtime 
 | Area | What you can do |
 | --- | --- |
 | Streaming chat | Receive responses over SSE, view Markdown and provider-reported reasoning, stop generation, and choose a model for a request. A WebSocket API is also available. |
-| Conversation management | Continue saved conversations, search by title prefix, favorite, rename, and delete conversations; browse paginated history and review turn summaries. |
+| Conversation management | Continue saved conversations, search by title prefix, rename, and delete conversations; organize conversations by project, browse paginated history and review turn summaries. |
 | Providers and models | Manage providers and their models through the UI; configure full request URLs, API keys, protocol types, and model metadata. |
 | System configuration | Choose separate default chat and background-task models, append a custom system prompt, and configure the upstream `User-Agent`. Saved settings apply to new requests without restarting. |
 | Token analytics | Inspect total usage, daily peaks, active conversations, an activity heatmap, and token composition by model or provider. |
@@ -32,7 +32,9 @@ Screenshots were captured from a running instance on **2026-09-09**. Model names
 
 ### 1. Conversations
 
-Use the left sidebar to create or reopen a conversation, search by title prefix, or filter favorites. The conversation header provides favorite, rename, and delete actions. The composer lets you select a provider/model or use the default model: **Enter** sends, **Shift + Enter** inserts a newline, and **Stop** cancels an active response.
+**Projects:** The sidebar shows multiple folder-style project headings with indented conversations and an active-conversation highlight. Each project menu offers a new conversation, edit, and delete. Names may repeat, but canonical absolute paths must be unique among non-deleted projects (including symlink aliases). A directory can be reused after deleting its project. Select an existing folder on the server, starting at the running user's `~/` (for example, `/root` or `/home/ubuntu`); files and folders outside this boundary cannot be selected, including symlinks escaping it. Navigating into a directory selects it, so confirming the dialog creates the project directly; directories without children do not show an empty-folder message. Each project can contain multiple conversations. Open a project before starting a new conversation to associate it after its first successfully completed turn. Existing conversations remain in **All**. Deleting a project only detaches its conversations; it never deletes conversation history or host files. Project folders are metadata only: they do not automatically enable agent filesystem tools. In Docker, these paths refer to the container user's home; mount host folders beneath it if needed.
+
+Use the left sidebar to create or reopen a conversation, search by title prefix, or switch between **All** conversations and **Projects**. The conversation header provides rename and delete actions. The composer lets you select a provider/model or use the default model: **Enter** sends, **Shift + Enter** inserts a newline, and **Stop** cancels an active response.
 
 Replies support Markdown, code blocks, and collapsible reasoning when supplied by the provider. Turn summaries show tokens, duration, and tool-call counts. When usage and model-window data are available, the composer shows cumulative tokens from all completed turns as a percentage of 90% of the most recent model’s context window. This is a cumulative-usage indicator, not actual context occupancy, and it does not automatically trim messages.
 
@@ -199,12 +201,18 @@ With the default route prefix, useful endpoints are:
 | `GET /kaguya/api/v1/chat/conversation/page` | Paginated conversation list |
 | `GET /kaguya/api/v1/chat/conversation/:id/turns` | Conversation turns |
 | `GET /kaguya/api/v1/chat/conversation/:id/context` | Conversation context statistics |
+| `GET /kaguya/api/v1/project/page` | Project list (name prefix and pagination) |
+| `GET /kaguya/api/v1/project/directories` | Browse folders within the server user's home |
+| `POST /kaguya/api/v1/project` | Create project |
+| `GET / PUT / DELETE /kaguya/api/v1/project/:id` | Project details, update, and delete |
 | `GET /kaguya/api/v1/system/provider/page` | Provider list |
 | `GET /kaguya/api/v1/system/model/page` | Model list |
 | `GET /kaguya/api/v1/system/usage` | Token analytics |
 | `GET /kaguya/api/v1/system/info` | System settings (`PUT` updates them) |
 | `/kaguya/api/swagger/index.html` | Swagger UI |
 | `/kaguya/api/metrics` | Prometheus metrics |
+
+Conversation listing accepts `project_id`; new SSE/WS chats accept `project_id` to select their project. Continuing a saved conversation retains its stored association.
 
 After configuring a default model, start a conversation with:
 
@@ -220,6 +228,8 @@ Reuse the returned conversation `id` in subsequent request bodies to continue it
 ## Development
 
 Source development requires Go 1.26.4 or later, Bun, and Make. Use the Docker Compose deployment above for the running backend and database.
+
+Run `make install` from the repository root to build both frontend and backend and install the binary to `/usr/bin/<repository-directory-name>` (usually `/usr/bin/kaguya`) with mode `0755`. This requires write access to `/usr/bin`, with Go and Bun available in the execution environment; it does not start the service.
 
 ```sh
 make test                  # Go tests with the race detector
