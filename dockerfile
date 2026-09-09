@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 FROM oven/bun:1-alpine AS frontend-builder
 
 ENV BUN_CONFIG_REGISTRY=https://registry.npmmirror.com
@@ -6,7 +5,7 @@ ENV BUN_CONFIG_REGISTRY=https://registry.npmmirror.com
 WORKDIR /kaguya/web
 
 COPY web/package.json web/bun.lock ./
-RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 COPY web/ ./
 RUN bun run build
@@ -21,15 +20,12 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
     && apk add --no-cache ca-certificates git make
 
 COPY go.mod go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN go mod download
 
 COPY . .
 COPY --from=frontend-builder /kaguya/web/dist ./internal/api/v1/system/frontend
 
-# 静态链接并保留 Makefile 的 -s -w；缓存不会进入最终镜像。
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    make backend CGO_ENABLED=0 GOFLAGS="-trimpath -mod=readonly"
+RUN make backend
 
 # Compose 的 CMD-SHELL / pidof 健康检查依赖 BusyBox，不能直接替换为 scratch。
 FROM busybox:musl AS runtime
