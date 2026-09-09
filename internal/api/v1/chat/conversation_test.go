@@ -45,6 +45,13 @@ func TestConversationAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	at := time.Now()
+	project, err := client.KaguyaProject.Create().SetName("项目").SetPath(t.TempDir()).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaConversation.Create().SetID("project-chat").SetProjectID(project.ID).SetTitle("项目对话").SetModelID("test").SetModelName("test").SetLastMessageAt(at).SetTurnCount(1).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := client.KaguyaConversation.Create().SetID("123").SetTitle("Kubernetes 分析").SetModelID("test").SetModelName("test").SetLastMessageAt(at).SetTurnCount(2).Save(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -105,6 +112,22 @@ func TestConversationAPI(t *testing.T) {
 	if list["total"] != float64(1) || list["page_size"] != float64(20) {
 		t.Fatalf("list: %+v", list)
 	}
+	ordinary := list["items"].([]any)[0].(map[string]any)
+	if ordinary["id"] != "123" || ordinary["is_project"] != false {
+		t.Fatalf("ordinary: %+v", ordinary)
+	}
+	for _, query := range []string{"is_project=true", "project_id=" + project.ID, "is_project=true&project_id=" + project.ID} {
+		result := request("GET", "/conversation/page?"+query, "", ok)
+		if result["total"] != float64(1) {
+			t.Fatalf("project count: %+v", result)
+		}
+		item := result["items"].([]any)[0].(map[string]any)
+		if item["id"] != "project-chat" || item["is_project"] != true {
+			t.Fatalf("project: %+v", item)
+		}
+	}
+	request("GET", "/conversation/page?is_project=false&project_id="+project.ID, "", bad)
+	request("GET", "/conversation/page?is_project=invalid", "", bad)
 	request("GET", "/conversation/page?page_size=101", "", bad)
 	request("GET", "/conversation/123/turns?limit=0", "", bad)
 	request("GET", "/conversation/123/turns?page=-1", "", bad)

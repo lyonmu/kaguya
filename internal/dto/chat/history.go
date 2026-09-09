@@ -6,6 +6,7 @@ type ConversationIDReq struct {
 	ID string `uri:"id" binding:"required,max=64"`
 }
 type ConversationPageReq struct {
+	IsProject *bool  `form:"is_project"` // true 仅项目对话；false 仅普通对话；未提供时有 project_id 则按项目，否则仅普通对话
 	ProjectID string `form:"project_id" binding:"max=64"`
 	Keyword   string `form:"keyword" binding:"max=200"` // 标题前缀搜索（走索引）
 	Favorite  *bool  `form:"favorite"`
@@ -29,6 +30,7 @@ type TurnPageReq struct {
 	Limit  int   `form:"limit,default=20" binding:"min=1,max=100"`
 }
 type ConversationResp struct {
+	IsProject     bool      `json:"is_project"` // 根据 project_id 是否为空派生，不单独存储
 	ProjectID     *string   `json:"project_id"`
 	ID            string    `json:"id"`
 	Title         string    `json:"title"` // AI 标题最多20字符；每轮 done 后仍为“新对话”时，由前端 POST title/wait 使用全局任务模型生成或重试

@@ -14,7 +14,7 @@ import './chat.css'
 
 export function ChatPage() {
   const { message, modal } = App.useApp()
-  const [view, setView] = useState('全部')
+  const [view, setView] = useState('对话')
   const [project, setProject] = useState<Project>()
   const sessions = useConversations(view === '项目' ? project?.id : undefined)
   const [projectVersion, setProjectVersion] = useState(0)
@@ -75,14 +75,14 @@ export function ChatPage() {
     sessions.search('')
     sessions.refresh()
   }
-  const showConversations = view === '全部' || !!project
+  const showConversations = view === '对话' || !!project
   const sidebar = <div className="chat-sidebar-inner">
     <div className="chat-sidebar-head"><div className="chat-sidebar-title"><h2>对话管理</h2><Button size="small" icon={<PlusOutlined />} disabled={chat.streaming || saving || !showConversations} onClick={() => select('')}>新建对话</Button></div>
-      {view === '全部' && <Input aria-label="搜索对话标题前缀" placeholder="搜索对话（标题前缀）" prefix={<SearchOutlined />} value={sessions.keyword} onChange={event => sessions.search(event.target.value)} allowClear maxLength={200} />}
-      <Segmented size="small" value={view} options={['全部', '项目']} disabled={chat.streaming || saving} onChange={value => { setView(value); chooseProject(undefined) }} />
+      {view === '对话' && <Input aria-label="搜索对话标题前缀" placeholder="搜索对话（标题前缀）" prefix={<SearchOutlined />} value={sessions.keyword} onChange={event => sessions.search(event.target.value)} allowClear maxLength={200} />}
+      <Segmented size="small" value={view} options={['对话', '项目']} disabled={chat.streaming || saving} onChange={value => { setView(value); chooseProject(undefined) }} />
     </div>
     {view === '项目' && <ProjectPanel selected={project} disabled={chat.streaming || saving} onSelect={chooseProject} activeId={chat.id} refreshVersion={projectVersion} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
-    {view === '全部' && <><div className="chat-session-status">
+    {view === '对话' && <><div className="chat-session-status">
       {sessions.error && <Alert type="error" title={sessions.error} action={<Button size="small" onClick={sessions.refresh}>重试</Button>} />}
       {sessions.loading && !sessions.items.length && <div className="chat-center"><Spin size="small" /></div>}
       {!sessions.loading && !sessions.error && !sessions.items.length && <p className="chat-center chat-muted">暂无对话</p>}

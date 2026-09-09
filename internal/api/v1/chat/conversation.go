@@ -34,7 +34,7 @@ func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
 // ConversationPage
 // @Tags Chat History
 // @Summary 会话列表（仅已完成会话）
-// @Description 按最近完整轮次时间倒序；支持标题前缀搜索、收藏筛选。新建会话仍使用 SSE/WS 空 id 请求，首次成功后才出现在列表中。
+// @Description 按最近完整轮次时间倒序；支持标题前缀搜索、收藏筛选。默认仅普通对话；is_project=true 仅项目对话，project_id 可指定项目，不能与 is_project=false 同时使用。响应 is_project 根据当前项目归属生成。新建会话仍使用 SSE/WS 空 id 请求，首次成功后才出现在列表中。
 // @Param data query dtochat.ConversationPageReq true "分页/筛选"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationListResp}
 // @Router /v1/chat/conversation/page [get]

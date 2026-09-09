@@ -59,8 +59,27 @@ func TestProjectCRUDAndConversations(t *testing.T) {
 		t.Fatal(err)
 	}
 	list, err := (&AgentSvc{}).ConversationPage(ctx, &dtochat.ConversationPageReq{ProjectID: p.ID, Page: 1, PageSize: 20})
-	if err != nil || list.Total != 2 || list.Items[0].ProjectID == nil || *list.Items[0].ProjectID != p.ID {
+	if err != nil || list.Total != 2 || !list.Items[0].IsProject || list.Items[0].ProjectID == nil || *list.Items[0].ProjectID != p.ID {
 		t.Fatalf("list=%+v err=%v", list, err)
+	}
+	yes, no := true, false
+	for _, filter := range []*bool{nil, &no} {
+		ordinary, err := (&AgentSvc{}).ConversationPage(ctx, &dtochat.ConversationPageReq{IsProject: filter, Page: 1, PageSize: 1})
+		if err != nil || ordinary.Total != 1 || len(ordinary.Items) != 1 || ordinary.Items[0].ID != "126" || ordinary.Items[0].IsProject {
+			t.Fatalf("ordinary=%+v err=%v", ordinary, err)
+		}
+	}
+	projects, err := (&AgentSvc{}).ConversationPage(ctx, &dtochat.ConversationPageReq{IsProject: &yes, Page: 1, PageSize: 2})
+	if err != nil || projects.Total != 3 || len(projects.Items) != 2 {
+		t.Fatalf("projects=%+v err=%v", projects, err)
+	}
+	for _, item := range projects.Items {
+		if !item.IsProject {
+			t.Fatal("ordinary conversation in project list")
+		}
+	}
+	if _, err := (&AgentSvc{}).ConversationPage(ctx, &dtochat.ConversationPageReq{ProjectID: p.ID, IsProject: &no, Page: 1, PageSize: 20}); !errors.Is(err, ErrConversationUpdate) {
+		t.Fatalf("conflicting filters: %v", err)
 	}
 	if _, err := svc.Save(ctx, p2.ID, &dto.SaveReq{Name: p2.Name, Path: home}); !errors.Is(err, project.ErrPathExists) {
 		t.Fatalf("duplicate update: %v", err)
@@ -99,7 +118,7 @@ func TestProjectCRUDAndConversations(t *testing.T) {
 	}
 	for _, id := range []string{"123", "124"} {
 		conv, err := (&AgentSvc{}).ConversationDetail(ctx, id)
-		if err != nil || conv.ProjectID != nil || conv.TurnCount != 1 {
+		if err != nil || conv.IsProject || conv.ProjectID != nil || conv.TurnCount != 1 {
 			t.Fatalf("preserve=%+v err=%v", conv, err)
 		}
 	}

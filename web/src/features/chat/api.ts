@@ -6,7 +6,7 @@ import type { ChatFrame, Conversation, ConversationContext, ConversationPage, Co
 const PATH = '/v1/chat/conversation'
 
 export function fetchConversations(keyword: string, favorite: boolean, page: number, signal?: AbortSignal, projectId?: string) {
-  return get<ConversationPage>(`${PATH}/page`, { keyword, favorite: favorite || undefined, project_id: projectId || undefined, page, page_size: 20 }, signal)
+  return get<ConversationPage>(`${PATH}/page`, { keyword, favorite: favorite || undefined, is_project: !!projectId, project_id: projectId || undefined, page, page_size: 20 }, signal)
 }
 export function fetchConversation(id: string, signal?: AbortSignal) {
   return get<Conversation>(`${PATH}/${encodeURIComponent(id)}`, undefined, signal)

@@ -75,7 +75,7 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
     finally { setSaving(false) }
   }
   const remove = (project: Project) => modal.confirm({
-    title: `删除项目“${project.name}”？`, content: '仅删除项目记录；对话保留在全部列表，主机文件不会删除。', okText: '删除', okButtonProps: { danger: true },
+    title: `删除项目“${project.name}”？`, content: '仅删除项目记录；对话解除项目归属并保留在普通对话列表，主机文件不会删除。', okText: '删除', okButtonProps: { danger: true },
     onOk: async () => {
       setSaving(true)
       try { await deleteProject(project.id); if (selected?.id === project.id) onSelect(undefined); setPage(1); setVersion(value => value + 1) }

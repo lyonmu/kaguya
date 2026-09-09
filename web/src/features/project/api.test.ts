@@ -30,6 +30,15 @@ it('uses project CRUD and host directory endpoints', async () => {
   assert.equal(calls[5].init?.method, 'PUT')
   assert.equal(calls[6].init?.method, 'DELETE')
 })
+it('ordinary conversations explicitly exclude project conversations', async () => {
+  globalThis.fetch = (async url => {
+    const params = new URL(String(url), 'http://localhost').searchParams
+    assert.equal(params.get('is_project'), 'false')
+    assert.equal(params.has('project_id'), false)
+    return Response.json({ code: 100000, data: { items: [], total: 0 } })
+  }) as typeof fetch
+  await fetchConversations('', false, 1)
+})
 it('filters conversations and creates new chats in the selected project', async () => {
   globalThis.fetch = (async (url, init) => {
     if (init?.method === 'POST') {
@@ -37,6 +46,7 @@ it('filters conversations and creates new chats in the selected project', async 
       return new Response('data: {"code":100000,"data":{"chat":{"id":"123","flag":"done"}}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
     }
     assert.equal(new URL(String(url), 'http://localhost').searchParams.get('project_id'), 'project-1')
+    assert.equal(new URL(String(url), 'http://localhost').searchParams.get('is_project'), 'true')
     return Response.json({ code: 100000, data: { items: [], total: 0 } })
   }) as typeof fetch
   await fetchConversations('', false, 1, undefined, 'project-1')
