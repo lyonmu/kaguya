@@ -11,15 +11,16 @@
 
 - 入口：`main.go`（Kong CLI）→ `internal/cmd/`（初始化）→ `internal/router/`、`internal/api/` → `internal/service/`。
 - 聊天编排、历史与标题生成在 `internal/service/agent/`；模型执行基于 `charm.land/fantasy`，位于 `internal/agent/runtime/`；配置与用量分析在 `internal/service/system/`。
-- `internal/agent/files/` 提供 workspace 范围内的只读工具，默认聊天链路尚未挂载；不要绕过路径限制。
+- `internal/agent/tools/` 提供 pi 风格的七个工具（无 PowerShell），项目聊天默认通过 `WithTools` 注册 `read/bash/edit/write`；普通对话与标题任务不注册主机工具。续聊目录必须来自数据库项目归属，不接受请求覆盖。`internal/agent/files/` 为未挂载的遗留只读工具，保留其限制。
+- 文件工具用 `os.Root` 限制工作区；bash 以服务进程权限运行，工作目录不是沙箱。工具副作用立即生效，不随对话取消或数据库回滚而撤销。保持取消/超时终止进程组、输出截断和同文件修改串行；日志不要记录原始命令或文件内容。
 - 启动参数来自 CLI／环境变量，主程序不加载 `config.yml`；提供商、模型和系统提示词保存在数据库中。
 - `internal/global` 和 `internal/db` 使用包级状态。测试沿用已有初始化与清理模式，插入依赖生成 ID 的记录前必须初始化 `global.Id`，避免并行测试污染共享状态。
 - 只有成功完成的聊天轮次才持久化，事务提交后才能发送 `done`。失败或取消的部分回答不进入完整历史；标题任务独立于聊天上下文与聊天用量。
 
 ## 数据与部署
 
-- 统一部署方向为 **PostgreSQL + pgvector、Docker + Docker Compose**。不要新增其他数据库部署方案，也不要因文档调整擅自移除遗留驱动或测试。
-- 从仓库根目录执行 `docker build -t kaguya:latest .`，再执行 `docker compose up -d`；Compose 使用本地镜像，不会自动构建。
+- 当前应用按 **主机原生服务 + PostgreSQL / pgvector** 使用，`make install` 完整构建并安装二进制到 `/usr/bin/<仓库目录名>`。主机须提供 Bash 和项目工具链；默认不构建或测试 Docker。不要新增其他数据库方案，也不要擅自移除遗留驱动或测试。
+- 以下 Docker / Compose 配置作为遗留方案保留，仅在明确要求时调整或验证：从仓库根目录执行 `docker build -t kaguya:latest .`，再执行 `docker compose up -d`；Compose 使用本地镜像，不会自动构建。
 - 当前 Compose 使用 host 网络，应用连接 `127.0.0.1:5432`，数据挂载在 `./pgvector`。调整容器参数时保留 `--db.kind=postgresql` 并同步数据库凭据；不要删除已有数据目录。
 - Docker 运行层需要 CA 证书及健康检查使用的 shell／`pidof`，修改镜像时保留这些依赖。
 

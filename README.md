@@ -32,7 +32,7 @@ Screenshots were captured from a running instance on **2026-09-09**. Model names
 
 ### 1. Conversations
 
-**Projects:** The sidebar shows multiple folder-style project headings with indented conversations and an active-conversation highlight. Each project menu offers a new conversation, edit, and delete. Names may repeat, but canonical absolute paths must be unique among non-deleted projects (including symlink aliases). A directory can be reused after deleting its project. Select an existing folder on the server, starting at the running user's `~/` (for example, `/root` or `/home/ubuntu`); files and folders outside this boundary cannot be selected, including symlinks escaping it. Navigating into a directory selects it, so confirming the dialog creates the project directly; directories without children do not show an empty-folder message. Each project can contain multiple conversations. Open a project before starting a new conversation to associate it after its first successfully completed turn. Existing conversations remain in **All**. Deleting a project only detaches its conversations; it never deletes conversation history or host files. Project folders are metadata only: they do not automatically enable agent filesystem tools. In Docker, these paths refer to the container user's home; mount host folders beneath it if needed.
+**Projects:** The sidebar shows multiple folder-style project headings with indented conversations and an active-conversation highlight. Each project menu offers a new conversation, edit, and delete. Names may repeat, but canonical absolute paths must be unique among non-deleted projects (including symlink aliases). A directory can be reused after deleting its project. Select an existing folder on the server, starting at the running user's `~/` (for example, `/root` or `/home/ubuntu`); files and folders outside this boundary cannot be selected, including symlinks escaping it. Navigating into a directory selects it, so confirming the dialog creates the project directly; directories without children do not show an empty-folder message. Each project can contain multiple conversations. Open a project before starting a new conversation to associate it after its first successfully completed turn. Existing conversations remain in **All**. Deleting a project only detaches its conversations; it never deletes conversation history or host files. Project conversations enable the four coding tools `read`, `bash`, `edit`, and `write`, using the project directory as their working directory; ordinary conversations and title generation do not enable host tools. In Docker, these paths refer to the container user's home; mount host folders beneath it if needed.
 
 Use the left sidebar to create or reopen a conversation, search by title prefix, or switch between **All** conversations and **Projects**. The conversation header provides rename and delete actions. The composer lets you select a provider/model or use the default model: **Enter** sends, **Shift + Enter** inserts a newline, and **Stop** cancels an active response.
 
@@ -182,13 +182,34 @@ Go binary: Kong CLI → Gin routes → application services
 | `internal/router/`, `internal/api/` | HTTP routes and request/response handling |
 | `internal/service/agent/` | Streaming chat, history persistence, context, and title generation |
 | `internal/agent/runtime/`, `internal/agent/token/` | Model adapters, execution, and usage recording abstractions |
-| `internal/agent/files/` | Workspace-scoped read-only file tools |
+| `internal/agent/files/` | Legacy workspace read-only tools, not registered for chat |
+| `internal/agent/tools/` | Seven pi-style tools, workspace boundaries, output truncation, file mutations, and command execution |
 | `internal/service/system/` | Provider/model management, system configuration, and analytics |
 | `internal/ent/schema/` | Handwritten database schemas; other Ent files are generated |
 | `web/` | Web console source and frontend tests |
 | `docs/` | Generated Swagger documentation |
 
-The runtime supports `WithTools` and includes `list_files`, `read_file`, `grep_files`, and `file_metadata` tools with workspace path restrictions. **The current chat service does not register these tools by default.**
+### Coding tools
+
+Seven Go tools follow [pi's tool design](https://github.com/earendil-works/pi/tree/acaa253cc8e3f159e6100b6f3874861b1f0bfc99/packages/coding-agent/src/core/tools), without PowerShell:
+
+| Tool | Behavior |
+| --- | --- |
+| `read` | Paginated text or image attachments; text capped at 2000 lines / 50KB with continuation offsets |
+| `bash` | Commands in the project directory, combined stdout/stderr, last 2000 lines / 50KB; optional timeout and process-group cancellation |
+| `edit` | Unique, non-overlapping replacements against the original file, validated together before an atomic write; preserves BOM/line endings and returns a diff |
+| `write` | Creates or overwrites files, creates parent directories, and replaces files atomically |
+| `grep` | `rg` search with regex/literal, case, glob, and context options; defaults to 100 matches |
+| `find` | `fd` glob search respecting ignore rules; defaults to 1000 results |
+| `ls` | Alphabetical entries including dotfiles, directories suffixed with `/`; defaults to 500 entries |
+
+`tools.New(workspace, global.Logger)` owns the tools and exposes `CodingTools()` (the first four), `ReadOnlyTools()` (read/grep/find/ls), and `AllTools()`. Project chat registers the default four through existing `WithTools`; search factories remain optional without expanding the model's default tool list. Continuations restore the database project association; request `project_id` cannot change it. Each turn allows at most 64 model steps. An unavailable directory fails explicitly instead of falling back to the server's working directory.
+
+Server adaptations: file operations use `os.Root` to stay within the workspace; `write/edit` reject symlink paths and serialize same-path mutations within the process. Text reads, edits, and writes have a 32MB safety limit; use bounded bash operations for larger files. Image attachments are capped at 10MB; PNG/JPEG/GIF images above 2000 pixels are resized, while WebP/BMP are passed through. Editing supports pi's Unicode/trailing-whitespace matching while preserving unchanged lines; oversized diffs are truncated without returning an incomplete patch. Full command output is retained in the project's `.kaguya/tool-output/` for paginated `read` access; add this directory to project ignore rules and clean it as needed. The frontend retains tool start/end and final-result rendering rather than streaming bash output chunks.
+
+**Permissions warning: a working directory is not a sandbox.** Bash runs with the server process's permissions and can access resources available to that user; file-tool path restrictions do not constrain shell commands. Restrict the service to trusted users, use a low-privilege account or container, and do not expose executable-tool APIs directly to the public Internet. File changes and command side effects take effect immediately and are not rolled back when a conversation fails, is cancelled, or is not persisted. Logs record tool names, call IDs, project/conversation IDs, and duration, not raw commands or file contents.
+
+The coding Agent is intended and validated as a native host service: install the binary with `make install`, then start it with PostgreSQL connection options. Install Bash locally; optional search tools also need `rg` and `fd`. Missing commands produce explicit errors without automatic downloads. Project commands such as Git, Go, and Bun must be installed on the host and available in the service process's `PATH`, which may differ from an interactive terminal. This toolset does not target Docker execution; existing Docker configuration is unchanged.
 
 ## API
 
@@ -248,7 +269,7 @@ After changing Ent schemas, run `go generate ./internal/ent` from the repository
 ## Current scope
 
 - The console is currently Chinese; English documentation does not imply an English UI.
-- Chat input is text. Model capability labels do not constitute image uploads, a knowledge base, or automatically enabled file tools.
+- Chat input is text. Project tools can read workspace images and return them to the model, but this is not browser image upload. Models must support tool calling; image content additionally requires vision support.
 - Access-log code and an API exist, but the access-log middleware is currently disabled and the page is not exposed in the navigation.
 - The current routes do not provide built-in user login or per-user access isolation. This is an experimental console, not a complete multi-tenant service.
 

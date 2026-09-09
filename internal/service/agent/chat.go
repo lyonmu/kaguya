@@ -15,7 +15,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
-	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 
@@ -89,12 +88,22 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return
 	}
 
-	if version == 0 && req.ProjectID != "" {
-		if _, err := (&projectsvc.ProjectSvc{}).Detail(ctx, req.ProjectID); err != nil {
-			global.Logger.Sugar().Warnf("invalid chat project: id=%s err=%v", req.ProjectID, err)
-			send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
-			return
-		}
+	toolset, err := s.projectTools(ctx, convID, req.ProjectID, version)
+	if err != nil {
+		global.Logger.Sugar().Warnf("prepare project tools failed: conversation_id=%s err=%v", convID, err)
+		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
+		return
+	}
+	prompt := servicesystem.ChatSystemPrompt(info.SystemPrompt)
+	var tools []fantasy.AgentTool
+	if toolset != nil {
+		defer func() {
+			if err := toolset.Close(); err != nil {
+				global.Logger.Sugar().Warnf("close project tool workspace: %v", err)
+			}
+		}()
+		tools = toolset.CodingTools()
+		prompt += "\n\n" + toolset.SystemPrompt()
 	}
 
 	// 组装 Agent（每次请求新建）
@@ -104,7 +113,8 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	}
 	ag, err := agentruntime.New(
 		agentruntime.WithProvider(providerCfg),
-		agentruntime.WithSystemPrompt(servicesystem.ChatSystemPrompt(info.SystemPrompt)),
+		agentruntime.WithSystemPrompt(prompt),
+		agentruntime.WithTools(tools...),
 	)
 	if err != nil {
 		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
@@ -144,6 +154,9 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	// 流式内容已发送后不能透明重试，否则失败尝试会混入同一轮展示/历史。
 	maxRetries := 0
 	call.MaxRetries = &maxRetries
+	if toolset != nil {
+		call.StopWhen = []fantasy.StopCondition{fantasy.StepCountIs(64)}
+	}
 	trace := newTurnTrace()
 	trace.wrap(&call)
 	call.Prompt = req.Messages

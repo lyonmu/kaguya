@@ -122,6 +122,18 @@ func (s *ProjectSvc) Directories(ctx context.Context, path string) (*dto.Directo
 func response(row *ent.KaguyaProject) *dto.Resp {
 	return &dto.Resp{ID: row.ID, Name: row.Name, Path: row.Path, Description: row.Description, CreatedAt: row.CreatedAt}
 }
+
+// Workspace revalidates the directory on every chat turn; missing or moved
+// projects must fail explicitly, never fall back to the server working directory.
+func (s *ProjectSvc) Workspace(ctx context.Context, id string) (string, error) {
+	project, err := s.Detail(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	_, path, err := resolveDirectory(project.Path)
+	return path, err
+}
+
 func (s *ProjectSvc) Detail(ctx context.Context, id string) (*dto.Resp, error) {
 	row, err := db.EntClient.KaguyaProject.Query().Where(kaguyaproject.IDEQ(id), kaguyaproject.DeletedAtIsNil()).Only(ctx)
 	if ent.IsNotFound(err) {
