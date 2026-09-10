@@ -25,7 +25,7 @@ func (g *testID) GenID() (int64, error) { return g.n.Add(1), nil }
 func TestProjectAPI(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	client, err := ent.Open(dialect.SQLite, "file:project-api?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	client, err := ent.Open(dialect.SQLite, "file:project-api?mode=memory&cache=shared&_foreign_keys=on")
 	if err != nil {
 		t.Fatal(err)
 	}

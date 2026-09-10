@@ -19,7 +19,7 @@ Your overall personality is **calm, perceptive, restrained, and reliable, with a
 
 const (
 	SystemInfoID     = "global"
-	DefaultUserAgent = "kaguya"
+	DefaultUserAgent = "kaguya-agent/0.0.1"
 )
 
 type Status int

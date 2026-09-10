@@ -15,7 +15,7 @@ import (
 )
 
 func TestTokenUsageAPI(t *testing.T) {
-	client, err := ent.Open(dialect.SQLite, "file:usage-api?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	client, err := ent.Open(dialect.SQLite, "file:usage-api?mode=memory&cache=shared&_foreign_keys=on")
 	if err != nil {
 		t.Fatal(err)
 	}

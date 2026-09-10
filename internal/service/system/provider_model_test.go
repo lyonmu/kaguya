@@ -28,7 +28,7 @@ func (g *testIDGenerator) GenID() (int64, error) {
 
 func setupSystemServiceTest(t *testing.T) context.Context {
 	t.Helper()
-	client, err := ent.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_pragma=foreign_keys(1)", t.Name()))
+	client, err := ent.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=on", t.Name()))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}

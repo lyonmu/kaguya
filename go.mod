@@ -14,6 +14,7 @@ require (
 	github.com/lib/pq v1.12.3
 	github.com/lyonmu/gopkg v0.0.1
 	github.com/lyonmu/quebec v0.0.0-20260108132732-a14b14239bdf
+	github.com/mattn/go-sqlite3 v1.14.52
 	github.com/mssola/useragent v1.0.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/redis/go-redis/v9 v9.17.0

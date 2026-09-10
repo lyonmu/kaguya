@@ -22,7 +22,7 @@ import (
 
 func TestSystemInfoAPI(t *testing.T) {
 	ctx := context.Background()
-	client, err := ent.Open(dialect.SQLite, "file:system-info-api?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	client, err := ent.Open(dialect.SQLite, "file:system-info-api?mode=memory&cache=shared&_foreign_keys=on")
 	if err != nil {
 		t.Fatal(err)
 	}

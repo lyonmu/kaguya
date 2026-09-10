@@ -1,4 +1,4 @@
-// Package initialize 在数据库迁移完成后显式初始化基础数据，不使用 Go init() 隐式写库。
+// Package initialize 显式初始化启动资源和数据库基础数据，不使用 Go init() 隐式写库。
 package initialize
 
 import (

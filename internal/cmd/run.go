@@ -43,6 +43,10 @@ func Run() {
 	defer global.Logger.Sync()
 
 	global.Logger.Info("application is starting...")
+	if err := initialize.SQLCipherKey(&global.Cfg.DB); err != nil {
+		global.Logger.Error("initialize SQLCipher key failed", zap.Error(err))
+		os.Exit(1)
+	}
 
 	// 创建 ID 生成器，传入机器 ID 获取函数
 	gen, err := pkgid.NewSonySnowFlake(func() (int, error) {
@@ -56,28 +60,31 @@ func Run() {
 
 	global.Logger.Info("start init database connection")
 	switch global.Cfg.DB.Kind {
-	case consts.MySQL:
-		if err := global.Cfg.DB.EnsureMySQLDatabase(); err != nil {
-			global.Logger.Sugar().Errorf("ensure mysql database failederr is %s", err)
-			os.Exit(1)
-		}
-		entcli, initErr := db.InitMySQL(&global.Cfg.DB, global.Cfg.Debug)
-		if initErr != nil {
-			global.Logger.Sugar().Errorf("init mysql conn failed ,err is %s", initErr)
-			os.Exit(1)
-		}
-		db.EntClient = entcli
-	case consts.PostgreSQL, consts.Postgres:
-		if err := global.Cfg.DB.EnsurePostgreSQLDatabase(); err != nil {
-			global.Logger.Sugar().Errorf("ensure postgresql database failed, err is %s", err)
-			os.Exit(1)
-		}
-		entcli, initErr := db.InitPostgreSQL(&global.Cfg.DB, global.Cfg.Debug)
-		if initErr != nil {
-			global.Logger.Sugar().Errorf("init postgresql conn failed, err is %s", initErr)
-			os.Exit(1)
-		}
-		db.EntClient = entcli
+	// 遗留数据库启动分支暂时禁用，保留实现以便后续恢复。
+	/*
+		case consts.MySQL:
+			if err := global.Cfg.DB.EnsureMySQLDatabase(); err != nil {
+				global.Logger.Sugar().Errorf("ensure mysql database failederr is %s", err)
+				os.Exit(1)
+			}
+			entcli, initErr := db.InitMySQL(&global.Cfg.DB, global.Cfg.Debug)
+			if initErr != nil {
+				global.Logger.Sugar().Errorf("init mysql conn failed ,err is %s", initErr)
+				os.Exit(1)
+			}
+			db.EntClient = entcli
+		case consts.PostgreSQL, consts.Postgres:
+			if err := global.Cfg.DB.EnsurePostgreSQLDatabase(); err != nil {
+				global.Logger.Sugar().Errorf("ensure postgresql database failed, err is %s", err)
+				os.Exit(1)
+			}
+			entcli, initErr := db.InitPostgreSQL(&global.Cfg.DB, global.Cfg.Debug)
+			if initErr != nil {
+				global.Logger.Sugar().Errorf("init postgresql conn failed, err is %s", initErr)
+				os.Exit(1)
+			}
+			db.EntClient = entcli
+	*/
 	case consts.SQLite:
 		if err := global.Cfg.DB.EnsureSQLiteDatabase(); err != nil {
 			global.Logger.Sugar().Errorf("ensure sqlite database failederr is %s", err)
@@ -89,8 +96,11 @@ func Run() {
 			os.Exit(1)
 		}
 		db.EntClient = entcli
-
+	default:
+		global.Logger.Sugar().Errorf("database kind %q is disabled; use sqlite", global.Cfg.DB.Kind)
+		os.Exit(1)
 	}
+	defer db.EntClient.Close()
 
 	global.Logger.Info("start init application data")
 	initCtx, cancelInit := context.WithTimeout(context.Background(), 30*time.Second)

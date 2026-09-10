@@ -30,7 +30,7 @@ func (g *historyAPIID) GenID() (int64, error) { return g.value.Add(1), nil }
 
 func TestConversationAPI(t *testing.T) {
 	ctx := context.Background()
-	client, err := ent.Open(dialect.SQLite, "file:history-api?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	client, err := ent.Open(dialect.SQLite, "file:history-api?mode=memory&cache=shared&_foreign_keys=on")
 	if err != nil {
 		t.Fatal(err)
 	}

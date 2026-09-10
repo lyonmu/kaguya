@@ -24,7 +24,7 @@ The project is intended for learning, personal use, and exploring Agent runtime 
 | Providers and models | Manage providers and their models through the UI; configure full request URLs, API keys, protocol types, and model metadata. |
 | System configuration | Choose separate default chat and background-task models, append a custom system prompt, and configure the upstream `User-Agent`. Saved settings apply to new requests without restarting. |
 | Token analytics | Inspect total usage, daily peaks, active conversations, an activity heatmap, and token composition by model or provider. |
-| Deployment and development | Deploy with Docker and Docker Compose, persist data in PostgreSQL with pgvector, and access Swagger and Prometheus endpoints. |
+| Deployment and development | Run a native binary with SQLCipher-encrypted SQLite (WAL), no Docker or database server required; access Swagger and Prometheus endpoints. |
 
 ## A tour of the console
 
@@ -82,6 +82,60 @@ The composition chart shows the **top six** models or providers by usage. Input 
 Analytics count **successfully saved chat turns**, including those from deleted conversations. Title-generation tasks, failed calls, and canceled calls are excluded, so this view is not a complete upstream billing report.
 
 ## Deployment
+
+### Native binary (recommended)
+
+Build from source with Go (version in `go.mod`), Bun, Make, Git, a C compiler, Tcl, curl, pkg-config, and OpenSSL development files including **static `libcrypto.a`**. On macOS, install the Xcode Command Line Tools and `brew install openssl@3 pkgconf tcl-tk`; on Debian/Ubuntu, the native dependencies are `build-essential tcl pkg-config libssl-dev curl`. Ensure `pkg-config --exists libcrypto` succeeds (set `PKG_CONFIG_PATH` if needed).
+
+```sh
+git clone https://github.com/lyonmu/kaguya.git
+cd kaguya
+CGO_ENABLED=1 make build
+./target/kaguya
+```
+
+On a fresh installation, the first run automatically creates `~/.kaguya/kaguya.key` using Go's `crypto/rand`; no `openssl` command or shell is needed at runtime. **Back up the generated key securely; never replace an existing key with a newly generated one.** `make install` builds and installs to `~/.local/bin/<repository-directory-name>`; ensure `~/.local/bin` exists and is on `PATH`. Run the binary as a regular user, not root. A prebuilt binary needs neither Go/Bun nor Docker or a database server to start. Coding tools still require host Bash and the project's toolchain; HTTPS model requests require trusted CA certificates.
+
+`make native` downloads the official [SQLCipher v4.19.0](https://github.com/sqlcipher/sqlcipher/releases/tag/v4.19.0) source, verifies its pinned SHA-256, and builds it under `target/sqlcipher`. The Go `database/sql` adapter is `github.com/mattn/go-sqlite3`, with its plaintext amalgamation disabled using `USE_LIBSQLITE3`. SQLCipher and OpenSSL are linked as explicit **static archives**: the application does not need SQLCipher/OpenSSL shared libraries at runtime, but still uses the platform's system libraries (for example, libc on Linux). The frontend remains embedded. Build on the target OS/architecture; this build does not support `CGO_ENABLED=0` or GOOS/GOARCH-only cross-compilation. Missing build dependencies fail explicitly. Redistributors must retain SQLCipher, OpenSSL, and adapter license notices; SQLCipher's notice is copied into `target/sqlcipher`.
+
+Writable data is **not** stored in `go:embed`: after checking or initializing the default key file, startup creates `~/.kaguya/kaguya.db` and migrates the schema. `~` means the **service user's** home directory. New directories use mode `0700` and new database files `0600`; existing permissions are not changed.
+
+| Argument | Environment | Default |
+| --- | --- | --- |
+| `--db.kind` | `DB_KIND` | `sqlite` (the only enabled startup backend) |
+| `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
+| `--db.key-file` | `DB_KEY_FILE` | Unset: initialize/use `~/.kaguya/kaguya.key`; explicit paths must already exist |
+| `--port` | — | `9024` |
+| `--router-prefix` | — | `/kaguya/api` |
+
+```sh
+./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
+# Quoted ~/ paths are also expanded by the application.
+DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
+```
+
+Parent directories are created automatically. Relative paths resolve from the working directory; `~user` expansion is not supported. The main program **does not load `config.yml`**. Provider/model settings and prompts are configured in the console and stored in SQLite.
+
+**SQLCipher operation:** the `sqlite` configuration value and Ent dialect remain unchanged; the engine is SQLCipher 4, not plaintext SQLite. The application verifies `cipher_version` before opening the business database and reads its schema before migration. Each physical connection receives the key during database opening, before WAL PRAGMAs. WAL is enabled and checked at startup; each connection uses a 5-second busy timeout and `synchronous=FULL`. The application pool allows one connection to serialize in-process database work. SQLite still permits only one writer, so use this deployment for a personal/single-instance service, with the database on a local filesystem, not a shared network filesystem. WAL can create `kaguya.db-wal` and `kaguya.db-shm` beside the database. Existing MySQL/PostgreSQL data is not migrated automatically; changing the path creates or opens a separate database.
+
+**Key management:** the key file must be a regular file containing exactly 64 hexadecimal characters (32 cryptographically random bytes), optionally followed by LF/CRLF. Unix group/other permissions are rejected; use `chmod 600`. It is a raw AES-256 key, **not a password or TLS certificate**. There is no embedded/default secret or unencrypted fallback. Immediately after the startup log, `internal/init/sqlcipher.go` checks the key before database initialization. If `--db.key-file`/`DB_KEY_FILE` is unset and both the default key and configured database files are absent, Go generates 32 random bytes, writes a private temporary file, syncs it, and atomically publishes the key without overwriting an existing file. Existing keys are validated and reused. A missing key with any existing database file (even empty), WAL, SHM, or rollback journal is an error: restore the original key. Explicitly supplied key paths must exist, even if they name the default location. Invalid existing keys are never replaced; wrong keys and plaintext databases fail to open without automatic conversion. Key contents are not CLI arguments, serialized configuration, or application log fields. The DSN contains the key internally and must never be logged. `modernc.org/sqlite` is retained only as an independent plaintext engine in encryption tests, not used by the application.
+
+**Existing databases:** a plaintext SQLite file cannot be encrypted merely by supplying a key. Stop and back up the old deployment, then perform an explicit migration to a **new file** using SQLCipher's keyed `ATTACH` and `sqlcipher_export()`; see the [official conversion guide](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868). Verify schema, application data, timestamps, and reopening with the intended key before switching `--db.path`. MySQL/PostgreSQL migration is separate. No automatic plaintext migration, key rotation, or legacy SQLCipher format conversion is implemented.
+
+**Backups and updates:** the simplest backup is to stop the service and copy the database together with any remaining WAL/SHM files as one set; never copy only the main database while writes are active or delete WAL files manually. Back up the key **separately and securely**: losing it makes the data unrecoverable. For live exports use SQLCipher-aware tooling with an explicitly keyed encrypted destination; do not assume generic SQLite backup or `VACUUM INTO` produces an encrypted backup. Before upgrading, back up the data/key, stop the service, replace the binary, and restart with the same service user, path, and key. Foreground logs go to the configured logger; use your service manager for background operation and lifecycle management.
+
+**Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. TLS certificates protect network transport, not the local key. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login.
+
+Open [http://localhost:9024](http://localhost:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
+
+Knowledge bases and semantic retrieval are intended for future external MCP integration, not a required local pgvector service. MCP integration, long-term memory, embeddings, and FTS5 search are not implemented by this storage change.
+
+### Legacy Docker/PostgreSQL reference (disabled)
+
+The following instructions describe the **previous deployment only**, not a supported startup path for the current binary. MySQL/PostgreSQL startup branches are commented out; driver/helper code and the existing [Dockerfile](Dockerfile) / [docker-compose.yml](docker-compose.yml) are retained unchanged. Their PostgreSQL arguments now fail explicitly. Do not run these commands for a new installation; restoring this deployment requires re-enabling and validating the backend first. Do not delete existing `pgvector` data.
+
+<details>
+<summary>Historical deployment instructions</summary>
 
 ### 1. Prepare the environment
 
@@ -163,6 +217,8 @@ docker compose up -d --no-deps kaguya-svc
 
 `docker compose down` removes the containers and retains the bind-mounted PostgreSQL data. Keep the `pgvector` data directory across redeployments and back up the database before upgrades.
 
+</details>
+
 ## Architecture
 
 ```text
@@ -171,7 +227,7 @@ Browser: React 19 + TypeScript + Ant Design + Tailwind CSS + ECharts
     ▼
 Go binary: Kong CLI → Gin routes → application services
     ├── Agent runtime (charm.land/fantasy) → configured model provider
-    ├── Conversation turns, content blocks, and model context → Ent → PostgreSQL + pgvector
+    ├── Conversation turns, content blocks, and model context → Ent → SQLCipher-encrypted SQLite (WAL)
     ├── Provider/model settings, system settings, and usage queries → Ent
     └── Embedded frontend / Swagger / Prometheus
 ```
@@ -209,7 +265,7 @@ Server adaptations: file operations use `os.Root` to stay within the workspace; 
 
 **Permissions warning: a working directory is not a sandbox.** Bash runs with the server process's permissions and can access resources available to that user; file-tool path restrictions do not constrain shell commands. Restrict the service to trusted users, use a low-privilege account or container, and do not expose executable-tool APIs directly to the public Internet. File changes and command side effects take effect immediately and are not rolled back when a conversation fails, is cancelled, or is not persisted. Logs record tool names, call IDs, project/conversation IDs, and duration, not raw commands or file contents.
 
-The coding Agent is intended and validated as a native host service: install the binary with `make install`, then start it with PostgreSQL connection options. Install Bash locally; optional search tools also need `rg` and `fd`. Missing commands produce explicit errors without automatic downloads. Project commands such as Git, Go, and Bun must be installed on the host and available in the service process's `PATH`, which may differ from an interactive terminal. This toolset does not target Docker execution; existing Docker configuration is unchanged.
+The coding Agent is intended and validated as a native host service: install the binary with `make install`, then start it with the default SQLite database or an explicit `--db.path`. Install Bash locally; optional search tools also need `rg` and `fd`. Missing commands produce explicit errors without automatic downloads. Project commands such as Git, Go, and Bun must be installed on the host and available in the service process's `PATH`, which may differ from an interactive terminal. This toolset does not target Docker execution; existing Docker configuration is unchanged.
 
 ## API
 
@@ -248,12 +304,12 @@ Reuse the returned conversation `id` in subsequent request bodies to continue it
 
 ## Development
 
-Source development requires Go 1.26.4 or later, Bun, and Make. Use the Docker Compose deployment above for the running backend and database.
+Source development requires Go (version in `go.mod`), Bun, Make, and the native dependencies listed above. Use `CGO_ENABLED=1 make build`, then run `./target/kaguya` (the default key is initialized on a fresh installation); no Docker/database service is needed. Use the Make targets rather than bare `go build`/`go test` so the SQLCipher link settings are applied. For targeted tests, run `make native` then `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`.
 
-Run `make install` from the repository root to build both frontend and backend and install the binary to `/usr/bin/<repository-directory-name>` (usually `/usr/bin/kaguya`) with mode `0755`. This requires write access to `/usr/bin`, with Go and Bun available in the execution environment; it does not start the service.
+Run `CGO_ENABLED=1 make install` from the repository root to build both frontend and backend and install the binary to `~/.local/bin/<repository-directory-name>` (usually `~/.local/bin/kaguya`) with mode `0755`. Create `~/.local/bin` first and add it to `PATH`; the command does not start the service.
 
 ```sh
-make test                  # Go tests with the race detector
+CGO_ENABLED=1 make test    # Go tests with SQLCipher and the race detector
 cd web
 bun install --frozen-lockfile
 bun run test               # Frontend tests
@@ -262,7 +318,7 @@ bun run build              # TypeScript checks and Vite production build
 bun run dev                # Vite development server
 ```
 
-For frontend development, keep the application container running on port `9024`; Vite proxies `/kaguya/api` to `http://localhost:9024`. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned. Rebuild the Docker image after backend changes to update the running service.
+For frontend development, keep the native application running on port `9024`; Vite proxies `/kaguya/api` to `http://localhost:9024`. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned. Run `make build` and restart the binary after backend changes.
 
 After changing Ent schemas, run `go generate ./internal/ent` from the repository root. Keep generated Ent code in sync with the schemas.
 

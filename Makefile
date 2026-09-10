@@ -1,4 +1,4 @@
-.PHONY: build backend frontend install clean test docker default
+.PHONY: build backend frontend install clean test docker default native
 
 default: build
 
@@ -8,7 +8,7 @@ COMMIT = $(shell git rev-parse HEAD)
 BRANCH = $(shell git branch --show-current)
 
 # Go build configuration
-CGO_ENABLED ?= 0
+CGO_ENABLED = 1
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
@@ -30,14 +30,16 @@ frontend:
 	cp -R web/dist/. $(FRONTEND_EMBED_DIR)/
 
 .PHONY: backend
-backend:
+backend: native
 	mkdir -p target
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) bash scripts/go-sqlcipher.sh build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
 
 .PHONY: build
 build: frontend
-	mkdir -p target
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+	$(MAKE) backend
+
+native:
+	bash scripts/build-sqlcipher.sh
 
 install: build
 	install -m 0755 ./target/$(PROJECT_NAME) ~/.local/bin/$(PROJECT_NAME)
@@ -48,8 +50,8 @@ docker:
 	docker tag $(PROJECT_NAME):$(VERSION) $(PROJECT_NAME):latest
 
 .PHONY: test
-test:
-	go test -race -count=1 ./...
+test: native
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) bash scripts/go-sqlcipher.sh test -race -count=1 ./...
 
 .PHONY: clean
 clean:

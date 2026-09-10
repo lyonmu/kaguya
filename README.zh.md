@@ -24,7 +24,7 @@
 | 提供商与模型 | 在界面中管理提供商及其模型，配置完整请求 URL、API Key、协议类型和模型元数据。 |
 | 系统配置 | 分别选择默认对话模型和后台任务模型，追加自定义系统提示词，配置上游请求的 `User-Agent`；保存后新请求立即生效，无需重启。 |
 | Token 用量分析 | 查看累计用量、日峰值、活跃会话、活动热力图，以及按模型或提供商划分的 Token 构成。 |
-| 部署与开发 | 通过 Docker 和 Docker Compose 部署，使用带 pgvector 的 PostgreSQL 持久化数据，并提供 Swagger 与 Prometheus 端点。 |
+| 部署与开发 | 原生单二进制运行，使用 SQLCipher 加密 SQLite 并启用 WAL，无需 Docker 或数据库服务，提供 Swagger 与 Prometheus 端点。 |
 
 ## 界面与使用方式
 
@@ -82,6 +82,60 @@
 分析仅统计 **成功保存的聊天轮次**，包含已删除会话的历史消耗；不包含标题生成任务、失败调用和取消调用，因此不等同于上游的完整计费账单。
 
 ## 部署
+
+### 原生二进制（推荐）
+
+源码构建需要 Go（版本以 `go.mod` 为准）、Bun、Make、Git、C 编译器、Tcl、curl、pkg-config 和 OpenSSL 开发文件（包含**静态 `libcrypto.a`**）。macOS 需安装 Xcode Command Line Tools，并执行 `brew install openssl@3 pkgconf tcl-tk`；Debian/Ubuntu 对应原生依赖为 `build-essential tcl pkg-config libssl-dev curl`。确保 `pkg-config --exists libcrypto` 成功，必要时设置 `PKG_CONFIG_PATH`。
+
+```sh
+git clone https://github.com/lyonmu/kaguya.git
+cd kaguya
+CGO_ENABLED=1 make build
+./target/kaguya
+```
+
+全新安装首次运行时，程序使用 Go 的 `crypto/rand` 自动创建 `~/.kaguya/kaguya.key`，运行时不需要 `openssl` 命令或 shell。**请安全备份生成的密钥，切勿用新生成的密钥覆盖旧密钥。** `make install` 构建并安装到 `~/.local/bin/<仓库目录名>`；确保 `~/.local/bin` 已存在并加入 `PATH`。请以普通用户运行，不要以 root 运行。预构建二进制启动无需 Go/Bun、Docker 或数据库服务；编码工具仍需要主机 Bash 和项目工具链，HTTPS 模型请求需要可信 CA 证书。
+
+`make native` 下载官方 [SQLCipher v4.19.0](https://github.com/sqlcipher/sqlcipher/releases/tag/v4.19.0) 源码，校验固定 SHA-256，并构建到 `target/sqlcipher`。Go `database/sql` 适配器使用 `github.com/mattn/go-sqlite3`，通过 `USE_LIBSQLITE3` 禁用它自带的明文 SQLite 源码。SQLCipher 和 OpenSSL 以明确的**静态库**链接：应用运行时不需要 SQLCipher/OpenSSL 动态库，但仍使用平台系统库（如 Linux 的 libc）。前端继续内嵌。请在目标系统／架构上构建；当前构建不支持 `CGO_ENABLED=0`，也不支持仅修改 GOOS/GOARCH 的交叉编译。缺失构建依赖时明确失败。分发二进制时需保留 SQLCipher、OpenSSL 和适配器的许可证声明；SQLCipher 声明会复制到 `target/sqlcipher`。
+
+**可写数据不存放在 `go:embed` 中**。启动时先检查或初始化默认密钥文件，再自动创建 `~/.kaguya/kaguya.db` 并迁移 schema；`~` 指的是**服务运行用户**的主目录。新建目录权限为 `0700`，新建数据库文件为 `0600`，不修改已有权限。
+
+| 参数 | 环境变量 | 默认值 |
+| --- | --- | --- |
+| `--db.kind` | `DB_KIND` | `sqlite`（当前唯一启用的启动后端） |
+| `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
+| `--db.key-file` | `DB_KEY_FILE` | 未设置时初始化／使用 `~/.kaguya/kaguya.key`；显式路径必须已存在 |
+| `--port` | — | `9024` |
+| `--router-prefix` | — | `/kaguya/api` |
+
+```sh
+./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
+# 引号中的 ~/ 路径也会由应用展开。
+DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
+```
+
+父目录自动创建，相对路径基于工作目录解析，不支持 `~user` 展开。主程序**不加载 `config.yml`**；提供商、模型与提示词通过控制台配置并保存到 SQLite。
+
+**SQLCipher 运行策略：** 保留 `sqlite` 配置值和 Ent dialect，实际引擎是 SQLCipher 4，不是明文 SQLite。应用在打开业务数据库前验证 `cipher_version`，迁移前读取 schema 校验密钥。每个物理连接在打开数据库时应用密钥，早于 WAL 等 PRAGMA。启动时启用并检查 WAL，每个连接设置 5 秒锁等待超时及 `synchronous=FULL`。应用连接池限制为一个连接，串行处理进程内数据库操作。SQLite 仍只允许一个写事务，适合个人／单实例服务；数据库应放在本地文件系统，不要使用共享网络文件系统。数据库旁可能生成 `kaguya.db-wal` 和 `kaguya.db-shm`。已有 MySQL/PostgreSQL 数据不会自动迁移；修改路径会创建或打开另一份数据库。
+
+**密钥管理：** 密钥必须是普通文件，内容为恰好 64 个十六进制字符（32 字节密码学随机数据），末尾可带 LF／CRLF。Unix 下拒绝组用户／其他用户可访问的密钥文件，请使用 `chmod 600`。它是 AES-256 原始密钥，**不是口令或 TLS 证书**。程序没有内置／默认秘密，也不会回退到未加密存储。启动日志之后、初始化数据库之前，由 `internal/init/sqlcipher.go` 检查密钥：未设置 `--db.key-file`／`DB_KEY_FILE`，且默认密钥及配置的数据库文件均不存在时，Go 生成 32 字节随机数据，写入私有临时文件并同步后原子发布，不覆盖已有文件。已有密钥校验后复用；密钥缺失但数据库文件（包括空文件）、WAL、SHM 或回滚日志已存在时，明确报错并要求恢复原密钥。显式指定的密钥路径必须已存在，即使指定的是默认位置。无效密钥不会被替换；错误密钥或明文数据库会打开失败，不自动转换。密钥内容不作为 CLI 参数、序列化配置或应用日志字段；内部 DSN 含密钥，禁止记录。`modernc.org/sqlite` 仅作为加密测试的独立明文引擎保留，应用不再使用它。
+
+**已有数据库：** 给明文 SQLite 配置密钥并不能直接加密旧文件。先停止并备份旧部署，再通过 SQLCipher 的带密钥 `ATTACH` 和 `sqlcipher_export()` 显式迁移到**新文件**，参考[官方转换说明](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868)。切换 `--db.path` 前，核对 schema、业务数据、时间字段和使用目标密钥重新打开的结果。MySQL/PostgreSQL 数据迁移需另行处理。本次不实现明文自动迁移、密钥轮换或旧版 SQLCipher 格式转换。
+
+**备份与升级：** 最简单的备份方式是先停止服务，将数据库及仍存在的 WAL/SHM 文件作为整体复制；写入期间不能只复制主数据库，也不要手动删除 WAL。密钥必须**单独、安全地备份**，丢失后无法恢复数据。在线导出应使用支持 SQLCipher 的工具，并为目标数据库显式设置密钥；不要假定普通 SQLite 备份或 `VACUUM INTO` 会生成加密备份。升级前备份数据和密钥、停止服务、替换二进制，再以相同运行用户、路径和密钥重启。前台日志由配置的 logger 输出；后台运行和启停管理交给服务管理器。
+
+**安全边界：** SQLCipher 加密数据库页及 WAL 中的页内容，不加密所有文件系统元数据、日志、工具输出或进程内存数据。密钥与数据库放在同一磁盘相邻位置，不能防止两者一起被窃取；有需要时采用独立挂载的秘密文件、操作系统秘密配置和磁盘加密。运行中的 Agent Bash 工具具有服务用户权限，可能访问密钥；数据库加密不是工具沙箱。TLS 证书保护网络传输，不保护本地密钥。远程访问控制台时，请使用带访问控制的 HTTPS 反向代理；应用本身没有内置登录。
+
+打开 [http://localhost:9024](http://localhost:9024)，添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
+
+知识库与语义检索计划后续通过外部 MCP 集成，不再要求本地 pgvector 服务。本次存储调整不实现 MCP 接入、长期记忆、Embedding 或 FTS5 搜索。
+
+### 遗留 Docker/PostgreSQL 参考（已禁用）
+
+以下仅记录**此前的部署方式**，不是当前二进制支持的启动方式。MySQL/PostgreSQL 启动分支已注释，驱动／辅助代码及现有 [Dockerfile](Dockerfile)、[docker-compose.yml](docker-compose.yml) 原样保留；其中 PostgreSQL 启动参数现在会明确报错。新安装请不要执行这些命令；恢复该部署前需要先重新启用并验证对应后端。不要删除已有 `pgvector` 数据。
+
+<details>
+<summary>历史部署说明</summary>
 
 ### 1. 准备环境
 
@@ -163,6 +217,8 @@ docker compose up -d --no-deps kaguya-svc
 
 `docker compose down` 移除容器，但保留绑定挂载的 PostgreSQL 数据。重新部署时请保留 `pgvector` 数据目录，并在升级前备份数据库。
 
+</details>
+
 ## 架构
 
 ```text
@@ -171,7 +227,7 @@ docker compose up -d --no-deps kaguya-svc
     ▼
 Go 二进制：Kong CLI → Gin 路由 → 应用服务
     ├── Agent Runtime（charm.land/fantasy）→ 已配置的模型提供商
-    ├── 对话轮次、内容块与模型上下文 → Ent → PostgreSQL + pgvector
+    ├── 对话轮次、内容块与模型上下文 → Ent → SQLCipher 加密 SQLite（WAL）
     ├── 提供商／模型配置、系统配置与用量查询 → Ent
     └── 内嵌前端 / Swagger / Prometheus
 ```
@@ -209,7 +265,7 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 
 **权限警告：工作目录不是沙箱。** bash 以服务进程权限运行，可访问该用户能够访问的主机资源；文件工具的路径限制不约束 shell 命令。仅对可信用户开放服务，建议通过低权限用户或容器限制权限，不要将可执行工具的 API 直接暴露到公网。文件修改和命令副作用立即生效，即使对话失败、取消或历史未保存也不会回滚。日志记录工具名、调用 ID、项目/对话与耗时，不记录原始命令或文件内容。
 
-编码 Agent 按原生主机服务使用和验证：运行 `make install` 安装二进制，再通过 PostgreSQL 启动参数启动服务。本机需要安装 Bash；启用可选搜索工具时还需 `rg` 和 `fd`，缺失时明确报错，不自动下载。项目所需的 Git、Go、Bun 等命令也应安装在主机，并出现在服务进程的 `PATH` 中；系统服务的环境可能与交互式终端不同。本次工具集不以 Docker 运行为目标，未调整已有 Docker 配置。
+编码 Agent 按原生主机服务使用和验证：运行 `make install` 安装二进制，再使用默认 SQLite 数据库或显式指定 `--db.path` 启动服务。本机需要安装 Bash；启用可选搜索工具时还需 `rg` 和 `fd`，缺失时明确报错，不自动下载。项目所需的 Git、Go、Bun 等命令也应安装在主机，并出现在服务进程的 `PATH` 中；系统服务的环境可能与交互式终端不同。本次工具集不以 Docker 运行为目标，未调整已有 Docker 配置。
 
 ## API
 
@@ -248,12 +304,12 @@ curl -N http://localhost:9024/kaguya/api/v1/chat/sse \
 
 ## 开发
 
-源码开发需要 Go 1.26.4 或更高版本、Bun 和 Make。运行中的后端与数据库使用上面的 Docker Compose 部署。
+源码开发需要 Go（版本以 `go.mod` 为准）、Bun、Make 及上文列出的原生依赖。执行 `CGO_ENABLED=1 make build` 后通过 `./target/kaguya` 运行（全新安装自动初始化默认密钥），无需 Docker／数据库服务。请使用 Make 目标而非直接 `go build`／`go test`，以应用 SQLCipher 链接参数。局部测试可先执行 `make native`，再执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`。
 
-在仓库根目录执行 `make install`，会完整构建前后端并将二进制安装到 `/usr/bin/<仓库目录名>`（通常为 `/usr/bin/kaguya`），权限为 `0755`。需要 `/usr/bin` 的写入权限，且执行环境须能找到 Go 和 Bun；该命令不会启动服务。
+在仓库根目录执行 `CGO_ENABLED=1 make install`，会完整构建前后端并将二进制安装到 `~/.local/bin/<仓库目录名>`（通常为 `~/.local/bin/kaguya`），权限为 `0755`。请先创建 `~/.local/bin` 并加入 `PATH`；该命令不会启动服务。
 
 ```sh
-make test                  # Go 测试，开启竞态检测
+CGO_ENABLED=1 make test    # 使用 SQLCipher 的 Go 测试，开启竞态检测
 cd web
 bun install --frozen-lockfile
 bun run test               # 前端测试
@@ -262,7 +318,7 @@ bun run build              # TypeScript 检查与 Vite 生产构建
 bun run dev                # Vite 开发服务器
 ```
 
-开发前端时，保持应用容器运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `http://localhost:9024`。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置。修改后端后，重新构建 Docker 镜像以更新运行中的服务。
+开发前端时，保持原生应用运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `http://localhost:9024`。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置。修改后端后，执行 `make build` 并重启二进制。
 
 修改 Ent schema 后，在仓库根目录执行 `go generate ./internal/ent`，保持生成的 Ent 代码与 schema 同步。
 

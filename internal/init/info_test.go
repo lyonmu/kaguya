@@ -16,7 +16,7 @@ import (
 
 func TestInfoInitializationIsIdempotent(t *testing.T) {
 	ctx := context.Background()
-	client, err := ent.Open(dialect.SQLite, "file:init-info?mode=memory&cache=shared&_pragma=foreign_keys(1)")
+	client, err := ent.Open(dialect.SQLite, "file:init-info?mode=memory&cache=shared&_foreign_keys=on")
 	if err != nil {
 		t.Fatal(err)
 	}
