@@ -12,6 +12,13 @@ export default defineConfig(({ command }) => ({
         codeSplitting: {
           groups: [
             {
+              // Mermaid's bundled parser is larger than the general chunk budget;
+              // isolate it so it stays out of the initial chat payload.
+              name: 'vendor-mermaid-parser',
+              test: /[\\/]node_modules[\\/]@mermaid-js[\\/]parser[\\/]/,
+              includeDependenciesRecursively: false,
+            },
+            {
               // Cache the chat runtime separately from application code.
               name: 'vendor-assistant',
               test: /[\\/]node_modules[\\/]@assistant-ui[\\/]/,

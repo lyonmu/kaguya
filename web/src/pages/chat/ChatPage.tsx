@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Segmented, Spin } from 'antd'
 import { DeleteOutlined, EditOutlined, MenuOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { deleteConversation, updateConversation } from '../../features/chat/api'
@@ -11,12 +11,15 @@ import { Composer } from '../../features/chat/components/Composer'
 import { BottomActions } from '../../components/layout/BottomActions'
 import { ProjectPanel } from '../../features/project/ProjectPanel'
 import type { Project } from '../../features/project/api'
+import { fetchProject } from '../../features/project/api'
+import type { ConversationTarget } from '../../features/chat/types'
 import './chat.css'
 
 export function ChatPage() {
   const { message, modal } = App.useApp()
   const [view, setView] = useState('对话')
   const [project, setProject] = useState<Project>()
+  const [target, setTarget] = useState<ConversationTarget>()
   const sessions = useConversations(view === '项目' ? project?.id : undefined)
   const [projectVersion, setProjectVersion] = useState(0)
   const refreshProjects = () => setProjectVersion(value => value + 1)
@@ -30,9 +33,28 @@ export function ChatPage() {
   const [saving, setSaving] = useState(false)
   const select = (id: string) => {
     if (saving) return
+    setTarget(undefined)
     setShowSidebar(false)
     void chat.select(id)
   }
+  const selectLocal = (item: typeof chat.localSessions[number]) => {
+    if (saving) return
+    const id = item.id || item.key
+    setView(item.projectId ? '项目' : '对话')
+    setProject(current => current?.id === item.projectId ? current : undefined)
+    sessions.resetFilters()
+    setTarget({ id, title: item.title, projectId: item.projectId })
+    setShowSidebar(false)
+    void chat.select(id)
+  }
+  useEffect(() => {
+    if (!target?.projectId) return
+    let active = true
+    void fetchProject(target.projectId).then(value => {
+      if (active) setProject(value)
+    }).catch(error => { if (active) void message.error(error instanceof Error ? error.message : '加载项目失败') })
+    return () => { active = false }
+  }, [target, message])
   const update = async (payload: { title?: string; favorite?: boolean }) => {
     if (payload.title !== undefined) chat.cancelTitleWait()
     setSaving(true)
@@ -69,26 +91,31 @@ export function ChatPage() {
   }
   const chooseProject = (value?: Project) => {
     if (saving) return
+    setTarget(undefined)
     setProject(value)
     void chat.select('')
     sessions.search('')
     sessions.refresh()
   }
   const local = chat.localSessions.filter(item => item.streaming || !sessions.items.some(saved => saved.id === item.id))
+  const targetSession = target && chat.localSessions.find(item => item.id === target.id || item.key === target.id)
+  const visibleTarget = targetSession ? { ...target, id: targetSession.id || targetSession.key, title: targetSession.title } : target
+  const conversationItems = visibleTarget && !visibleTarget.projectId && !sessions.items.some(item => item.id === visibleTarget.id)
+    ? [{ id: visibleTarget.id, title: visibleTarget.title, model_name: '', last_message_at: '' }, ...sessions.items] : sessions.items
   const showConversations = view === '对话' || !!project || !!chat.projectId || !!chat.turns.length
   const sidebar = <div className="chat-sidebar-inner">
     <div className="chat-sidebar-head"><div className="chat-sidebar-title"><h2>对话管理</h2><Button size="small" icon={<PlusOutlined />} disabled={saving || !showConversations} onClick={() => select('')}>新建对话</Button></div>
       {view === '对话' && <Input aria-label="搜索对话标题前缀" placeholder="搜索对话（标题前缀）" prefix={<SearchOutlined />} value={sessions.keyword} onChange={event => sessions.search(event.target.value)} allowClear maxLength={200} />}
       <Segmented size="small" value={view} options={['对话', '项目']} disabled={saving} onChange={value => { setView(value); chooseProject(undefined) }} />
     </div>
-    {view === '项目' && <ProjectPanel selected={project} disabled={saving} onSelect={chooseProject} activeId={chat.id} refreshVersion={projectVersion} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
+    {view === '项目' && <ProjectPanel selected={project} disabled={saving} onSelect={chooseProject} activeId={chat.id || chat.sessionKey} reveal={target} localTarget={visibleTarget} refreshVersion={projectVersion} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
     {view === '对话' && <><div className="chat-session-status">
       {sessions.error && <Alert type="error" title={sessions.error} action={<Button size="small" onClick={sessions.refresh}>重试</Button>} />}
       {sessions.loading && !sessions.items.length && <div className="chat-center"><Spin size="small" /></div>}
-      {!sessions.loading && !sessions.error && !sessions.items.length && <p className="chat-center chat-muted">暂无对话</p>}
+      {!sessions.loading && !sessions.error && !conversationItems.length && <p className="chat-center chat-muted">暂无对话</p>}
     </div>
-    <VirtualList key={`${sessions.keyword}:${project?.id}:${view}`} className="chat-session-list" items={sessions.items} itemKey={item => item.id} estimate={76} onEnd={sessions.loadMore} renderItem={item => <button className={`chat-session ${chat.id === item.id ? 'active' : ''}`} key={item.id} disabled={saving} onClick={() => select(item.id)}><span className="chat-session-title">{item.title}</span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span><time>{new Date(item.last_message_at).toLocaleDateString()}</time></span></button>} /></>}
-    {local.length > 0 && <div className="chat-local-sessions" aria-label="本地会话"><h3>进行中与最近会话</h3>{local.map(item => <button key={item.key} className={`chat-session ${item.key === chat.sessionKey ? 'active' : ''}`} disabled={saving} onClick={() => select(item.id || item.key)}><span className="chat-session-title">{item.streaming ? '◌ ' : ''}{item.title}</span><span className="chat-session-meta">{item.streaming ? '正在运行' : item.draft ? '草稿' : '查看结果'}{item.projectId ? ' · 项目' : ''}</span></button>)}</div>}
+    <VirtualList key={`${sessions.keyword}:${project?.id}:${view}`} className="chat-session-list" items={conversationItems} itemKey={item => item.id} estimate={76} onEnd={sessions.loadMore} reveal={target && { key: visibleTarget!.id, request: target }} renderItem={item => <button className={`chat-session ${(chat.id || chat.sessionKey) === item.id ? 'active' : ''}`} key={item.id} disabled={saving} onClick={() => select(item.id)}><span className="chat-session-title">{item.title}</span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span>{item.last_message_at && <time>{new Date(item.last_message_at).toLocaleDateString()}</time>}</span></button>} /></>}
+    {local.length > 0 && <div className="chat-local-sessions" aria-label="本地会话"><h3>进行中与最近会话</h3>{local.map(item => <button key={item.key} className={`chat-session ${item.key === chat.sessionKey ? 'active' : ''}`} disabled={saving} onClick={() => selectLocal(item)}><span className="chat-session-title">{item.streaming ? '◌ ' : ''}{item.title}</span><span className="chat-session-meta">{item.streaming ? '正在运行' : item.draft ? '草稿' : '查看结果'}{item.projectId ? ' · 项目' : ''}</span></button>)}</div>}
     <div className="chat-sidebar-footer"><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>
   </div>
   return <div className="chat-workspace">

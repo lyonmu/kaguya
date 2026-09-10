@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { after, afterEach, it } from 'node:test'
+import { after, afterEach, it, mock } from 'node:test'
 import assert from 'node:assert/strict'
 import { Window } from 'happy-dom'
 
@@ -8,6 +8,8 @@ const globals = {
   window: dom, document: dom.document, navigator: dom.navigator,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
   SVGElement: dom.SVGElement, ShadowRoot: dom.ShadowRoot,
+  CSSStyleSheet: dom.CSSStyleSheet,
+  DOMParser: dom.DOMParser, XMLSerializer: dom.XMLSerializer,
   MutationObserver: dom.MutationObserver, ResizeObserver: dom.ResizeObserver,
   cancelAnimationFrame: dom.cancelAnimationFrame.bind(dom),
   getComputedStyle: dom.getComputedStyle.bind(dom), requestAnimationFrame: dom.requestAnimationFrame.bind(dom), IS_REACT_ACT_ENVIRONMENT: true,
@@ -79,6 +81,45 @@ it('distinguishes execution from completed input, failures, and interrupted call
   assert.ok(view.getByText('失败'))
   view.rerender(<ActivityBlock block={{ ...block, input: 'null' }} />)
   assert.ok(view.getByText('未完成'))
+})
+
+it('renders Mermaid in the first completed answer and recovers from invalid source', async () => {
+  // Exercise parsing and component lifecycle here; real SVG layout is verified in a browser.
+  const mermaid = (await import('mermaid')).default
+  const rendering = mock.method(mermaid, 'render', async (_id: string, code: string) => {
+    await mermaid.parse(code)
+    return { svg: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 1200 400"><foreignObject><div xmlns="http://www.w3.org/1999/xhtml">Prometheus<br>指标</div></foreignObject></svg>', diagramType: 'flowchart' }
+  })
+  try {
+    const source = '```mermaid\nflowchart LR\n A[Docker] --> B[Prometheus]\n```'
+    const view = render(<Markdown text={'```mermaid\nflowchart LR\n A['} streaming />)
+    assert.ok(view.getByText('图表生成中…'))
+    assert.equal(view.queryByAltText('Mermaid 图表'), null)
+    assert.equal(rendering.mock.callCount(), 0)
+    view.rerender(<Markdown text={source} />)
+    const diagram = await view.findByAltText('Mermaid 图表', {}, { timeout: 10000 })
+    const src = diagram.getAttribute('src')!
+    assert.ok(src.startsWith('data:image/svg+xml;'))
+    assert.ok(decodeURIComponent(src).includes('Prometheus'))
+    assert.match(decodeURIComponent(src), /<br\s*\/>/)
+    assert.match(decodeURIComponent(src), /width="1200"/)
+    assert.match(decodeURIComponent(src), /height="400"/)
+    fireEvent.click(view.getByRole('button', { name: '原尺寸查看' }))
+    assert.equal(view.getByRole('button', { name: '适应宽度' }).getAttribute('aria-pressed'), 'true')
+    assert.ok(view.container.querySelector('.chat-mermaid-preview.full-size'))
+    assert.equal(view.container.querySelector('.chat-mermaid-preview svg'), null)
+    view.rerender(<Markdown text={source + '\n\n说明文字'} />)
+    assert.equal(view.getByAltText('Mermaid 图表'), diagram)
+    view.rerender(<Markdown text={'```mermaid\nnot a diagram\n```'} />)
+    await view.findByText('图表无法渲染，请检查 Mermaid 源码。')
+    assert.equal(view.container.querySelector('details')?.open, true)
+    view.rerender(<Markdown text={'```mermaid\nsequenceDiagram\n participant A as 客户端\n participant B as 服务端\n A->>B: 请求\n B-->>A: 响应\n```'} />)
+    await view.findByAltText('Mermaid 图表')
+    assert.equal(view.queryByText('图表无法渲染，请检查 Mermaid 源码。'), null)
+    assert.equal(dom.document.querySelectorAll('[id^="dkaguya-diagram-"]').length, 0)
+  } finally {
+    rendering.mock.restore()
+  }
 })
 
 it('searches project files, inserts quoted paths by keyboard, and dismisses on Escape', async () => {

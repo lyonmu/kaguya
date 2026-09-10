@@ -107,6 +107,84 @@ it('virtualizes long lists and updates the visible window on scroll', () => {
   } finally { dom.HTMLElement.prototype.getBoundingClientRect = original }
 })
 
+it('reveals a selected conversation outside the virtual window and supports repeated jumps', () => {
+  const original = dom.HTMLElement.prototype.getBoundingClientRect
+  dom.HTMLElement.prototype.getBoundingClientRect = () => new dom.DOMRect(0, 0, 500, 100)
+  try {
+    const props = { items: Array.from({ length: 1000 }, (_, index) => index), itemKey: (item: number) => item, estimate: 100, renderItem: (item: number) => <span data-testid="row">{item}</span> }
+    const view = render(<VirtualList {...props} />)
+    const viewport = view.container.firstElementChild!
+    Object.defineProperty(viewport, 'clientHeight', { value: 500, configurable: true })
+    view.rerender(<VirtualList {...props} reveal={{ key: 800, request: {} }} />)
+    assert.ok(view.getByText('800'))
+    assert.ok(view.getAllByTestId('row').length < 20)
+    fireEvent.scroll(viewport, { target: { scrollTop: 0 } })
+    assert.equal(view.queryByText('800'), null)
+    view.rerender(<VirtualList {...props} reveal={{ key: 800, request: {} }} />)
+    assert.ok(view.getByText('800'))
+  } finally { dom.HTMLElement.prototype.getBoundingClientRect = original }
+})
+
+it('links recent running sessions to their project or ordinary list without cancelling streams', async () => {
+  const project = { id: 'p1', name: '项目一', path: '/root/one', description: '', created_at: '' }
+  let hideProject = false
+  let delayProject = false
+  let resolveProject: ((value: Response) => void) | undefined
+  const streams: Array<{ signal: AbortSignal; start: () => void }> = []
+  globalThis.fetch = (async (url, init) => {
+    const parsed = new URL(String(url), 'http://localhost')
+    const path = parsed.pathname
+    if (path.endsWith('/sse')) {
+      const index = streams.length + 1
+      const signal = init!.signal as AbortSignal
+      return new Response(new ReadableStream({ start(controller) {
+        streams.push({ signal, start() {
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: `c${index}`, flag: 'start' } } })}\n\n`))
+        } })
+        signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')))
+      } }), { headers: { 'Content-Type': 'text/event-stream' } })
+    }
+    if (path.endsWith('/project/page')) return response({ items: hideProject ? [] : [project], total: hideProject ? 0 : 1 })
+    if (path.endsWith('/project/p1')) {
+      if (delayProject) return new Promise<Response>(resolve => { resolveProject = resolve })
+      return response(project)
+    }
+    if (path.includes('/model/label')) return response([])
+    return response({ items: [], total: 0 })
+  }) as typeof fetch
+  const view = render(<App><ChatPage /></App>)
+  fireEvent.click(view.getByRole('radio', { name: '项目' }))
+  fireEvent.click(await view.findByRole('button', { name: 'folder-open 项目一' }))
+  fireEvent.change(view.getByLabelText('对话消息'), { target: { value: '项目任务' } })
+  fireEvent.click(view.getByLabelText('发送消息'))
+  await waitFor(() => assert.equal(streams.length, 1))
+  fireEvent.click(view.getByRole('radio', { name: '对话' }))
+  fireEvent.change(view.getByLabelText('对话消息'), { target: { value: '普通任务' } })
+  fireEvent.click(view.getByLabelText('发送消息'))
+  await waitFor(() => assert.equal(streams.length, 2))
+  hideProject = true
+  fireEvent.click(view.getByRole('button', { name: '◌ 项目任务 正在运行 · 项目' }))
+  await waitFor(() => assert.ok(view.container.querySelector('.project-group-name.selected')))
+  assert.equal((view.getByRole('radio', { name: '项目' }) as HTMLInputElement).checked, true)
+  assert.equal(view.container.querySelector('.project-conversation.active')?.textContent, '项目任务')
+  await act(async () => { streams[0].start(); streams[1].start() })
+  assert.equal(view.container.querySelector('.project-conversation.active')?.textContent, '项目任务')
+  fireEvent.click(view.getByRole('button', { name: '◌ 普通任务 正在运行' }))
+  assert.equal((view.getByRole('radio', { name: '对话' }) as HTMLInputElement).checked, true)
+  assert.equal(view.container.querySelector('.chat-session-list .active .chat-session-title')?.textContent, '普通任务')
+  fireEvent.change(view.getByLabelText('搜索对话标题前缀'), { target: { value: '无匹配项' } })
+  fireEvent.click(view.getByRole('button', { name: '◌ 普通任务 正在运行' }))
+  assert.equal((view.getByLabelText('搜索对话标题前缀') as HTMLInputElement).value, '')
+  delayProject = true
+  fireEvent.click(view.getByRole('button', { name: '◌ 项目任务 正在运行 · 项目' }))
+  await waitFor(() => assert.ok(resolveProject))
+  fireEvent.click(view.getByRole('button', { name: '◌ 普通任务 正在运行' }))
+  await act(async () => { resolveProject!(response(project)) })
+  assert.equal((view.getByRole('radio', { name: '对话' }) as HTMLInputElement).checked, true)
+  assert.equal(view.container.querySelector('.project-group'), null)
+  assert.ok(streams.every(stream => !stream.signal.aborted))
+})
+
 it('uses the supplied images for conversation avatars and the welcome logo', () => {
   const props = { loading: false, streaming: false, page: 1, totalPages: 1, initialEnd: false, onPageChange: async () => {} }
   const view = render(<MessageList {...props} turns={[]} />)

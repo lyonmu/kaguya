@@ -11,10 +11,11 @@ interface Props<T> {
   onBoundary?: (direction: -1 | 1) => void
   initialEnd?: boolean
   followEnd?: boolean
+  reveal?: { key: string | number; request: object }
 }
 
 // 可变高度窗口化：只挂载可见项和少量预渲染项，ResizeObserver 跟踪 Markdown/工具展开后的高度。
-export function VirtualList<T>({ items, itemKey, renderItem, estimate, className, onEnd, onBoundary, initialEnd = false, followEnd = false }: Props<T>) {
+export function VirtualList<T>({ items, itemKey, renderItem, estimate, className, onEnd, onBoundary, initialEnd = false, followEnd = false, reveal }: Props<T>) {
   const viewport = useRef<HTMLDivElement>(null)
   const heights = useRef(new Map<string | number, number>())
   const [range, setRange] = useState({ top: 0, height: 800 })
@@ -24,6 +25,7 @@ export function VirtualList<T>({ items, itemKey, renderItem, estimate, className
   const boundaryTime = useRef(0)
   const touchY = useRef(0)
   const wasFollowing = useRef(false)
+  const revealed = useRef<{ request: object; top: number }>(undefined)
   const boundary = (direction: -1 | 1) => {
     const el = viewport.current
     if (!el || Date.now() - boundaryTime.current < 500) return
@@ -65,6 +67,17 @@ export function VirtualList<T>({ items, itemKey, renderItem, estimate, className
     }
     initialized.current = true
   }, [items, total, initialEnd, followEnd])
+  useLayoutEffect(() => {
+    const element = viewport.current
+    if (!element || !reveal) { revealed.current = undefined; return }
+    const index = items.findIndex(item => itemKey(item) === reveal.key)
+    if (index < 0) return
+    const top = offsets[index]
+    if (revealed.current?.request === reveal.request && revealed.current.top === top) return
+    revealed.current = { request: reveal.request, top }
+    element.scrollTop = Math.max(0, top - (element.clientHeight - estimate) / 2)
+    setRange({ top: element.scrollTop, height: element.clientHeight })
+  }, [reveal, items, itemKey, offsets, estimate])
   useLayoutEffect(() => {
     if (items.length && range.top + range.height >= total - estimate * 2) onEnd?.()
   }, [range, total, estimate, items.length, onEnd])

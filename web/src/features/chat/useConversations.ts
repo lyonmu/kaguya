@@ -65,6 +65,7 @@ export function useConversations(projectId?: string) {
 
   return {
     items, total, loading, error, keyword, favorite, refresh, refreshQuietly, updateTitle,
+    resetFilters: () => { request.current?.abort(); page.current = 1; setKeyword(''); setFavorite(false); setItems([]); setTotal(0); setLoading(true); refresh() },
     loadMore: () => { if (!loading && !error && items.length < total) void load(true, true) },
     search: (value: string) => { request.current?.abort(); page.current = 1; setItems([]); setTotal(0); setLoading(true); setKeyword(value) },
     filter: (value: boolean) => { request.current?.abort(); page.current = 1; setItems([]); setTotal(0); setLoading(true); setFavorite(value) },

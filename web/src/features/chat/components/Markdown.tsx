@@ -1,8 +1,10 @@
-import { Children, isValidElement, useEffect, useRef, useState } from 'react'
+import { Children, isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { CheckOutlined, CopyOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
+import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { MermaidBlock } from './MermaidBlock'
 
 export function CopyButton({ text, label = '复制代码' }: { text: string; label?: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle')
@@ -56,15 +58,17 @@ function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
   return <img src={src} alt={alt ?? ''} referrerPolicy="no-referrer" />
 }
 
-export function Markdown({ text }: { text: string }) {
-  return <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+export function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
+  const components = useMemo<Components>(() => ({
     pre: ({ children }) => {
       const child = Children.toArray(children)[0]
       const language = isValidElement<{ className?: string }>(child) ? child.props.className?.replace(/^language-/, '') : undefined
-      return <CodeBlock code={textContent(children).replace(/\n$/, '')} language={language} />
+      const code = textContent(children).replace(/\n$/, '')
+      return language?.toLowerCase() === 'mermaid' ? <MermaidBlock code={code} streaming={streaming} /> : <CodeBlock code={code} language={language} />
     },
     table: ({ children }) => <div className="chat-table-scroll" tabIndex={0} aria-label="表格"><table>{children}</table></div>,
     a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
     img: MarkdownImage,
-  }}>{text}</ReactMarkdown></div>
+  }), [streaming])
+  return <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{text}</ReactMarkdown></div>
 }

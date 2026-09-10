@@ -3,13 +3,14 @@ import { Alert, App, Button, Input, Modal, Pagination, Space, Spin } from 'antd'
 import { FolderOutlined, PlusOutlined } from '@ant-design/icons'
 import { deleteProject, fetchDirectories, fetchProject, fetchProjects, saveProject } from './api'
 import type { Directories, Project, ProjectInput } from './api'
+import type { ConversationTarget } from '../chat/types'
 
 import { ProjectGroup } from './ProjectGroup'
 
 const empty: ProjectInput = { name: '', path: '', description: '' }
 const errorText = (error: unknown) => error instanceof Error ? error.message : '项目操作失败'
 
-export function ProjectPanel({ selected, disabled, onSelect, activeId, onConversationSelect, refreshVersion = 0 }: { selected?: Project; disabled: boolean; onSelect: (project?: Project) => void; activeId?: string; onConversationSelect?: (project: Project, id: string) => void; refreshVersion?: number }) {
+export function ProjectPanel({ selected, disabled, onSelect, activeId, onConversationSelect, refreshVersion = 0, reveal, localTarget }: { selected?: Project; disabled: boolean; onSelect: (project?: Project) => void; activeId?: string; onConversationSelect?: (project: Project, id: string) => void; refreshVersion?: number; reveal?: ConversationTarget; localTarget?: ConversationTarget }) {
   const { message, modal } = App.useApp()
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
@@ -26,6 +27,9 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
   const [directoryError, setDirectoryError] = useState('')
   const directoryRequest = useRef<AbortController | null>(null)
   useEffect(() => () => directoryRequest.current?.abort(), [])
+  useEffect(() => {
+    if (reveal) { setKeyword(''); setPage(1) }
+  }, [reveal])
   useEffect(() => {
     const controller = new AbortController()
     const timer = setTimeout(() => {
@@ -83,14 +87,16 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
       finally { setSaving(false) }
     },
   })
+  // Keep a directly selected project reachable even when it is outside the loaded page.
+  const visibleItems = reveal && selected && selected.id === reveal.projectId && !items.some(item => item.id === selected.id) ? [selected, ...items] : items
   return <>
     <div className="project-panel project-panel-list">
         <Space><Button icon={<PlusOutlined />} disabled={disabled || saving} onClick={() => void edit()}>新建项目</Button><Button onClick={() => setVersion(value => value + 1)}>刷新</Button></Space>
         <Input aria-label="搜索项目" placeholder="搜索项目（名称前缀）" value={keyword} maxLength={200} allowClear onChange={event => { setKeyword(event.target.value); setPage(1) }} />
         {error && <Alert type="error" title={error} action={<Button onClick={() => setVersion(value => value + 1)}>重试</Button>} />}
         {loading && <Spin />}
-        {!loading && !error && !items.length && <p>暂无项目</p>}
-        {items.map(project => <ProjectGroup key={project.id} project={project} activeId={activeId} selected={selected?.id === project.id} disabled={disabled || saving || loading} version={version + refreshVersion} onSelect={() => onSelect(project)} onConversationSelect={id => onConversationSelect?.(project, id)} onEdit={() => void edit(project)} onDelete={() => remove(project)} />)}
+        {!loading && !error && !visibleItems.length && <p>暂无项目</p>}
+        {visibleItems.map(project => <ProjectGroup key={project.id} project={project} activeId={activeId} selected={selected?.id === project.id} disabled={disabled || saving || loading} reveal={reveal?.projectId === project.id ? reveal : undefined} localTarget={localTarget?.projectId === project.id ? localTarget : undefined} version={version + refreshVersion} onSelect={() => onSelect(project)} onConversationSelect={id => onConversationSelect?.(project, id)} onEdit={() => void edit(project)} onDelete={() => remove(project)} />)}
         <Pagination simple current={page} total={total} pageSize={20} hideOnSinglePage showSizeChanger={false} onChange={setPage} />
     </div>
     <Modal title={editing ? '编辑项目' : '新建项目'} open={editing !== null} confirmLoading={saving} onCancel={() => { if (!saving) { setEditing(null); directoryRequest.current?.abort() } }} onOk={() => void save()} okButtonProps={{ disabled: disabled || browsing || !!directoryError || !form.name.trim() || !form.path }}>

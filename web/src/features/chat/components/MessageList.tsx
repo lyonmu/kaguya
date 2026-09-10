@@ -8,7 +8,7 @@ import kaguyaAvatar from "../../../assets/kaguya.png";
 import userAvatar from "../../../assets/lyonmu.png";
 
 export function ContentBlock({ block, streaming = false, conversationId, turnIndex }: { block: Block; streaming?: boolean; conversationId?: string; turnIndex?: number }) {
- return block.type === 'text' ? <Markdown text={block.text ?? ''} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
+ return block.type === 'text' ? <Markdown text={block.text ?? ''} streaming={streaming && block.phase !== 'block_end'} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
 }
 
 interface Props {

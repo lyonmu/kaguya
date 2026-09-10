@@ -113,6 +113,9 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 			if len(req.Messages) == 0 || req.Messages[0].Role != "system" || req.Messages[0].Content != wantPrompt {
 				t.Fatalf("system prompt=%+v", req.Messages)
 			}
+			if !strings.Contains(req.Messages[0].Content, "fenced code blocks labeled mermaid") || !strings.Contains(req.Messages[0].Content, "does not host MCP Apps or Excalidraw widgets") {
+				t.Fatal("chat request omitted client diagram capabilities")
+			}
 			if i > 0 {
 				for _, msg := range req.Messages {
 					if strings.Contains(msg.Content, "自定义提示词-0") {

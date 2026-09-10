@@ -135,6 +135,14 @@
 .chat-code-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px 6px 14px; background: var(--k-elevated); border-bottom: 1px solid var(--k-border-soft); color: var(--k-text-muted); font: 11px/1.5 var(--font-mono); }
 .chat-code-block pre { margin: 0; padding: 16px; border: 0; border-radius: 0; white-space: pre; overflow-wrap: normal; overflow: auto; max-height: 520px; background: transparent; color: var(--k-text); font: 12px/1.75 var(--font-mono); tab-size: 2; }
 .chat-code-block pre code { font: inherit; background: transparent; padding: 0; }
+.chat-mermaid { margin: 14px 0; padding: 12px; border: 1px solid var(--k-border); border-radius: 10px; }
+.chat-mermaid-preview { overflow: auto; padding: 12px; border-radius: 6px; background: #fff; }
+.chat-mermaid-preview img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.chat-mermaid-preview.full-size { max-height: 70vh; }
+.chat-mermaid-preview.full-size img { max-width: none; }
+.chat-mermaid-toggle { border: 0; background: transparent; color: var(--k-text-muted); cursor: pointer; padding: 0 0 8px; font-size: 12px; }
+.chat-mermaid > details { margin-top: 8px; }
+.chat-mermaid > details > summary { cursor: pointer; font-size: 12px; color: var(--k-text-muted); }
 .chat-copy { display: inline-flex; align-items: center; gap: 6px; border: 0; padding: 5px 8px; min-height: 28px; border-radius: 6px; background: transparent; color: var(--k-text-muted); cursor: pointer; font: 11px/1.5 var(--font-sans); }
 .chat-copy:hover { color: var(--k-text); background: var(--k-selected); }
 .chat-response-actions { margin-top: 14px; }

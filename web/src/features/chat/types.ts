@@ -66,6 +66,12 @@ export interface ConversationTitle {
   title: string
 }
 
+export interface ConversationTarget {
+  id: string
+  title: string
+  projectId?: string
+}
+
 export interface Conversation {
   is_project: boolean
   project_id?: string | null

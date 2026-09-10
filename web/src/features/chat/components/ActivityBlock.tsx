@@ -62,7 +62,7 @@ export function ActivityBlock({ block: summary, streaming = false, conversationI
       {duration && <span className="chat-activity-duration">{duration}</span>}<DownOutlined className="chat-activity-chevron" />
     </summary>
     {open && pending && <div className="chat-activity-body">{loadError ? <><p className="chat-failure">{loadError}</p><button type="button" onClick={() => setRetry(value => value + 1)}>重试加载详情</button></> : <span role="status">正在加载详情…</span>}</div>}
-    {open && !pending && (thinking ? <div className="chat-reasoning-content"><Markdown text={block.text || '正在整理思路…'} /></div> : <div className="chat-activity-body">
+    {open && !pending && (thinking ? <div className="chat-reasoning-content"><Markdown text={block.text || '正在整理思路…'} streaming={running} /></div> : <div className="chat-activity-body">
       <div className="chat-activity-section">{block.tool_name === 'bash' ? '命令' : '参数'}</div>
       <CodeBlock code={block.tool_name === 'bash' && typeof info.input.command === 'string' ? info.input.command : input} language={block.tool_name === 'bash' ? 'bash' : 'json'} />
       {block.output && <><div className="chat-activity-section">输出</div><CodeBlock code={block.output.type === 'media' ? `媒体输出 · ${block.output.media_type || '未知类型'}（不自动加载）` : block.output.text || '（空输出）'} language="output" /></>}

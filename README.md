@@ -397,6 +397,10 @@ After changing Ent schemas, run `go generate ./internal/ent` from the repository
 
 ### Chat interactions
 
+Fenced `mermaid` blocks render as diagrams as soon as their text block finishes, including the first answer and saved history. Source remains expandable and copyable; invalid diagrams display an error with their source. Rendering runs locally in the browser. MCP Apps and Excalidraw widgets are not hosted: a tool's "Diagram displayed" message or checkpoint ID alone does not display an image. The chat prompt tells the model to include Mermaid diagrams in its answer when appropriate.
+
+Selecting an ongoing or recent conversation also switches to its conversation/project list, selects its project, and brings the active entry into view. Conversations that are still unsaved and selected entries outside the loaded page remain reachable in the list.
+
 In project conversations, type `@` to search project files, use ↑/↓ to select, Enter to insert, and Esc to dismiss. Paths containing spaces are inserted as `@"path/to/my file.go"`. Up to 8 files may be referenced per message; the backend reads their text within the project workspace when sending. Ordinary conversations do not read host files. Each file uses the read tool’s 2000-line/50-KiB limit, with a 256-KiB total reference limit; paths outside the workspace and images are rejected. Search skips common dependency and build directories, scans at most 20000 entries, and returns at most 50 matches.
 
 Reasoning and tool calls have separate expandable cards showing the tool name, key arguments, execution status, duration, and output. Markdown supports tables, code language labels, and on-demand syntax highlighting, with a top-right copy button and success/failure feedback on code blocks. Long code and wide tables scroll independently. Light and dark themes are supported; mouse interaction avoids redundant focus rings while keyboard focus remains visible.
