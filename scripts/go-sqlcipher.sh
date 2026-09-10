@@ -22,5 +22,6 @@ crypto_flags=${crypto_flags//-lcrypto/$crypto_lib}
 # Explicit archives keep SQLCipher and OpenSSL out of runtime shared libraries.
 export CGO_ENABLED=1
 export CGO_CFLAGS="${CGO_CFLAGS:-} -DUSE_LIBSQLITE3 -I$prefix/include"
-export CGO_LDFLAGS="${CGO_LDFLAGS:-} $prefix/lib/libsqlite3.a $crypto_flags"
+# SQLCipher's SQLite math functions require libm after the static archive.
+export CGO_LDFLAGS="${CGO_LDFLAGS:-} $prefix/lib/libsqlite3.a $crypto_flags -lm"
 exec go "$@"
