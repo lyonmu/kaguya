@@ -10,6 +10,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
@@ -52,6 +53,66 @@ func (_u *KaguyaSystemInfoUpdate) SetNillableDeletedAt(v *time.Time) *KaguyaSyst
 // ClearDeletedAt clears the value of the "deleted_at" field.
 func (_u *KaguyaSystemInfoUpdate) ClearDeletedAt() *KaguyaSystemInfoUpdate {
 	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetAgentMaxSteps sets the "agent_max_steps" field.
+func (_u *KaguyaSystemInfoUpdate) SetAgentMaxSteps(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetAgentMaxSteps()
+	_u.mutation.SetAgentMaxSteps(v)
+	return _u
+}
+
+// SetNillableAgentMaxSteps sets the "agent_max_steps" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableAgentMaxSteps(v *int) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetAgentMaxSteps(*v)
+	}
+	return _u
+}
+
+// AddAgentMaxSteps adds value to the "agent_max_steps" field.
+func (_u *KaguyaSystemInfoUpdate) AddAgentMaxSteps(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddAgentMaxSteps(v)
+	return _u
+}
+
+// SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
+func (_u *KaguyaSystemInfoUpdate) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetCommandTimeoutSeconds()
+	_u.mutation.SetCommandTimeoutSeconds(v)
+	return _u
+}
+
+// SetNillableCommandTimeoutSeconds sets the "command_timeout_seconds" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableCommandTimeoutSeconds(v *int) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetCommandTimeoutSeconds(*v)
+	}
+	return _u
+}
+
+// AddCommandTimeoutSeconds adds value to the "command_timeout_seconds" field.
+func (_u *KaguyaSystemInfoUpdate) AddCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddCommandTimeoutSeconds(v)
+	return _u
+}
+
+// SetGlobalAgentsPaths sets the "global_agents_paths" field.
+func (_u *KaguyaSystemInfoUpdate) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetGlobalAgentsPaths(v)
+	return _u
+}
+
+// AppendGlobalAgentsPaths appends value to the "global_agents_paths" field.
+func (_u *KaguyaSystemInfoUpdate) AppendGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpdate {
+	_u.mutation.AppendGlobalAgentsPaths(v)
+	return _u
+}
+
+// ClearGlobalAgentsPaths clears the value of the "global_agents_paths" field.
+func (_u *KaguyaSystemInfoUpdate) ClearGlobalAgentsPaths() *KaguyaSystemInfoUpdate {
+	_u.mutation.ClearGlobalAgentsPaths()
 	return _u
 }
 
@@ -160,6 +221,16 @@ func (_u *KaguyaSystemInfoUpdate) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *KaguyaSystemInfoUpdate) check() error {
+	if v, ok := _u.mutation.AgentMaxSteps(); ok {
+		if err := kaguyasysteminfo.AgentMaxStepsValidator(v); err != nil {
+			return &ValidationError{Name: "agent_max_steps", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.agent_max_steps": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CommandTimeoutSeconds(); ok {
+		if err := kaguyasysteminfo.CommandTimeoutSecondsValidator(v); err != nil {
+			return &ValidationError{Name: "command_timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.command_timeout_seconds": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := kaguyasysteminfo.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.user_agent": %w`, err)}
@@ -194,6 +265,29 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(kaguyasysteminfo.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AgentMaxSteps(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldAgentMaxSteps, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAgentMaxSteps(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldAgentMaxSteps, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CommandTimeoutSeconds(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCommandTimeoutSeconds(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GlobalAgentsPaths(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGlobalAgentsPaths(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, kaguyasysteminfo.FieldGlobalAgentsPaths, value)
+		})
+	}
+	if _u.mutation.GlobalAgentsPathsCleared() {
+		_spec.ClearField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.SystemPrompt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldSystemPrompt, field.TypeString, value)
@@ -252,6 +346,66 @@ func (_u *KaguyaSystemInfoUpdateOne) SetNillableDeletedAt(v *time.Time) *KaguyaS
 // ClearDeletedAt clears the value of the "deleted_at" field.
 func (_u *KaguyaSystemInfoUpdateOne) ClearDeletedAt() *KaguyaSystemInfoUpdateOne {
 	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
+// SetAgentMaxSteps sets the "agent_max_steps" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetAgentMaxSteps(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetAgentMaxSteps()
+	_u.mutation.SetAgentMaxSteps(v)
+	return _u
+}
+
+// SetNillableAgentMaxSteps sets the "agent_max_steps" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableAgentMaxSteps(v *int) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetAgentMaxSteps(*v)
+	}
+	return _u
+}
+
+// AddAgentMaxSteps adds value to the "agent_max_steps" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddAgentMaxSteps(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddAgentMaxSteps(v)
+	return _u
+}
+
+// SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetCommandTimeoutSeconds()
+	_u.mutation.SetCommandTimeoutSeconds(v)
+	return _u
+}
+
+// SetNillableCommandTimeoutSeconds sets the "command_timeout_seconds" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableCommandTimeoutSeconds(v *int) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetCommandTimeoutSeconds(*v)
+	}
+	return _u
+}
+
+// AddCommandTimeoutSeconds adds value to the "command_timeout_seconds" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddCommandTimeoutSeconds(v)
+	return _u
+}
+
+// SetGlobalAgentsPaths sets the "global_agents_paths" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetGlobalAgentsPaths(v)
+	return _u
+}
+
+// AppendGlobalAgentsPaths appends value to the "global_agents_paths" field.
+func (_u *KaguyaSystemInfoUpdateOne) AppendGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AppendGlobalAgentsPaths(v)
+	return _u
+}
+
+// ClearGlobalAgentsPaths clears the value of the "global_agents_paths" field.
+func (_u *KaguyaSystemInfoUpdateOne) ClearGlobalAgentsPaths() *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ClearGlobalAgentsPaths()
 	return _u
 }
 
@@ -373,6 +527,16 @@ func (_u *KaguyaSystemInfoUpdateOne) defaults() error {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *KaguyaSystemInfoUpdateOne) check() error {
+	if v, ok := _u.mutation.AgentMaxSteps(); ok {
+		if err := kaguyasysteminfo.AgentMaxStepsValidator(v); err != nil {
+			return &ValidationError{Name: "agent_max_steps", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.agent_max_steps": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.CommandTimeoutSeconds(); ok {
+		if err := kaguyasysteminfo.CommandTimeoutSecondsValidator(v); err != nil {
+			return &ValidationError{Name: "command_timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.command_timeout_seconds": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := kaguyasysteminfo.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.user_agent": %w`, err)}
@@ -424,6 +588,29 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(kaguyasysteminfo.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AgentMaxSteps(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldAgentMaxSteps, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedAgentMaxSteps(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldAgentMaxSteps, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CommandTimeoutSeconds(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCommandTimeoutSeconds(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.GlobalAgentsPaths(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedGlobalAgentsPaths(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, kaguyasysteminfo.FieldGlobalAgentsPaths, value)
+		})
+	}
+	if _u.mutation.GlobalAgentsPathsCleared() {
+		_spec.ClearField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.SystemPrompt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldSystemPrompt, field.TypeString, value)

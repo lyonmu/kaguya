@@ -1,5 +1,6 @@
 import { ApiRequestError, buildUrl, del, get, post, put } from '../../api/http'
 import type { ApiResponse } from '../../api/http'
+import { referencedFiles } from './mentions'
 import { consumeSSE } from './sse'
 import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage } from './types'
 
@@ -34,7 +35,7 @@ export async function streamChat(id: string, messages: string, signal: AbortSign
     method: 'POST',
     headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined, project_id: projectId || undefined }),
+    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined, project_id: projectId || undefined, files: projectId ? referencedFiles(messages) : undefined }),
     signal,
   })
   if (!response.ok || !response.headers.get('content-type')?.includes('text/event-stream')) {
@@ -44,4 +45,8 @@ export async function streamChat(id: string, messages: string, signal: AbortSign
   }
   if (!response.body) throw new ApiRequestError('浏览器不支持流式响应')
   await consumeSSE(response.body, onFrame)
+}
+
+export function searchProjectFiles(projectId: string, query: string, signal?: AbortSignal) {
+  return get<{ files: string[]; truncated: boolean }>(`/v1/project/${encodeURIComponent(projectId)}/files`, { query }, signal)
 }

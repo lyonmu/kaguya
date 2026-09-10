@@ -180,6 +180,11 @@ func ContextWindow(v int) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextWindow, v))
 }
 
+// CompactionCount applies equality check predicate on the "compaction_count" field. It's identical to CompactionCountEQ.
+func CompactionCount(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCompactionCount, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCreatedAt, v))
@@ -1318,6 +1323,56 @@ func ContextWindowLT(v int) predicate.KaguyaChatTurn {
 // ContextWindowLTE applies the LTE predicate on the "context_window" field.
 func ContextWindowLTE(v int) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldContextWindow, v))
+}
+
+// ContextMessagesIsNil applies the IsNil predicate on the "context_messages" field.
+func ContextMessagesIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldContextMessages))
+}
+
+// ContextMessagesNotNil applies the NotNil predicate on the "context_messages" field.
+func ContextMessagesNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldContextMessages))
+}
+
+// CompactionCountEQ applies the EQ predicate on the "compaction_count" field.
+func CompactionCountEQ(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCompactionCount, v))
+}
+
+// CompactionCountNEQ applies the NEQ predicate on the "compaction_count" field.
+func CompactionCountNEQ(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldCompactionCount, v))
+}
+
+// CompactionCountIn applies the In predicate on the "compaction_count" field.
+func CompactionCountIn(vs ...int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldCompactionCount, vs...))
+}
+
+// CompactionCountNotIn applies the NotIn predicate on the "compaction_count" field.
+func CompactionCountNotIn(vs ...int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldCompactionCount, vs...))
+}
+
+// CompactionCountGT applies the GT predicate on the "compaction_count" field.
+func CompactionCountGT(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldCompactionCount, v))
+}
+
+// CompactionCountGTE applies the GTE predicate on the "compaction_count" field.
+func CompactionCountGTE(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldCompactionCount, v))
+}
+
+// CompactionCountLT applies the LT predicate on the "compaction_count" field.
+func CompactionCountLT(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldCompactionCount, v))
+}
+
+// CompactionCountLTE applies the LTE predicate on the "compaction_count" field.
+func CompactionCountLTE(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldCompactionCount, v))
 }
 
 // HasConversation applies the HasEdge predicate on the "conversation" edge.

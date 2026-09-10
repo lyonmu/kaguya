@@ -45,6 +45,7 @@ export interface Block {
 }
 
 export interface ChatFrame {
+  finish_reason?: string
   chat: {
     id: string
     flag: 'start' | 'delta' | 'done' | 'error'

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, App, Button, Card, Form, Input, Space, Spin, Tooltip } from 'antd'
+import { Alert, App, Button, Card, Form, Input, InputNumber, Select, Space, Spin, Tooltip } from 'antd'
 import { ReloadOutlined, SaveOutlined } from '@ant-design/icons'
 import { fetchModelLabels } from '../../features/providers/api'
 import { ModelCascader } from '../../features/providers/ModelCascader'
@@ -35,6 +35,8 @@ export function SystemInfoPage() {
     setSaving(true)
     try {
       const config = await updateSystemInfo({
+        agent_max_steps: values.agent_max_steps, command_timeout_seconds: values.command_timeout_seconds,
+        global_agents_paths: values.global_agents_paths ?? [],
         system_prompt: values.system_prompt ?? '', user_agent: values.user_agent,
         default_model_id: values.default_model_id || '', task_model_id: values.task_model_id || '',
       })
@@ -56,6 +58,11 @@ export function SystemInfoPage() {
           <Form.Item label="默认对话模型" name="default_model_id" tooltip="用于未手动选择模型的对话，清空则取消配置。"><ModelCascader aria-label="默认对话模型" models={models} /></Form.Item>
           <Form.Item label="后台任务模型" name="task_model_id" tooltip="用于生成对话标题等后台任务，可与对话模型相同，清空则取消配置。"><ModelCascader aria-label="后台任务模型" models={models} /></Form.Item>
         </div>
+        <div className="grid grid-cols-2 gap-x-4 max-[620px]:grid-cols-1">
+          <Form.Item label="Agent Loop 最大步数" name="agent_max_steps" rules={[{ required: true }]} tooltip="0 表示不限制（默认，与 pi 一致）。设置上限时，到达后保存进度并暂停，可继续执行。"><InputNumber min={0} max={1000} /></Form.Item>
+          <Form.Item label="命令超时（秒）" name="command_timeout_seconds" rules={[{ required: true }]} tooltip="每个 bash 命令的默认和最大超时，默认 120 秒。模型可请求更短时间。"><InputNumber min={1} max={86400} /></Form.Item>
+        </div>
+        <Form.Item label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="按顺序读取服务进程用户的文件，支持 ~/。不存在的文件跳过；清空可禁用。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
         <Form.Item label="User-Agent" name="user_agent" tooltip="用于服务端的聊天和标题生成请求，不修改浏览器请求头。" rules={[{ required: true, whitespace: true, message: '请输入 User-Agent' }, { pattern: /^[\x20-\x7e]+$/, message: '只能使用可打印 ASCII 字符，不能包含换行' }]}>
           <Input aria-label="User-Agent" maxLength={512} placeholder="kaguya" />
         </Form.Item>

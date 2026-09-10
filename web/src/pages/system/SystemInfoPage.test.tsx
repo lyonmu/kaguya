@@ -35,7 +35,7 @@ after(async () => {
 
 it('loads, edits and saves system config with local model record IDs', async () => {
   let saved: Record<string, unknown> | undefined
-  const config = { system_prompt: '', user_agent: 'kaguya', default_model_id: '', task_model_id: '', global_system_prompt: '只读基础人设' }
+  const config = { agent_max_steps: 64, command_timeout_seconds: 120, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', user_agent: 'kaguya', default_model_id: '', task_model_id: '', global_system_prompt: '只读基础人设' }
   globalThis.fetch = (async (url, init) => {
     if (String(url).includes('/model/label')) return response([
       { label: '聊天模型', value: 'local-chat', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-chat' },
@@ -62,7 +62,7 @@ it('loads, edits and saves system config with local model record IDs', async () 
     fireEvent.click(await within(popup).findByText(model))
   }
   fireEvent.click(view.getByRole('button', { name: /保存配置/ }))
-  await waitFor(() => assert.deepEqual(saved, { system_prompt: '请简洁回答', user_agent: 'Configured/2', default_model_id: 'local-chat', task_model_id: 'local-task' }))
+  await waitFor(() => assert.deepEqual(saved, { agent_max_steps: 64, command_timeout_seconds: 120, global_agents_paths: config.global_agents_paths, system_prompt: '请简洁回答', user_agent: 'Configured/2', default_model_id: 'local-chat', task_model_id: 'local-task' }))
   assert.ok(view.getByText('只读基础人设'))
 })
 

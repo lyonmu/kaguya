@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -23,6 +24,12 @@ type KaguyaSystemInfo struct {
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// 删除时间
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	// AgentMaxSteps holds the value of the "agent_max_steps" field.
+	AgentMaxSteps int `json:"agent_max_steps,omitempty"`
+	// CommandTimeoutSeconds holds the value of the "command_timeout_seconds" field.
+	CommandTimeoutSeconds int `json:"command_timeout_seconds,omitempty"`
+	// GlobalAgentsPaths holds the value of the "global_agents_paths" field.
+	GlobalAgentsPaths []string `json:"global_agents_paths,omitempty"`
 	// 追加到全局人设后的自定义提示词
 	SystemPrompt string `json:"system_prompt,omitempty"`
 	// 出站模型 API 请求的 User-Agent
@@ -39,6 +46,10 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case kaguyasysteminfo.FieldGlobalAgentsPaths:
+			values[i] = new([]byte)
+		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldCommandTimeoutSeconds:
+			values[i] = new(sql.NullInt64)
 		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldUserAgent, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
 			values[i] = new(sql.NullString)
 		case kaguyasysteminfo.FieldCreatedAt, kaguyasysteminfo.FieldUpdatedAt, kaguyasysteminfo.FieldDeletedAt:
@@ -82,6 +93,26 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.DeletedAt = new(time.Time)
 				*_m.DeletedAt = value.Time
+			}
+		case kaguyasysteminfo.FieldAgentMaxSteps:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field agent_max_steps", values[i])
+			} else if value.Valid {
+				_m.AgentMaxSteps = int(value.Int64)
+			}
+		case kaguyasysteminfo.FieldCommandTimeoutSeconds:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field command_timeout_seconds", values[i])
+			} else if value.Valid {
+				_m.CommandTimeoutSeconds = int(value.Int64)
+			}
+		case kaguyasysteminfo.FieldGlobalAgentsPaths:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field global_agents_paths", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.GlobalAgentsPaths); err != nil {
+					return fmt.Errorf("unmarshal field global_agents_paths: %w", err)
+				}
 			}
 		case kaguyasysteminfo.FieldSystemPrompt:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -153,6 +184,15 @@ func (_m *KaguyaSystemInfo) String() string {
 		builder.WriteString("deleted_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("agent_max_steps=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AgentMaxSteps))
+	builder.WriteString(", ")
+	builder.WriteString("command_timeout_seconds=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CommandTimeoutSeconds))
+	builder.WriteString(", ")
+	builder.WriteString("global_agents_paths=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GlobalAgentsPaths))
 	builder.WriteString(", ")
 	builder.WriteString("system_prompt=")
 	builder.WriteString(_m.SystemPrompt)

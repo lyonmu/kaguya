@@ -39,6 +39,11 @@ definitions:
     type: object
   chat.ChatReq:
     properties:
+      files:
+        items:
+          type: string
+        maxItems: 8
+        type: array
       flag:
         $ref: '#/definitions/chat.WSFlag'
       id:
@@ -72,6 +77,9 @@ definitions:
         type: integer
       err:
         description: 错误信息
+      finish_reason:
+        description: stop 或 step_limit（已保存，可继续）
+        type: string
       model_id:
         description: 模型id
         type: string
@@ -428,6 +436,15 @@ definitions:
       path:
         type: string
     type: object
+  project.FileSearchResp:
+    properties:
+      files:
+        items:
+          type: string
+        type: array
+      truncated:
+        type: boolean
+    type: object
   project.PageResp:
     properties:
       items:
@@ -518,9 +535,21 @@ definitions:
     type: object
   system.SystemInfoResp:
     properties:
+      agent_max_steps:
+        maximum: 1000
+        minimum: 0
+        type: integer
+      command_timeout_seconds:
+        maximum: 86400
+        minimum: 1
+        type: integer
       default_model_id:
         maxLength: 64
         type: string
+      global_agents_paths:
+        items:
+          type: string
+        type: array
       global_system_prompt:
         description: 只读基础人设，与自定义提示词拼接后用于聊天
         type: string
@@ -538,9 +567,21 @@ definitions:
     type: object
   system.SystemInfoSaveReq:
     properties:
+      agent_max_steps:
+        maximum: 1000
+        minimum: 0
+        type: integer
+      command_timeout_seconds:
+        maximum: 86400
+        minimum: 1
+        type: integer
       default_model_id:
         maxLength: 64
         type: string
+      global_agents_paths:
+        items:
+          type: string
+        type: array
       system_prompt:
         maxLength: 20000
         type: string
@@ -982,7 +1023,7 @@ paths:
       - Chat History
   /v1/chat/conversation/{id}/context:
     get:
-      description: 累计所有已完成轮次的 total_tokens（含跨模型和工具 step），分母为最新完整轮次模型窗口的90%；不代表实际上下文占用，不裁剪消息。无累计用量或模型窗口时
+      description: 最近一次模型调用的输入（含缓存）及输出估算上下文占用，分母为模型窗口的90%；达到阈值后下一次模型调用前自动压缩。无供应商用量或模型窗口时
         percent 为 null。
       parameters:
       - description: 会话 ID
@@ -1000,7 +1041,7 @@ paths:
                 data:
                   $ref: '#/definitions/chat.ConversationContextResp'
               type: object
-      summary: 整个会话累计 token 占比
+      summary: 当前上下文占用
       tags:
       - Chat History
   /v1/chat/conversation/{id}/title/wait:
@@ -1270,6 +1311,31 @@ paths:
                   $ref: '#/definitions/project.Resp'
               type: object
       summary: 更新项目
+      tags:
+      - Project
+  /v1/project/{id}/files:
+    get:
+      parameters:
+      - description: 项目 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 文件名或相对路径
+        in: query
+        name: query
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/project.FileSearchResp'
+              type: object
+      summary: 搜索项目中的文件，用于输入框 @ 引用
       tags:
       - Project
   /v1/project/directories:

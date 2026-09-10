@@ -47,6 +47,10 @@ func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
 	if err := initialize.Run(ctx, client); err != nil {
 		t.Fatal(err)
 	}
+	// Tests must not load the developer machine's global instructions.
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetGlobalAgentsPaths([]string{}).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
 	return ctx, client
 }
 

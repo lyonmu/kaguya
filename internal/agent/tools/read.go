@@ -152,3 +152,15 @@ func imageResponse(data []byte, mime string) (fantasy.ToolResponse, error) {
 	}
 	return fantasy.NewImageResponse(data, mime), nil
 }
+
+// ReadReference reuses the file tool's workspace checks and output limits.
+func (s *Set) ReadReference(ctx context.Context, path string) (string, error) {
+	response, err := s.read(ctx, ReadInput{Path: path})
+	if err != nil {
+		return "", err
+	}
+	if response.Type != "text" {
+		return "", errors.New("file references currently require UTF-8 text")
+	}
+	return response.Content, nil
+}

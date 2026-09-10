@@ -152,6 +152,8 @@ var (
 		{Name: "reasoning_tokens", Type: field.TypeInt64},
 		{Name: "context_tokens", Type: field.TypeInt64, Nullable: true, Comment: "最后一次模型调用输入（含缓存）及输出，用于估算整段上下文；旧记录未知"},
 		{Name: "context_window", Type: field.TypeInt, Comment: "本轮模型 token_context_window 快照，0 表示未知", Default: 0},
+		{Name: "context_messages", Type: field.TypeJSON, Nullable: true, Comment: "发生压缩后的完整续聊快照；原始 messages 始终保留"},
+		{Name: "compaction_count", Type: field.TypeInt, Default: 0},
 		{Name: "messages", Type: field.TypeJSON, Comment: "仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"},
 		{Name: "conversation_id", Type: field.TypeString, Size: 64},
 	}
@@ -164,7 +166,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_chat_turn_kaguya_conversation_turns",
-				Columns:    []*schema.Column{KaguyaChatTurnColumns[24]},
+				Columns:    []*schema.Column{KaguyaChatTurnColumns[26]},
 				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -193,7 +195,7 @@ var (
 			{
 				Name:    "kaguyachatturn_conversation_id_turn_index",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaChatTurnColumns[24], KaguyaChatTurnColumns[4]},
+				Columns: []*schema.Column{KaguyaChatTurnColumns[26], KaguyaChatTurnColumns[4]},
 			},
 			{
 				Name:    "kaguyachatturn_finished_at",
@@ -510,6 +512,9 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "agent_max_steps", Type: field.TypeInt, Default: 0},
+		{Name: "command_timeout_seconds", Type: field.TypeInt, Default: 120},
+		{Name: "global_agents_paths", Type: field.TypeJSON, Nullable: true},
 		{Name: "system_prompt", Type: field.TypeString, Size: 2147483647, Comment: "追加到全局人设后的自定义提示词", Default: ""},
 		{Name: "user_agent", Type: field.TypeString, Size: 512, Comment: "出站模型 API 请求的 User-Agent", Default: "kaguya-agent/0.0.1"},
 		{Name: "default_model_id", Type: field.TypeString, Comment: "默认聊天模型的本地记录 ID，空值表示未配置", Default: ""},

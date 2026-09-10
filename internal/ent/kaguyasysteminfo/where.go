@@ -79,6 +79,16 @@ func DeletedAt(v time.Time) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldDeletedAt, v))
 }
 
+// AgentMaxSteps applies equality check predicate on the "agent_max_steps" field. It's identical to AgentMaxStepsEQ.
+func AgentMaxSteps(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldAgentMaxSteps, v))
+}
+
+// CommandTimeoutSeconds applies equality check predicate on the "command_timeout_seconds" field. It's identical to CommandTimeoutSecondsEQ.
+func CommandTimeoutSeconds(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldCommandTimeoutSeconds, v))
+}
+
 // SystemPrompt applies equality check predicate on the "system_prompt" field. It's identical to SystemPromptEQ.
 func SystemPrompt(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldSystemPrompt, v))
@@ -227,6 +237,96 @@ func DeletedAtIsNil() predicate.KaguyaSystemInfo {
 // DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
 func DeletedAtNotNil() predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldNotNull(FieldDeletedAt))
+}
+
+// AgentMaxStepsEQ applies the EQ predicate on the "agent_max_steps" field.
+func AgentMaxStepsEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldAgentMaxSteps, v))
+}
+
+// AgentMaxStepsNEQ applies the NEQ predicate on the "agent_max_steps" field.
+func AgentMaxStepsNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldAgentMaxSteps, v))
+}
+
+// AgentMaxStepsIn applies the In predicate on the "agent_max_steps" field.
+func AgentMaxStepsIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldAgentMaxSteps, vs...))
+}
+
+// AgentMaxStepsNotIn applies the NotIn predicate on the "agent_max_steps" field.
+func AgentMaxStepsNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldAgentMaxSteps, vs...))
+}
+
+// AgentMaxStepsGT applies the GT predicate on the "agent_max_steps" field.
+func AgentMaxStepsGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldAgentMaxSteps, v))
+}
+
+// AgentMaxStepsGTE applies the GTE predicate on the "agent_max_steps" field.
+func AgentMaxStepsGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldAgentMaxSteps, v))
+}
+
+// AgentMaxStepsLT applies the LT predicate on the "agent_max_steps" field.
+func AgentMaxStepsLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldAgentMaxSteps, v))
+}
+
+// AgentMaxStepsLTE applies the LTE predicate on the "agent_max_steps" field.
+func AgentMaxStepsLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldAgentMaxSteps, v))
+}
+
+// CommandTimeoutSecondsEQ applies the EQ predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldCommandTimeoutSeconds, v))
+}
+
+// CommandTimeoutSecondsNEQ applies the NEQ predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldCommandTimeoutSeconds, v))
+}
+
+// CommandTimeoutSecondsIn applies the In predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldCommandTimeoutSeconds, vs...))
+}
+
+// CommandTimeoutSecondsNotIn applies the NotIn predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldCommandTimeoutSeconds, vs...))
+}
+
+// CommandTimeoutSecondsGT applies the GT predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldCommandTimeoutSeconds, v))
+}
+
+// CommandTimeoutSecondsGTE applies the GTE predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldCommandTimeoutSeconds, v))
+}
+
+// CommandTimeoutSecondsLT applies the LT predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldCommandTimeoutSeconds, v))
+}
+
+// CommandTimeoutSecondsLTE applies the LTE predicate on the "command_timeout_seconds" field.
+func CommandTimeoutSecondsLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldCommandTimeoutSeconds, v))
+}
+
+// GlobalAgentsPathsIsNil applies the IsNil predicate on the "global_agents_paths" field.
+func GlobalAgentsPathsIsNil() predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIsNull(FieldGlobalAgentsPaths))
+}
+
+// GlobalAgentsPathsNotNil applies the NotNil predicate on the "global_agents_paths" field.
+func GlobalAgentsPathsNotNil() predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotNull(FieldGlobalAgentsPaths))
 }
 
 // SystemPromptEQ applies the EQ predicate on the "system_prompt" field.

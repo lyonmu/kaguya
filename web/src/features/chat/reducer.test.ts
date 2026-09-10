@@ -37,8 +37,10 @@ describe('chat frame reducer', () => {
     const turn = applyFrame(initial, event({ type: 'text', phase: 'delta', text: 'hello' }))
     const done = event({ type: 'text', text: 'ignored' })
     done.chat.flag = 'done'
+    done.finish_reason = 'step_limit'
     const result = applyFrame(turn, done)
     assert.equal(result.status, 'done')
+    assert.equal(result.finish_reason, 'step_limit')
     assert.equal(result.usage?.total_tokens, 3)
     assert.deepEqual(result.blocks, turn.blocks)
   })

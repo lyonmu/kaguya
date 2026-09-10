@@ -14,13 +14,14 @@ const (
 )
 
 type ChatResp struct {
-	Chat        Chat                    `json:"chat"`         // 对话信息
-	APIProtocol consts.ProviderProtocol `json:"api_protocol"` // api接口类型
-	Usage       Usage                   `json:"usage"`        // token 使用信息
-	Created     int64                   `json:"created"`      // 创建时间时间戳
-	ModelID     string                  `json:"model_id"`     // 模型id
-	ModelName   string                  `json:"model_name"`   // 模型名称
-	Err         error                   `json:"err"`          // 错误信息
+	FinishReason string                  `json:"finish_reason,omitempty"` // stop 或 step_limit（已保存，可继续）
+	Chat         Chat                    `json:"chat"`                    // 对话信息
+	APIProtocol  consts.ProviderProtocol `json:"api_protocol"`            // api接口类型
+	Usage        Usage                   `json:"usage"`                   // token 使用信息
+	Created      int64                   `json:"created"`                 // 创建时间时间戳
+	ModelID      string                  `json:"model_id"`                // 模型id
+	ModelName    string                  `json:"model_name"`              // 模型名称
+	Err          error                   `json:"err"`                     // 错误信息
 }
 
 // BlockType 标识内容用途，与整轮生命周期 Flag 独立。

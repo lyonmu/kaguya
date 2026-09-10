@@ -104,8 +104,8 @@ export function ChatPage() {
         </div>
       </header>
       {chat.error && <Alert type="error" title={chat.error} showIcon />}
-      <MessageList key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
-      <Composer conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation)} onSend={send} onStop={chat.stop} />
+      <MessageList onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
+      <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : view === "项目" ? project?.id : undefined} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation)} onSend={send} onStop={chat.stop} />
       {!showSidebar && <div className={sidebarCollapsed ? 'chat-bottom-actions' : 'chat-bottom-actions chat-bottom-actions-mobile'}><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>}
     </section>
     <Modal title="重命名对话" open={renaming} confirmLoading={saving} onCancel={() => setRenaming(false)} onOk={() => void update({ title: title.trim() })} okButtonProps={{ disabled: !title.trim() }}><Input aria-label="对话标题" value={title} maxLength={200} onChange={event => setTitle(event.target.value)} /></Modal>

@@ -415,6 +415,45 @@ func (_u *KaguyaChatTurnUpdate) AddContextWindow(v int) *KaguyaChatTurnUpdate {
 	return _u
 }
 
+// SetContextMessages sets the "context_messages" field.
+func (_u *KaguyaChatTurnUpdate) SetContextMessages(v []fantasy.Message) *KaguyaChatTurnUpdate {
+	_u.mutation.SetContextMessages(v)
+	return _u
+}
+
+// AppendContextMessages appends value to the "context_messages" field.
+func (_u *KaguyaChatTurnUpdate) AppendContextMessages(v []fantasy.Message) *KaguyaChatTurnUpdate {
+	_u.mutation.AppendContextMessages(v)
+	return _u
+}
+
+// ClearContextMessages clears the value of the "context_messages" field.
+func (_u *KaguyaChatTurnUpdate) ClearContextMessages() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearContextMessages()
+	return _u
+}
+
+// SetCompactionCount sets the "compaction_count" field.
+func (_u *KaguyaChatTurnUpdate) SetCompactionCount(v int) *KaguyaChatTurnUpdate {
+	_u.mutation.ResetCompactionCount()
+	_u.mutation.SetCompactionCount(v)
+	return _u
+}
+
+// SetNillableCompactionCount sets the "compaction_count" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableCompactionCount(v *int) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetCompactionCount(*v)
+	}
+	return _u
+}
+
+// AddCompactionCount adds value to the "compaction_count" field.
+func (_u *KaguyaChatTurnUpdate) AddCompactionCount(v int) *KaguyaChatTurnUpdate {
+	_u.mutation.AddCompactionCount(v)
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdate) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdate {
 	_u.mutation.SetMessages(v)
@@ -578,6 +617,11 @@ func (_u *KaguyaChatTurnUpdate) check() error {
 			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CompactionCount(); ok {
+		if err := kaguyachatturn.CompactionCountValidator(v); err != nil {
+			return &ValidationError{Name: "compaction_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.compaction_count": %w`, err)}
+		}
+	}
 	if _u.mutation.ConversationCleared() && len(_u.mutation.ConversationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaChatTurn.conversation"`)
 	}
@@ -700,6 +744,23 @@ func (_u *KaguyaChatTurnUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedContextWindow(); ok {
 		_spec.AddField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ContextMessages(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextMessages, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedContextMessages(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, kaguyachatturn.FieldContextMessages, value)
+		})
+	}
+	if _u.mutation.ContextMessagesCleared() {
+		_spec.ClearField(kaguyachatturn.FieldContextMessages, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CompactionCount(); ok {
+		_spec.SetField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCompactionCount(); ok {
+		_spec.AddField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -1187,6 +1248,45 @@ func (_u *KaguyaChatTurnUpdateOne) AddContextWindow(v int) *KaguyaChatTurnUpdate
 	return _u
 }
 
+// SetContextMessages sets the "context_messages" field.
+func (_u *KaguyaChatTurnUpdateOne) SetContextMessages(v []fantasy.Message) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetContextMessages(v)
+	return _u
+}
+
+// AppendContextMessages appends value to the "context_messages" field.
+func (_u *KaguyaChatTurnUpdateOne) AppendContextMessages(v []fantasy.Message) *KaguyaChatTurnUpdateOne {
+	_u.mutation.AppendContextMessages(v)
+	return _u
+}
+
+// ClearContextMessages clears the value of the "context_messages" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearContextMessages() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearContextMessages()
+	return _u
+}
+
+// SetCompactionCount sets the "compaction_count" field.
+func (_u *KaguyaChatTurnUpdateOne) SetCompactionCount(v int) *KaguyaChatTurnUpdateOne {
+	_u.mutation.ResetCompactionCount()
+	_u.mutation.SetCompactionCount(v)
+	return _u
+}
+
+// SetNillableCompactionCount sets the "compaction_count" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableCompactionCount(v *int) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetCompactionCount(*v)
+	}
+	return _u
+}
+
+// AddCompactionCount adds value to the "compaction_count" field.
+func (_u *KaguyaChatTurnUpdateOne) AddCompactionCount(v int) *KaguyaChatTurnUpdateOne {
+	_u.mutation.AddCompactionCount(v)
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdateOne) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdateOne {
 	_u.mutation.SetMessages(v)
@@ -1363,6 +1463,11 @@ func (_u *KaguyaChatTurnUpdateOne) check() error {
 			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CompactionCount(); ok {
+		if err := kaguyachatturn.CompactionCountValidator(v); err != nil {
+			return &ValidationError{Name: "compaction_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.compaction_count": %w`, err)}
+		}
+	}
 	if _u.mutation.ConversationCleared() && len(_u.mutation.ConversationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaChatTurn.conversation"`)
 	}
@@ -1502,6 +1607,23 @@ func (_u *KaguyaChatTurnUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaCh
 	}
 	if value, ok := _u.mutation.AddedContextWindow(); ok {
 		_spec.AddField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ContextMessages(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextMessages, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedContextMessages(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, kaguyachatturn.FieldContextMessages, value)
+		})
+	}
+	if _u.mutation.ContextMessagesCleared() {
+		_spec.ClearField(kaguyachatturn.FieldContextMessages, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.CompactionCount(); ok {
+		_spec.SetField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCompactionCount(); ok {
+		_spec.AddField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)

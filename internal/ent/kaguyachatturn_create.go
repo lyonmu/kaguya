@@ -204,6 +204,26 @@ func (_c *KaguyaChatTurnCreate) SetNillableContextWindow(v *int) *KaguyaChatTurn
 	return _c
 }
 
+// SetContextMessages sets the "context_messages" field.
+func (_c *KaguyaChatTurnCreate) SetContextMessages(v []fantasy.Message) *KaguyaChatTurnCreate {
+	_c.mutation.SetContextMessages(v)
+	return _c
+}
+
+// SetCompactionCount sets the "compaction_count" field.
+func (_c *KaguyaChatTurnCreate) SetCompactionCount(v int) *KaguyaChatTurnCreate {
+	_c.mutation.SetCompactionCount(v)
+	return _c
+}
+
+// SetNillableCompactionCount sets the "compaction_count" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableCompactionCount(v *int) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetCompactionCount(*v)
+	}
+	return _c
+}
+
 // SetMessages sets the "messages" field.
 func (_c *KaguyaChatTurnCreate) SetMessages(v []fantasy.Message) *KaguyaChatTurnCreate {
 	_c.mutation.SetMessages(v)
@@ -298,6 +318,10 @@ func (_c *KaguyaChatTurnCreate) defaults() error {
 	if _, ok := _c.mutation.ContextWindow(); !ok {
 		v := kaguyachatturn.DefaultContextWindow
 		_c.mutation.SetContextWindow(v)
+	}
+	if _, ok := _c.mutation.CompactionCount(); !ok {
+		v := kaguyachatturn.DefaultCompactionCount
+		_c.mutation.SetCompactionCount(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if kaguyachatturn.DefaultID == nil {
@@ -427,6 +451,14 @@ func (_c *KaguyaChatTurnCreate) check() error {
 	if v, ok := _c.mutation.ContextWindow(); ok {
 		if err := kaguyachatturn.ContextWindowValidator(v); err != nil {
 			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.CompactionCount(); !ok {
+		return &ValidationError{Name: "compaction_count", err: errors.New(`ent: missing required field "KaguyaChatTurn.compaction_count"`)}
+	}
+	if v, ok := _c.mutation.CompactionCount(); ok {
+		if err := kaguyachatturn.CompactionCountValidator(v); err != nil {
+			return &ValidationError{Name: "compaction_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.compaction_count": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Messages(); !ok {
@@ -563,6 +595,14 @@ func (_c *KaguyaChatTurnCreate) createSpec() (*KaguyaChatTurn, *sqlgraph.CreateS
 	if value, ok := _c.mutation.ContextWindow(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
 		_node.ContextWindow = value
+	}
+	if value, ok := _c.mutation.ContextMessages(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextMessages, field.TypeJSON, value)
+		_node.ContextMessages = value
+	}
+	if value, ok := _c.mutation.CompactionCount(); ok {
+		_spec.SetField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
+		_node.CompactionCount = value
 	}
 	if value, ok := _c.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -986,6 +1026,42 @@ func (u *KaguyaChatTurnUpsert) UpdateContextWindow() *KaguyaChatTurnUpsert {
 // AddContextWindow adds v to the "context_window" field.
 func (u *KaguyaChatTurnUpsert) AddContextWindow(v int) *KaguyaChatTurnUpsert {
 	u.Add(kaguyachatturn.FieldContextWindow, v)
+	return u
+}
+
+// SetContextMessages sets the "context_messages" field.
+func (u *KaguyaChatTurnUpsert) SetContextMessages(v []fantasy.Message) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldContextMessages, v)
+	return u
+}
+
+// UpdateContextMessages sets the "context_messages" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateContextMessages() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldContextMessages)
+	return u
+}
+
+// ClearContextMessages clears the value of the "context_messages" field.
+func (u *KaguyaChatTurnUpsert) ClearContextMessages() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldContextMessages)
+	return u
+}
+
+// SetCompactionCount sets the "compaction_count" field.
+func (u *KaguyaChatTurnUpsert) SetCompactionCount(v int) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldCompactionCount, v)
+	return u
+}
+
+// UpdateCompactionCount sets the "compaction_count" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateCompactionCount() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldCompactionCount)
+	return u
+}
+
+// AddCompactionCount adds v to the "compaction_count" field.
+func (u *KaguyaChatTurnUpsert) AddCompactionCount(v int) *KaguyaChatTurnUpsert {
+	u.Add(kaguyachatturn.FieldCompactionCount, v)
 	return u
 }
 
@@ -1441,6 +1517,48 @@ func (u *KaguyaChatTurnUpsertOne) AddContextWindow(v int) *KaguyaChatTurnUpsertO
 func (u *KaguyaChatTurnUpsertOne) UpdateContextWindow() *KaguyaChatTurnUpsertOne {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateContextWindow()
+	})
+}
+
+// SetContextMessages sets the "context_messages" field.
+func (u *KaguyaChatTurnUpsertOne) SetContextMessages(v []fantasy.Message) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextMessages(v)
+	})
+}
+
+// UpdateContextMessages sets the "context_messages" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateContextMessages() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextMessages()
+	})
+}
+
+// ClearContextMessages clears the value of the "context_messages" field.
+func (u *KaguyaChatTurnUpsertOne) ClearContextMessages() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearContextMessages()
+	})
+}
+
+// SetCompactionCount sets the "compaction_count" field.
+func (u *KaguyaChatTurnUpsertOne) SetCompactionCount(v int) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetCompactionCount(v)
+	})
+}
+
+// AddCompactionCount adds v to the "compaction_count" field.
+func (u *KaguyaChatTurnUpsertOne) AddCompactionCount(v int) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddCompactionCount(v)
+	})
+}
+
+// UpdateCompactionCount sets the "compaction_count" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateCompactionCount() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateCompactionCount()
 	})
 }
 
@@ -2065,6 +2183,48 @@ func (u *KaguyaChatTurnUpsertBulk) AddContextWindow(v int) *KaguyaChatTurnUpsert
 func (u *KaguyaChatTurnUpsertBulk) UpdateContextWindow() *KaguyaChatTurnUpsertBulk {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateContextWindow()
+	})
+}
+
+// SetContextMessages sets the "context_messages" field.
+func (u *KaguyaChatTurnUpsertBulk) SetContextMessages(v []fantasy.Message) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextMessages(v)
+	})
+}
+
+// UpdateContextMessages sets the "context_messages" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateContextMessages() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextMessages()
+	})
+}
+
+// ClearContextMessages clears the value of the "context_messages" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearContextMessages() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearContextMessages()
+	})
+}
+
+// SetCompactionCount sets the "compaction_count" field.
+func (u *KaguyaChatTurnUpsertBulk) SetCompactionCount(v int) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetCompactionCount(v)
+	})
+}
+
+// AddCompactionCount adds v to the "compaction_count" field.
+func (u *KaguyaChatTurnUpsertBulk) AddCompactionCount(v int) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddCompactionCount(v)
+	})
+}
+
+// UpdateCompactionCount sets the "compaction_count" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateCompactionCount() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateCompactionCount()
 	})
 }
 

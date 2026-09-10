@@ -21,6 +21,26 @@ func completedContextTokens(usage fantasy.Usage) *int64 {
 	return &tokens
 }
 
+// A paused tool step has results not yet counted by a provider's next input usage.
+// Estimate only these new tool messages; Response may point to an earlier text step.
+func completedResultContextTokens(result *fantasy.AgentResult, paused bool) *int64 {
+	usage := result.Response.Usage
+	var messages []fantasy.Message
+	if len(result.Steps) > 0 {
+		last := result.Steps[len(result.Steps)-1]
+		usage, messages = last.Usage, last.Messages
+	}
+	tokens := completedContextTokens(usage)
+	if paused && tokens != nil {
+		for _, message := range messages {
+			if message.Role == fantasy.MessageRoleTool {
+				*tokens += estimateMessages([]fantasy.Message{message})
+			}
+		}
+	}
+	return tokens
+}
+
 func contextResponse(turn *ent.KaguyaChatTurn) *dtochat.ConversationContextResp {
 	resp := &dtochat.ConversationContextResp{ConversationID: turn.ConversationID, TurnIndex: turn.TurnIndex, ModelID: turn.ModelID, ModelName: turn.ModelName,
 		ContextTokens: turn.ContextTokens, ContextWindow: turn.ContextWindow, EffectiveWindow: int64(turn.ContextWindow) * 9 / 10, WindowRatio: 0.9}
@@ -32,7 +52,7 @@ func contextResponse(turn *ent.KaguyaChatTurn) *dtochat.ConversationContextResp 
 	return resp
 }
 
-// ConversationContext 累计会话所有已完成轮次（不区分模型）的 token，使用最新轮次的模型窗口。
+// ConversationContext 使用最新完成轮次的实际上下文占用和模型窗口，不累计计费用量。
 func (s *AgentSvc) ConversationContext(ctx context.Context, id string) (*dtochat.ConversationContextResp, error) {
 	turn, err := db.EntClient.KaguyaChatTurn.Query().
 		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.HasConversationWith(kaguyaconversation.DeletedAtIsNil())).
@@ -44,19 +64,20 @@ func (s *AgentSvc) ConversationContext(ctx context.Context, id string) (*dtochat
 	if err != nil {
 		return nil, err
 	}
-	var usage []struct {
-		Total int64 `json:"total"`
-	}
-	err = db.EntClient.KaguyaChatTurn.Query().
-		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(turn.TurnIndex)).
-		Aggregate(ent.As(ent.Sum(kaguyachatturn.FieldTotalTokens), "total")).Scan(ctx, &usage)
-	if err != nil {
-		return nil, err
-	}
-	total := usage[0].Total
-	turn.ContextTokens = nil
-	if total > 0 {
-		turn.ContextTokens = &total
-	}
 	return contextResponse(turn), nil
+}
+
+// Reserve the final 10% for generation and respect a lower configured output limit.
+func contextOutputLimit(window, configured int) *int64 {
+	limit := int64(configured)
+	if window > 0 {
+		reserve := max(int64(window)/10, 1)
+		if limit <= 0 || reserve < limit {
+			limit = reserve
+		}
+	}
+	if limit <= 0 {
+		return nil
+	}
+	return &limit
 }

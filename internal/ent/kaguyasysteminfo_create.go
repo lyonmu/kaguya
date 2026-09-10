@@ -65,6 +65,40 @@ func (_c *KaguyaSystemInfoCreate) SetNillableDeletedAt(v *time.Time) *KaguyaSyst
 	return _c
 }
 
+// SetAgentMaxSteps sets the "agent_max_steps" field.
+func (_c *KaguyaSystemInfoCreate) SetAgentMaxSteps(v int) *KaguyaSystemInfoCreate {
+	_c.mutation.SetAgentMaxSteps(v)
+	return _c
+}
+
+// SetNillableAgentMaxSteps sets the "agent_max_steps" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableAgentMaxSteps(v *int) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetAgentMaxSteps(*v)
+	}
+	return _c
+}
+
+// SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
+func (_c *KaguyaSystemInfoCreate) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoCreate {
+	_c.mutation.SetCommandTimeoutSeconds(v)
+	return _c
+}
+
+// SetNillableCommandTimeoutSeconds sets the "command_timeout_seconds" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableCommandTimeoutSeconds(v *int) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetCommandTimeoutSeconds(*v)
+	}
+	return _c
+}
+
+// SetGlobalAgentsPaths sets the "global_agents_paths" field.
+func (_c *KaguyaSystemInfoCreate) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetGlobalAgentsPaths(v)
+	return _c
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (_c *KaguyaSystemInfoCreate) SetSystemPrompt(v string) *KaguyaSystemInfoCreate {
 	_c.mutation.SetSystemPrompt(v)
@@ -186,6 +220,14 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.AgentMaxSteps(); !ok {
+		v := kaguyasysteminfo.DefaultAgentMaxSteps
+		_c.mutation.SetAgentMaxSteps(v)
+	}
+	if _, ok := _c.mutation.CommandTimeoutSeconds(); !ok {
+		v := kaguyasysteminfo.DefaultCommandTimeoutSeconds
+		_c.mutation.SetCommandTimeoutSeconds(v)
+	}
 	if _, ok := _c.mutation.SystemPrompt(); !ok {
 		v := kaguyasysteminfo.DefaultSystemPrompt
 		_c.mutation.SetSystemPrompt(v)
@@ -216,6 +258,22 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "KaguyaSystemInfo.updated_at"`)}
+	}
+	if _, ok := _c.mutation.AgentMaxSteps(); !ok {
+		return &ValidationError{Name: "agent_max_steps", err: errors.New(`ent: missing required field "KaguyaSystemInfo.agent_max_steps"`)}
+	}
+	if v, ok := _c.mutation.AgentMaxSteps(); ok {
+		if err := kaguyasysteminfo.AgentMaxStepsValidator(v); err != nil {
+			return &ValidationError{Name: "agent_max_steps", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.agent_max_steps": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.CommandTimeoutSeconds(); !ok {
+		return &ValidationError{Name: "command_timeout_seconds", err: errors.New(`ent: missing required field "KaguyaSystemInfo.command_timeout_seconds"`)}
+	}
+	if v, ok := _c.mutation.CommandTimeoutSeconds(); ok {
+		if err := kaguyasysteminfo.CommandTimeoutSecondsValidator(v); err != nil {
+			return &ValidationError{Name: "command_timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.command_timeout_seconds": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.SystemPrompt(); !ok {
 		return &ValidationError{Name: "system_prompt", err: errors.New(`ent: missing required field "KaguyaSystemInfo.system_prompt"`)}
@@ -286,6 +344,18 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.AgentMaxSteps(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldAgentMaxSteps, field.TypeInt, value)
+		_node.AgentMaxSteps = value
+	}
+	if value, ok := _c.mutation.CommandTimeoutSeconds(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
+		_node.CommandTimeoutSeconds = value
+	}
+	if value, ok := _c.mutation.GlobalAgentsPaths(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON, value)
+		_node.GlobalAgentsPaths = value
 	}
 	if value, ok := _c.mutation.SystemPrompt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldSystemPrompt, field.TypeString, value)
@@ -382,6 +452,60 @@ func (u *KaguyaSystemInfoUpsert) UpdateDeletedAt() *KaguyaSystemInfoUpsert {
 // ClearDeletedAt clears the value of the "deleted_at" field.
 func (u *KaguyaSystemInfoUpsert) ClearDeletedAt() *KaguyaSystemInfoUpsert {
 	u.SetNull(kaguyasysteminfo.FieldDeletedAt)
+	return u
+}
+
+// SetAgentMaxSteps sets the "agent_max_steps" field.
+func (u *KaguyaSystemInfoUpsert) SetAgentMaxSteps(v int) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldAgentMaxSteps, v)
+	return u
+}
+
+// UpdateAgentMaxSteps sets the "agent_max_steps" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateAgentMaxSteps() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldAgentMaxSteps)
+	return u
+}
+
+// AddAgentMaxSteps adds v to the "agent_max_steps" field.
+func (u *KaguyaSystemInfoUpsert) AddAgentMaxSteps(v int) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldAgentMaxSteps, v)
+	return u
+}
+
+// SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
+func (u *KaguyaSystemInfoUpsert) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldCommandTimeoutSeconds, v)
+	return u
+}
+
+// UpdateCommandTimeoutSeconds sets the "command_timeout_seconds" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateCommandTimeoutSeconds() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldCommandTimeoutSeconds)
+	return u
+}
+
+// AddCommandTimeoutSeconds adds v to the "command_timeout_seconds" field.
+func (u *KaguyaSystemInfoUpsert) AddCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldCommandTimeoutSeconds, v)
+	return u
+}
+
+// SetGlobalAgentsPaths sets the "global_agents_paths" field.
+func (u *KaguyaSystemInfoUpsert) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldGlobalAgentsPaths, v)
+	return u
+}
+
+// UpdateGlobalAgentsPaths sets the "global_agents_paths" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateGlobalAgentsPaths() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldGlobalAgentsPaths)
+	return u
+}
+
+// ClearGlobalAgentsPaths clears the value of the "global_agents_paths" field.
+func (u *KaguyaSystemInfoUpsert) ClearGlobalAgentsPaths() *KaguyaSystemInfoUpsert {
+	u.SetNull(kaguyasysteminfo.FieldGlobalAgentsPaths)
 	return u
 }
 
@@ -516,6 +640,69 @@ func (u *KaguyaSystemInfoUpsertOne) UpdateDeletedAt() *KaguyaSystemInfoUpsertOne
 func (u *KaguyaSystemInfoUpsertOne) ClearDeletedAt() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetAgentMaxSteps sets the "agent_max_steps" field.
+func (u *KaguyaSystemInfoUpsertOne) SetAgentMaxSteps(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetAgentMaxSteps(v)
+	})
+}
+
+// AddAgentMaxSteps adds v to the "agent_max_steps" field.
+func (u *KaguyaSystemInfoUpsertOne) AddAgentMaxSteps(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddAgentMaxSteps(v)
+	})
+}
+
+// UpdateAgentMaxSteps sets the "agent_max_steps" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateAgentMaxSteps() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateAgentMaxSteps()
+	})
+}
+
+// SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
+func (u *KaguyaSystemInfoUpsertOne) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetCommandTimeoutSeconds(v)
+	})
+}
+
+// AddCommandTimeoutSeconds adds v to the "command_timeout_seconds" field.
+func (u *KaguyaSystemInfoUpsertOne) AddCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddCommandTimeoutSeconds(v)
+	})
+}
+
+// UpdateCommandTimeoutSeconds sets the "command_timeout_seconds" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateCommandTimeoutSeconds() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateCommandTimeoutSeconds()
+	})
+}
+
+// SetGlobalAgentsPaths sets the "global_agents_paths" field.
+func (u *KaguyaSystemInfoUpsertOne) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetGlobalAgentsPaths(v)
+	})
+}
+
+// UpdateGlobalAgentsPaths sets the "global_agents_paths" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateGlobalAgentsPaths() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateGlobalAgentsPaths()
+	})
+}
+
+// ClearGlobalAgentsPaths clears the value of the "global_agents_paths" field.
+func (u *KaguyaSystemInfoUpsertOne) ClearGlobalAgentsPaths() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.ClearGlobalAgentsPaths()
 	})
 }
 
@@ -825,6 +1012,69 @@ func (u *KaguyaSystemInfoUpsertBulk) UpdateDeletedAt() *KaguyaSystemInfoUpsertBu
 func (u *KaguyaSystemInfoUpsertBulk) ClearDeletedAt() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.ClearDeletedAt()
+	})
+}
+
+// SetAgentMaxSteps sets the "agent_max_steps" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetAgentMaxSteps(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetAgentMaxSteps(v)
+	})
+}
+
+// AddAgentMaxSteps adds v to the "agent_max_steps" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddAgentMaxSteps(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddAgentMaxSteps(v)
+	})
+}
+
+// UpdateAgentMaxSteps sets the "agent_max_steps" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateAgentMaxSteps() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateAgentMaxSteps()
+	})
+}
+
+// SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetCommandTimeoutSeconds(v)
+	})
+}
+
+// AddCommandTimeoutSeconds adds v to the "command_timeout_seconds" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddCommandTimeoutSeconds(v)
+	})
+}
+
+// UpdateCommandTimeoutSeconds sets the "command_timeout_seconds" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateCommandTimeoutSeconds() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateCommandTimeoutSeconds()
+	})
+}
+
+// SetGlobalAgentsPaths sets the "global_agents_paths" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetGlobalAgentsPaths(v)
+	})
+}
+
+// UpdateGlobalAgentsPaths sets the "global_agents_paths" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateGlobalAgentsPaths() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateGlobalAgentsPaths()
+	})
+}
+
+// ClearGlobalAgentsPaths clears the value of the "global_agents_paths" field.
+func (u *KaguyaSystemInfoUpsertBulk) ClearGlobalAgentsPaths() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.ClearGlobalAgentsPaths()
 	})
 }
 

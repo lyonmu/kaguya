@@ -1,71 +1,14 @@
 import { useLayoutEffect, useRef } from "react";
 import { Alert, Empty, Spin } from "antd";
 import { VirtualList } from "./VirtualList";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown, CopyButton } from "./Markdown";
+import { ActivityBlock } from "./ActivityBlock";
 import type { Block, Turn } from "../types";
 import kaguyaAvatar from "../../../assets/kaguya.png";
 import userAvatar from "../../../assets/lyonmu.png";
 
-export function ContentBlock({ block }: { block: Block }) {
-  if (block.type === "text")
-    return (
-      <div className="chat-markdown">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {block.text ?? ""}
-        </ReactMarkdown>
-      </div>
-    );
-  if (block.type === "reasoning")
-    return (
-      <details className="chat-tool">
-        <summary>思考过程 {block.phase === "delta" ? "· 思考中" : ""}</summary>
-        <div className="chat-markdown">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {block.text ?? ""}
-          </ReactMarkdown>
-        </div>
-      </details>
-    );
-  return (
-    <details className="chat-tool">
-      <summary>
-        <span>⌘ {block.tool_name || "工具调用"}</span>
-        <span
-          className={
-            block.is_error || block.output?.type === "error"
-              ? "chat-failure"
-              : "chat-muted"
-          }
-        >
-          {block.is_error || block.output?.type === "error"
-            ? "失败"
-            : block.output
-              ? "已完成"
-              : block.phase
-                ? "执行中"
-                : "已结束"}
-        </span>
-      </summary>
-      <div className="chat-tool-body">
-        <h4>输入</h4>
-        <pre>{block.input || "—"}</pre>
-        {block.output && (
-          <>
-            <h4>输出</h4>
-            <pre>
-              {block.output.type === "media"
-                ? `媒体输出 · ${block.output.media_type || "未知类型"}（不自动加载）`
-                : block.output.text || "（空输出）"}
-            </pre>
-          </>
-        )}
-        {block.error_message && (
-          <p className="chat-failure">{block.error_message}</p>
-        )}
-      </div>
-    </details>
-  );
+export function ContentBlock({ block, streaming = false }: { block: Block; streaming?: boolean }) {
+ return block.type === 'text' ? <Markdown text={block.text ?? ''} /> : <ActivityBlock block={block} streaming={streaming} />
 }
 
 interface Props {
@@ -75,6 +18,7 @@ interface Props {
   page: number;
   totalPages: number;
   initialEnd: boolean;
+  onContinue?: () => void;
   onPageChange: (page: number, fromEnd?: boolean) => Promise<void>;
 }
 
@@ -86,6 +30,7 @@ export function MessageList({
   totalPages,
   initialEnd,
   onPageChange,
+  onContinue,
 }: Props) {
   const rail = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -149,7 +94,7 @@ export function MessageList({
                   Kaguya {turn.model_name && `· ${turn.model_name}`}
                 </div>
                 {turn.blocks.map((block, index) => (
-                  <ContentBlock key={index} block={block} />
+                  <ContentBlock key={index} block={block} streaming={turn.status === "streaming"} />
                 ))}
                 {turn.status === "streaming" && (
                   <div className="chat-muted" role="status">
@@ -163,6 +108,8 @@ export function MessageList({
                     showIcon
                   />
                 )}
+                {turn.finish_reason === 'step_limit' && <div className="chat-paused" role="status"><span>达到本轮步数上限，执行进度已保存。</span>{page === totalPages && turn === turns.at(-1) && onContinue && <button type="button" onClick={onContinue} disabled={streaming}>继续执行 →</button>}</div>}
+                {turn.status !== 'streaming' && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} /></div>}
                 {turn.usage && (
                   <div className="chat-turn-meta">
                     {turn.usage.total_tokens.toLocaleString()} tokens ·{" "}

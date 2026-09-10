@@ -11,6 +11,7 @@ func (*ProjectRouter) InitProjectRouter(group *gin.RouterGroup, apiGroup apiv1.A
 	r := group.Group("v1/project")
 	r.GET("page", apiGroup.ProjectPage)
 	r.GET("directories", apiGroup.ProjectDirectories)
+	r.GET(":id/files", apiGroup.ProjectFiles)
 	r.GET(":id", apiGroup.ProjectDetail)
 	r.POST("", apiGroup.ProjectCreate)
 	r.PUT(":id", apiGroup.ProjectUpdate)

@@ -57,19 +57,25 @@ func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64,
 	}
 	turns, err := db.EntClient.KaguyaChatTurn.Query().
 		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(row.TurnCount)).
-		Select(kaguyachatturn.FieldMessages, kaguyachatturn.FieldTurnIndex).
+		Select(kaguyachatturn.FieldMessages, kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldTurnIndex).
 		Order(kaguyachatturn.ByTurnIndex()).All(ctx)
 	if err != nil {
 		return nil, 0, err
 	}
 	messages := make([]fantasy.Message, 0)
 	for _, turn := range turns {
-		messages = append(messages, turn.Messages...)
+		if turn.ContextMessages != nil {
+			messages = append([]fantasy.Message{}, turn.ContextMessages...)
+		} else {
+			messages = append(messages, turn.Messages...)
+		}
 	}
 	return messages, row.TurnCount, nil
 }
 
 type completedTurn struct {
+	ContextMessages                                           []fantasy.Message
+	CompactionCount                                           int
 	ProjectID                                                 string
 	ConversationID                                            string
 	Version                                                   int64
@@ -134,6 +140,7 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 		SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
 		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
 		SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
+		SetContextMessages(turn.ContextMessages).SetCompactionCount(turn.CompactionCount).
 		SetMessages(turn.Messages).Save(ctx)
 	if err != nil {
 		return err

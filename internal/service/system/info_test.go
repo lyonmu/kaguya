@@ -126,3 +126,31 @@ func TestChatSystemPrompt(t *testing.T) {
 		t.Fatalf("prompt=%q", got)
 	}
 }
+
+func TestAgentSettingsPersistenceAndValidation(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	svc := &SystemSvc{}
+	info, err := svc.Info(ctx)
+	if err != nil || *info.AgentMaxSteps != 0 || *info.CommandTimeoutSeconds != 120 || len(info.GlobalAgentsPaths) != 2 {
+		t.Fatalf("defaults=%+v %v", info, err)
+	}
+	steps, timeout := 100, 300
+	req := &dtosystem.SystemInfoSaveReq{UserAgent: "test", AgentMaxSteps: &steps, CommandTimeoutSeconds: &timeout, GlobalAgentsPaths: []string{}}
+	info, err = svc.InfoUpdate(ctx, req)
+	if err != nil || *info.AgentMaxSteps != 100 || *info.CommandTimeoutSeconds != 300 || info.GlobalAgentsPaths == nil || len(info.GlobalAgentsPaths) != 0 {
+		t.Fatalf("saved=%+v %v", info, err)
+	}
+	info, err = svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "old-client"})
+	if err != nil || *info.AgentMaxSteps != 100 || len(info.GlobalAgentsPaths) != 0 {
+		t.Fatalf("old client reset settings: %+v %v", info, err)
+	}
+	steps = -1
+	if _, err = svc.InfoUpdate(ctx, req); !errors.Is(err, ErrInvalidSystemInfo) {
+		t.Fatalf("invalid steps: %v", err)
+	}
+	steps = 1
+	req.GlobalAgentsPaths = []string{"relative/AGENTS.md"}
+	if _, err = svc.InfoUpdate(ctx, req); !errors.Is(err, ErrInvalidSystemInfo) {
+		t.Fatalf("relative path: %v", err)
+	}
+}

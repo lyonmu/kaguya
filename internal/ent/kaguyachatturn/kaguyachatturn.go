@@ -61,6 +61,10 @@ const (
 	FieldContextTokens = "context_tokens"
 	// FieldContextWindow holds the string denoting the context_window field in the database.
 	FieldContextWindow = "context_window"
+	// FieldContextMessages holds the string denoting the context_messages field in the database.
+	FieldContextMessages = "context_messages"
+	// FieldCompactionCount holds the string denoting the compaction_count field in the database.
+	FieldCompactionCount = "compaction_count"
 	// FieldMessages holds the string denoting the messages field in the database.
 	FieldMessages = "messages"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
@@ -111,6 +115,8 @@ var Columns = []string{
 	FieldReasoningTokens,
 	FieldContextTokens,
 	FieldContextWindow,
+	FieldContextMessages,
+	FieldCompactionCount,
 	FieldMessages,
 }
 
@@ -161,6 +167,10 @@ var (
 	DefaultContextWindow int
 	// ContextWindowValidator is a validator for the "context_window" field. It is called by the builders before save.
 	ContextWindowValidator func(int) error
+	// DefaultCompactionCount holds the default value on creation for the "compaction_count" field.
+	DefaultCompactionCount int
+	// CompactionCountValidator is a validator for the "compaction_count" field. It is called by the builders before save.
+	CompactionCountValidator func(int) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() string
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
@@ -288,6 +298,11 @@ func ByContextTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByContextWindow orders the results by the context_window field.
 func ByContextWindow(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContextWindow, opts...).ToFunc()
+}
+
+// ByCompactionCount orders the results by the compaction_count field.
+func ByCompactionCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCompactionCount, opts...).ToFunc()
 }
 
 // ByConversationField orders the results by conversation field.

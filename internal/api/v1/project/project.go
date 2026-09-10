@@ -149,3 +149,24 @@ func (*ProjectApiV1Group) ProjectDelete(c *gin.Context) {
 	}
 	code.SystemSuccess.Success(nil, c)
 }
+
+// ProjectFiles
+// @Tags Project
+// @Summary 搜索项目中的文件，用于输入框 @ 引用
+// @Param id path string true "项目 ID"
+// @Param query query string false "文件名或相对路径"
+// @Success 200 {object} code.Response{data=service.FileSearchResp}
+// @Router /v1/project/{id}/files [get]
+func (*ProjectApiV1Group) ProjectFiles(c *gin.Context) {
+	var req dto.IDReq
+	if err := c.ShouldBindUri(&req); err != nil {
+		code.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := svc.Files(c.Request.Context(), req.ID, c.Query("query"))
+	if err != nil {
+		failure(c, err)
+		return
+	}
+	code.SystemSuccess.Success(resp, c)
+}

@@ -20,6 +20,12 @@ const (
 	FieldUpdatedAt = "updated_at"
 	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
 	FieldDeletedAt = "deleted_at"
+	// FieldAgentMaxSteps holds the string denoting the agent_max_steps field in the database.
+	FieldAgentMaxSteps = "agent_max_steps"
+	// FieldCommandTimeoutSeconds holds the string denoting the command_timeout_seconds field in the database.
+	FieldCommandTimeoutSeconds = "command_timeout_seconds"
+	// FieldGlobalAgentsPaths holds the string denoting the global_agents_paths field in the database.
+	FieldGlobalAgentsPaths = "global_agents_paths"
 	// FieldSystemPrompt holds the string denoting the system_prompt field in the database.
 	FieldSystemPrompt = "system_prompt"
 	// FieldUserAgent holds the string denoting the user_agent field in the database.
@@ -38,6 +44,9 @@ var Columns = []string{
 	FieldCreatedAt,
 	FieldUpdatedAt,
 	FieldDeletedAt,
+	FieldAgentMaxSteps,
+	FieldCommandTimeoutSeconds,
+	FieldGlobalAgentsPaths,
 	FieldSystemPrompt,
 	FieldUserAgent,
 	FieldDefaultModelID,
@@ -67,6 +76,14 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultAgentMaxSteps holds the default value on creation for the "agent_max_steps" field.
+	DefaultAgentMaxSteps int
+	// AgentMaxStepsValidator is a validator for the "agent_max_steps" field. It is called by the builders before save.
+	AgentMaxStepsValidator func(int) error
+	// DefaultCommandTimeoutSeconds holds the default value on creation for the "command_timeout_seconds" field.
+	DefaultCommandTimeoutSeconds int
+	// CommandTimeoutSecondsValidator is a validator for the "command_timeout_seconds" field. It is called by the builders before save.
+	CommandTimeoutSecondsValidator func(int) error
 	// DefaultSystemPrompt holds the default value on creation for the "system_prompt" field.
 	DefaultSystemPrompt string
 	// DefaultUserAgent holds the default value on creation for the "user_agent" field.
@@ -104,6 +121,16 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDeletedAt orders the results by the deleted_at field.
 func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
+}
+
+// ByAgentMaxSteps orders the results by the agent_max_steps field.
+func ByAgentMaxSteps(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAgentMaxSteps, opts...).ToFunc()
+}
+
+// ByCommandTimeoutSeconds orders the results by the command_timeout_seconds field.
+func ByCommandTimeoutSeconds(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCommandTimeoutSeconds, opts...).ToFunc()
 }
 
 // BySystemPrompt orders the results by the system_prompt field.

@@ -67,6 +67,10 @@ type KaguyaChatTurn struct {
 	ContextTokens *int64 `json:"context_tokens,omitempty"`
 	// 本轮模型 token_context_window 快照，0 表示未知
 	ContextWindow int `json:"context_window,omitempty"`
+	// 发生压缩后的完整续聊快照；原始 messages 始终保留
+	ContextMessages []fantasy.Message `json:"context_messages,omitempty"`
+	// CompactionCount holds the value of the "compaction_count" field.
+	CompactionCount int `json:"compaction_count,omitempty"`
 	// 仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端
 	Messages []fantasy.Message `json:"messages,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -111,9 +115,9 @@ func (*KaguyaChatTurn) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyachatturn.FieldMessages:
+		case kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldMessages:
 			values[i] = new([]byte)
-		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow:
+		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow, kaguyachatturn.FieldCompactionCount:
 			values[i] = new(sql.NullInt64)
 		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldFinishReason:
 			values[i] = new(sql.NullString)
@@ -280,6 +284,20 @@ func (_m *KaguyaChatTurn) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ContextWindow = int(value.Int64)
 			}
+		case kaguyachatturn.FieldContextMessages:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field context_messages", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ContextMessages); err != nil {
+					return fmt.Errorf("unmarshal field context_messages: %w", err)
+				}
+			}
+		case kaguyachatturn.FieldCompactionCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field compaction_count", values[i])
+			} else if value.Valid {
+				_m.CompactionCount = int(value.Int64)
+			}
 		case kaguyachatturn.FieldMessages:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field messages", values[i])
@@ -406,6 +424,12 @@ func (_m *KaguyaChatTurn) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("context_window=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ContextWindow))
+	builder.WriteString(", ")
+	builder.WriteString("context_messages=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ContextMessages))
+	builder.WriteString(", ")
+	builder.WriteString("compaction_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CompactionCount))
 	builder.WriteString(", ")
 	builder.WriteString("messages=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Messages))

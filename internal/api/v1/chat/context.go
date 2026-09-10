@@ -8,8 +8,8 @@ import (
 
 // ConversationContext
 // @Tags Chat History
-// @Summary 整个会话累计 token 占比
-// @Description 累计所有已完成轮次的 total_tokens（含跨模型和工具 step），分母为最新完整轮次模型窗口的90%；不代表实际上下文占用，不裁剪消息。无累计用量或模型窗口时 percent 为 null。
+// @Summary 当前上下文占用
+// @Description 最近一次模型调用的输入（含缓存）及输出估算上下文占用，分母为模型窗口的90%；达到阈值后下一次模型调用前自动压缩。无供应商用量或模型窗口时 percent 为 null。
 // @Param id path string true "会话 ID"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationContextResp}
 // @Router /v1/chat/conversation/{id}/context [get]

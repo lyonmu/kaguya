@@ -198,11 +198,11 @@ const docTemplate = `{
         },
         "/v1/chat/conversation/{id}/context": {
             "get": {
-                "description": "累计所有已完成轮次的 total_tokens（含跨模型和工具 step），分母为最新完整轮次模型窗口的90%；不代表实际上下文占用，不裁剪消息。无累计用量或模型窗口时 percent 为 null。",
+                "description": "最近一次模型调用的输入（含缓存）及输出估算上下文占用，分母为模型窗口的90%；达到阈值后下一次模型调用前自动压缩。无供应商用量或模型窗口时 percent 为 null。",
                 "tags": [
                     "Chat History"
                 ],
-                "summary": "整个会话累计 token 占比",
+                "summary": "当前上下文占用",
                 "parameters": [
                     {
                         "type": "string",
@@ -681,6 +681,49 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project/{id}/files": {
+            "get": {
+                "tags": [
+                    "Project"
+                ],
+                "summary": "搜索项目中的文件，用于输入框 @ 引用",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "文件名或相对路径",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.FileSearchResp"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1673,6 +1716,13 @@ const docTemplate = `{
                 "messages"
             ],
             "properties": {
+                "files": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "flag": {
                     "$ref": "#/definitions/chat.WSFlag"
                 },
@@ -1719,6 +1769,10 @@ const docTemplate = `{
                 },
                 "err": {
                     "description": "错误信息"
+                },
+                "finish_reason": {
+                    "description": "stop 或 step_limit（已保存，可继续）",
+                    "type": "string"
                 },
                 "model_id": {
                     "description": "模型id",
@@ -2236,6 +2290,20 @@ const docTemplate = `{
                 }
             }
         },
+        "project.FileSearchResp": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
         "project.PageResp": {
             "type": "object",
             "properties": {
@@ -2368,9 +2436,25 @@ const docTemplate = `{
                 "user_agent"
             ],
             "properties": {
+                "agent_max_steps": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 0
+                },
+                "command_timeout_seconds": {
+                    "type": "integer",
+                    "maximum": 86400,
+                    "minimum": 1
+                },
                 "default_model_id": {
                     "type": "string",
                     "maxLength": 64
+                },
+                "global_agents_paths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "global_system_prompt": {
                     "description": "只读基础人设，与自定义提示词拼接后用于聊天",
@@ -2396,9 +2480,25 @@ const docTemplate = `{
                 "user_agent"
             ],
             "properties": {
+                "agent_max_steps": {
+                    "type": "integer",
+                    "maximum": 1000,
+                    "minimum": 0
+                },
+                "command_timeout_seconds": {
+                    "type": "integer",
+                    "maximum": 86400,
+                    "minimum": 1
+                },
                 "default_model_id": {
                     "type": "string",
                     "maxLength": 64
+                },
+                "global_agents_paths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "system_prompt": {
                     "type": "string",

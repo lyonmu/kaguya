@@ -108,3 +108,10 @@
     background-clip: padding-box;
   }
 }
+
+:root { --k-success: #23764b; --k-danger: #bd303b; }
+:root.dark { --k-success: #7dce9f; --k-danger: #f28b94; }
+/* Mouse interaction stays quiet; keyboard navigation retains an intentional focus ring. */
+button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:focus:not(:focus-visible) { outline: none; }
+button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--k-primary); outline-offset: 3px; }
+.ant-btn:focus:not(:focus-visible) { box-shadow: none; }

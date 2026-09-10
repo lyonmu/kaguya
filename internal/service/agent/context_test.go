@@ -39,7 +39,7 @@ func TestConversationContextUsesLatestCompletedModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err = svc.ConversationContext(ctx, "context")
-	if err != nil || got.ModelID != "small" || got.TurnIndex != 2 || got.EffectiveWindow != 450 || *got.Percent != 200 || *got.ContextTokens != 900 {
+	if err != nil || got.ModelID != "small" || got.TurnIndex != 2 || got.EffectiveWindow != 450 || *got.Percent != 100 || *got.ContextTokens != 450 {
 		t.Fatalf("latest context=%+v err=%v", got, err)
 	}
 	second.Version, second.ContextWindow = 2, 100
@@ -47,7 +47,7 @@ func TestConversationContextUsesLatestCompletedModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err = svc.ConversationContext(ctx, "context")
-	if err != nil || *got.Percent != 1500 {
+	if err != nil || *got.Percent != 500 {
 		t.Fatalf("overflow percentage should not be clamped: %+v %v", got, err)
 	}
 	legacy := testCompletedTurn("legacy", 0)
@@ -66,5 +66,41 @@ func TestConversationContextUsesLatestCompletedModel(t *testing.T) {
 		if _, err := svc.ConversationContext(ctx, id); !errors.Is(err, ErrConversationNotFound) {
 			t.Fatalf("%s: %v", id, err)
 		}
+	}
+}
+
+func TestContextOutputLimit(t *testing.T) {
+	for _, tt := range []struct {
+		window, configured int
+		want               int64
+	}{{1000, 500, 100}, {1000, 50, 50}, {0, 50, 50}, {0, 0, 0}} {
+		got := contextOutputLimit(tt.window, tt.configured)
+		if tt.want == 0 {
+			if got != nil {
+				t.Fatal("unknown limit must be omitted")
+			}
+			continue
+		}
+		if got == nil || *got != tt.want {
+			t.Fatalf("limit=%v want=%d", got, tt.want)
+		}
+	}
+}
+
+func TestPausedContextIncludesOnlyUncountedToolResults(t *testing.T) {
+	tool := fantasy.Message{Role: fantasy.MessageRoleTool, Content: []fantasy.MessagePart{fantasy.ToolResultPart{ToolCallID: "read", Output: fantasy.ToolResultOutputContentText{Text: "reference content"}}}}
+	result := &fantasy.AgentResult{
+		Response: fantasy.Response{Usage: fantasy.Usage{InputTokens: 999}},
+		Steps:    []fantasy.StepResult{{Response: fantasy.Response{Usage: fantasy.Usage{InputTokens: 100, OutputTokens: 20}}, Messages: []fantasy.Message{fantasy.NewUserMessage("already counted"), tool}}},
+	}
+	if got := completedResultContextTokens(result, false); got == nil || *got != 120 {
+		t.Fatalf("must use latest step usage: %v", got)
+	}
+	if got := completedResultContextTokens(result, true); got == nil || *got != 120+estimateMessages([]fantasy.Message{tool}) {
+		t.Fatalf("must add only unread tool output estimate: %v", got)
+	}
+	result.Steps[0].Usage = fantasy.Usage{}
+	if completedResultContextTokens(result, true) != nil {
+		t.Fatal("unreported usage must remain unknown")
 	}
 }

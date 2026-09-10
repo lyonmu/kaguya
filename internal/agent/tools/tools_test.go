@@ -330,3 +330,19 @@ func TestSearchTools(t *testing.T) {
 		}
 	}
 }
+
+func TestConfiguredCommandTimeout(t *testing.T) {
+	s, err := New(t.TempDir(), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	s.SetCommandTimeout(20 * time.Millisecond)
+	longer := 2.0
+	for _, timeout := range []*float64{nil, &longer} {
+		result, err := s.bash(context.Background(), BashInput{Command: "sleep 2", Timeout: timeout})
+		if err != nil || !result.IsError || !strings.Contains(result.Content, "timed out") {
+			t.Fatalf("result=%+v err=%v", result, err)
+		}
+	}
+}

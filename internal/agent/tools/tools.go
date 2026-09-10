@@ -25,9 +25,10 @@ const MaxFileBytes = 32 * 1024 * 1024
 // Set owns a pinned directory handle. Close only after the agent has stopped.
 // Each chat turn gets its own Set; mutation locks are shared across Sets.
 type Set struct {
-	cwd    string
-	root   *os.Root
-	logger *zap.Logger
+	commandTimeout time.Duration
+	cwd            string
+	root           *os.Root
+	logger         *zap.Logger
 }
 
 func New(cwd string, logger *zap.Logger) (*Set, error) {
@@ -46,7 +47,7 @@ func New(cwd string, logger *zap.Logger) (*Set, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Set{cwd: abs, root: root, logger: logger}, nil
+	return &Set{cwd: abs, root: root, logger: logger, commandTimeout: 120 * time.Second}, nil
 }
 func (s *Set) Close() error { return s.root.Close() }
 func (s *Set) CWD() string  { return s.cwd }
@@ -63,6 +64,8 @@ func (s *Set) SystemPrompt() string {
 	return fmt.Sprintf(`You are working in project directory %q.
 Available coding tools: read, bash, edit, write.
 Use read to examine files. Use bash for searches, directory listings, builds and tests.
+Locate relevant files before reading: prefer rg --files and targeted rg queries with paths and bounded output. If project instructions specify a code index, consult it first. Read focused ranges, not entire repositories, dependency trees, logs, lockfiles or large diffs. Inspect diff --stat first, then relevant files. Reuse evidence already in the conversation unless files have changed.
+For implementation requests, perform the requested work and verify it rather than stopping at a plan. Keep progress updates brief. Match answer length to the question, avoid repeating previous explanations, and distinguish observed project behavior from unverified general claims.
 Use edit for precise changes: all edits[].oldText match unique, non-overlapping regions of the ORIGINAL file. Merge nearby changes. Use write only for new files or complete rewrites.
 Inspect the project instructions (AGENTS.md) and relevant files before changing code. Keep changes minimal and verify them with the project's tests.
 File tool paths must stay inside this workspace (relative paths, absolute paths inside it, and ~/ expansion are accepted). Bash starts here for every call; cd does not persist. Bash is not a sandbox and runs with the server user's permissions: do not access unrelated files or secrets, and do not perform destructive actions without explicit user authorization.
@@ -185,3 +188,6 @@ func tool[T any](s *Set, name, description string, fn func(context.Context, T) (
 		return result, nil
 	})
 }
+
+// SetCommandTimeout sets the maximum duration of each command.
+func (s *Set) SetCommandTimeout(timeout time.Duration) { s.commandTimeout = timeout }

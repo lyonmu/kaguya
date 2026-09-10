@@ -19,7 +19,7 @@ import (
 
 type BashInput struct {
 	Command string   `json:"command" description:"Bash command to run in the project directory."`
-	Timeout *float64 `json:"timeout,omitempty" description:"Optional positive timeout in seconds. No default timeout; cancellation always stops the process group."`
+	Timeout *float64 `json:"timeout,omitempty" description:"Optional positive timeout in seconds. Defaults to the system command timeout; cannot exceed it. Cancellation stops the process group."`
 }
 
 func (s *Set) BashTool() fantasy.AgentTool {
@@ -121,7 +121,11 @@ func (s *Set) bash(ctx context.Context, in BashInput) (fantasy.ToolResponse, err
 	if strings.TrimSpace(in.Command) == "" {
 		return fantasy.ToolResponse{}, errors.New("command is required")
 	}
-	runCtx, cancel := context.WithCancel(ctx)
+	limit := s.commandTimeout
+	if limit <= 0 {
+		limit = 120 * time.Second
+	}
+	runCtx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 	if in.Timeout != nil {
 		if math.IsNaN(*in.Timeout) || math.IsInf(*in.Timeout, 0) || *in.Timeout <= 0 || *in.Timeout > 2147483.647 {
@@ -150,7 +154,11 @@ func (s *Set) bash(ctx context.Context, in BashInput) (fantasy.ToolResponse, err
 		return response, ctx.Err()
 	}
 	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
-		response.Content += fmt.Sprintf("\n\nCommand timed out after %g seconds", *in.Timeout)
+		seconds := limit.Seconds()
+		if in.Timeout != nil {
+			seconds = min(seconds, *in.Timeout)
+		}
+		response.Content += fmt.Sprintf("\n\nCommand timed out after %g seconds", seconds)
 		response.IsError = true
 		return response, nil
 	}

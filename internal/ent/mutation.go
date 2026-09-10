@@ -2596,52 +2596,56 @@ func (m *KaguyaChatBlockMutation) ResetEdge(name string) error {
 // KaguyaChatTurnMutation represents an operation that mutates the KaguyaChatTurn nodes in the graph.
 type KaguyaChatTurnMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *string
-	created_at          *time.Time
-	updated_at          *time.Time
-	deleted_at          *time.Time
-	turn_index          *int64
-	addturn_index       *int64
-	user_content        *string
-	provider_id         *string
-	provider_name       *string
-	model_id            *string
-	model_name          *string
-	api_protocol        *string
-	started_at          *time.Time
-	finished_at         *time.Time
-	duration_ms         *int64
-	addduration_ms      *int64
-	tool_calls          *int64
-	addtool_calls       *int64
-	finish_reason       *string
-	input_tokens        *int64
-	addinput_tokens     *int64
-	output_tokens       *int64
-	addoutput_tokens    *int64
-	total_tokens        *int64
-	addtotal_tokens     *int64
-	cached_tokens       *int64
-	addcached_tokens    *int64
-	reasoning_tokens    *int64
-	addreasoning_tokens *int64
-	context_tokens      *int64
-	addcontext_tokens   *int64
-	context_window      *int
-	addcontext_window   *int
-	messages            *[]fantasy.Message
-	appendmessages      []fantasy.Message
-	clearedFields       map[string]struct{}
-	conversation        *string
-	clearedconversation bool
-	blocks              map[string]struct{}
-	removedblocks       map[string]struct{}
-	clearedblocks       bool
-	done                bool
-	oldValue            func(context.Context) (*KaguyaChatTurn, error)
-	predicates          []predicate.KaguyaChatTurn
+	op                     Op
+	typ                    string
+	id                     *string
+	created_at             *time.Time
+	updated_at             *time.Time
+	deleted_at             *time.Time
+	turn_index             *int64
+	addturn_index          *int64
+	user_content           *string
+	provider_id            *string
+	provider_name          *string
+	model_id               *string
+	model_name             *string
+	api_protocol           *string
+	started_at             *time.Time
+	finished_at            *time.Time
+	duration_ms            *int64
+	addduration_ms         *int64
+	tool_calls             *int64
+	addtool_calls          *int64
+	finish_reason          *string
+	input_tokens           *int64
+	addinput_tokens        *int64
+	output_tokens          *int64
+	addoutput_tokens       *int64
+	total_tokens           *int64
+	addtotal_tokens        *int64
+	cached_tokens          *int64
+	addcached_tokens       *int64
+	reasoning_tokens       *int64
+	addreasoning_tokens    *int64
+	context_tokens         *int64
+	addcontext_tokens      *int64
+	context_window         *int
+	addcontext_window      *int
+	context_messages       *[]fantasy.Message
+	appendcontext_messages []fantasy.Message
+	compaction_count       *int
+	addcompaction_count    *int
+	messages               *[]fantasy.Message
+	appendmessages         []fantasy.Message
+	clearedFields          map[string]struct{}
+	conversation           *string
+	clearedconversation    bool
+	blocks                 map[string]struct{}
+	removedblocks          map[string]struct{}
+	clearedblocks          bool
+	done                   bool
+	oldValue               func(context.Context) (*KaguyaChatTurn, error)
+	predicates             []predicate.KaguyaChatTurn
 }
 
 var _ ent.Mutation = (*KaguyaChatTurnMutation)(nil)
@@ -3803,6 +3807,127 @@ func (m *KaguyaChatTurnMutation) ResetContextWindow() {
 	m.addcontext_window = nil
 }
 
+// SetContextMessages sets the "context_messages" field.
+func (m *KaguyaChatTurnMutation) SetContextMessages(f []fantasy.Message) {
+	m.context_messages = &f
+	m.appendcontext_messages = nil
+}
+
+// ContextMessages returns the value of the "context_messages" field in the mutation.
+func (m *KaguyaChatTurnMutation) ContextMessages() (r []fantasy.Message, exists bool) {
+	v := m.context_messages
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContextMessages returns the old "context_messages" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldContextMessages(ctx context.Context) (v []fantasy.Message, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContextMessages is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContextMessages requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContextMessages: %w", err)
+	}
+	return oldValue.ContextMessages, nil
+}
+
+// AppendContextMessages adds f to the "context_messages" field.
+func (m *KaguyaChatTurnMutation) AppendContextMessages(f []fantasy.Message) {
+	m.appendcontext_messages = append(m.appendcontext_messages, f...)
+}
+
+// AppendedContextMessages returns the list of values that were appended to the "context_messages" field in this mutation.
+func (m *KaguyaChatTurnMutation) AppendedContextMessages() ([]fantasy.Message, bool) {
+	if len(m.appendcontext_messages) == 0 {
+		return nil, false
+	}
+	return m.appendcontext_messages, true
+}
+
+// ClearContextMessages clears the value of the "context_messages" field.
+func (m *KaguyaChatTurnMutation) ClearContextMessages() {
+	m.context_messages = nil
+	m.appendcontext_messages = nil
+	m.clearedFields[kaguyachatturn.FieldContextMessages] = struct{}{}
+}
+
+// ContextMessagesCleared returns if the "context_messages" field was cleared in this mutation.
+func (m *KaguyaChatTurnMutation) ContextMessagesCleared() bool {
+	_, ok := m.clearedFields[kaguyachatturn.FieldContextMessages]
+	return ok
+}
+
+// ResetContextMessages resets all changes to the "context_messages" field.
+func (m *KaguyaChatTurnMutation) ResetContextMessages() {
+	m.context_messages = nil
+	m.appendcontext_messages = nil
+	delete(m.clearedFields, kaguyachatturn.FieldContextMessages)
+}
+
+// SetCompactionCount sets the "compaction_count" field.
+func (m *KaguyaChatTurnMutation) SetCompactionCount(i int) {
+	m.compaction_count = &i
+	m.addcompaction_count = nil
+}
+
+// CompactionCount returns the value of the "compaction_count" field in the mutation.
+func (m *KaguyaChatTurnMutation) CompactionCount() (r int, exists bool) {
+	v := m.compaction_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCompactionCount returns the old "compaction_count" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldCompactionCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCompactionCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCompactionCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCompactionCount: %w", err)
+	}
+	return oldValue.CompactionCount, nil
+}
+
+// AddCompactionCount adds i to the "compaction_count" field.
+func (m *KaguyaChatTurnMutation) AddCompactionCount(i int) {
+	if m.addcompaction_count != nil {
+		*m.addcompaction_count += i
+	} else {
+		m.addcompaction_count = &i
+	}
+}
+
+// AddedCompactionCount returns the value that was added to the "compaction_count" field in this mutation.
+func (m *KaguyaChatTurnMutation) AddedCompactionCount() (r int, exists bool) {
+	v := m.addcompaction_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCompactionCount resets all changes to the "compaction_count" field.
+func (m *KaguyaChatTurnMutation) ResetCompactionCount() {
+	m.compaction_count = nil
+	m.addcompaction_count = nil
+}
+
 // SetMessages sets the "messages" field.
 func (m *KaguyaChatTurnMutation) SetMessages(f []fantasy.Message) {
 	m.messages = &f
@@ -3969,7 +4094,7 @@ func (m *KaguyaChatTurnMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaChatTurnMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 26)
 	if m.created_at != nil {
 		fields = append(fields, kaguyachatturn.FieldCreatedAt)
 	}
@@ -4039,6 +4164,12 @@ func (m *KaguyaChatTurnMutation) Fields() []string {
 	if m.context_window != nil {
 		fields = append(fields, kaguyachatturn.FieldContextWindow)
 	}
+	if m.context_messages != nil {
+		fields = append(fields, kaguyachatturn.FieldContextMessages)
+	}
+	if m.compaction_count != nil {
+		fields = append(fields, kaguyachatturn.FieldCompactionCount)
+	}
 	if m.messages != nil {
 		fields = append(fields, kaguyachatturn.FieldMessages)
 	}
@@ -4096,6 +4227,10 @@ func (m *KaguyaChatTurnMutation) Field(name string) (ent.Value, bool) {
 		return m.ContextTokens()
 	case kaguyachatturn.FieldContextWindow:
 		return m.ContextWindow()
+	case kaguyachatturn.FieldContextMessages:
+		return m.ContextMessages()
+	case kaguyachatturn.FieldCompactionCount:
+		return m.CompactionCount()
 	case kaguyachatturn.FieldMessages:
 		return m.Messages()
 	}
@@ -4153,6 +4288,10 @@ func (m *KaguyaChatTurnMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldContextTokens(ctx)
 	case kaguyachatturn.FieldContextWindow:
 		return m.OldContextWindow(ctx)
+	case kaguyachatturn.FieldContextMessages:
+		return m.OldContextMessages(ctx)
+	case kaguyachatturn.FieldCompactionCount:
+		return m.OldCompactionCount(ctx)
 	case kaguyachatturn.FieldMessages:
 		return m.OldMessages(ctx)
 	}
@@ -4325,6 +4464,20 @@ func (m *KaguyaChatTurnMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetContextWindow(v)
 		return nil
+	case kaguyachatturn.FieldContextMessages:
+		v, ok := value.([]fantasy.Message)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContextMessages(v)
+		return nil
+	case kaguyachatturn.FieldCompactionCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCompactionCount(v)
+		return nil
 	case kaguyachatturn.FieldMessages:
 		v, ok := value.([]fantasy.Message)
 		if !ok {
@@ -4370,6 +4523,9 @@ func (m *KaguyaChatTurnMutation) AddedFields() []string {
 	if m.addcontext_window != nil {
 		fields = append(fields, kaguyachatturn.FieldContextWindow)
 	}
+	if m.addcompaction_count != nil {
+		fields = append(fields, kaguyachatturn.FieldCompactionCount)
+	}
 	return fields
 }
 
@@ -4398,6 +4554,8 @@ func (m *KaguyaChatTurnMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedContextTokens()
 	case kaguyachatturn.FieldContextWindow:
 		return m.AddedContextWindow()
+	case kaguyachatturn.FieldCompactionCount:
+		return m.AddedCompactionCount()
 	}
 	return nil, false
 }
@@ -4477,6 +4635,13 @@ func (m *KaguyaChatTurnMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddContextWindow(v)
 		return nil
+	case kaguyachatturn.FieldCompactionCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCompactionCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaChatTurn numeric field %s", name)
 }
@@ -4490,6 +4655,9 @@ func (m *KaguyaChatTurnMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(kaguyachatturn.FieldContextTokens) {
 		fields = append(fields, kaguyachatturn.FieldContextTokens)
+	}
+	if m.FieldCleared(kaguyachatturn.FieldContextMessages) {
+		fields = append(fields, kaguyachatturn.FieldContextMessages)
 	}
 	return fields
 }
@@ -4510,6 +4678,9 @@ func (m *KaguyaChatTurnMutation) ClearField(name string) error {
 		return nil
 	case kaguyachatturn.FieldContextTokens:
 		m.ClearContextTokens()
+		return nil
+	case kaguyachatturn.FieldContextMessages:
+		m.ClearContextMessages()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaChatTurn nullable field %s", name)
@@ -4587,6 +4758,12 @@ func (m *KaguyaChatTurnMutation) ResetField(name string) error {
 		return nil
 	case kaguyachatturn.FieldContextWindow:
 		m.ResetContextWindow()
+		return nil
+	case kaguyachatturn.FieldContextMessages:
+		m.ResetContextMessages()
+		return nil
+	case kaguyachatturn.FieldCompactionCount:
+		m.ResetCompactionCount()
 		return nil
 	case kaguyachatturn.FieldMessages:
 		m.ResetMessages()
@@ -10606,20 +10783,26 @@ func (m *KaguyaProviderInfoMutation) ResetEdge(name string) error {
 // KaguyaSystemInfoMutation represents an operation that mutates the KaguyaSystemInfo nodes in the graph.
 type KaguyaSystemInfoMutation struct {
 	config
-	op               Op
-	typ              string
-	id               *string
-	created_at       *time.Time
-	updated_at       *time.Time
-	deleted_at       *time.Time
-	system_prompt    *string
-	user_agent       *string
-	default_model_id *string
-	task_model_id    *string
-	clearedFields    map[string]struct{}
-	done             bool
-	oldValue         func(context.Context) (*KaguyaSystemInfo, error)
-	predicates       []predicate.KaguyaSystemInfo
+	op                         Op
+	typ                        string
+	id                         *string
+	created_at                 *time.Time
+	updated_at                 *time.Time
+	deleted_at                 *time.Time
+	agent_max_steps            *int
+	addagent_max_steps         *int
+	command_timeout_seconds    *int
+	addcommand_timeout_seconds *int
+	global_agents_paths        *[]string
+	appendglobal_agents_paths  []string
+	system_prompt              *string
+	user_agent                 *string
+	default_model_id           *string
+	task_model_id              *string
+	clearedFields              map[string]struct{}
+	done                       bool
+	oldValue                   func(context.Context) (*KaguyaSystemInfo, error)
+	predicates                 []predicate.KaguyaSystemInfo
 }
 
 var _ ent.Mutation = (*KaguyaSystemInfoMutation)(nil)
@@ -10847,6 +11030,183 @@ func (m *KaguyaSystemInfoMutation) ResetDeletedAt() {
 	delete(m.clearedFields, kaguyasysteminfo.FieldDeletedAt)
 }
 
+// SetAgentMaxSteps sets the "agent_max_steps" field.
+func (m *KaguyaSystemInfoMutation) SetAgentMaxSteps(i int) {
+	m.agent_max_steps = &i
+	m.addagent_max_steps = nil
+}
+
+// AgentMaxSteps returns the value of the "agent_max_steps" field in the mutation.
+func (m *KaguyaSystemInfoMutation) AgentMaxSteps() (r int, exists bool) {
+	v := m.agent_max_steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAgentMaxSteps returns the old "agent_max_steps" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldAgentMaxSteps(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAgentMaxSteps is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAgentMaxSteps requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAgentMaxSteps: %w", err)
+	}
+	return oldValue.AgentMaxSteps, nil
+}
+
+// AddAgentMaxSteps adds i to the "agent_max_steps" field.
+func (m *KaguyaSystemInfoMutation) AddAgentMaxSteps(i int) {
+	if m.addagent_max_steps != nil {
+		*m.addagent_max_steps += i
+	} else {
+		m.addagent_max_steps = &i
+	}
+}
+
+// AddedAgentMaxSteps returns the value that was added to the "agent_max_steps" field in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedAgentMaxSteps() (r int, exists bool) {
+	v := m.addagent_max_steps
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAgentMaxSteps resets all changes to the "agent_max_steps" field.
+func (m *KaguyaSystemInfoMutation) ResetAgentMaxSteps() {
+	m.agent_max_steps = nil
+	m.addagent_max_steps = nil
+}
+
+// SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
+func (m *KaguyaSystemInfoMutation) SetCommandTimeoutSeconds(i int) {
+	m.command_timeout_seconds = &i
+	m.addcommand_timeout_seconds = nil
+}
+
+// CommandTimeoutSeconds returns the value of the "command_timeout_seconds" field in the mutation.
+func (m *KaguyaSystemInfoMutation) CommandTimeoutSeconds() (r int, exists bool) {
+	v := m.command_timeout_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommandTimeoutSeconds returns the old "command_timeout_seconds" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldCommandTimeoutSeconds(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommandTimeoutSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommandTimeoutSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommandTimeoutSeconds: %w", err)
+	}
+	return oldValue.CommandTimeoutSeconds, nil
+}
+
+// AddCommandTimeoutSeconds adds i to the "command_timeout_seconds" field.
+func (m *KaguyaSystemInfoMutation) AddCommandTimeoutSeconds(i int) {
+	if m.addcommand_timeout_seconds != nil {
+		*m.addcommand_timeout_seconds += i
+	} else {
+		m.addcommand_timeout_seconds = &i
+	}
+}
+
+// AddedCommandTimeoutSeconds returns the value that was added to the "command_timeout_seconds" field in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedCommandTimeoutSeconds() (r int, exists bool) {
+	v := m.addcommand_timeout_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCommandTimeoutSeconds resets all changes to the "command_timeout_seconds" field.
+func (m *KaguyaSystemInfoMutation) ResetCommandTimeoutSeconds() {
+	m.command_timeout_seconds = nil
+	m.addcommand_timeout_seconds = nil
+}
+
+// SetGlobalAgentsPaths sets the "global_agents_paths" field.
+func (m *KaguyaSystemInfoMutation) SetGlobalAgentsPaths(s []string) {
+	m.global_agents_paths = &s
+	m.appendglobal_agents_paths = nil
+}
+
+// GlobalAgentsPaths returns the value of the "global_agents_paths" field in the mutation.
+func (m *KaguyaSystemInfoMutation) GlobalAgentsPaths() (r []string, exists bool) {
+	v := m.global_agents_paths
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGlobalAgentsPaths returns the old "global_agents_paths" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldGlobalAgentsPaths(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGlobalAgentsPaths is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGlobalAgentsPaths requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGlobalAgentsPaths: %w", err)
+	}
+	return oldValue.GlobalAgentsPaths, nil
+}
+
+// AppendGlobalAgentsPaths adds s to the "global_agents_paths" field.
+func (m *KaguyaSystemInfoMutation) AppendGlobalAgentsPaths(s []string) {
+	m.appendglobal_agents_paths = append(m.appendglobal_agents_paths, s...)
+}
+
+// AppendedGlobalAgentsPaths returns the list of values that were appended to the "global_agents_paths" field in this mutation.
+func (m *KaguyaSystemInfoMutation) AppendedGlobalAgentsPaths() ([]string, bool) {
+	if len(m.appendglobal_agents_paths) == 0 {
+		return nil, false
+	}
+	return m.appendglobal_agents_paths, true
+}
+
+// ClearGlobalAgentsPaths clears the value of the "global_agents_paths" field.
+func (m *KaguyaSystemInfoMutation) ClearGlobalAgentsPaths() {
+	m.global_agents_paths = nil
+	m.appendglobal_agents_paths = nil
+	m.clearedFields[kaguyasysteminfo.FieldGlobalAgentsPaths] = struct{}{}
+}
+
+// GlobalAgentsPathsCleared returns if the "global_agents_paths" field was cleared in this mutation.
+func (m *KaguyaSystemInfoMutation) GlobalAgentsPathsCleared() bool {
+	_, ok := m.clearedFields[kaguyasysteminfo.FieldGlobalAgentsPaths]
+	return ok
+}
+
+// ResetGlobalAgentsPaths resets all changes to the "global_agents_paths" field.
+func (m *KaguyaSystemInfoMutation) ResetGlobalAgentsPaths() {
+	m.global_agents_paths = nil
+	m.appendglobal_agents_paths = nil
+	delete(m.clearedFields, kaguyasysteminfo.FieldGlobalAgentsPaths)
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (m *KaguyaSystemInfoMutation) SetSystemPrompt(s string) {
 	m.system_prompt = &s
@@ -11025,7 +11385,7 @@ func (m *KaguyaSystemInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaSystemInfoMutation) Fields() []string {
-	fields := make([]string, 0, 7)
+	fields := make([]string, 0, 10)
 	if m.created_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
 	}
@@ -11034,6 +11394,15 @@ func (m *KaguyaSystemInfoMutation) Fields() []string {
 	}
 	if m.deleted_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldDeletedAt)
+	}
+	if m.agent_max_steps != nil {
+		fields = append(fields, kaguyasysteminfo.FieldAgentMaxSteps)
+	}
+	if m.command_timeout_seconds != nil {
+		fields = append(fields, kaguyasysteminfo.FieldCommandTimeoutSeconds)
+	}
+	if m.global_agents_paths != nil {
+		fields = append(fields, kaguyasysteminfo.FieldGlobalAgentsPaths)
 	}
 	if m.system_prompt != nil {
 		fields = append(fields, kaguyasysteminfo.FieldSystemPrompt)
@@ -11061,6 +11430,12 @@ func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.UpdatedAt()
 	case kaguyasysteminfo.FieldDeletedAt:
 		return m.DeletedAt()
+	case kaguyasysteminfo.FieldAgentMaxSteps:
+		return m.AgentMaxSteps()
+	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
+		return m.CommandTimeoutSeconds()
+	case kaguyasysteminfo.FieldGlobalAgentsPaths:
+		return m.GlobalAgentsPaths()
 	case kaguyasysteminfo.FieldSystemPrompt:
 		return m.SystemPrompt()
 	case kaguyasysteminfo.FieldUserAgent:
@@ -11084,6 +11459,12 @@ func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldUpdatedAt(ctx)
 	case kaguyasysteminfo.FieldDeletedAt:
 		return m.OldDeletedAt(ctx)
+	case kaguyasysteminfo.FieldAgentMaxSteps:
+		return m.OldAgentMaxSteps(ctx)
+	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
+		return m.OldCommandTimeoutSeconds(ctx)
+	case kaguyasysteminfo.FieldGlobalAgentsPaths:
+		return m.OldGlobalAgentsPaths(ctx)
 	case kaguyasysteminfo.FieldSystemPrompt:
 		return m.OldSystemPrompt(ctx)
 	case kaguyasysteminfo.FieldUserAgent:
@@ -11122,6 +11503,27 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetDeletedAt(v)
 		return nil
+	case kaguyasysteminfo.FieldAgentMaxSteps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAgentMaxSteps(v)
+		return nil
+	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommandTimeoutSeconds(v)
+		return nil
+	case kaguyasysteminfo.FieldGlobalAgentsPaths:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGlobalAgentsPaths(v)
+		return nil
 	case kaguyasysteminfo.FieldSystemPrompt:
 		v, ok := value.(string)
 		if !ok {
@@ -11157,13 +11559,26 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 // AddedFields returns all numeric fields that were incremented/decremented during
 // this mutation.
 func (m *KaguyaSystemInfoMutation) AddedFields() []string {
-	return nil
+	var fields []string
+	if m.addagent_max_steps != nil {
+		fields = append(fields, kaguyasysteminfo.FieldAgentMaxSteps)
+	}
+	if m.addcommand_timeout_seconds != nil {
+		fields = append(fields, kaguyasysteminfo.FieldCommandTimeoutSeconds)
+	}
+	return fields
 }
 
 // AddedField returns the numeric value that was incremented/decremented on a field
 // with the given name. The second boolean return value indicates that this field
 // was not set, or was not defined in the schema.
 func (m *KaguyaSystemInfoMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyasysteminfo.FieldAgentMaxSteps:
+		return m.AddedAgentMaxSteps()
+	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
+		return m.AddedCommandTimeoutSeconds()
+	}
 	return nil, false
 }
 
@@ -11172,6 +11587,20 @@ func (m *KaguyaSystemInfoMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *KaguyaSystemInfoMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case kaguyasysteminfo.FieldAgentMaxSteps:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAgentMaxSteps(v)
+		return nil
+	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCommandTimeoutSeconds(v)
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaSystemInfo numeric field %s", name)
 }
@@ -11182,6 +11611,9 @@ func (m *KaguyaSystemInfoMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(kaguyasysteminfo.FieldDeletedAt) {
 		fields = append(fields, kaguyasysteminfo.FieldDeletedAt)
+	}
+	if m.FieldCleared(kaguyasysteminfo.FieldGlobalAgentsPaths) {
+		fields = append(fields, kaguyasysteminfo.FieldGlobalAgentsPaths)
 	}
 	return fields
 }
@@ -11200,6 +11632,9 @@ func (m *KaguyaSystemInfoMutation) ClearField(name string) error {
 	case kaguyasysteminfo.FieldDeletedAt:
 		m.ClearDeletedAt()
 		return nil
+	case kaguyasysteminfo.FieldGlobalAgentsPaths:
+		m.ClearGlobalAgentsPaths()
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaSystemInfo nullable field %s", name)
 }
@@ -11216,6 +11651,15 @@ func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyasysteminfo.FieldDeletedAt:
 		m.ResetDeletedAt()
+		return nil
+	case kaguyasysteminfo.FieldAgentMaxSteps:
+		m.ResetAgentMaxSteps()
+		return nil
+	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
+		m.ResetCommandTimeoutSeconds()
+		return nil
+	case kaguyasysteminfo.FieldGlobalAgentsPaths:
+		m.ResetGlobalAgentsPaths()
 		return nil
 	case kaguyasysteminfo.FieldSystemPrompt:
 		m.ResetSystemPrompt()

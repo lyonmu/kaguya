@@ -21,6 +21,9 @@ func (KaguyaSystemInfo) Fields() []ent.Field {
 			}
 			return nil
 		}),
+		field.Int("agent_max_steps").Default(0).Min(0).Max(1000),
+		field.Int("command_timeout_seconds").Default(120).Min(1).Max(86400),
+		field.JSON("global_agents_paths", []string{}).Optional(),
 		field.Text("system_prompt").Default("").Comment("追加到全局人设后的自定义提示词"),
 		field.String("user_agent").MaxLen(512).Default(consts.DefaultUserAgent).Comment("出站模型 API 请求的 User-Agent"),
 		field.String("default_model_id").Default("").Comment("默认聊天模型的本地记录 ID，空值表示未配置"),

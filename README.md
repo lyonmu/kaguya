@@ -37,7 +37,7 @@ Screenshots were captured from a running instance on **2026-09-09**. Model names
 
 Use the left sidebar to create or reopen a conversation, search by title prefix, or switch between **Conversations** (ordinary conversations only) and **Projects**. The conversation header provides rename and delete actions. The composer lets you select a provider/model or use the default model: **Enter** sends, **Shift + Enter** inserts a newline, and **Stop** cancels an active response.
 
-Replies support Markdown, code blocks, and collapsible reasoning when supplied by the provider. Turn summaries show tokens, duration, and tool-call counts. When usage and model-window data are available, the composer shows cumulative tokens from all completed turns as a percentage of 90% of the most recent model’s context window. This is a cumulative-usage indicator, not actual context occupancy, and it does not automatically trim messages.
+Replies support Markdown, code blocks, and collapsible reasoning when supplied by the provider. Turn summaries show tokens, duration, and tool-call counts. When usage and model-window data are available, the composer shows the latest model call’s context occupancy (input including cache, plus output) relative to 90% of the model window, rather than cumulative spending. Before each model call, the 90% threshold triggers a summary of older content while retaining recent messages, paired tool calls/results, and the original history. A continuation snapshot is saved transactionally with the successful turn and restored on subsequent turns. Generation respects the configured model output limit and the reserved 10% of the window. Unknown windows disable automatic compaction. Summaries use the current chat model without tools and their usage is included in the turn total; failed or unsafe compaction returns an explicit error.
 
 Only successfully completed and saved turns become reusable conversation history. Failed or canceled partial replies are not saved as completed turns. With a background-task model configured, the UI requests a short Chinese title based on the first successful question and answer; manual titles are preserved.
 
@@ -75,6 +75,9 @@ Open **System management → AI configuration → MCP management** to create, qu
 
 - **Default chat model**: used when a request does not select a model explicitly.
 - **Background-task model**: used for conversation-title generation; it can differ from the chat model.
+- **Agent Loop step limit**: defaults to `0` (unlimited, matching pi), or set 1–1000. Reaching a configured limit saves complete tool results and pauses; use “Continue” to resume. Existing settings retain their values and can be changed to `0` here.
+- **Command timeout**: bash defaults to a maximum of 120 seconds, configurable from 1–86400 seconds; individual tool arguments may only shorten it. MCP retains each server’s timeout.
+- **Global AGENTS.md paths**: an ordered array defaulting to `~/.config/agents/AGENTS.md` and `~/.codex/AGENTS.md`; edit, add, or clear paths to disable loading. Files are read each turn as the service user. Missing files are skipped and resolved paths deduplicated; read failures or a combined size above 256 KiB return an error. Title tasks do not load these files.
 - **User-Agent**: applied to server-side chat and title-generation requests.
 - **System prompt**: the read-only base persona remains in place; custom text is appended for chat. Leaving custom text empty retains the base persona.
 
@@ -272,7 +275,7 @@ Seven Go tools follow [pi's tool design](https://github.com/earendil-works/pi/tr
 | `find` | `fd` glob search respecting ignore rules; defaults to 1000 results |
 | `ls` | Alphabetical entries including dotfiles, directories suffixed with `/`; defaults to 500 entries |
 
-`tools.New(workspace, global.Logger)` owns the tools and exposes `CodingTools()` (the first four), `ReadOnlyTools()` (read/grep/find/ls), and `AllTools()`. Project chat registers the default four through existing `WithTools`; search factories remain optional without expanding the model's default tool list. Continuations restore the database project association; request `project_id` cannot change it. Each turn allows at most 64 model steps. An unavailable directory fails explicitly instead of falling back to the server's working directory.
+`tools.New(workspace, global.Logger)` owns the tools and exposes `CodingTools()` (the first four), `ReadOnlyTools()` (read/grep/find/ls), and `AllTools()`. Project chat registers the default four through existing `WithTools`; search factories remain optional without expanding the model's default tool list. Continuations restore the database project association; request `project_id` cannot change it. Each turn defaults to unlimited model steps; an optional limit is available in system configuration. An unavailable directory fails explicitly instead of falling back to the server's working directory.
 
 Server adaptations: file operations use `os.Root` to stay within the workspace; `write/edit` reject symlink paths and serialize same-path mutations within the process. Text reads, edits, and writes have a 32MB safety limit; use bounded bash operations for larger files. Image attachments are capped at 10MB; PNG/JPEG/GIF images above 2000 pixels are resized, while WebP/BMP are passed through. Editing supports pi's Unicode/trailing-whitespace matching while preserving unchanged lines; oversized diffs are truncated without returning an incomplete patch. Full command output is retained in the project's `.kaguya/tool-output/` for paginated `read` access; add this directory to project ignore rules and clean it as needed. The frontend retains tool start/end and final-result rendering rather than streaming bash output chunks.
 
@@ -353,3 +356,9 @@ After changing Ent schemas, run `go generate ./internal/ent` from the repository
 ## License
 
 [MIT](LICENSE).
+
+### Chat interactions
+
+In project conversations, type `@` to search project files, use ↑/↓ to select, Enter to insert, and Esc to dismiss. Paths containing spaces are inserted as `@"path/to/my file.go"`. Up to 8 files may be referenced per message; the backend reads their text within the project workspace when sending. Ordinary conversations do not read host files. Each file uses the read tool’s 2000-line/50-KiB limit, with a 256-KiB total reference limit; paths outside the workspace and images are rejected. Search skips common dependency and build directories, scans at most 20000 entries, and returns at most 50 matches.
+
+Reasoning and tool calls have separate expandable cards showing the tool name, key arguments, execution status, duration, and output. Markdown supports tables, code language labels, and on-demand syntax highlighting, with a top-right copy button and success/failure feedback on code blocks. Long code and wide tables scroll independently. Light and dark themes are supported; mouse interaction avoids redundant focus rings while keyboard focus remains visible.

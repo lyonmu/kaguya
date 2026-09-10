@@ -103,7 +103,7 @@ func TestConversationAPI(t *testing.T) {
 	}
 	ok, bad, missing := dtocode.SystemSuccess.Code, dtocode.RequestParameterError.Code, dtocode.ConversationNotFound.Code
 	usage := request("GET", "/conversation/123/context", "", ok)
-	if usage["percent"] != float64(6)/900*100 || usage["context_tokens"] != float64(6) || usage["turn_index"] != float64(2) {
+	if usage["percent"] != float64(50) || usage["context_tokens"] != float64(450) || usage["turn_index"] != float64(2) {
 		t.Fatalf("context: %+v", usage)
 	}
 	request("GET", "/conversation/unknown/context", "", missing)

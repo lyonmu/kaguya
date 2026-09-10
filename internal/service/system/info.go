@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
@@ -37,6 +38,14 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 			return nil, ErrInvalidSystemInfo
 		}
 	}
+	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || len(req.GlobalAgentsPaths) > 32 {
+		return nil, ErrInvalidSystemInfo
+	}
+	for _, path := range req.GlobalAgentsPaths {
+		if len(path) > 4096 || strings.ContainsAny(path, "\x00\r\n") || !(filepath.IsAbs(path) || strings.HasPrefix(path, "~/")) {
+			return nil, ErrInvalidSystemInfo
+		}
+	}
 	if _, err := s.Info(ctx); err != nil {
 		return nil, err
 	}
@@ -47,9 +56,19 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	defer func() { _ = tx.Rollback() }()
 	// 先取得单例行的写锁，再检查模型；与删除时清空选择的事务串行化。
 	// 校验失败时整体回滚，未提交配置不会对其他请求可见。
-	row, err := tx.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
+	update := tx.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
 		SetSystemPrompt(req.SystemPrompt).SetUserAgent(req.UserAgent).
-		SetDefaultModelID(req.DefaultModelID).SetTaskModelID(req.TaskModelID).Save(ctx)
+		SetDefaultModelID(req.DefaultModelID).SetTaskModelID(req.TaskModelID)
+	if req.AgentMaxSteps != nil {
+		update.SetAgentMaxSteps(*req.AgentMaxSteps)
+	}
+	if req.CommandTimeoutSeconds != nil {
+		update.SetCommandTimeoutSeconds(*req.CommandTimeoutSeconds)
+	}
+	if req.GlobalAgentsPaths != nil {
+		update.SetGlobalAgentsPaths(req.GlobalAgentsPaths)
+	}
+	row, err := update.Save(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -75,6 +94,7 @@ func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 	return &dtosystem.SystemInfoResp{
 		SystemInfoSaveReq: dtosystem.SystemInfoSaveReq{
 			SystemPrompt: row.SystemPrompt, UserAgent: row.UserAgent,
+			AgentMaxSteps: &row.AgentMaxSteps, CommandTimeoutSeconds: &row.CommandTimeoutSeconds, GlobalAgentsPaths: defaultAgentsPaths(row.GlobalAgentsPaths),
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
 		},
 		GlobalSystemPrompt: consts.GlobalSystemPrompt,
@@ -98,4 +118,11 @@ func clearModelSelections(ctx context.Context, client *ent.Client, ids ...string
 		return err
 	}
 	return client.KaguyaSystemInfo.Update().Where(kaguyasysteminfo.TaskModelIDIn(ids...)).SetTaskModelID("").Exec(ctx)
+}
+
+func defaultAgentsPaths(paths []string) []string {
+	if paths == nil {
+		return []string{"~/.config/agents/AGENTS.md", "~/.codex/AGENTS.md"}
+	}
+	return paths
 }

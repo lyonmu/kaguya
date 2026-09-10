@@ -244,6 +244,12 @@ func init() {
 	kaguyachatturn.DefaultContextWindow = kaguyachatturnDescContextWindow.Default.(int)
 	// kaguyachatturn.ContextWindowValidator is a validator for the "context_window" field. It is called by the builders before save.
 	kaguyachatturn.ContextWindowValidator = kaguyachatturnDescContextWindow.Validators[0].(func(int) error)
+	// kaguyachatturnDescCompactionCount is the schema descriptor for compaction_count field.
+	kaguyachatturnDescCompactionCount := kaguyachatturnFields[21].Descriptor()
+	// kaguyachatturn.DefaultCompactionCount holds the default value on creation for the compaction_count field.
+	kaguyachatturn.DefaultCompactionCount = kaguyachatturnDescCompactionCount.Default.(int)
+	// kaguyachatturn.CompactionCountValidator is a validator for the "compaction_count" field. It is called by the builders before save.
+	kaguyachatturn.CompactionCountValidator = kaguyachatturnDescCompactionCount.Validators[0].(func(int) error)
 	// kaguyachatturnDescID is the schema descriptor for id field.
 	kaguyachatturnDescID := kaguyachatturnMixinFields0[0].Descriptor()
 	// kaguyachatturn.DefaultID holds the default value on creation for the id field.
@@ -712,22 +718,62 @@ func init() {
 	kaguyasysteminfo.DefaultUpdatedAt = kaguyasysteminfoDescUpdatedAt.Default.(func() time.Time)
 	// kaguyasysteminfo.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
 	kaguyasysteminfo.UpdateDefaultUpdatedAt = kaguyasysteminfoDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyasysteminfoDescAgentMaxSteps is the schema descriptor for agent_max_steps field.
+	kaguyasysteminfoDescAgentMaxSteps := kaguyasysteminfoFields[1].Descriptor()
+	// kaguyasysteminfo.DefaultAgentMaxSteps holds the default value on creation for the agent_max_steps field.
+	kaguyasysteminfo.DefaultAgentMaxSteps = kaguyasysteminfoDescAgentMaxSteps.Default.(int)
+	// kaguyasysteminfo.AgentMaxStepsValidator is a validator for the "agent_max_steps" field. It is called by the builders before save.
+	kaguyasysteminfo.AgentMaxStepsValidator = func() func(int) error {
+		validators := kaguyasysteminfoDescAgentMaxSteps.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(agent_max_steps int) error {
+			for _, fn := range fns {
+				if err := fn(agent_max_steps); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyasysteminfoDescCommandTimeoutSeconds is the schema descriptor for command_timeout_seconds field.
+	kaguyasysteminfoDescCommandTimeoutSeconds := kaguyasysteminfoFields[2].Descriptor()
+	// kaguyasysteminfo.DefaultCommandTimeoutSeconds holds the default value on creation for the command_timeout_seconds field.
+	kaguyasysteminfo.DefaultCommandTimeoutSeconds = kaguyasysteminfoDescCommandTimeoutSeconds.Default.(int)
+	// kaguyasysteminfo.CommandTimeoutSecondsValidator is a validator for the "command_timeout_seconds" field. It is called by the builders before save.
+	kaguyasysteminfo.CommandTimeoutSecondsValidator = func() func(int) error {
+		validators := kaguyasysteminfoDescCommandTimeoutSeconds.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(command_timeout_seconds int) error {
+			for _, fn := range fns {
+				if err := fn(command_timeout_seconds); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 	// kaguyasysteminfoDescSystemPrompt is the schema descriptor for system_prompt field.
-	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[1].Descriptor()
+	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[4].Descriptor()
 	// kaguyasysteminfo.DefaultSystemPrompt holds the default value on creation for the system_prompt field.
 	kaguyasysteminfo.DefaultSystemPrompt = kaguyasysteminfoDescSystemPrompt.Default.(string)
 	// kaguyasysteminfoDescUserAgent is the schema descriptor for user_agent field.
-	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[2].Descriptor()
+	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[5].Descriptor()
 	// kaguyasysteminfo.DefaultUserAgent holds the default value on creation for the user_agent field.
 	kaguyasysteminfo.DefaultUserAgent = kaguyasysteminfoDescUserAgent.Default.(string)
 	// kaguyasysteminfo.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	kaguyasysteminfo.UserAgentValidator = kaguyasysteminfoDescUserAgent.Validators[0].(func(string) error)
 	// kaguyasysteminfoDescDefaultModelID is the schema descriptor for default_model_id field.
-	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[3].Descriptor()
+	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[6].Descriptor()
 	// kaguyasysteminfo.DefaultDefaultModelID holds the default value on creation for the default_model_id field.
 	kaguyasysteminfo.DefaultDefaultModelID = kaguyasysteminfoDescDefaultModelID.Default.(string)
 	// kaguyasysteminfoDescTaskModelID is the schema descriptor for task_model_id field.
-	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[4].Descriptor()
+	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[7].Descriptor()
 	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
 	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
 	// kaguyasysteminfoDescID is the schema descriptor for id field.
