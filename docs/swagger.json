@@ -832,6 +832,243 @@
                 }
             }
         },
+        "/v1/system/mcp": {
+            "post": {
+                "tags": [
+                    "System MCP"
+                ],
+                "summary": "创建 MCP 配置（默认停用）",
+                "parameters": [
+                    {
+                        "description": "MCP 配置",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemMCPSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemMCPResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/mcp/page": {
+            "get": {
+                "tags": [
+                    "System MCP"
+                ],
+                "summary": "分页查询 MCP 配置与运行状态（不包含环境变量和请求头）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemMCPListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/mcp/{id}": {
+            "get": {
+                "tags": [
+                    "System MCP"
+                ],
+                "summary": "查询 MCP 配置详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MCP ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemMCPResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "System MCP"
+                ],
+                "summary": "修改 MCP 配置，已启用的服务自动替换连接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MCP ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "MCP 配置",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemMCPSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemMCPResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "System MCP"
+                ],
+                "summary": "删除 MCP 配置并关闭连接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MCP ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/mcp/{id}/state": {
+            "put": {
+                "tags": [
+                    "System MCP"
+                ],
+                "summary": "动态启停 MCP 服务；启用异常服务时重新连接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MCP ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "启用状态",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemMCPStateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemMCPResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/system/model": {
             "post": {
                 "tags": [
@@ -1948,6 +2185,23 @@
                 }
             }
         },
+        "mcp.Status": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "project.Directory": {
             "type": "object",
             "properties": {
@@ -2154,6 +2408,160 @@
                 "user_agent": {
                     "type": "string",
                     "maxLength": 512
+                }
+            }
+        },
+        "system.SystemMCPListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.SystemMCPResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "system.SystemMCPResp": {
+            "type": "object",
+            "required": [
+                "name",
+                "timeout_seconds",
+                "transport"
+            ],
+            "properties": {
+                "args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "status": {
+                    "$ref": "#/definitions/mcp.Status"
+                },
+                "timeout_seconds": {
+                    "type": "integer",
+                    "maximum": 600,
+                    "minimum": 1
+                },
+                "transport": {
+                    "type": "string",
+                    "enum": [
+                        "stdio",
+                        "streamable-http",
+                        "sse"
+                    ]
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "working_directory": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemMCPSaveReq": {
+            "type": "object",
+            "required": [
+                "name",
+                "timeout_seconds",
+                "transport"
+            ],
+            "properties": {
+                "args": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "command": {
+                    "type": "string"
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "headers": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "timeout_seconds": {
+                    "type": "integer",
+                    "maximum": 600,
+                    "minimum": 1
+                },
+                "transport": {
+                    "type": "string",
+                    "enum": [
+                        "stdio",
+                        "streamable-http",
+                        "sse"
+                    ]
+                },
+                "url": {
+                    "type": "string"
+                },
+                "working_directory": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemMCPStateReq": {
+            "type": "object",
+            "required": [
+                "enabled"
+            ],
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
                 }
             }
         },

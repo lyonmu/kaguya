@@ -280,6 +280,51 @@ var (
 			},
 		},
 	}
+	// KaguyaMcpServerColumns holds the columns for the "kaguya_mcp_server" table.
+	KaguyaMcpServerColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "name", Type: field.TypeString, Unique: true, Size: 100},
+		{Name: "transport", Type: field.TypeEnum, Enums: []string{"stdio", "streamable-http", "sse"}},
+		{Name: "command", Type: field.TypeString, Default: ""},
+		{Name: "args", Type: field.TypeJSON},
+		{Name: "env", Type: field.TypeJSON},
+		{Name: "working_directory", Type: field.TypeString, Default: ""},
+		{Name: "url", Type: field.TypeString, Default: ""},
+		{Name: "headers", Type: field.TypeJSON},
+		{Name: "timeout_seconds", Type: field.TypeInt, Default: 60},
+		{Name: "enabled", Type: field.TypeBool, Default: false},
+	}
+	// KaguyaMcpServerTable holds the schema information for the "kaguya_mcp_server" table.
+	KaguyaMcpServerTable = &schema.Table{
+		Name:       "kaguya_mcp_server",
+		Columns:    KaguyaMcpServerColumns,
+		PrimaryKey: []*schema.Column{KaguyaMcpServerColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamcpserver_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMcpServerColumns[1]},
+			},
+			{
+				Name:    "kaguyamcpserver_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMcpServerColumns[2]},
+			},
+			{
+				Name:    "kaguyamcpserver_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMcpServerColumns[3]},
+			},
+			{
+				Name:    "kaguyamcpserver_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMcpServerColumns[0]},
+			},
+		},
+	}
 	// KaguyaModelsInfoColumns holds the columns for the "kaguya_models_info" table.
 	KaguyaModelsInfoColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
@@ -466,7 +511,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "system_prompt", Type: field.TypeString, Size: 2147483647, Comment: "追加到全局人设后的自定义提示词", Default: ""},
-		{Name: "user_agent", Type: field.TypeString, Size: 512, Comment: "出站模型 API 请求的 User-Agent", Default: "kaguya"},
+		{Name: "user_agent", Type: field.TypeString, Size: 512, Comment: "出站模型 API 请求的 User-Agent", Default: "kaguya-agent/0.0.1"},
 		{Name: "default_model_id", Type: field.TypeString, Comment: "默认聊天模型的本地记录 ID，空值表示未配置", Default: ""},
 		{Name: "task_model_id", Type: field.TypeString, Comment: "后台任务模型的本地记录 ID，空值表示未配置", Default: ""},
 	}
@@ -505,6 +550,7 @@ var (
 		KaguyaChatBlockTable,
 		KaguyaChatTurnTable,
 		KaguyaConversationTable,
+		KaguyaMcpServerTable,
 		KaguyaModelsInfoTable,
 		KaguyaProjectTable,
 		KaguyaProviderInfoTable,
@@ -535,6 +581,9 @@ func init() {
 		Table:     "kaguya_conversation",
 		Charset:   "utf8mb4",
 		Collation: "utf8mb4_general_ci",
+	}
+	KaguyaMcpServerTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_mcp_server",
 	}
 	KaguyaModelsInfoTable.ForeignKeys[0].RefTable = KaguyaProviderInfoTable
 	KaguyaModelsInfoTable.Annotation = &entsql.Annotation{

@@ -24,4 +24,9 @@ export CGO_ENABLED=1
 export CGO_CFLAGS="${CGO_CFLAGS:-} -DUSE_LIBSQLITE3 -I$prefix/include"
 # SQLCipher's SQLite math functions require libm after the static archive.
 export CGO_LDFLAGS="${CGO_LDFLAGS:-} $prefix/lib/libsqlite3.a $crypto_flags -lm"
+# Go records CGO_LDFLAGS in each cgo package, so the final link repeats these
+# archives. Apple ld safely ignores them; silence only its duplicate warning.
+if [[ "$(go env GOHOSTOS)" == darwin ]]; then
+  export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-no_warn_duplicate_libraries"
+fi
 exec go "$@"

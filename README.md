@@ -22,6 +22,7 @@ The project is intended for learning, personal use, and exploring Agent runtime 
 | Streaming chat | Receive responses over SSE, view Markdown and provider-reported reasoning, stop generation, and choose a model for a request. A WebSocket API is also available. |
 | Conversation management | Continue saved conversations, search by title prefix, rename, and delete conversations; organize conversations by project, browse paginated history and review turn summaries. |
 | Providers and models | Manage providers and their models through the UI; configure full request URLs, API keys, protocol types, and model metadata. |
+| MCP management | Manage MCP services under AI configuration, with stdio, Streamable HTTP, SSE, dynamic start/stop, and chat tool integration. |
 | System configuration | Choose separate default chat and background-task models, append a custom system prompt, and configure the upstream `User-Agent`. Saved settings apply to new requests without restarting. |
 | Token analytics | Inspect total usage, daily peaks, active conversations, an activity heatmap, and token composition by model or provider. |
 | Deployment and development | Run a native binary with SQLCipher-encrypted SQLite (WAL), no Docker or database server required; access Swagger and Prometheus endpoints. |
@@ -57,6 +58,16 @@ Providers support three explicitly selected API protocols:
 Replace the example host with your provider's actual endpoint. **The request URL must include the complete endpoint path**: Kaguya uses it as configured and does not append `/chat/completions`, `/responses`, or `/messages`. Provider types include standard (`normal`) and OpenCode Go (`opencode-go`); the latter adds the OpenCode session header.
 
 Each model has a display name and an upstream model identifier, plus metadata such as reasoning level, context window, maximum output tokens, and Tool/Vision/JSON capabilities. These fields describe the model; they do not by themselves enable attachments, register tools, or guarantee that every parameter is forwarded to the upstream API. Chat API model selection uses the **local model record ID**, not the upstream model identifier.
+
+### MCP management
+
+Open **System management → AI configuration → MCP management** to create, query, edit, delete, and dynamically enable or disable services. Configuration is stored in `kaguya_mcp_server`; startup creates the table and restores enabled services. Failed connections display an error status and can be retried manually.
+
+- Supports `stdio` (executable, JSON argument array, environment variables, and absolute working directory), `streamable-http`, and legacy `sse` (URL and HTTP headers). Configure authentication through headers such as `Authorization`; an OAuth login flow is not provided.
+- New configurations are disabled. Enabling connects and discovers tools first. Editing an enabled service validates the replacement connection before saving and switching; failure preserves the existing configuration. Disabling or deleting closes the connection and cancels ongoing MCP requests.
+- Enabled tools apply to all chats beginning with the next request; title tasks do not use MCP. Tool names have unique prefixes to avoid collisions with other servers or built-in tools. Existing chat turns cannot continue using a disabled connection; external side effects already performed are not rolled back.
+- Local processes run with the Kaguya service permissions and inherit its environment without loading interactive shell configuration; the working directory is not a sandbox. Tool timeouts range from 1–600 seconds, connection and discovery are limited to 15 seconds, output to 64 KiB, and each service to 256 tools.
+- This integration uses MCP tools, not prompts/resources. Complex root schemas (such as root `$ref`, `$defs`, or composition constraints) are currently unsupported and produce an explicit discovery error. Credentials are stored with configuration; lists omit environment variables and headers, while edit details return their original values.
 
 ### 3. System configuration
 
@@ -105,8 +116,11 @@ Writable data is **not** stored in `go:embed`: after checking or initializing th
 | `--db.kind` | `DB_KIND` | `sqlite` (the only enabled startup backend) |
 | `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
 | `--db.key-file` | `DB_KEY_FILE` | Unset: initialize/use `~/.kaguya/kaguya.key`; explicit paths must already exist |
+| `--host` | — | `127.0.0.1` |
 | `--port` | — | `9024` |
 | `--router-prefix` | — | `/kaguya/api` |
+
+The server binds to `127.0.0.1:9024` by default, allowing connections only from the local machine. To allow remote access explicitly, run `./target/kaguya --host=0.0.0.0`; use `--host=::1` for IPv6 loopback. `--host` accepts an IP address and rejects empty or invalid values.
 
 ```sh
 ./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
@@ -128,7 +142,7 @@ Parent directories are created automatically. Relative paths resolve from the wo
 
 Open [http://localhost:9024](http://localhost:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
 
-Knowledge bases and semantic retrieval are intended for future external MCP integration, not a required local pgvector service. MCP integration, long-term memory, embeddings, and FTS5 search are not implemented by this storage change.
+Knowledge bases and semantic retrieval can be supplied through externally configured MCP tools, without a local pgvector service. The application does not include a built-in knowledge base, long-term memory, embeddings, or FTS5 search.
 
 ### Legacy Docker/PostgreSQL reference (disabled)
 
@@ -172,7 +186,7 @@ PostgreSQL data is persisted through the Compose bind mount `${PWD}/pgvector:/va
 
 ### 3. Configure the first conversation
 
-Open [http://localhost:9024](http://localhost:9024), or use the deployment host's address. Before the first chat:
+Open [http://localhost:9024](http://localhost:9024) on the deployment host. Remote access requires explicitly setting `--host=0.0.0.0`. Before the first chat:
 
 1. Open **AI providers**, add a provider with its protocol, full request URL, and API key.
 2. Add at least one model with the provider's upstream model identifier.
@@ -238,7 +252,6 @@ Go binary: Kong CLI → Gin routes → application services
 | `internal/router/`, `internal/api/` | HTTP routes and request/response handling |
 | `internal/service/agent/` | Streaming chat, history persistence, context, and title generation |
 | `internal/agent/runtime/`, `internal/agent/token/` | Model adapters, execution, and usage recording abstractions |
-| `internal/agent/files/` | Legacy workspace read-only tools, not registered for chat |
 | `internal/agent/tools/` | Seven pi-style tools, workspace boundaries, output truncation, file mutations, and command execution |
 | `internal/service/system/` | Provider/model management, system configuration, and analytics |
 | `internal/ent/schema/` | Handwritten database schemas; other Ent files are generated |
@@ -282,6 +295,10 @@ With the default route prefix, useful endpoints are:
 | `GET /kaguya/api/v1/project/directories` | Browse folders within the server user's home |
 | `POST /kaguya/api/v1/project` | Create project |
 | `GET / PUT / DELETE /kaguya/api/v1/project/:id` | Project details, update, and delete |
+| `GET /kaguya/api/v1/system/mcp/page` | MCP list and runtime status |
+| `POST /kaguya/api/v1/system/mcp` | Create MCP configuration (disabled by default) |
+| `GET / PUT / DELETE /kaguya/api/v1/system/mcp/:id` | MCP detail, update, and delete |
+| `PUT /kaguya/api/v1/system/mcp/:id/state` | Dynamic start/stop with `{"enabled": true/false}` |
 | `GET /kaguya/api/v1/system/provider/page` | Provider list |
 | `GET /kaguya/api/v1/system/model/page` | Model list |
 | `GET /kaguya/api/v1/system/usage` | Token analytics |

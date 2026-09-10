@@ -15,6 +15,13 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 		systemRouter.GET("info", apiGroup.SystemInfo)
 		systemRouter.PUT("info", apiGroup.SystemInfoUpdate)
 
+		systemRouter.GET("mcp/page", apiGroup.SystemMCPPage)
+		systemRouter.GET("mcp/:id", apiGroup.SystemMCPDetail)
+		systemRouter.POST("mcp", apiGroup.SystemMCPCreate)
+		systemRouter.PUT("mcp/:id", apiGroup.SystemMCPUpdate)
+		systemRouter.PUT("mcp/:id/state", apiGroup.SystemMCPSetEnabled)
+		systemRouter.DELETE("mcp/:id", apiGroup.SystemMCPDelete)
+
 		systemRouter.GET("provider/page", apiGroup.SystemProviderPage)
 		systemRouter.GET("provider/label", apiGroup.SystemProviderLabels)
 		systemRouter.GET("provider/:id", apiGroup.SystemProviderDetail)

@@ -37,7 +37,7 @@ export function AppLayout({
   const [systemCollapsed, setSystemCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const configurationItems = [
-    { key: 'ai-providers', icon: <RobotOutlined />, label: 'AI 提供商' },
+    { key: 'ai-providers', icon: <RobotOutlined />, label: 'AI 配置' },
     { key: 'system-info', icon: <SettingOutlined />, label: '系统配置' },
   ]
 
@@ -133,7 +133,7 @@ export function AppLayout({
             <Breadcrumb
               items={[
                 { title: '系统管理' },
-                { title: currentPage === 'ai-providers' ? 'AI 提供商' : currentPage === 'system-info' ? '系统配置' : currentPage === 'token-usage' ? '用量分析' : '访问日志' },
+                { title: currentPage === 'ai-providers' ? 'AI 配置' : currentPage === 'system-info' ? '系统配置' : currentPage === 'token-usage' ? '用量分析' : '访问日志' },
               ]}
               separator={<RightOutlined className="text-[8px]" />}
             />

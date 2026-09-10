@@ -18,6 +18,9 @@ type KaguyaChatTurn func(*sql.Selector)
 // KaguyaConversation is the predicate function for kaguyaconversation builders.
 type KaguyaConversation func(*sql.Selector)
 
+// KaguyaMCPServer is the predicate function for kaguyamcpserver builders.
+type KaguyaMCPServer func(*sql.Selector)
+
 // KaguyaModelsInfo is the predicate function for kaguyamodelsinfo builders.
 type KaguyaModelsInfo func(*sql.Selector)
 

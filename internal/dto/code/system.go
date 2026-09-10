@@ -22,6 +22,12 @@ var (
 	ProviderDeleteFailure    = Response{Code: 102004, Message: "提供商删除失败"}
 	ProviderNameAlreadyExist = Response{Code: 102005, Message: "提供商名称已存在"}
 
+	// MCP 管理相关
+	MCPFailure        = Response{Code: 105000, Message: "MCP 操作失败"}
+	MCPNotFound       = Response{Code: 105001, Message: "MCP 服务不存在"}
+	MCPDuplicate      = Response{Code: 105002, Message: "MCP 服务名称已存在"}
+	MCPConnectFailure = Response{Code: 105003, Message: "MCP 连接或工具发现失败，请检查服务配置"}
+
 	// 模型管理相关
 	ModelQueryFailure   = Response{Code: 103000, Message: "模型查询失败"}
 	ModelNotFound       = Response{Code: 103001, Message: "模型不存在"}

@@ -18,6 +18,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
@@ -38,6 +39,7 @@ const (
 	TypeKaguyaChatBlock    = "KaguyaChatBlock"
 	TypeKaguyaChatTurn     = "KaguyaChatTurn"
 	TypeKaguyaConversation = "KaguyaConversation"
+	TypeKaguyaMCPServer    = "KaguyaMCPServer"
 	TypeKaguyaModelsInfo   = "KaguyaModelsInfo"
 	TypeKaguyaProject      = "KaguyaProject"
 	TypeKaguyaProviderInfo = "KaguyaProviderInfo"
@@ -6336,6 +6338,1060 @@ func (m *KaguyaConversationMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaConversation edge %s", name)
+}
+
+// KaguyaMCPServerMutation represents an operation that mutates the KaguyaMCPServer nodes in the graph.
+type KaguyaMCPServerMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *string
+	created_at         *time.Time
+	updated_at         *time.Time
+	deleted_at         *time.Time
+	name               *string
+	transport          *kaguyamcpserver.Transport
+	command            *string
+	args               *[]string
+	appendargs         []string
+	env                *map[string]string
+	working_directory  *string
+	url                *string
+	headers            *map[string]string
+	timeout_seconds    *int
+	addtimeout_seconds *int
+	enabled            *bool
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*KaguyaMCPServer, error)
+	predicates         []predicate.KaguyaMCPServer
+}
+
+var _ ent.Mutation = (*KaguyaMCPServerMutation)(nil)
+
+// kaguyamcpserverOption allows management of the mutation configuration using functional options.
+type kaguyamcpserverOption func(*KaguyaMCPServerMutation)
+
+// newKaguyaMCPServerMutation creates new mutation for the KaguyaMCPServer entity.
+func newKaguyaMCPServerMutation(c config, op Op, opts ...kaguyamcpserverOption) *KaguyaMCPServerMutation {
+	m := &KaguyaMCPServerMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKaguyaMCPServer,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKaguyaMCPServerID sets the ID field of the mutation.
+func withKaguyaMCPServerID(id string) kaguyamcpserverOption {
+	return func(m *KaguyaMCPServerMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KaguyaMCPServer
+		)
+		m.oldValue = func(ctx context.Context) (*KaguyaMCPServer, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KaguyaMCPServer.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKaguyaMCPServer sets the old KaguyaMCPServer of the mutation.
+func withKaguyaMCPServer(node *KaguyaMCPServer) kaguyamcpserverOption {
+	return func(m *KaguyaMCPServerMutation) {
+		m.oldValue = func(context.Context) (*KaguyaMCPServer, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KaguyaMCPServerMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KaguyaMCPServerMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of KaguyaMCPServer entities.
+func (m *KaguyaMCPServerMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KaguyaMCPServerMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KaguyaMCPServerMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KaguyaMCPServer.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KaguyaMCPServerMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KaguyaMCPServerMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KaguyaMCPServerMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KaguyaMCPServerMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KaguyaMCPServerMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KaguyaMCPServerMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *KaguyaMCPServerMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *KaguyaMCPServerMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *KaguyaMCPServerMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[kaguyamcpserver.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *KaguyaMCPServerMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyamcpserver.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *KaguyaMCPServerMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, kaguyamcpserver.FieldDeletedAt)
+}
+
+// SetName sets the "name" field.
+func (m *KaguyaMCPServerMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *KaguyaMCPServerMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *KaguyaMCPServerMutation) ResetName() {
+	m.name = nil
+}
+
+// SetTransport sets the "transport" field.
+func (m *KaguyaMCPServerMutation) SetTransport(k kaguyamcpserver.Transport) {
+	m.transport = &k
+}
+
+// Transport returns the value of the "transport" field in the mutation.
+func (m *KaguyaMCPServerMutation) Transport() (r kaguyamcpserver.Transport, exists bool) {
+	v := m.transport
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTransport returns the old "transport" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldTransport(ctx context.Context) (v kaguyamcpserver.Transport, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTransport is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTransport requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTransport: %w", err)
+	}
+	return oldValue.Transport, nil
+}
+
+// ResetTransport resets all changes to the "transport" field.
+func (m *KaguyaMCPServerMutation) ResetTransport() {
+	m.transport = nil
+}
+
+// SetCommand sets the "command" field.
+func (m *KaguyaMCPServerMutation) SetCommand(s string) {
+	m.command = &s
+}
+
+// Command returns the value of the "command" field in the mutation.
+func (m *KaguyaMCPServerMutation) Command() (r string, exists bool) {
+	v := m.command
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCommand returns the old "command" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldCommand(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCommand is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCommand requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCommand: %w", err)
+	}
+	return oldValue.Command, nil
+}
+
+// ResetCommand resets all changes to the "command" field.
+func (m *KaguyaMCPServerMutation) ResetCommand() {
+	m.command = nil
+}
+
+// SetArgs sets the "args" field.
+func (m *KaguyaMCPServerMutation) SetArgs(s []string) {
+	m.args = &s
+	m.appendargs = nil
+}
+
+// Args returns the value of the "args" field in the mutation.
+func (m *KaguyaMCPServerMutation) Args() (r []string, exists bool) {
+	v := m.args
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArgs returns the old "args" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldArgs(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArgs is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArgs requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArgs: %w", err)
+	}
+	return oldValue.Args, nil
+}
+
+// AppendArgs adds s to the "args" field.
+func (m *KaguyaMCPServerMutation) AppendArgs(s []string) {
+	m.appendargs = append(m.appendargs, s...)
+}
+
+// AppendedArgs returns the list of values that were appended to the "args" field in this mutation.
+func (m *KaguyaMCPServerMutation) AppendedArgs() ([]string, bool) {
+	if len(m.appendargs) == 0 {
+		return nil, false
+	}
+	return m.appendargs, true
+}
+
+// ResetArgs resets all changes to the "args" field.
+func (m *KaguyaMCPServerMutation) ResetArgs() {
+	m.args = nil
+	m.appendargs = nil
+}
+
+// SetEnv sets the "env" field.
+func (m *KaguyaMCPServerMutation) SetEnv(value map[string]string) {
+	m.env = &value
+}
+
+// Env returns the value of the "env" field in the mutation.
+func (m *KaguyaMCPServerMutation) Env() (r map[string]string, exists bool) {
+	v := m.env
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnv returns the old "env" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldEnv(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnv is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnv requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnv: %w", err)
+	}
+	return oldValue.Env, nil
+}
+
+// ResetEnv resets all changes to the "env" field.
+func (m *KaguyaMCPServerMutation) ResetEnv() {
+	m.env = nil
+}
+
+// SetWorkingDirectory sets the "working_directory" field.
+func (m *KaguyaMCPServerMutation) SetWorkingDirectory(s string) {
+	m.working_directory = &s
+}
+
+// WorkingDirectory returns the value of the "working_directory" field in the mutation.
+func (m *KaguyaMCPServerMutation) WorkingDirectory() (r string, exists bool) {
+	v := m.working_directory
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWorkingDirectory returns the old "working_directory" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldWorkingDirectory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWorkingDirectory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWorkingDirectory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWorkingDirectory: %w", err)
+	}
+	return oldValue.WorkingDirectory, nil
+}
+
+// ResetWorkingDirectory resets all changes to the "working_directory" field.
+func (m *KaguyaMCPServerMutation) ResetWorkingDirectory() {
+	m.working_directory = nil
+}
+
+// SetURL sets the "url" field.
+func (m *KaguyaMCPServerMutation) SetURL(s string) {
+	m.url = &s
+}
+
+// URL returns the value of the "url" field in the mutation.
+func (m *KaguyaMCPServerMutation) URL() (r string, exists bool) {
+	v := m.url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldURL returns the old "url" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldURL: %w", err)
+	}
+	return oldValue.URL, nil
+}
+
+// ResetURL resets all changes to the "url" field.
+func (m *KaguyaMCPServerMutation) ResetURL() {
+	m.url = nil
+}
+
+// SetHeaders sets the "headers" field.
+func (m *KaguyaMCPServerMutation) SetHeaders(value map[string]string) {
+	m.headers = &value
+}
+
+// Headers returns the value of the "headers" field in the mutation.
+func (m *KaguyaMCPServerMutation) Headers() (r map[string]string, exists bool) {
+	v := m.headers
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHeaders returns the old "headers" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldHeaders(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHeaders is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHeaders requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHeaders: %w", err)
+	}
+	return oldValue.Headers, nil
+}
+
+// ResetHeaders resets all changes to the "headers" field.
+func (m *KaguyaMCPServerMutation) ResetHeaders() {
+	m.headers = nil
+}
+
+// SetTimeoutSeconds sets the "timeout_seconds" field.
+func (m *KaguyaMCPServerMutation) SetTimeoutSeconds(i int) {
+	m.timeout_seconds = &i
+	m.addtimeout_seconds = nil
+}
+
+// TimeoutSeconds returns the value of the "timeout_seconds" field in the mutation.
+func (m *KaguyaMCPServerMutation) TimeoutSeconds() (r int, exists bool) {
+	v := m.timeout_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTimeoutSeconds returns the old "timeout_seconds" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldTimeoutSeconds(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTimeoutSeconds is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTimeoutSeconds requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTimeoutSeconds: %w", err)
+	}
+	return oldValue.TimeoutSeconds, nil
+}
+
+// AddTimeoutSeconds adds i to the "timeout_seconds" field.
+func (m *KaguyaMCPServerMutation) AddTimeoutSeconds(i int) {
+	if m.addtimeout_seconds != nil {
+		*m.addtimeout_seconds += i
+	} else {
+		m.addtimeout_seconds = &i
+	}
+}
+
+// AddedTimeoutSeconds returns the value that was added to the "timeout_seconds" field in this mutation.
+func (m *KaguyaMCPServerMutation) AddedTimeoutSeconds() (r int, exists bool) {
+	v := m.addtimeout_seconds
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTimeoutSeconds resets all changes to the "timeout_seconds" field.
+func (m *KaguyaMCPServerMutation) ResetTimeoutSeconds() {
+	m.timeout_seconds = nil
+	m.addtimeout_seconds = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *KaguyaMCPServerMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *KaguyaMCPServerMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *KaguyaMCPServerMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// Where appends a list predicates to the KaguyaMCPServerMutation builder.
+func (m *KaguyaMCPServerMutation) Where(ps ...predicate.KaguyaMCPServer) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KaguyaMCPServerMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KaguyaMCPServerMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KaguyaMCPServer, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KaguyaMCPServerMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KaguyaMCPServerMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KaguyaMCPServer).
+func (m *KaguyaMCPServerMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KaguyaMCPServerMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, kaguyamcpserver.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, kaguyamcpserver.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, kaguyamcpserver.FieldDeletedAt)
+	}
+	if m.name != nil {
+		fields = append(fields, kaguyamcpserver.FieldName)
+	}
+	if m.transport != nil {
+		fields = append(fields, kaguyamcpserver.FieldTransport)
+	}
+	if m.command != nil {
+		fields = append(fields, kaguyamcpserver.FieldCommand)
+	}
+	if m.args != nil {
+		fields = append(fields, kaguyamcpserver.FieldArgs)
+	}
+	if m.env != nil {
+		fields = append(fields, kaguyamcpserver.FieldEnv)
+	}
+	if m.working_directory != nil {
+		fields = append(fields, kaguyamcpserver.FieldWorkingDirectory)
+	}
+	if m.url != nil {
+		fields = append(fields, kaguyamcpserver.FieldURL)
+	}
+	if m.headers != nil {
+		fields = append(fields, kaguyamcpserver.FieldHeaders)
+	}
+	if m.timeout_seconds != nil {
+		fields = append(fields, kaguyamcpserver.FieldTimeoutSeconds)
+	}
+	if m.enabled != nil {
+		fields = append(fields, kaguyamcpserver.FieldEnabled)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KaguyaMCPServerMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyamcpserver.FieldCreatedAt:
+		return m.CreatedAt()
+	case kaguyamcpserver.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case kaguyamcpserver.FieldDeletedAt:
+		return m.DeletedAt()
+	case kaguyamcpserver.FieldName:
+		return m.Name()
+	case kaguyamcpserver.FieldTransport:
+		return m.Transport()
+	case kaguyamcpserver.FieldCommand:
+		return m.Command()
+	case kaguyamcpserver.FieldArgs:
+		return m.Args()
+	case kaguyamcpserver.FieldEnv:
+		return m.Env()
+	case kaguyamcpserver.FieldWorkingDirectory:
+		return m.WorkingDirectory()
+	case kaguyamcpserver.FieldURL:
+		return m.URL()
+	case kaguyamcpserver.FieldHeaders:
+		return m.Headers()
+	case kaguyamcpserver.FieldTimeoutSeconds:
+		return m.TimeoutSeconds()
+	case kaguyamcpserver.FieldEnabled:
+		return m.Enabled()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KaguyaMCPServerMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kaguyamcpserver.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kaguyamcpserver.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case kaguyamcpserver.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case kaguyamcpserver.FieldName:
+		return m.OldName(ctx)
+	case kaguyamcpserver.FieldTransport:
+		return m.OldTransport(ctx)
+	case kaguyamcpserver.FieldCommand:
+		return m.OldCommand(ctx)
+	case kaguyamcpserver.FieldArgs:
+		return m.OldArgs(ctx)
+	case kaguyamcpserver.FieldEnv:
+		return m.OldEnv(ctx)
+	case kaguyamcpserver.FieldWorkingDirectory:
+		return m.OldWorkingDirectory(ctx)
+	case kaguyamcpserver.FieldURL:
+		return m.OldURL(ctx)
+	case kaguyamcpserver.FieldHeaders:
+		return m.OldHeaders(ctx)
+	case kaguyamcpserver.FieldTimeoutSeconds:
+		return m.OldTimeoutSeconds(ctx)
+	case kaguyamcpserver.FieldEnabled:
+		return m.OldEnabled(ctx)
+	}
+	return nil, fmt.Errorf("unknown KaguyaMCPServer field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaMCPServerMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kaguyamcpserver.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kaguyamcpserver.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case kaguyamcpserver.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case kaguyamcpserver.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case kaguyamcpserver.FieldTransport:
+		v, ok := value.(kaguyamcpserver.Transport)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTransport(v)
+		return nil
+	case kaguyamcpserver.FieldCommand:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCommand(v)
+		return nil
+	case kaguyamcpserver.FieldArgs:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArgs(v)
+		return nil
+	case kaguyamcpserver.FieldEnv:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnv(v)
+		return nil
+	case kaguyamcpserver.FieldWorkingDirectory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWorkingDirectory(v)
+		return nil
+	case kaguyamcpserver.FieldURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetURL(v)
+		return nil
+	case kaguyamcpserver.FieldHeaders:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHeaders(v)
+		return nil
+	case kaguyamcpserver.FieldTimeoutSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTimeoutSeconds(v)
+		return nil
+	case kaguyamcpserver.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaMCPServer field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KaguyaMCPServerMutation) AddedFields() []string {
+	var fields []string
+	if m.addtimeout_seconds != nil {
+		fields = append(fields, kaguyamcpserver.FieldTimeoutSeconds)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KaguyaMCPServerMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyamcpserver.FieldTimeoutSeconds:
+		return m.AddedTimeoutSeconds()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaMCPServerMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case kaguyamcpserver.FieldTimeoutSeconds:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTimeoutSeconds(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaMCPServer numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KaguyaMCPServerMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kaguyamcpserver.FieldDeletedAt) {
+		fields = append(fields, kaguyamcpserver.FieldDeletedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KaguyaMCPServerMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KaguyaMCPServerMutation) ClearField(name string) error {
+	switch name {
+	case kaguyamcpserver.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaMCPServer nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KaguyaMCPServerMutation) ResetField(name string) error {
+	switch name {
+	case kaguyamcpserver.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kaguyamcpserver.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case kaguyamcpserver.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case kaguyamcpserver.FieldName:
+		m.ResetName()
+		return nil
+	case kaguyamcpserver.FieldTransport:
+		m.ResetTransport()
+		return nil
+	case kaguyamcpserver.FieldCommand:
+		m.ResetCommand()
+		return nil
+	case kaguyamcpserver.FieldArgs:
+		m.ResetArgs()
+		return nil
+	case kaguyamcpserver.FieldEnv:
+		m.ResetEnv()
+		return nil
+	case kaguyamcpserver.FieldWorkingDirectory:
+		m.ResetWorkingDirectory()
+		return nil
+	case kaguyamcpserver.FieldURL:
+		m.ResetURL()
+		return nil
+	case kaguyamcpserver.FieldHeaders:
+		m.ResetHeaders()
+		return nil
+	case kaguyamcpserver.FieldTimeoutSeconds:
+		m.ResetTimeoutSeconds()
+		return nil
+	case kaguyamcpserver.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaMCPServer field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KaguyaMCPServerMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KaguyaMCPServerMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KaguyaMCPServerMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KaguyaMCPServerMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KaguyaMCPServerMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KaguyaMCPServerMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KaguyaMCPServerMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown KaguyaMCPServer unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KaguyaMCPServerMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown KaguyaMCPServer edge %s", name)
 }
 
 // KaguyaModelsInfoMutation represents an operation that mutates the KaguyaModelsInfo nodes in the graph.

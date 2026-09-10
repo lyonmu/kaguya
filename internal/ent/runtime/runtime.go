@@ -10,6 +10,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
@@ -360,6 +361,112 @@ func init() {
 	// kaguyaconversation.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	kaguyaconversation.IDValidator = func() func(string) error {
 		validators := kaguyaconversationDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamcpserverMixin := schema.KaguyaMCPServer{}.Mixin()
+	kaguyamcpserverMixinHooks1 := kaguyamcpserverMixin[1].Hooks()
+	kaguyamcpserver.Hooks[0] = kaguyamcpserverMixinHooks1[0]
+	kaguyamcpserver.Hooks[1] = kaguyamcpserverMixinHooks1[1]
+	kaguyamcpserverMixinFields0 := kaguyamcpserverMixin[0].Fields()
+	_ = kaguyamcpserverMixinFields0
+	kaguyamcpserverMixinFields1 := kaguyamcpserverMixin[1].Fields()
+	_ = kaguyamcpserverMixinFields1
+	kaguyamcpserverFields := schema.KaguyaMCPServer{}.Fields()
+	_ = kaguyamcpserverFields
+	// kaguyamcpserverDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamcpserverDescCreatedAt := kaguyamcpserverMixinFields1[0].Descriptor()
+	// kaguyamcpserver.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamcpserver.DefaultCreatedAt = kaguyamcpserverDescCreatedAt.Default.(func() time.Time)
+	// kaguyamcpserverDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamcpserverDescUpdatedAt := kaguyamcpserverMixinFields1[1].Descriptor()
+	// kaguyamcpserver.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamcpserver.DefaultUpdatedAt = kaguyamcpserverDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamcpserver.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamcpserver.UpdateDefaultUpdatedAt = kaguyamcpserverDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamcpserverDescName is the schema descriptor for name field.
+	kaguyamcpserverDescName := kaguyamcpserverFields[0].Descriptor()
+	// kaguyamcpserver.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	kaguyamcpserver.NameValidator = func() func(string) error {
+		validators := kaguyamcpserverDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamcpserverDescCommand is the schema descriptor for command field.
+	kaguyamcpserverDescCommand := kaguyamcpserverFields[2].Descriptor()
+	// kaguyamcpserver.DefaultCommand holds the default value on creation for the command field.
+	kaguyamcpserver.DefaultCommand = kaguyamcpserverDescCommand.Default.(string)
+	// kaguyamcpserverDescArgs is the schema descriptor for args field.
+	kaguyamcpserverDescArgs := kaguyamcpserverFields[3].Descriptor()
+	// kaguyamcpserver.DefaultArgs holds the default value on creation for the args field.
+	kaguyamcpserver.DefaultArgs = kaguyamcpserverDescArgs.Default.([]string)
+	// kaguyamcpserverDescEnv is the schema descriptor for env field.
+	kaguyamcpserverDescEnv := kaguyamcpserverFields[4].Descriptor()
+	// kaguyamcpserver.DefaultEnv holds the default value on creation for the env field.
+	kaguyamcpserver.DefaultEnv = kaguyamcpserverDescEnv.Default.(map[string]string)
+	// kaguyamcpserverDescWorkingDirectory is the schema descriptor for working_directory field.
+	kaguyamcpserverDescWorkingDirectory := kaguyamcpserverFields[5].Descriptor()
+	// kaguyamcpserver.DefaultWorkingDirectory holds the default value on creation for the working_directory field.
+	kaguyamcpserver.DefaultWorkingDirectory = kaguyamcpserverDescWorkingDirectory.Default.(string)
+	// kaguyamcpserverDescURL is the schema descriptor for url field.
+	kaguyamcpserverDescURL := kaguyamcpserverFields[6].Descriptor()
+	// kaguyamcpserver.DefaultURL holds the default value on creation for the url field.
+	kaguyamcpserver.DefaultURL = kaguyamcpserverDescURL.Default.(string)
+	// kaguyamcpserverDescHeaders is the schema descriptor for headers field.
+	kaguyamcpserverDescHeaders := kaguyamcpserverFields[7].Descriptor()
+	// kaguyamcpserver.DefaultHeaders holds the default value on creation for the headers field.
+	kaguyamcpserver.DefaultHeaders = kaguyamcpserverDescHeaders.Default.(map[string]string)
+	// kaguyamcpserverDescTimeoutSeconds is the schema descriptor for timeout_seconds field.
+	kaguyamcpserverDescTimeoutSeconds := kaguyamcpserverFields[8].Descriptor()
+	// kaguyamcpserver.DefaultTimeoutSeconds holds the default value on creation for the timeout_seconds field.
+	kaguyamcpserver.DefaultTimeoutSeconds = kaguyamcpserverDescTimeoutSeconds.Default.(int)
+	// kaguyamcpserver.TimeoutSecondsValidator is a validator for the "timeout_seconds" field. It is called by the builders before save.
+	kaguyamcpserver.TimeoutSecondsValidator = func() func(int) error {
+		validators := kaguyamcpserverDescTimeoutSeconds.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(timeout_seconds int) error {
+			for _, fn := range fns {
+				if err := fn(timeout_seconds); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamcpserverDescEnabled is the schema descriptor for enabled field.
+	kaguyamcpserverDescEnabled := kaguyamcpserverFields[9].Descriptor()
+	// kaguyamcpserver.DefaultEnabled holds the default value on creation for the enabled field.
+	kaguyamcpserver.DefaultEnabled = kaguyamcpserverDescEnabled.Default.(bool)
+	// kaguyamcpserverDescID is the schema descriptor for id field.
+	kaguyamcpserverDescID := kaguyamcpserverMixinFields0[0].Descriptor()
+	// kaguyamcpserver.DefaultID holds the default value on creation for the id field.
+	kaguyamcpserver.DefaultID = kaguyamcpserverDescID.Default.(func() string)
+	// kaguyamcpserver.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamcpserver.IDValidator = func() func(string) error {
+		validators := kaguyamcpserverDescID.Validators
 		fns := [...]func(string) error{
 			validators[0].(func(string) error),
 			validators[1].(func(string) error),

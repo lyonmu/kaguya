@@ -11,7 +11,7 @@
 
 - 入口：`main.go`（Kong CLI）→ `internal/cmd/`（初始化）→ `internal/router/`、`internal/api/` → `internal/service/`。
 - 聊天编排、历史与标题生成在 `internal/service/agent/`；模型执行基于 `charm.land/fantasy`，位于 `internal/agent/runtime/`；配置与用量分析在 `internal/service/system/`。
-- `internal/agent/tools/` 提供 pi 风格的七个工具（无 PowerShell），项目聊天默认通过 `WithTools` 注册 `read/bash/edit/write`；普通对话与标题任务不注册主机工具。续聊目录必须来自数据库项目归属，不接受请求覆盖。`internal/agent/files/` 为未挂载的遗留只读工具，保留其限制。
+- `internal/agent/tools/` 提供 pi 风格的七个工具（无 PowerShell），项目聊天默认通过 `WithTools` 注册 `read/bash/edit/write`；普通对话与标题任务不注册主机工具。续聊目录必须来自数据库项目归属，不接受请求覆盖。
 - 文件工具用 `os.Root` 限制工作区；bash 以服务进程权限运行，工作目录不是沙箱。工具副作用立即生效，不随对话取消或数据库回滚而撤销。保持取消/超时终止进程组、输出截断和同文件修改串行；日志不要记录原始命令或文件内容。
 - 启动参数来自 CLI／环境变量，主程序不加载 `config.yml`；提供商、模型和系统提示词保存在数据库中。
 - `internal/global` 和 `internal/db` 使用包级状态。测试沿用已有初始化与清理模式，插入依赖生成 ID 的记录前必须初始化 `global.Id`，避免并行测试污染共享状态。

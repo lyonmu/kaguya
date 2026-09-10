@@ -2,17 +2,23 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	pkgid "github.com/lyonmu/gopkg/id"
+	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
 	initialize "github.com/lyonmu/kaguya/internal/init"
 	"github.com/lyonmu/kaguya/internal/router"
+	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 	"github.com/lyonmu/kaguya/pkg"
 	"go.uber.org/zap"
 )
@@ -111,6 +117,16 @@ func Run() {
 		os.Exit(1)
 	}
 
+	mcpCtx, cancelMCP := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	restoreDone := make(chan struct{})
+	defer func() { cancelMCP(); <-restoreDone; agentmcp.Default.Close() }()
+	go func() {
+		defer close(restoreDone)
+		if err := (&servicesystem.SystemSvc{}).RestoreMCP(mcpCtx); err != nil && mcpCtx.Err() == nil {
+			global.Logger.Error("restore MCP configuration failed")
+		}
+	}()
+
 	global.Metrics = pkg.NewPrometheusRegistry()
 	global.Logger.Info("start init register gin engine")
 	ginEngine, err := pkg.NewGin(global.Metrics, global.Cfg.Debug)
@@ -127,6 +143,23 @@ func Run() {
 
 	router.InitRouter(ginEngine)
 
-	global.Logger.Sugar().Infof("kaguya is running on port :%d", global.Cfg.Port)
-	ginEngine.Run(fmt.Sprintf(":%d", global.Cfg.Port))
+	address := global.Cfg.ListenAddress()
+	global.Logger.Sugar().Infof("kaguya is listening on %s", address)
+	server := &http.Server{Addr: address, Handler: ginEngine}
+	serverDone := make(chan error, 1)
+	go func() { serverDone <- server.ListenAndServe() }()
+	select {
+	case <-mcpCtx.Done():
+		<-restoreDone
+		agentmcp.Default.Close()
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelShutdown()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			_ = server.Close()
+		}
+	case err := <-serverDone:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			global.Logger.Error("HTTP server failed", zap.Error(err))
+		}
+	}
 }

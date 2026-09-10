@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
+	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 
 	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
 	token "github.com/lyonmu/kaguya/internal/agent/token"
@@ -15,7 +17,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
-	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 
 // send 向 dataChan 推送一条消息；客户端已断开（ctx 取消）或 channel 已关闭时返回 false。
@@ -106,6 +107,8 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		prompt += "\n\n" + toolset.SystemPrompt()
 	}
 
+	tools = append(tools, agentmcp.Default.Tools()...)
+
 	// 组装 Agent（每次请求新建）
 	providerCfg := agentruntime.ProviderConfig{
 		Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(provider.APIProtocol),
@@ -154,7 +157,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	// 流式内容已发送后不能透明重试，否则失败尝试会混入同一轮展示/历史。
 	maxRetries := 0
 	call.MaxRetries = &maxRetries
-	if toolset != nil {
+	if len(tools) > 0 {
 		call.StopWhen = []fantasy.StopCondition{fantasy.StepCountIs(64)}
 	}
 	trace := newTurnTrace()

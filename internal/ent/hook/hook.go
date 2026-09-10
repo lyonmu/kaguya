@@ -57,6 +57,18 @@ func (f KaguyaConversationFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaConversationMutation", m)
 }
 
+// The KaguyaMCPServerFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMCPServer mutator.
+type KaguyaMCPServerFunc func(context.Context, *ent.KaguyaMCPServerMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMCPServerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMCPServerMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMCPServerMutation", m)
+}
+
 // The KaguyaModelsInfoFunc type is an adapter to allow the use of ordinary
 // function as KaguyaModelsInfo mutator.
 type KaguyaModelsInfoFunc func(context.Context, *ent.KaguyaModelsInfoMutation) (ent.Value, error)

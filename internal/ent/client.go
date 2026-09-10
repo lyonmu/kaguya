@@ -19,6 +19,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
@@ -40,6 +41,8 @@ type Client struct {
 	KaguyaChatTurn *KaguyaChatTurnClient
 	// KaguyaConversation is the client for interacting with the KaguyaConversation builders.
 	KaguyaConversation *KaguyaConversationClient
+	// KaguyaMCPServer is the client for interacting with the KaguyaMCPServer builders.
+	KaguyaMCPServer *KaguyaMCPServerClient
 	// KaguyaModelsInfo is the client for interacting with the KaguyaModelsInfo builders.
 	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProject is the client for interacting with the KaguyaProject builders.
@@ -63,6 +66,7 @@ func (c *Client) init() {
 	c.KaguyaChatBlock = NewKaguyaChatBlockClient(c.config)
 	c.KaguyaChatTurn = NewKaguyaChatTurnClient(c.config)
 	c.KaguyaConversation = NewKaguyaConversationClient(c.config)
+	c.KaguyaMCPServer = NewKaguyaMCPServerClient(c.config)
 	c.KaguyaModelsInfo = NewKaguyaModelsInfoClient(c.config)
 	c.KaguyaProject = NewKaguyaProjectClient(c.config)
 	c.KaguyaProviderInfo = NewKaguyaProviderInfoClient(c.config)
@@ -163,6 +167,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KaguyaChatBlock:    NewKaguyaChatBlockClient(cfg),
 		KaguyaChatTurn:     NewKaguyaChatTurnClient(cfg),
 		KaguyaConversation: NewKaguyaConversationClient(cfg),
+		KaguyaMCPServer:    NewKaguyaMCPServerClient(cfg),
 		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProject:      NewKaguyaProjectClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
@@ -190,6 +195,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KaguyaChatBlock:    NewKaguyaChatBlockClient(cfg),
 		KaguyaChatTurn:     NewKaguyaChatTurnClient(cfg),
 		KaguyaConversation: NewKaguyaConversationClient(cfg),
+		KaguyaMCPServer:    NewKaguyaMCPServerClient(cfg),
 		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
 		KaguyaProject:      NewKaguyaProjectClient(cfg),
 		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
@@ -224,7 +230,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.KaguyaAccessLog, c.KaguyaChatBlock, c.KaguyaChatTurn, c.KaguyaConversation,
-		c.KaguyaModelsInfo, c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
+		c.KaguyaMCPServer, c.KaguyaModelsInfo, c.KaguyaProject, c.KaguyaProviderInfo,
+		c.KaguyaSystemInfo,
 	} {
 		n.Use(hooks...)
 	}
@@ -235,7 +242,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.KaguyaAccessLog, c.KaguyaChatBlock, c.KaguyaChatTurn, c.KaguyaConversation,
-		c.KaguyaModelsInfo, c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
+		c.KaguyaMCPServer, c.KaguyaModelsInfo, c.KaguyaProject, c.KaguyaProviderInfo,
+		c.KaguyaSystemInfo,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -252,6 +260,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KaguyaChatTurn.mutate(ctx, m)
 	case *KaguyaConversationMutation:
 		return c.KaguyaConversation.mutate(ctx, m)
+	case *KaguyaMCPServerMutation:
+		return c.KaguyaMCPServer.mutate(ctx, m)
 	case *KaguyaModelsInfoMutation:
 		return c.KaguyaModelsInfo.mutate(ctx, m)
 	case *KaguyaProjectMutation:
@@ -881,6 +891,140 @@ func (c *KaguyaConversationClient) mutate(ctx context.Context, m *KaguyaConversa
 	}
 }
 
+// KaguyaMCPServerClient is a client for the KaguyaMCPServer schema.
+type KaguyaMCPServerClient struct {
+	config
+}
+
+// NewKaguyaMCPServerClient returns a client for the KaguyaMCPServer from the given config.
+func NewKaguyaMCPServerClient(c config) *KaguyaMCPServerClient {
+	return &KaguyaMCPServerClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamcpserver.Hooks(f(g(h())))`.
+func (c *KaguyaMCPServerClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMCPServer = append(c.hooks.KaguyaMCPServer, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamcpserver.Intercept(f(g(h())))`.
+func (c *KaguyaMCPServerClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMCPServer = append(c.inters.KaguyaMCPServer, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMCPServer entity.
+func (c *KaguyaMCPServerClient) Create() *KaguyaMCPServerCreate {
+	mutation := newKaguyaMCPServerMutation(c.config, OpCreate)
+	return &KaguyaMCPServerCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMCPServer entities.
+func (c *KaguyaMCPServerClient) CreateBulk(builders ...*KaguyaMCPServerCreate) *KaguyaMCPServerCreateBulk {
+	return &KaguyaMCPServerCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMCPServerClient) MapCreateBulk(slice any, setFunc func(*KaguyaMCPServerCreate, int)) *KaguyaMCPServerCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMCPServerCreateBulk{err: fmt.Errorf("calling to KaguyaMCPServerClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMCPServerCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMCPServerCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMCPServer.
+func (c *KaguyaMCPServerClient) Update() *KaguyaMCPServerUpdate {
+	mutation := newKaguyaMCPServerMutation(c.config, OpUpdate)
+	return &KaguyaMCPServerUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMCPServerClient) UpdateOne(_m *KaguyaMCPServer) *KaguyaMCPServerUpdateOne {
+	mutation := newKaguyaMCPServerMutation(c.config, OpUpdateOne, withKaguyaMCPServer(_m))
+	return &KaguyaMCPServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMCPServerClient) UpdateOneID(id string) *KaguyaMCPServerUpdateOne {
+	mutation := newKaguyaMCPServerMutation(c.config, OpUpdateOne, withKaguyaMCPServerID(id))
+	return &KaguyaMCPServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMCPServer.
+func (c *KaguyaMCPServerClient) Delete() *KaguyaMCPServerDelete {
+	mutation := newKaguyaMCPServerMutation(c.config, OpDelete)
+	return &KaguyaMCPServerDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMCPServerClient) DeleteOne(_m *KaguyaMCPServer) *KaguyaMCPServerDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMCPServerClient) DeleteOneID(id string) *KaguyaMCPServerDeleteOne {
+	builder := c.Delete().Where(kaguyamcpserver.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMCPServerDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMCPServer.
+func (c *KaguyaMCPServerClient) Query() *KaguyaMCPServerQuery {
+	return &KaguyaMCPServerQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMCPServer},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMCPServer entity by its id.
+func (c *KaguyaMCPServerClient) Get(ctx context.Context, id string) (*KaguyaMCPServer, error) {
+	return c.Query().Where(kaguyamcpserver.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMCPServerClient) GetX(ctx context.Context, id string) *KaguyaMCPServer {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMCPServerClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMCPServer
+	return append(hooks[:len(hooks):len(hooks)], kaguyamcpserver.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMCPServerClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMCPServer
+}
+
+func (c *KaguyaMCPServerClient) mutate(ctx context.Context, m *KaguyaMCPServerMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMCPServerCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMCPServerUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMCPServerUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMCPServerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMCPServer mutation op: %q", m.Op())
+	}
+}
+
 // KaguyaModelsInfoClient is a client for the KaguyaModelsInfo schema.
 type KaguyaModelsInfoClient struct {
 	config
@@ -1469,12 +1613,12 @@ func (c *KaguyaSystemInfoClient) mutate(ctx context.Context, m *KaguyaSystemInfo
 type (
 	hooks struct {
 		KaguyaAccessLog, KaguyaChatBlock, KaguyaChatTurn, KaguyaConversation,
-		KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
+		KaguyaMCPServer, KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
 		KaguyaSystemInfo []ent.Hook
 	}
 	inters struct {
 		KaguyaAccessLog, KaguyaChatBlock, KaguyaChatTurn, KaguyaConversation,
-		KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
+		KaguyaMCPServer, KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
 		KaguyaSystemInfo []ent.Interceptor
 	}
 )

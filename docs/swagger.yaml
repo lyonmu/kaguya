@@ -397,6 +397,17 @@ definitions:
         example: success
         type: string
     type: object
+  mcp.Status:
+    properties:
+      message:
+        type: string
+      state:
+        type: string
+      tools:
+        items:
+          type: string
+        type: array
+    type: object
   project.Directory:
     properties:
       name:
@@ -541,6 +552,112 @@ definitions:
         type: string
     required:
     - user_agent
+    type: object
+  system.SystemMCPListResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/system.SystemMCPResp'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  system.SystemMCPResp:
+    properties:
+      args:
+        items:
+          type: string
+        type: array
+      command:
+        type: string
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      id:
+        type: string
+      name:
+        maxLength: 100
+        type: string
+      status:
+        $ref: '#/definitions/mcp.Status'
+      timeout_seconds:
+        maximum: 600
+        minimum: 1
+        type: integer
+      transport:
+        enum:
+        - stdio
+        - streamable-http
+        - sse
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+      working_directory:
+        type: string
+    required:
+    - name
+    - timeout_seconds
+    - transport
+    type: object
+  system.SystemMCPSaveReq:
+    properties:
+      args:
+        items:
+          type: string
+        type: array
+      command:
+        type: string
+      env:
+        additionalProperties:
+          type: string
+        type: object
+      headers:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        maxLength: 100
+        type: string
+      timeout_seconds:
+        maximum: 600
+        minimum: 1
+        type: integer
+      transport:
+        enum:
+        - stdio
+        - streamable-http
+        - sse
+        type: string
+      url:
+        type: string
+      working_directory:
+        type: string
+    required:
+    - name
+    - timeout_seconds
+    - transport
+    type: object
+  system.SystemMCPStateReq:
+    properties:
+      enabled:
+        type: boolean
+    required:
+    - enabled
     type: object
   system.SystemModelLabelResp:
     properties:
@@ -1298,6 +1415,145 @@ paths:
       summary: 保存全局系统配置
       tags:
       - System Info
+  /v1/system/mcp:
+    post:
+      parameters:
+      - description: MCP 配置
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemMCPSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemMCPResp'
+              type: object
+      summary: 创建 MCP 配置（默认停用）
+      tags:
+      - System MCP
+  /v1/system/mcp/{id}:
+    delete:
+      parameters:
+      - description: MCP ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+      summary: 删除 MCP 配置并关闭连接
+      tags:
+      - System MCP
+    get:
+      parameters:
+      - description: MCP ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemMCPResp'
+              type: object
+      summary: 查询 MCP 配置详情
+      tags:
+      - System MCP
+    put:
+      parameters:
+      - description: MCP ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: MCP 配置
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemMCPSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemMCPResp'
+              type: object
+      summary: 修改 MCP 配置，已启用的服务自动替换连接
+      tags:
+      - System MCP
+  /v1/system/mcp/{id}/state:
+    put:
+      parameters:
+      - description: MCP ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 启用状态
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemMCPStateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemMCPResp'
+              type: object
+      summary: 动态启停 MCP 服务；启用异常服务时重新连接
+      tags:
+      - System MCP
+  /v1/system/mcp/page:
+    get:
+      parameters:
+      - in: query
+        name: name
+        type: string
+      - in: query
+        minimum: 1
+        name: page
+        type: integer
+      - in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemMCPListResp'
+              type: object
+      summary: 分页查询 MCP 配置与运行状态（不包含环境变量和请求头）
+      tags:
+      - System MCP
   /v1/system/model:
     post:
       parameters:

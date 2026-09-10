@@ -9,7 +9,7 @@ import (
 )
 
 // Info 原子地创建缺失的系统配置，多实例同时启动也不会覆盖已有值。
-// system_prompt 是追加提示词，初始留空；基础人设由聊天请求另行拼接。
+// system_prompt 是追加提示词，初始设置默认中文交流；基础人设由聊天请求另行拼接。
 // 不初始化模型选择，也不读取旧模型标记。
 func Info(ctx context.Context, client *ent.Client) error {
 	return client.KaguyaSystemInfo.Create().

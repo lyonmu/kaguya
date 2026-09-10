@@ -22,6 +22,7 @@
 | 流式对话 | 通过 SSE 接收回答，查看 Markdown 与提供商返回的思考内容，停止生成，为请求选择模型；同时提供 WebSocket API。 |
 | 对话管理 | 继续已保存的对话，按标题前缀搜索，重命名和删除对话，按项目组织对话，分页浏览历史并查看轮次摘要。 |
 | 提供商与模型 | 在界面中管理提供商及其模型，配置完整请求 URL、API Key、协议类型和模型元数据。 |
+| MCP 管理 | 在 AI 配置页面管理 MCP 服务，支持 stdio、Streamable HTTP 和 SSE，动态启停并将工具接入聊天。 |
 | 系统配置 | 分别选择默认对话模型和后台任务模型，追加自定义系统提示词，配置上游请求的 `User-Agent`；保存后新请求立即生效，无需重启。 |
 | Token 用量分析 | 查看累计用量、日峰值、活跃会话、活动热力图，以及按模型或提供商划分的 Token 构成。 |
 | 部署与开发 | 原生单二进制运行，使用 SQLCipher 加密 SQLite 并启用 WAL，无需 Docker 或数据库服务，提供 Swagger 与 Prometheus 端点。 |
@@ -57,6 +58,16 @@
 请将示例域名替换为提供商的实际端点。**请求 URL 必须包含完整端点路径**：Kaguya 原样使用配置，不会自动追加 `/chat/completions`、`/responses` 或 `/messages`。提供商类型包含标准（`normal`）和 OpenCode Go（`opencode-go`），后者会附加 OpenCode 会话请求头。
 
 每个模型包含显示名称、上游模型标识，以及推理等级、上下文窗口、最大输出 Token、Tool/Vision/JSON 能力等元数据。这些字段用于描述模型，本身不会启用附件、注册工具，也不保证每项参数都会传递给上游 API。聊天 API 选择模型时使用的是 **本地模型记录 ID**，不是上游模型标识。
+
+### MCP 管理
+
+在 **系统管理 → AI 配置 → MCP 管理** 中新增、查询、编辑和删除服务，使用开关动态启停。配置存入 `kaguya_mcp_server` 表，启动时自动建表并恢复已启用服务；连接失败会显示异常状态，可手动重试。
+
+- 支持 `stdio`（可执行文件、JSON 参数数组、环境变量和绝对工作目录）、`streamable-http` 和旧版 `sse`（URL 与 HTTP 请求头）。认证可通过 `Authorization` 等请求头配置；暂不提供 OAuth 登录流程。
+- 新配置默认停用。启用时先连接并发现工具；运行中编辑会先验证新连接，成功后保存并替换，失败保留原配置。停用或删除会关闭连接，并取消正在执行的 MCP 请求。
+- 启用工具对所有聊天生效，从下一轮请求注入；标题任务不使用 MCP。工具名称带唯一前缀，避免不同服务和内置工具重名。停用后，已有聊天轮次也不能继续调用旧连接；远端已产生的副作用不会撤销。
+- 本地进程以 Kaguya 服务权限运行，继承服务环境，不读取交互式 shell 配置；工作目录不是沙箱。工具调用超时可设为 1–600 秒，连接与工具发现最多 15 秒，工具输出最多 64 KiB，每个服务最多 256 个工具。
+- 当前接入 MCP tools；不加载 prompts/resources。复杂根级 schema（例如根级 `$ref`、`$defs` 或组合约束）暂不支持，发现时会明确报错。凭据随配置存储，列表不返回环境变量或请求头，编辑详情可读取原值。
 
 ### 3. 系统配置
 
@@ -105,8 +116,11 @@ CGO_ENABLED=1 make build
 | `--db.kind` | `DB_KIND` | `sqlite`（当前唯一启用的启动后端） |
 | `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
 | `--db.key-file` | `DB_KEY_FILE` | 未设置时初始化／使用 `~/.kaguya/kaguya.key`；显式路径必须已存在 |
+| `--host` | — | `127.0.0.1` |
 | `--port` | — | `9024` |
 | `--router-prefix` | — | `/kaguya/api` |
+
+服务默认绑定 `127.0.0.1:9024`，仅允许本机连接。需要远程访问时，显式运行 `./target/kaguya --host=0.0.0.0`；IPv6 本机访问可使用 `--host=::1`。`--host` 只接受 IP 地址，空值或无效地址会被拒绝。
 
 ```sh
 ./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
@@ -128,7 +142,7 @@ DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
 
 打开 [http://localhost:9024](http://localhost:9024)，添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
 
-知识库与语义检索计划后续通过外部 MCP 集成，不再要求本地 pgvector 服务。本次存储调整不实现 MCP 接入、长期记忆、Embedding 或 FTS5 搜索。
+知识库与语义检索可通过自行配置的外部 MCP 工具提供，不要求本地 pgvector 服务。应用不内置知识库、长期记忆、Embedding 或 FTS5 搜索。
 
 ### 遗留 Docker/PostgreSQL 参考（已禁用）
 
@@ -172,7 +186,7 @@ PostgreSQL 数据通过 Compose 的绑定挂载 `${PWD}/pgvector:/var/lib/postgr
 
 ### 3. 配置首次对话
 
-打开 [http://localhost:9024](http://localhost:9024)，或使用部署宿主机的地址。首次聊天前：
+在部署宿主机上打开 [http://localhost:9024](http://localhost:9024)。远程访问需要显式设置 `--host=0.0.0.0`。首次聊天前：
 
 1. 进入 **AI 提供商**，填写协议、完整请求 URL 和 API Key，新增提供商。
 2. 使用提供商的上游模型标识，添加至少一个模型。
@@ -238,7 +252,6 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 | `internal/router/`、`internal/api/` | HTTP 路由与请求响应处理 |
 | `internal/service/agent/` | 流式对话、历史持久化、上下文和标题生成 |
 | `internal/agent/runtime/`、`internal/agent/token/` | 模型适配、执行与用量记录抽象 |
-| `internal/agent/files/` | 遗留 workspace 只读工具，未注册到聊天 |
 | `internal/agent/tools/` | pi 风格的七个工具、目录边界、输出截断、文件修改与命令执行 |
 | `internal/service/system/` | 提供商／模型管理、系统配置与用量分析 |
 | `internal/ent/schema/` | 手写数据库 schema，其余 Ent 文件由工具生成 |
@@ -282,6 +295,10 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 | `GET /kaguya/api/v1/project/directories` | 浏览服务端运行用户主目录内的文件夹 |
 | `POST /kaguya/api/v1/project` | 创建项目 |
 | `GET / PUT / DELETE /kaguya/api/v1/project/:id` | 项目详情、更新与删除 |
+| `GET /kaguya/api/v1/system/mcp/page` | MCP 分页列表与运行状态 |
+| `POST /kaguya/api/v1/system/mcp` | 创建 MCP 配置（默认停用） |
+| `GET / PUT / DELETE /kaguya/api/v1/system/mcp/:id` | MCP 详情、修改、删除 |
+| `PUT /kaguya/api/v1/system/mcp/:id/state` | 动态启停，请求体为 `{"enabled": true/false}` |
 | `GET /kaguya/api/v1/system/provider/page` | 查询提供商列表 |
 | `GET /kaguya/api/v1/system/model/page` | 查询模型列表 |
 | `GET /kaguya/api/v1/system/usage` | Token 用量分析 |

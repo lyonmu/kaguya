@@ -38,7 +38,11 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if row.UserAgent != consts.DefaultUserAgent || row.SystemPrompt != "" || row.DefaultModelID != "" || row.TaskModelID != "" {
+	const wantSystemPrompt = "## Language\n\n* Communicate with the user in Chinese by default."
+	if row.SystemPrompt != wantSystemPrompt {
+		t.Fatalf("system prompt=%q, want %q", row.SystemPrompt, wantSystemPrompt)
+	}
+	if row.UserAgent != consts.DefaultUserAgent || row.DefaultModelID != "" || row.TaskModelID != "" {
 		t.Fatalf("defaults=%+v", row)
 	}
 	before, err := client.KaguyaSystemInfo.UpdateOne(row).SetUserAgent("custom/1").SetSystemPrompt("custom prompt").SetDefaultModelID("saved-default").SetTaskModelID("saved-task").Save(ctx)
