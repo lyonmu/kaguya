@@ -113,7 +113,7 @@ func (s *ProjectSvc) Directories(ctx context.Context, path string) (*dto.Directo
 			return nil, err
 		}
 		// Do not offer symlinks: folder navigation cannot escape through a link.
-		if entry.IsDir() {
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") {
 			resp.Items = append(resp.Items, dto.Directory{Name: entry.Name(), Path: filepath.Join(path, entry.Name())})
 		}
 	}

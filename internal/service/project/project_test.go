@@ -25,6 +25,11 @@ func TestDirectoryBoundary(t *testing.T) {
 	if err := os.Mkdir(child, 0700); err != nil {
 		t.Fatal(err)
 	}
+	for _, hidden := range []string{filepath.Join(home, ".config"), filepath.Join(home, ".git"), filepath.Join(child, ".cache")} {
+		if err := os.Mkdir(hidden, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := os.WriteFile(filepath.Join(home, "file"), []byte("secret"), 0600); err != nil {
 		t.Fatal(err)
 	}
