@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Input, Tooltip } from 'antd'
+import { Alert, Button, Tooltip } from 'antd'
 import { ModelCascader } from '../../providers/ModelCascader'
 import { fetchModelLabels } from '../../providers/api'
 import type { ModelLabelOption } from '../../providers/types'
 import { FileTextOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
-import type { TextAreaRef } from 'antd/es/input/TextArea'
+import { ComposerPrimitive, useAui } from '@assistant-ui/react'
 import { activeMention, mentionToken, referencedFiles } from '../mentions'
 import { searchProjectFiles } from '../api'
 import { ContextProgress } from './ContextProgress'
@@ -19,12 +19,12 @@ interface Props {
   onChange: (value: string) => void
   streaming: boolean
   disabled: boolean
-  onSend: () => void
-  onStop: () => void
 }
 
-export function Composer({ projectId, conversationId, turnCount, modelId, onModelChange, value, onChange, streaming, disabled, onSend, onStop }: Props) {
-  const input = useRef<TextAreaRef>(null)
+export function Composer({ projectId, conversationId, turnCount, modelId, onModelChange, value, onChange, streaming, disabled }: Props) {
+  const runtime = useAui()
+  useEffect(() => { runtime.composer.setText(value) }, [runtime, value])
+  const input = useRef<HTMLTextAreaElement>(null)
   const [caret, setCaret] = useState(0)
   const [dismissed, setDismissed] = useState(false)
   const [files, setFiles] = useState<string[]>([])
@@ -56,7 +56,7 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
     onChange(value.slice(0, mention.start) + token + value.slice(mention.end))
     setDismissed(true)
     requestAnimationFrame(() => {
-      const textarea = input.current?.resizableTextArea?.textArea
+      const textarea = input.current
       textarea?.focus()
       textarea?.setSelectionRange(mention.start + token.length, mention.start + token.length)
       setCaret(mention.start + token.length)
@@ -79,7 +79,7 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
   }, [revision])
   return (
     <div className="chat-composer-shell">
-      <div className="chat-composer">
+      <ComposerPrimitive.Root className="chat-composer" onSubmit={event => { if (disabled || streaming || references.length > 8) event.preventDefault() }}>
         {error && <Alert type="error" title={error} action={<Button size="small" onClick={() => setRevision(value => value + 1)}>重试</Button>} />}
         {mention && <div className="chat-mention-popover">
           <div className="chat-mention-heading"><span>引用项目文件</span><span>↑↓ 选择 · Enter 插入 · Esc 关闭</span></div>
@@ -88,7 +88,7 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
           </div>}
           {truncated && !filesLoading && <div className="chat-mention-footer">结果已限制，请输入更具体的路径</div>}
         </div>}
-        <Input.TextArea
+        <ComposerPrimitive.Input
           ref={input}
           aria-controls={mention ? 'project-file-mentions' : undefined}
           aria-expanded={!!mention}
@@ -100,8 +100,11 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
           onChange={event => { onChange(event.target.value); setCaret(event.target.selectionStart); setDismissed(false) }}
           onSelect={event => setCaret(event.currentTarget.selectionStart)}
           onBlur={() => setDismissed(true)}
-          autoSize={{ minRows: 2, maxRows: 7 }}
-          variant="borderless"
+          minRows={2}
+          maxRows={7}
+          disabled={disabled}
+          submitMode="none"
+          cancelOnEscape={false}
           onKeyDown={event => {
             if (event.nativeEvent.isComposing) return
             if (mention) {
@@ -115,10 +118,10 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
               }
               if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (files[selected]) chooseFile(files[selected]); return }
             }
-            if (references.length > 8) return
+            if (references.length > 8 || disabled || streaming) return
             if (event.key === 'Enter'  && !event.shiftKey && !event.nativeEvent.isComposing) {
               event.preventDefault()
-              onSend()
+              runtime.composer.send()
             }
           }}
         />
@@ -138,15 +141,15 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
           <div className="chat-composer-actions">
           <ContextProgress conversationId={conversationId} turnCount={turnCount} />
           {streaming ? (
-            <Button danger icon={<StopOutlined />} onClick={onStop}>停止</Button>
+            <ComposerPrimitive.Cancel className="chat-stop"><StopOutlined /> 停止</ComposerPrimitive.Cancel>
           ) : (
             <Tooltip title="Enter 发送，Shift + Enter 换行。AI 内容可能有误，请核实重要信息。">
-              <span><Button type="primary" aria-label="发送消息" icon={<SendOutlined />} disabled={!value.trim() || disabled || references.length > 8} onClick={onSend} /></span>
+              <span><ComposerPrimitive.Send className="chat-send" aria-label="发送消息" disabled={!value.trim() || disabled || references.length > 8}><SendOutlined /></ComposerPrimitive.Send></span>
             </Tooltip>
           )}
           </div>
         </div>
-      </div>
+      </ComposerPrimitive.Root>
     </div>
   )
 }

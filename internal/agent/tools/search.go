@@ -18,32 +18,32 @@ import (
 )
 
 type LsInput struct {
-	Path  string `json:"path,omitempty"`
-	Limit *int   `json:"limit,omitempty" description:"Maximum entries; default 500."`
+	Path  string `json:"path,omitempty" description:"Directory inside the project. Omit for the project root; not a glob."`
+	Limit *int   `json:"limit,omitempty" description:"Maximum entries, 1-100000; omit for 500."`
 }
 type FindInput struct {
 	Pattern string `json:"pattern" description:"Glob pattern, e.g. *.go or src/**/*.ts."`
-	Path    string `json:"path,omitempty"`
-	Limit   *int   `json:"limit,omitempty" description:"Maximum results; default 1000."`
+	Path    string `json:"path,omitempty" description:"Search directory inside the project; omit for the project root."`
+	Limit   *int   `json:"limit,omitempty" description:"Maximum results, 1-100000; omit for 1000."`
 }
 type GrepInput struct {
 	Pattern    string `json:"pattern" description:"Regex or literal search pattern."`
-	Path       string `json:"path,omitempty"`
-	Glob       string `json:"glob,omitempty"`
-	IgnoreCase bool   `json:"ignoreCase,omitempty"`
-	Literal    bool   `json:"literal,omitempty"`
-	Context    int    `json:"context,omitempty" description:"Lines before/after each match; default 0."`
-	Limit      *int   `json:"limit,omitempty" description:"Maximum matches; default 100."`
+	Path       string `json:"path,omitempty" description:"Existing file or search directory inside the project; omit for the project root."`
+	Glob       string `json:"glob,omitempty" description:"Optional file filter, e.g. *.go. Put the content query in pattern, not here."`
+	IgnoreCase bool   `json:"ignoreCase,omitempty" description:"Case-insensitive content matching; defaults to false."`
+	Literal    bool   `json:"literal,omitempty" description:"Use true for exact text, false for regex. Default false."`
+	Context    int    `json:"context,omitempty" description:"Integer number of surrounding lines on each side, 0-1000; omit for 0."`
+	Limit      *int   `json:"limit,omitempty" description:"Maximum matches, 1-100000; omit for 100."`
 }
 
 func (s *Set) LsTool() fantasy.AgentTool {
-	return tool(s, "ls", "List directory entries including dotfiles, sorted alphabetically with / for directories. Default 500 entries or 50KB.", s.ls)
+	return tool(s, "ls", `List direct children of one directory, including dotfiles, sorted with / on directory names. This does not read files or recurse; use find for recursive path discovery. Returns at most limit entries or 50KB, default 500. Example: {"path":"src","limit":100}. Omit path for the project root.`, s.ls)
 }
 func (s *Set) FindTool() fantasy.AgentTool {
-	return tool(s, "find", "Find paths by glob using fd. Respects .gitignore and includes hidden files. Default 1000 results or 50KB. Requires fd on the host.", s.find)
+	return tool(s, "find", `Find project paths recursively by glob; does not search file contents. pattern is a glob, not regex or a shell command. path is the search directory; default project root. Uses host fd, respects .gitignore and includes hidden files. Returns at most limit paths or 50KB, default 1000. Example: {"pattern":"*.go","path":"src","limit":100}.`, s.find)
 }
 func (s *Set) GrepTool() fantasy.AgentTool {
-	return tool(s, "grep", "Search file contents using ripgrep. Returns relative paths and line numbers; respects .gitignore and includes hidden files. Default 100 matches or 50KB; matching lines are limited to 500 characters. Requires rg on the host.", s.grep)
+	return tool(s, "grep", `Search file contents with host ripgrep. pattern is regex by default; set literal:true to search exact text containing regex punctuation. path selects a file/directory; glob filters filenames. Returns paths and line numbers, at most limit matches or 50KB (default 100); long matching lines are truncated to 500 characters. Respects .gitignore and includes hidden files. Example: {"pattern":"func main(","literal":true,"glob":"*.go","context":2,"limit":20}.`, s.grep)
 }
 func effectiveLimit(value *int, fallback int) (int, error) {
 	if value == nil {

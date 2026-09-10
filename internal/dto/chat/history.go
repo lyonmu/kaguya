@@ -23,11 +23,18 @@ type ConversationTitleResp struct {
 	Title string `json:"title"` // 当前已保存标题；生成失败或等待超时保留原标题
 }
 
-// TurnPageReq 以完整轮次分页，不截断工具输入输出；首屏最近若干轮，返回值始终按时间正序。
+// TurnPageReq 按轮次分页；compact 模式延迟加载工具与思考详情，返回值始终按时间正序。
 type TurnPageReq struct {
-	Page   int   `form:"page" binding:"min=0,max=1000000"` // 1 起按时间正序分页；0 使用原有 before 游标，与 before 互斥
-	Before int64 `form:"before" binding:"min=0"`           // 上页 next_before；0 表示最新
-	Limit  int   `form:"limit,default=20" binding:"min=1,max=100"`
+	Page    int   `form:"page" binding:"min=0,max=1000000"` // 1 起按时间正序分页；0 使用原有 before 游标，与 before 互斥
+	Before  int64 `form:"before" binding:"min=0"`           // 上页 next_before；0 表示最新
+	Limit   int   `form:"limit,default=5" binding:"min=1,max=100"`
+	Compact bool  `form:"compact"` // 折叠的工具/思考内容由详情接口按需加载
+}
+
+type BlockDetailReq struct {
+	ID        string `uri:"id" binding:"required,max=64"`
+	TurnIndex int64  `uri:"turn" binding:"min=1"`
+	Sequence  int64  `uri:"sequence" binding:"min=1"`
 }
 type ConversationResp struct {
 	IsProject     bool      `json:"is_project"` // 根据 project_id 是否为空派生，不单独存储
@@ -51,8 +58,10 @@ type ConversationListResp struct {
 	PageSize int                `json:"page_size"`
 }
 
-// StoredBlock 不复用流式 phase；每行均是完整内容，工具输入/输出归在同一行。
+// StoredBlock 不复用流式 phase；工具输入/输出归在同一行，DetailsDeferred 标记仅含元信息的块。
 type StoredBlock struct {
+	DetailsDeferred  bool        `json:"details_deferred,omitempty"`
+	HasOutput        bool        `json:"has_output,omitempty"`
 	Sequence         int64       `json:"sequence"` // 轮内展示顺序；与 turn_index 联合排序
 	Type             BlockType   `json:"type"`
 	Text             string      `json:"text,omitempty"`

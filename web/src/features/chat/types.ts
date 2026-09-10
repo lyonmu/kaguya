@@ -27,6 +27,8 @@ export interface ToolOutput {
 }
 
 export interface Block {
+  details_deferred?: boolean
+  has_output?: boolean
   type: 'text' | 'reasoning' | 'tool_call' | 'tool_result'
   phase?: 'start' | 'delta' | 'block_end'
   text?: string

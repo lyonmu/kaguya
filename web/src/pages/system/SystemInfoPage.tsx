@@ -7,6 +7,8 @@ import type { ModelLabelOption } from '../../features/providers/types'
 import { fetchSystemInfo, updateSystemInfo } from '../../features/system-info/api'
 import type { SystemInfo, SystemInfoPayload } from '../../features/system-info/types'
 
+import { TLSConfigPanel } from './TLSConfigPanel'
+
 export function SystemInfoPage() {
   const { message } = App.useApp()
   const [form] = Form.useForm<SystemInfoPayload>()
@@ -35,6 +37,7 @@ export function SystemInfoPage() {
     setSaving(true)
     try {
       const config = await updateSystemInfo({
+        context_compaction_percent: values.context_compaction_percent,
         agent_max_steps: values.agent_max_steps, command_timeout_seconds: values.command_timeout_seconds,
         global_agents_paths: values.global_agents_paths ?? [],
         system_prompt: values.system_prompt ?? '', user_agent: values.user_agent,
@@ -62,7 +65,8 @@ export function SystemInfoPage() {
           <Form.Item label="Agent Loop 最大步数" name="agent_max_steps" rules={[{ required: true }]} tooltip="0 表示不限制（默认，与 pi 一致）。设置上限时，到达后保存进度并暂停，可继续执行。"><InputNumber min={0} max={1000} /></Form.Item>
           <Form.Item label="命令超时（秒）" name="command_timeout_seconds" rules={[{ required: true }]} tooltip="每个 bash 命令的默认和最大超时，默认 120 秒。模型可请求更短时间。"><InputNumber min={1} max={86400} /></Form.Item>
         </div>
-        <Form.Item label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="按顺序读取服务进程用户的文件，支持 ~/。不存在的文件跳过；清空可禁用。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
+        <Form.Item label="会话压缩比例（%）" name="context_compaction_percent" tooltip="按模型最大上下文计算，默认 90%，可设 10–95%。达到阈值后压缩早期内容，其余窗口预留输出；新一轮对话生效。" rules={[{ required: true }]}><InputNumber aria-label="会话压缩比例" min={10} max={95} precision={0} /></Form.Item>
+        <Form.Item label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="会话首轮读取并保存快照，后续复用；路径修改仅影响新会话。支持 ~/，AGENTS.md 文件名不区分大小写。项目根目录指令自动加入；清空仅禁用全局文件。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
         <Form.Item label="User-Agent" name="user_agent" tooltip="用于服务端的聊天和标题生成请求，不修改浏览器请求头。" rules={[{ required: true, whitespace: true, message: '请输入 User-Agent' }, { pattern: /^[\x20-\x7e]+$/, message: '只能使用可打印 ASCII 字符，不能包含换行' }]}>
           <Input aria-label="User-Agent" maxLength={512} placeholder="kaguya" />
         </Form.Item>
@@ -73,5 +77,6 @@ export function SystemInfoPage() {
         <Space><Tooltip title="保存后新发起的聊天和后台任务立即生效，无需重启。"><Button htmlType="submit" type="primary" icon={<SaveOutlined />} loading={saving}>保存配置</Button></Tooltip></Space>
       </Form>
     </Card>}
+    {!loading && info && <TLSConfigPanel info={info.tls} onSaved={tls => setInfo(value => value ? { ...value, tls } : value)} />}
   </div>
 }

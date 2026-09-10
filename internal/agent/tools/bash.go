@@ -18,12 +18,12 @@ import (
 )
 
 type BashInput struct {
-	Command string   `json:"command" description:"Bash command to run in the project directory."`
-	Timeout *float64 `json:"timeout,omitempty" description:"Optional positive timeout in seconds. Defaults to the system command timeout; cannot exceed it. Cancellation stops the process group."`
+	Command string   `json:"command" description:"Shell command string executed by bash -c from the project root. Quote paths with spaces. No command array or separate cwd parameter."`
+	Timeout *float64 `json:"timeout,omitempty" description:"Positive timeout in seconds, not milliseconds (maximum 2147483.647). Omit to use the system timeout. A larger value cannot extend the system timeout; the smaller limit wins."`
 }
 
 func (s *Set) BashTool() fantasy.AgentTool {
-	return tool(s, "bash", "Execute a bash command in the project directory. Returns stdout and stderr; keeps the last 2000 lines or 50KB. Truncated output is saved in .kaguya/tool-output and can be read with read. Optional timeout in seconds. This executes with the server user's permissions and is NOT a sandbox.", s.bash)
+	return tool(s, "bash", `Run shell commands for targeted searches, directory listings, builds and tests. Each call starts in the project root; cd and environment changes do not persist to later calls. Use command, not cmd; timeout is in seconds, not milliseconds. For a subdirectory, put cd in the command. Returns stdout/stderr and exit status; only the last 2000 lines or 50KB are shown, with a saved output path on truncation. Read that file instead of rerunning just to see output. Example: {"command":"rg -n 'main' src","timeout":30}. Runs with the service user's permissions, not in a sandbox; cancellation stops the process group but does not undo side effects.`, s.bash)
 }
 
 type outputAccumulator struct {

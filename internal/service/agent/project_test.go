@@ -13,7 +13,10 @@ import (
 
 func TestProjectCRUDAndConversations(t *testing.T) {
 	ctx, client := setupChatTest(t)
-	home := t.TempDir()
+	home, homeErr := filepath.EvalSymlinks(t.TempDir())
+	if homeErr != nil {
+		t.Fatal(homeErr)
+	}
 	t.Setenv("HOME", home)
 	svc := &project.ProjectSvc{}
 	req := &dto.SaveReq{Name: " 项目一 ", Path: home, Description: "description"}

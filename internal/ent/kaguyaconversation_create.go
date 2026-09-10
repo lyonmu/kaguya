@@ -87,6 +87,20 @@ func (_c *KaguyaConversationCreate) SetNillableProjectID(v *string) *KaguyaConve
 	return _c
 }
 
+// SetAgentInstructions sets the "agent_instructions" field.
+func (_c *KaguyaConversationCreate) SetAgentInstructions(v string) *KaguyaConversationCreate {
+	_c.mutation.SetAgentInstructions(v)
+	return _c
+}
+
+// SetNillableAgentInstructions sets the "agent_instructions" field if the given value is not nil.
+func (_c *KaguyaConversationCreate) SetNillableAgentInstructions(v *string) *KaguyaConversationCreate {
+	if v != nil {
+		_c.SetAgentInstructions(*v)
+	}
+	return _c
+}
+
 // SetFavorite sets the "favorite" field.
 func (_c *KaguyaConversationCreate) SetFavorite(v bool) *KaguyaConversationCreate {
 	_c.mutation.SetFavorite(v)
@@ -511,6 +525,10 @@ func (_c *KaguyaConversationCreate) createSpec() (*KaguyaConversation, *sqlgraph
 		_spec.SetField(kaguyaconversation.FieldTitle, field.TypeString, value)
 		_node.Title = value
 	}
+	if value, ok := _c.mutation.AgentInstructions(); ok {
+		_spec.SetField(kaguyaconversation.FieldAgentInstructions, field.TypeString, value)
+		_node.AgentInstructions = &value
+	}
 	if value, ok := _c.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
 		_node.Favorite = value
@@ -701,6 +719,24 @@ func (u *KaguyaConversationUpsert) UpdateProjectID() *KaguyaConversationUpsert {
 // ClearProjectID clears the value of the "project_id" field.
 func (u *KaguyaConversationUpsert) ClearProjectID() *KaguyaConversationUpsert {
 	u.SetNull(kaguyaconversation.FieldProjectID)
+	return u
+}
+
+// SetAgentInstructions sets the "agent_instructions" field.
+func (u *KaguyaConversationUpsert) SetAgentInstructions(v string) *KaguyaConversationUpsert {
+	u.Set(kaguyaconversation.FieldAgentInstructions, v)
+	return u
+}
+
+// UpdateAgentInstructions sets the "agent_instructions" field to the value that was provided on create.
+func (u *KaguyaConversationUpsert) UpdateAgentInstructions() *KaguyaConversationUpsert {
+	u.SetExcluded(kaguyaconversation.FieldAgentInstructions)
+	return u
+}
+
+// ClearAgentInstructions clears the value of the "agent_instructions" field.
+func (u *KaguyaConversationUpsert) ClearAgentInstructions() *KaguyaConversationUpsert {
+	u.SetNull(kaguyaconversation.FieldAgentInstructions)
 	return u
 }
 
@@ -1014,6 +1050,27 @@ func (u *KaguyaConversationUpsertOne) UpdateProjectID() *KaguyaConversationUpser
 func (u *KaguyaConversationUpsertOne) ClearProjectID() *KaguyaConversationUpsertOne {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.ClearProjectID()
+	})
+}
+
+// SetAgentInstructions sets the "agent_instructions" field.
+func (u *KaguyaConversationUpsertOne) SetAgentInstructions(v string) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetAgentInstructions(v)
+	})
+}
+
+// UpdateAgentInstructions sets the "agent_instructions" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertOne) UpdateAgentInstructions() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateAgentInstructions()
+	})
+}
+
+// ClearAgentInstructions clears the value of the "agent_instructions" field.
+func (u *KaguyaConversationUpsertOne) ClearAgentInstructions() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.ClearAgentInstructions()
 	})
 }
 
@@ -1526,6 +1583,27 @@ func (u *KaguyaConversationUpsertBulk) UpdateProjectID() *KaguyaConversationUpse
 func (u *KaguyaConversationUpsertBulk) ClearProjectID() *KaguyaConversationUpsertBulk {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.ClearProjectID()
+	})
+}
+
+// SetAgentInstructions sets the "agent_instructions" field.
+func (u *KaguyaConversationUpsertBulk) SetAgentInstructions(v string) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetAgentInstructions(v)
+	})
+}
+
+// UpdateAgentInstructions sets the "agent_instructions" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertBulk) UpdateAgentInstructions() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateAgentInstructions()
+	})
+}
+
+// ClearAgentInstructions clears the value of the "agent_instructions" field.
+func (u *KaguyaConversationUpsertBulk) ClearAgentInstructions() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.ClearAgentInstructions()
 	})
 }
 

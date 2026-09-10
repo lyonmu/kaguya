@@ -29,6 +29,8 @@ type KaguyaConversation struct {
 	Title string `json:"title,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID *string `json:"project_id,omitempty"`
+	// 会话首次成功轮次保存的全局及项目指令快照；NULL 表示尚未加载
+	AgentInstructions *string `json:"-"`
 	// Favorite holds the value of the "favorite" field.
 	Favorite bool `json:"favorite,omitempty"`
 	// 已提交轮数，同时用于乐观并发校验
@@ -99,7 +101,7 @@ func (*KaguyaConversation) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case kaguyaconversation.FieldTurnCount, kaguyaconversation.FieldDurationMs, kaguyaconversation.FieldToolCalls, kaguyaconversation.FieldInputTokens, kaguyaconversation.FieldOutputTokens, kaguyaconversation.FieldTotalTokens, kaguyaconversation.FieldCachedTokens, kaguyaconversation.FieldReasoningTokens:
 			values[i] = new(sql.NullInt64)
-		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldProjectID, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
+		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldProjectID, kaguyaconversation.FieldAgentInstructions, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
 			values[i] = new(sql.NullString)
 		case kaguyaconversation.FieldCreatedAt, kaguyaconversation.FieldUpdatedAt, kaguyaconversation.FieldDeletedAt, kaguyaconversation.FieldLastMessageAt:
 			values[i] = new(sql.NullTime)
@@ -155,6 +157,13 @@ func (_m *KaguyaConversation) assignValues(columns []string, values []any) error
 			} else if value.Valid {
 				_m.ProjectID = new(string)
 				*_m.ProjectID = value.String
+			}
+		case kaguyaconversation.FieldAgentInstructions:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field agent_instructions", values[i])
+			} else if value.Valid {
+				_m.AgentInstructions = new(string)
+				*_m.AgentInstructions = value.String
 			}
 		case kaguyaconversation.FieldFavorite:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -292,6 +301,8 @@ func (_m *KaguyaConversation) String() string {
 		builder.WriteString("project_id=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("agent_instructions=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("favorite=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Favorite))

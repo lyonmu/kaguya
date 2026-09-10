@@ -20,6 +20,7 @@ func (KaguyaConversation) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("title").MaxLen(200).NotEmpty(),
 		field.String("project_id").Optional().Nillable(),
+		field.Text("agent_instructions").Optional().Nillable().Sensitive().Comment("会话首次成功轮次保存的全局及项目指令快照；NULL 表示尚未加载"),
 		field.Bool("favorite").Default(false),
 		field.Int64("turn_count").Default(0).NonNegative().Comment("已提交轮数，同时用于乐观并发校验"),
 		field.Time("last_message_at"),

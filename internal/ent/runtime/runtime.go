@@ -309,53 +309,53 @@ func init() {
 		}
 	}()
 	// kaguyaconversationDescFavorite is the schema descriptor for favorite field.
-	kaguyaconversationDescFavorite := kaguyaconversationFields[2].Descriptor()
+	kaguyaconversationDescFavorite := kaguyaconversationFields[3].Descriptor()
 	// kaguyaconversation.DefaultFavorite holds the default value on creation for the favorite field.
 	kaguyaconversation.DefaultFavorite = kaguyaconversationDescFavorite.Default.(bool)
 	// kaguyaconversationDescTurnCount is the schema descriptor for turn_count field.
-	kaguyaconversationDescTurnCount := kaguyaconversationFields[3].Descriptor()
+	kaguyaconversationDescTurnCount := kaguyaconversationFields[4].Descriptor()
 	// kaguyaconversation.DefaultTurnCount holds the default value on creation for the turn_count field.
 	kaguyaconversation.DefaultTurnCount = kaguyaconversationDescTurnCount.Default.(int64)
 	// kaguyaconversation.TurnCountValidator is a validator for the "turn_count" field. It is called by the builders before save.
 	kaguyaconversation.TurnCountValidator = kaguyaconversationDescTurnCount.Validators[0].(func(int64) error)
 	// kaguyaconversationDescDurationMs is the schema descriptor for duration_ms field.
-	kaguyaconversationDescDurationMs := kaguyaconversationFields[7].Descriptor()
+	kaguyaconversationDescDurationMs := kaguyaconversationFields[8].Descriptor()
 	// kaguyaconversation.DefaultDurationMs holds the default value on creation for the duration_ms field.
 	kaguyaconversation.DefaultDurationMs = kaguyaconversationDescDurationMs.Default.(int64)
 	// kaguyaconversation.DurationMsValidator is a validator for the "duration_ms" field. It is called by the builders before save.
 	kaguyaconversation.DurationMsValidator = kaguyaconversationDescDurationMs.Validators[0].(func(int64) error)
 	// kaguyaconversationDescToolCalls is the schema descriptor for tool_calls field.
-	kaguyaconversationDescToolCalls := kaguyaconversationFields[8].Descriptor()
+	kaguyaconversationDescToolCalls := kaguyaconversationFields[9].Descriptor()
 	// kaguyaconversation.DefaultToolCalls holds the default value on creation for the tool_calls field.
 	kaguyaconversation.DefaultToolCalls = kaguyaconversationDescToolCalls.Default.(int64)
 	// kaguyaconversation.ToolCallsValidator is a validator for the "tool_calls" field. It is called by the builders before save.
 	kaguyaconversation.ToolCallsValidator = kaguyaconversationDescToolCalls.Validators[0].(func(int64) error)
 	// kaguyaconversationDescInputTokens is the schema descriptor for input_tokens field.
-	kaguyaconversationDescInputTokens := kaguyaconversationFields[9].Descriptor()
+	kaguyaconversationDescInputTokens := kaguyaconversationFields[10].Descriptor()
 	// kaguyaconversation.DefaultInputTokens holds the default value on creation for the input_tokens field.
 	kaguyaconversation.DefaultInputTokens = kaguyaconversationDescInputTokens.Default.(int64)
 	// kaguyaconversation.InputTokensValidator is a validator for the "input_tokens" field. It is called by the builders before save.
 	kaguyaconversation.InputTokensValidator = kaguyaconversationDescInputTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescOutputTokens is the schema descriptor for output_tokens field.
-	kaguyaconversationDescOutputTokens := kaguyaconversationFields[10].Descriptor()
+	kaguyaconversationDescOutputTokens := kaguyaconversationFields[11].Descriptor()
 	// kaguyaconversation.DefaultOutputTokens holds the default value on creation for the output_tokens field.
 	kaguyaconversation.DefaultOutputTokens = kaguyaconversationDescOutputTokens.Default.(int64)
 	// kaguyaconversation.OutputTokensValidator is a validator for the "output_tokens" field. It is called by the builders before save.
 	kaguyaconversation.OutputTokensValidator = kaguyaconversationDescOutputTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescTotalTokens is the schema descriptor for total_tokens field.
-	kaguyaconversationDescTotalTokens := kaguyaconversationFields[11].Descriptor()
+	kaguyaconversationDescTotalTokens := kaguyaconversationFields[12].Descriptor()
 	// kaguyaconversation.DefaultTotalTokens holds the default value on creation for the total_tokens field.
 	kaguyaconversation.DefaultTotalTokens = kaguyaconversationDescTotalTokens.Default.(int64)
 	// kaguyaconversation.TotalTokensValidator is a validator for the "total_tokens" field. It is called by the builders before save.
 	kaguyaconversation.TotalTokensValidator = kaguyaconversationDescTotalTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescCachedTokens is the schema descriptor for cached_tokens field.
-	kaguyaconversationDescCachedTokens := kaguyaconversationFields[12].Descriptor()
+	kaguyaconversationDescCachedTokens := kaguyaconversationFields[13].Descriptor()
 	// kaguyaconversation.DefaultCachedTokens holds the default value on creation for the cached_tokens field.
 	kaguyaconversation.DefaultCachedTokens = kaguyaconversationDescCachedTokens.Default.(int64)
 	// kaguyaconversation.CachedTokensValidator is a validator for the "cached_tokens" field. It is called by the builders before save.
 	kaguyaconversation.CachedTokensValidator = kaguyaconversationDescCachedTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescReasoningTokens is the schema descriptor for reasoning_tokens field.
-	kaguyaconversationDescReasoningTokens := kaguyaconversationFields[13].Descriptor()
+	kaguyaconversationDescReasoningTokens := kaguyaconversationFields[14].Descriptor()
 	// kaguyaconversation.DefaultReasoningTokens holds the default value on creation for the reasoning_tokens field.
 	kaguyaconversation.DefaultReasoningTokens = kaguyaconversationDescReasoningTokens.Default.(int64)
 	// kaguyaconversation.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
@@ -738,8 +738,36 @@ func init() {
 			return nil
 		}
 	}()
+	// kaguyasysteminfoDescContextCompactionPercent is the schema descriptor for context_compaction_percent field.
+	kaguyasysteminfoDescContextCompactionPercent := kaguyasysteminfoFields[2].Descriptor()
+	// kaguyasysteminfo.DefaultContextCompactionPercent holds the default value on creation for the context_compaction_percent field.
+	kaguyasysteminfo.DefaultContextCompactionPercent = kaguyasysteminfoDescContextCompactionPercent.Default.(int)
+	// kaguyasysteminfo.ContextCompactionPercentValidator is a validator for the "context_compaction_percent" field. It is called by the builders before save.
+	kaguyasysteminfo.ContextCompactionPercentValidator = func() func(int) error {
+		validators := kaguyasysteminfoDescContextCompactionPercent.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(context_compaction_percent int) error {
+			for _, fn := range fns {
+				if err := fn(context_compaction_percent); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyasysteminfoDescTLSCertificatePem is the schema descriptor for tls_certificate_pem field.
+	kaguyasysteminfoDescTLSCertificatePem := kaguyasysteminfoFields[3].Descriptor()
+	// kaguyasysteminfo.DefaultTLSCertificatePem holds the default value on creation for the tls_certificate_pem field.
+	kaguyasysteminfo.DefaultTLSCertificatePem = kaguyasysteminfoDescTLSCertificatePem.Default.(string)
+	// kaguyasysteminfoDescTLSPrivateKeyPem is the schema descriptor for tls_private_key_pem field.
+	kaguyasysteminfoDescTLSPrivateKeyPem := kaguyasysteminfoFields[4].Descriptor()
+	// kaguyasysteminfo.DefaultTLSPrivateKeyPem holds the default value on creation for the tls_private_key_pem field.
+	kaguyasysteminfo.DefaultTLSPrivateKeyPem = kaguyasysteminfoDescTLSPrivateKeyPem.Default.(string)
 	// kaguyasysteminfoDescCommandTimeoutSeconds is the schema descriptor for command_timeout_seconds field.
-	kaguyasysteminfoDescCommandTimeoutSeconds := kaguyasysteminfoFields[2].Descriptor()
+	kaguyasysteminfoDescCommandTimeoutSeconds := kaguyasysteminfoFields[5].Descriptor()
 	// kaguyasysteminfo.DefaultCommandTimeoutSeconds holds the default value on creation for the command_timeout_seconds field.
 	kaguyasysteminfo.DefaultCommandTimeoutSeconds = kaguyasysteminfoDescCommandTimeoutSeconds.Default.(int)
 	// kaguyasysteminfo.CommandTimeoutSecondsValidator is a validator for the "command_timeout_seconds" field. It is called by the builders before save.
@@ -759,21 +787,21 @@ func init() {
 		}
 	}()
 	// kaguyasysteminfoDescSystemPrompt is the schema descriptor for system_prompt field.
-	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[4].Descriptor()
+	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[7].Descriptor()
 	// kaguyasysteminfo.DefaultSystemPrompt holds the default value on creation for the system_prompt field.
 	kaguyasysteminfo.DefaultSystemPrompt = kaguyasysteminfoDescSystemPrompt.Default.(string)
 	// kaguyasysteminfoDescUserAgent is the schema descriptor for user_agent field.
-	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[5].Descriptor()
+	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[8].Descriptor()
 	// kaguyasysteminfo.DefaultUserAgent holds the default value on creation for the user_agent field.
 	kaguyasysteminfo.DefaultUserAgent = kaguyasysteminfoDescUserAgent.Default.(string)
 	// kaguyasysteminfo.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	kaguyasysteminfo.UserAgentValidator = kaguyasysteminfoDescUserAgent.Validators[0].(func(string) error)
 	// kaguyasysteminfoDescDefaultModelID is the schema descriptor for default_model_id field.
-	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[6].Descriptor()
+	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[9].Descriptor()
 	// kaguyasysteminfo.DefaultDefaultModelID holds the default value on creation for the default_model_id field.
 	kaguyasysteminfo.DefaultDefaultModelID = kaguyasysteminfoDescDefaultModelID.Default.(string)
 	// kaguyasysteminfoDescTaskModelID is the schema descriptor for task_model_id field.
-	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[7].Descriptor()
+	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[10].Descriptor()
 	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
 	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
 	// kaguyasysteminfoDescID is the schema descriptor for id field.

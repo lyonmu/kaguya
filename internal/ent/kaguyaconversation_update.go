@@ -91,6 +91,26 @@ func (_u *KaguyaConversationUpdate) ClearProjectID() *KaguyaConversationUpdate {
 	return _u
 }
 
+// SetAgentInstructions sets the "agent_instructions" field.
+func (_u *KaguyaConversationUpdate) SetAgentInstructions(v string) *KaguyaConversationUpdate {
+	_u.mutation.SetAgentInstructions(v)
+	return _u
+}
+
+// SetNillableAgentInstructions sets the "agent_instructions" field if the given value is not nil.
+func (_u *KaguyaConversationUpdate) SetNillableAgentInstructions(v *string) *KaguyaConversationUpdate {
+	if v != nil {
+		_u.SetAgentInstructions(*v)
+	}
+	return _u
+}
+
+// ClearAgentInstructions clears the value of the "agent_instructions" field.
+func (_u *KaguyaConversationUpdate) ClearAgentInstructions() *KaguyaConversationUpdate {
+	_u.mutation.ClearAgentInstructions()
+	return _u
+}
+
 // SetFavorite sets the "favorite" field.
 func (_u *KaguyaConversationUpdate) SetFavorite(v bool) *KaguyaConversationUpdate {
 	_u.mutation.SetFavorite(v)
@@ -489,6 +509,12 @@ func (_u *KaguyaConversationUpdate) sqlSave(ctx context.Context) (_node int, err
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(kaguyaconversation.FieldTitle, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.AgentInstructions(); ok {
+		_spec.SetField(kaguyaconversation.FieldAgentInstructions, field.TypeString, value)
+	}
+	if _u.mutation.AgentInstructionsCleared() {
+		_spec.ClearField(kaguyaconversation.FieldAgentInstructions, field.TypeString)
+	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
 	}
@@ -702,6 +728,26 @@ func (_u *KaguyaConversationUpdateOne) SetNillableProjectID(v *string) *KaguyaCo
 // ClearProjectID clears the value of the "project_id" field.
 func (_u *KaguyaConversationUpdateOne) ClearProjectID() *KaguyaConversationUpdateOne {
 	_u.mutation.ClearProjectID()
+	return _u
+}
+
+// SetAgentInstructions sets the "agent_instructions" field.
+func (_u *KaguyaConversationUpdateOne) SetAgentInstructions(v string) *KaguyaConversationUpdateOne {
+	_u.mutation.SetAgentInstructions(v)
+	return _u
+}
+
+// SetNillableAgentInstructions sets the "agent_instructions" field if the given value is not nil.
+func (_u *KaguyaConversationUpdateOne) SetNillableAgentInstructions(v *string) *KaguyaConversationUpdateOne {
+	if v != nil {
+		_u.SetAgentInstructions(*v)
+	}
+	return _u
+}
+
+// ClearAgentInstructions clears the value of the "agent_instructions" field.
+func (_u *KaguyaConversationUpdateOne) ClearAgentInstructions() *KaguyaConversationUpdateOne {
+	_u.mutation.ClearAgentInstructions()
 	return _u
 }
 
@@ -1132,6 +1178,12 @@ func (_u *KaguyaConversationUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	}
 	if value, ok := _u.mutation.Title(); ok {
 		_spec.SetField(kaguyaconversation.FieldTitle, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.AgentInstructions(); ok {
+		_spec.SetField(kaguyaconversation.FieldAgentInstructions, field.TypeString, value)
+	}
+	if _u.mutation.AgentInstructionsCleared() {
+		_spec.ClearField(kaguyaconversation.FieldAgentInstructions, field.TypeString)
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)

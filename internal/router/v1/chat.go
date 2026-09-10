@@ -16,6 +16,7 @@ func (r *ChatRouter) InitChatRouter(group *gin.RouterGroup, apiGroup apiv1.ApiV1
 		chatRouter.GET("conversation/page", apiGroup.ConversationPage)
 		chatRouter.GET("conversation/:id", apiGroup.ConversationDetail)
 		chatRouter.GET("conversation/:id/turns", apiGroup.ConversationTurns)
+		chatRouter.GET("conversation/:id/turns/:turn/blocks/:sequence", apiGroup.ConversationBlock)
 		chatRouter.GET("conversation/:id/context", apiGroup.ConversationContext)
 		chatRouter.GET("conversation/:id/title/wait", apiGroup.ConversationTitleWait)
 		chatRouter.POST("conversation/:id/title/wait", apiGroup.ConversationTitleGenerate)

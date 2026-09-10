@@ -97,7 +97,11 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		send(ctx, dataChan, &dtochat.ChatResp{Err: err, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
 		return
 	}
-	instructions, err := globalInstructions(info.GlobalAgentsPaths)
+	projectDir := ""
+	if toolset != nil {
+		projectDir = toolset.CWD()
+	}
+	instructions, err := conversationInstructions(ctx, convID, info.GlobalAgentsPaths, projectDir)
 	if err != nil {
 		if toolset != nil {
 			_ = toolset.Close()
@@ -194,11 +198,11 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	// 流式内容已发送后不能透明重试，否则失败尝试会混入同一轮展示/历史。
 	maxRetries := 0
 	call.MaxRetries = &maxRetries
-	call.MaxOutputTokens = contextOutputLimit(model.TokenContextWindow, model.TokenMaxOutputTokens)
+	call.MaxOutputTokens = contextOutputLimit(model.TokenContextWindow, model.TokenMaxOutputTokens, *info.ContextCompactionPercent)
 	if len(tools) > 0 && *info.AgentMaxSteps > 0 {
 		call.StopWhen = []fantasy.StopCondition{fantasy.StepCountIs(*info.AgentMaxSteps)}
 	}
-	compactor := &contextCompactor{window: model.TokenContextWindow}
+	compactor := &contextCompactor{window: model.TokenContextWindow, percent: *info.ContextCompactionPercent, maxOutput: model.TokenMaxOutputTokens}
 	for _, tool := range tools {
 		data, marshalErr := json.Marshal(tool.Info())
 		if marshalErr != nil {
@@ -266,7 +270,8 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return
 	}
 	if err := saveCompletedTurn(ctx, completedTurn{
-		ConversationID: convID, ProjectID: req.ProjectID, Version: version, UserContent: req.Messages,
+		AgentInstructions: &instructions,
+		ConversationID:    convID, ProjectID: req.ProjectID, Version: version, UserContent: req.Messages,
 		ProviderID: provider.ID, ProviderName: provider.ProviderName, ModelID: model.ModelID,
 		ModelName: model.ModelName, APIProtocol: string(provider.APIProtocol),
 		StartedAt: startedAt, FinishedAt: finishedAt, FinishReason: finishReason,

@@ -9,6 +9,7 @@ const globals = {
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
   SVGElement: dom.SVGElement, ShadowRoot: dom.ShadowRoot,
   MutationObserver: dom.MutationObserver, ResizeObserver: dom.ResizeObserver,
+  cancelAnimationFrame: dom.cancelAnimationFrame.bind(dom),
   getComputedStyle: dom.getComputedStyle.bind(dom), requestAnimationFrame: dom.requestAnimationFrame.bind(dom), IS_REACT_ACT_ENVIRONMENT: true,
 }
 const previous = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
@@ -16,9 +17,13 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const { render, cleanup, waitFor, act, fireEvent } = await import('@testing-library/react')
 const { Markdown } = await import('./Markdown')
 const { ActivityBlock } = await import('./ActivityBlock')
-const { MessageList } = await import('./MessageList')
+const { MessageList: RuntimeMessageList } = await import('./MessageList')
 const { Composer } = await import('./Composer')
 const { useState } = await import('react')
+const { AssistantThread } = await import('./AssistantThread')
+function MessageList(props: React.ComponentProps<typeof RuntimeMessageList>) {
+  return <AssistantThread turns={props.turns} streaming={props.streaming} disabled={false} onSend={async () => {}} onStop={() => {}}><RuntimeMessageList {...props} /></AssistantThread>
+}
 const originalFetch = globalThis.fetch
 afterEach(async () => {
   cleanup()
@@ -53,6 +58,16 @@ it('renders safe GFM and copies exact code with success and failure feedback', a
   } finally { navigator.clipboard.writeText = write }
 })
 
+it('loads Markdown images only on request and requires approval for a changed URL', () => {
+  const view = render(<Markdown text="![预览](https://example.com/image.png?secret=value)" />)
+  assert.equal(view.container.querySelector('img'), null)
+  fireEvent.click(view.getByRole('button', { name: '加载图片：预览' }))
+  assert.equal(view.container.querySelector('img')?.getAttribute('src'), 'https://example.com/image.png?secret=value')
+  assert.equal(view.container.querySelector('img')?.getAttribute('referrerpolicy'), 'no-referrer')
+  view.rerender(<Markdown text="![预览](https://example.com/other.png)" />)
+  assert.equal(view.container.querySelector('img'), null)
+})
+
 it('distinguishes execution from completed input, failures, and interrupted calls', () => {
   const block = { type: 'tool_call' as const, phase: 'block_end' as const, tool_name: 'bash', input: '{"command":"go test ./..."}' }
   const view = render(<ActivityBlock block={block} streaming />)
@@ -78,7 +93,7 @@ it('searches project files, inserts quoted paths by keyboard, and dismisses on E
   let sends = 0
   function Draft() {
     const [value, setValue] = useState('')
-    return <Composer projectId="42" value={value} onChange={setValue} modelId="" onModelChange={() => {}} streaming={false} disabled={false} onSend={() => { sends++ }} onStop={() => {}} />
+    return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => { sends++ }} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} modelId="" onModelChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
   }
   const view = render(<Draft />)
   const textarea = view.getByLabelText('对话消息') as HTMLTextAreaElement
@@ -99,8 +114,8 @@ it('searches project files, inserts quoted paths by keyboard, and dismisses on E
   assert.equal(view.queryByRole('listbox', { name: '项目文件' }), null)
   fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true })
   assert.equal(sends, 0)
-  fireEvent.keyDown(textarea, { key: 'Enter' })
-  assert.equal(sends, 1)
+  await act(async () => { fireEvent.keyDown(textarea, { key: 'Enter' }) })
+  await waitFor(() => assert.equal(sends, 1))
 })
 
 it('offers continuation only on the last saved page and never while streaming', () => {
@@ -114,4 +129,49 @@ it('offers continuation only on the last saved page and never while streaming', 
   assert.equal(continued, 1)
   view.rerender(<MessageList {...props} page={2} streaming />)
   assert.equal((view.getByRole('button', { name: '继续执行 →' }) as HTMLButtonElement).disabled, true)
+})
+
+it('loads folded history details only on expansion and reuses them while mounted', async () => {
+  let requests = 0
+  globalThis.fetch = (async url => {
+    requests++
+    assert.ok(String(url).endsWith('/conversation/123/turns/6/blocks/2'))
+    return Response.json({ code: 100000, data: { type: 'tool_call', sequence: 2, tool_name: 'bash', input: '{"command":"go test ./..."}', output: { type: 'text', text: 'test output marker' } } })
+  }) as typeof fetch
+  const view = render(<ActivityBlock conversationId="123" turnIndex={6} block={{ type: 'tool_call', tool_name: 'bash', sequence: 2, details_deferred: true, has_output: true }} />)
+  assert.equal(requests, 0)
+  assert.ok(view.getByText('完成'))
+  const details = view.container.querySelector('details')!
+  await act(async () => { details.open = true; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+  await view.findByText('test output marker')
+  assert.equal(requests, 1)
+  await act(async () => { details.open = false; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+  await act(async () => { details.open = true; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+  assert.equal(requests, 1)
+})
+
+it('cancels folded detail requests on close and allows explicit retry after failure', async () => {
+  let signal: AbortSignal | undefined
+  let resolve!: (value: Response) => void
+  let requests = 0
+  globalThis.fetch = (async (_url, init) => {
+    requests++
+    signal = init?.signal as AbortSignal
+    if (requests === 1) return new Promise<Response>(done => { resolve = done })
+    if (requests === 2) return Response.json({ code: 102001, message: '详情暂不可用' }, { status: 503 })
+    return Response.json({ code: 100000, data: { type: 'reasoning', sequence: 1, text: 'saved reasoning marker' } })
+  }) as typeof fetch
+  const view = render(<ActivityBlock conversationId="123" turnIndex={1} block={{ type: 'reasoning', sequence: 1, details_deferred: true }} />)
+  const details = view.container.querySelector('details')!
+  await act(async () => { details.open = true; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+  assert.equal(signal?.aborted, false)
+  await act(async () => { details.open = false; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+  assert.equal(signal?.aborted, true)
+  await act(async () => { resolve(Response.json({ code: 100000, data: { type: 'reasoning', text: 'stale detail' } })) })
+  await act(async () => { details.open = true; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+  await view.findByText('详情暂不可用')
+  fireEvent.click(view.getByRole('button', { name: '重试加载详情' }))
+  await view.findByText('saved reasoning marker')
+  assert.equal(view.queryByText('stale detail'), null)
+  assert.equal(requests, 3)
 })

@@ -27,9 +27,9 @@ export function ContextProgress({ conversationId, turnCount }: { conversationId?
   const title = loading ? '正在加载上下文占用…' : error ? <>{error} <Button size="small" onClick={() => setRevision(value => value + 1)}>重试</Button></> : !conversationId ? '首轮对话结束后显示上下文占用' : <>
     <div>{data?.model_name || '最后一轮模型'} · 当前上下文占用</div>
     <div>{data?.context_tokens?.toLocaleString() ?? '未知'} / {data?.effective_window.toLocaleString() ?? '未知'} tokens</div>
-    <div>有效窗口为模型最大上下文的 90%（预留 10%）</div>
+    <div>有效窗口为模型最大上下文的 {Math.round((data?.window_ratio ?? 0.9) * 100)}%（其余预留给输出）</div>
     <div>{known ? `占有效窗口 ${percent.toFixed(1)}%，占最大窗口 ${data?.max_window_percent?.toFixed(1)}%` : '历史记录、模型窗口或供应商用量缺失，暂无法计算'}</div>
-    <div>使用最近一次模型调用的输入（含缓存）和输出估算占用；达到 90% 时，下次模型调用前自动压缩早期内容，保留近期消息和原始历史。</div>
+    <div>使用最近一次模型调用的输入（含缓存）和输出估算占用；达到系统配置的压缩比例时，下次模型调用前自动压缩早期内容，保留近期消息和原始历史。</div>
   </>
   return <Tooltip title={title}>
     <span className="chat-context-progress" tabIndex={0} aria-label={known ? `上下文占用 ${percent.toFixed(1)}%` : '上下文占用未知'}>

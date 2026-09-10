@@ -18,13 +18,13 @@ import (
 )
 
 type ReadInput struct {
-	Path   string `json:"path" description:"Path to the file (relative or absolute inside the workspace)."`
-	Offset *int   `json:"offset,omitempty" description:"1-indexed starting line. Default 1."`
-	Limit  *int   `json:"limit,omitempty" description:"Maximum number of lines to read."`
+	Path   string `json:"path" description:"One existing file, not a directory or glob. Prefer a project-relative path, e.g. src/main.go."`
+	Offset *int   `json:"offset,omitempty" description:"First text line to return, counting from 1 (not a byte offset). Omit to start at 1."`
+	Limit  *int   `json:"limit,omitempty" description:"Positive number of text lines to return, not an ending line number. Omit for up to 2000 lines."`
 }
 
 func (s *Set) ReadTool() fantasy.AgentTool {
-	return tool(s, "read", "Read text or images (jpg, png, gif, webp, bmp). Text is limited to 2000 lines or 50KB; use offset/limit to continue. Images are returned as attachments. Paths must be inside the project workspace.", s.read)
+	return tool(s, "read", `Read one existing text file or image inside the project workspace. To list/search paths, use bash instead. Text returns at most 2000 lines or 50KB; follow the returned next offset when truncated. offset and limit are 1-based start line and line count, not a range string. Images (jpg/png/gif/webp/bmp) are returned as attachments; omit offset/limit for images. Example: {"path":"src/main.go","offset":20,"limit":80}.`, s.read)
 }
 func (s *Set) readBytes(ctx context.Context, path string) ([]byte, error) {
 	f, err := openReadFile(s.root, path)

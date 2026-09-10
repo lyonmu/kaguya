@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -194,5 +195,61 @@ func TestConversationContextRoundTrip(t *testing.T) {
 	}
 	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("context changed:\nwant %s\ngot %s", want, got)
+	}
+}
+
+func TestCompactHistoryDefersLargeBlocksAndPreservesPaging(t *testing.T) {
+	ctx, _ := setupChatTest(t)
+	svc := &AgentSvc{}
+	large := strings.Repeat("large-payload-", 40000)
+	for i := int64(0); i < 7; i++ {
+		turn := testCompletedTurn("compact-history", i)
+		turn.Blocks[0].Text = large
+		turn.Blocks[1].Input = large
+		turn.Blocks[1].Output.Text = large
+		turn.ContextMessages = []fantasy.Message{fantasy.NewUserMessage(large)}
+		if err := saveCompletedTurn(ctx, turn); err != nil {
+			t.Fatal(err)
+		}
+	}
+	page, err := svc.ConversationTurns(ctx, "compact-history", &dtochat.TurnPageReq{Limit: 5, Page: 1, Compact: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 5 || page.TotalPages != 2 || page.Items[4].TurnIndex != 5 {
+		t.Fatalf("page=%+v", page)
+	}
+	data, err := json.Marshal(page)
+	if err != nil || len(data) > 12000 || strings.Contains(string(data), "large-payload-") {
+		t.Fatalf("folded payload leaked: bytes=%d err=%v", len(data), err)
+	}
+	for _, turn := range page.Items {
+		if !turn.Blocks[0].DetailsDeferred || !turn.Blocks[1].DetailsDeferred || !turn.Blocks[1].HasOutput || turn.Blocks[2].Text != "回答" || turn.Blocks[2].DetailsDeferred {
+			t.Fatalf("preview lost state: %+v", turn.Blocks)
+		}
+	}
+	last, err := svc.ConversationTurns(ctx, "compact-history", &dtochat.TurnPageReq{Limit: 5, Page: 1000000, Compact: true})
+	if err != nil || last.Page != 2 || len(last.Items) != 2 || last.Items[0].TurnIndex != 6 {
+		t.Fatalf("last=%+v %v", last, err)
+	}
+	older, err := svc.ConversationTurns(ctx, "compact-history", &dtochat.TurnPageReq{Limit: 5, Before: last.NextBefore, Compact: true})
+	if err != nil || older.HasMore || len(older.Items) != 5 || older.Items[0].TurnIndex != 1 {
+		t.Fatalf("older=%+v %v", older, err)
+	}
+	request := &dtochat.BlockDetailReq{ID: "compact-history", TurnIndex: 2, Sequence: 2}
+	block, err := svc.ConversationBlock(ctx, request)
+	if err != nil || block.Input != large || block.Output == nil || block.Output.Text != large || block.DetailsDeferred {
+		t.Fatalf("full tool block unavailable: %v", err)
+	}
+	request.ID = "another-conversation"
+	if _, err := svc.ConversationBlock(ctx, request); !errors.Is(err, ErrConversationNotFound) {
+		t.Fatalf("cross-conversation lookup: %v", err)
+	}
+	request.ID = "compact-history"
+	if err := svc.ConversationDelete(ctx, request.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ConversationBlock(ctx, request); !errors.Is(err, ErrConversationNotFound) {
+		t.Fatalf("deleted history exposed: %v", err)
 	}
 }

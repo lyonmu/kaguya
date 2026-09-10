@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/consts"
 )
 
 func TestCompletedContextTokens(t *testing.T) {
@@ -14,6 +15,30 @@ func TestCompletedContextTokens(t *testing.T) {
 	got := completedContextTokens(fantasy.Usage{InputTokens: 100, OutputTokens: 30, CacheReadTokens: 50, CacheCreationTokens: 20, ReasoningTokens: 10, TotalTokens: 9999})
 	if got == nil || *got != 200 {
 		t.Fatalf("context double counted reasoning or used cumulative total: %v", got)
+	}
+}
+
+func TestContextUsesLiveConfiguredThreshold(t *testing.T) {
+	ctx, client := setupChatTest(t)
+	turn := testCompletedTurn("configured", 0)
+	turn.ContextWindow = 1000
+	tokens := int64(400)
+	turn.ContextTokens = &tokens
+	if err := saveCompletedTurn(ctx, turn); err != nil {
+		t.Fatal(err)
+	}
+	for _, percent := range []int{80, 50} {
+		if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetContextCompactionPercent(percent).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+		info, err := (&AgentSvc{}).ConversationContext(ctx, "configured")
+		if err != nil || info.EffectiveWindow != int64(percent*10) || info.WindowRatio != float64(percent)/100 || *info.Percent != 40000/float64(percent*10) {
+			t.Fatalf("info=%+v err=%v", info, err)
+		}
+		limit := contextOutputLimit(1000, 0, percent)
+		if limit == nil || *limit != int64(1000-percent*10) {
+			t.Fatal("output reserve did not follow threshold")
+		}
 	}
 }
 

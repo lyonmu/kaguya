@@ -16,6 +16,7 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const { render, fireEvent, cleanup, waitFor, act, within } = await import('@testing-library/react')
 const { App } = await import('antd')
 const { SystemInfoPage } = await import('./SystemInfoPage')
+const { TLSConfigPanel } = await import('./TLSConfigPanel')
 const { ModelCascader } = await import('../../features/providers/ModelCascader')
 const { AppLayout } = await import('../../components/layout/AppLayout')
 const originalFetch = globalThis.fetch
@@ -35,7 +36,7 @@ after(async () => {
 
 it('loads, edits and saves system config with local model record IDs', async () => {
   let saved: Record<string, unknown> | undefined
-  const config = { agent_max_steps: 64, command_timeout_seconds: 120, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', user_agent: 'kaguya', default_model_id: '', task_model_id: '', global_system_prompt: '只读基础人设' }
+  const config = { context_compaction_percent: 90, agent_max_steps: 64, command_timeout_seconds: 120, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', user_agent: 'kaguya', default_model_id: '', task_model_id: '', global_system_prompt: '只读基础人设' }
   globalThis.fetch = (async (url, init) => {
     if (String(url).includes('/model/label')) return response([
       { label: '聊天模型', value: 'local-chat', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-chat' },
@@ -46,6 +47,7 @@ it('loads, edits and saves system config with local model record IDs', async () 
   }) as typeof fetch
   const view = render(<App><SystemInfoPage /></App>)
   await waitFor(() => assert.ok(view.getByText('只读基础人设')))
+  fireEvent.change(view.getByLabelText('会话压缩比例'), { target: { value: '75' } })
   fireEvent.change(view.getByLabelText('User-Agent'), { target: { value: 'Configured/2' } })
   fireEvent.change(view.getByLabelText('自定义系统提示词'), { target: { value: '请简洁回答' } })
   assert.equal(view.queryByText('模型选择统一在这里管理'), null)
@@ -62,7 +64,7 @@ it('loads, edits and saves system config with local model record IDs', async () 
     fireEvent.click(await within(popup).findByText(model))
   }
   fireEvent.click(view.getByRole('button', { name: /保存配置/ }))
-  await waitFor(() => assert.deepEqual(saved, { agent_max_steps: 64, command_timeout_seconds: 120, global_agents_paths: config.global_agents_paths, system_prompt: '请简洁回答', user_agent: 'Configured/2', default_model_id: 'local-chat', task_model_id: 'local-task' }))
+  await waitFor(() => assert.deepEqual(saved, { context_compaction_percent: 75, agent_max_steps: 64, command_timeout_seconds: 120, global_agents_paths: config.global_agents_paths, system_prompt: '请简洁回答', user_agent: 'Configured/2', default_model_id: 'local-chat', task_model_id: 'local-task' }))
   assert.ok(view.getByText('只读基础人设'))
 })
 
@@ -90,6 +92,27 @@ it('searches models by API ID, clears configuration and restores the chat defaul
   fireEvent.mouseDown(chatInput.closest('.ant-select')!.querySelector('.ant-select-selector') ?? chatInput)
   fireEvent.click(await chat.findByText('默认模型'))
   assert.equal(selected, '')
+})
+
+it('saves TLS imports without retaining private keys and reports restart requirements', async () => {
+  let saved: Record<string, unknown> | undefined
+  const tls = { certificate_pem: 'public-certificate', fingerprint: 'abc123', not_after: '2027-09-10T00:00:00Z', hosts: ['localhost'] }
+  globalThis.fetch = (async (url, init) => {
+    assert.ok(String(url).endsWith('/info/tls'))
+    saved = JSON.parse(String(init?.body))
+    return response(tls)
+  }) as typeof fetch
+  let updated: unknown
+  const view = render(<App><TLSConfigPanel info={tls} onSaved={value => { updated = value }} /></App>)
+  assert.ok(view.getByRole('link', { name: '下载公钥证书' }))
+  fireEvent.click(view.getByText('导入已有证书与私钥'))
+  fireEvent.change(view.getByLabelText('TLS 证书 PEM'), { target: { value: 'replacement-cert' } })
+  fireEvent.change(view.getByLabelText('TLS 私钥 PEM'), { target: { value: 'secret-key' } })
+  fireEvent.click(view.getByRole('button', { name: '保存导入证书' }))
+  await waitFor(() => assert.deepEqual(saved, { certificate_pem: 'replacement-cert', private_key_pem: 'secret-key' }))
+  await waitFor(() => assert.equal((view.getByLabelText('TLS 私钥 PEM') as HTMLTextAreaElement).value, ''))
+  assert.deepEqual(updated, tls)
+  assert.ok(view.getByText('证书已更新，请重启服务并重新信任新证书'))
 })
 
 it('shows a config loading error instead of an editable empty form', async () => {

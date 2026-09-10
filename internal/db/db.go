@@ -21,12 +21,12 @@ var (
 	RedisCli  redis.UniversalClient
 )
 
+// SQL statement arguments can contain provider keys, MCP credentials and chats.
+// Application debug mode must never enable Ent SQL argument logging.
+
 // InitMySQL 初始化 MySQL 数据库客户端
-func InitMySQL(c *config.DatabaseConfig, debug bool) (*ent.Client, error) {
+func InitMySQL(c *config.DatabaseConfig, _ bool) (*ent.Client, error) {
 	options := make([]ent.Option, 0)
-	if debug {
-		options = append(options, ent.Debug())
-	}
 	client, openErr := ent.Open(dialect.MySQL, c.MySQLDSN(), options...)
 	if openErr != nil {
 		return nil, openErr
@@ -38,11 +38,8 @@ func InitMySQL(c *config.DatabaseConfig, debug bool) (*ent.Client, error) {
 }
 
 // InitPostgreSQL 初始化 PostgreSQL 数据库客户端
-func InitPostgreSQL(c *config.DatabaseConfig, debug bool) (*ent.Client, error) {
+func InitPostgreSQL(c *config.DatabaseConfig, _ bool) (*ent.Client, error) {
 	options := make([]ent.Option, 0)
-	if debug {
-		options = append(options, ent.Debug())
-	}
 	client, openErr := ent.Open(dialect.Postgres, c.PostgreSQLDSN(), options...)
 	if openErr != nil {
 		return nil, openErr
@@ -55,15 +52,12 @@ func InitPostgreSQL(c *config.DatabaseConfig, debug bool) (*ent.Client, error) {
 }
 
 // InitSQLite 初始化 SQLCipher 加密数据库，保持 Ent 的 SQLite dialect。
-func InitSQLite(c *config.DatabaseConfig, debug bool) (*ent.Client, error) {
+func InitSQLite(c *config.DatabaseConfig, _ bool) (*ent.Client, error) {
 	// 在打开业务文件前检查引擎，避免普通 SQLite 忽略 key 后写入明文。
 	if err := requireSQLCipher(); err != nil {
 		return nil, err
 	}
 	options := make([]ent.Option, 0)
-	if debug {
-		options = append(options, ent.Debug())
-	}
 	dsn, err := c.SQLiteDSN()
 	if err != nil {
 		return nil, err

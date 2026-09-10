@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
+    "@assistant-ui/react": "^0.15.18",
     "antd": "^6.6.3",
     "dayjs": "^1.11.23",
     "echarts": "^6.1.0",

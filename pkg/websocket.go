@@ -30,7 +30,7 @@ func defaultOptions() *options {
 		writeBufferSize:       4096,
 		handshakeTimeout:      10 * time.Second,
 		enableCompression:     false,
-		allowCrossOrigin:      true,
+		allowCrossOrigin:      false,
 		readLimit:             0,
 		heartbeat:             true,
 		heartbeatInterval:     30 * time.Second,

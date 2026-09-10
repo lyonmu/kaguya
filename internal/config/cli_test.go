@@ -58,3 +58,29 @@ func TestCLIRejectsInvalidHost(t *testing.T) {
 		})
 	}
 }
+
+func TestCLITrustedHosts(t *testing.T) {
+	for _, host := range []string{"agent.example.com", "localhost", "AGENT.example.com"} {
+		c := Cli{Host: "127.0.0.1", TrustedHosts: []string{host}}
+		if err := c.Validate(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, host := range []string{"", "*.example.com", "https://example.com", "example.com:443", "example.com/path", "evil@localhost", "a..b", "-a.com", "a.com\n"} {
+		c := Cli{Host: "127.0.0.1", TrustedHosts: []string{host}}
+		if err := c.Validate(); err == nil {
+			t.Fatalf("accepted trusted host %q", host)
+		}
+	}
+}
+
+func TestTLSRenewalIsExplicitOfflineAction(t *testing.T) {
+	cli := Cli{Host: "127.0.0.1", RenewTLS: true}
+	if err := cli.Validate(); err == nil {
+		t.Fatal("renewal accepted without prepare-tls")
+	}
+	cli.PrepareTLS = true
+	if err := cli.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

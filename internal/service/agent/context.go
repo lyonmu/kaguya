@@ -9,6 +9,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 
 // 最后一次调用的输入已含整个历史和本轮工具消息；不能使用 TotalUsage 累加值。
@@ -41,9 +42,13 @@ func completedResultContextTokens(result *fantasy.AgentResult, paused bool) *int
 	return tokens
 }
 
-func contextResponse(turn *ent.KaguyaChatTurn) *dtochat.ConversationContextResp {
+func contextResponse(turn *ent.KaguyaChatTurn, configuredPercent ...int) *dtochat.ConversationContextResp {
+	percent := 90
+	if len(configuredPercent) > 0 {
+		percent = compactionPercent(configuredPercent[0])
+	}
 	resp := &dtochat.ConversationContextResp{ConversationID: turn.ConversationID, TurnIndex: turn.TurnIndex, ModelID: turn.ModelID, ModelName: turn.ModelName,
-		ContextTokens: turn.ContextTokens, ContextWindow: turn.ContextWindow, EffectiveWindow: int64(turn.ContextWindow) * 9 / 10, WindowRatio: 0.9}
+		ContextTokens: turn.ContextTokens, ContextWindow: turn.ContextWindow, EffectiveWindow: int64(turn.ContextWindow) * int64(percent) / 100, WindowRatio: float64(percent) / 100}
 	if turn.ContextTokens != nil && resp.EffectiveWindow > 0 {
 		percent := float64(*turn.ContextTokens) / float64(resp.EffectiveWindow) * 100
 		maxPercent := float64(*turn.ContextTokens) / float64(turn.ContextWindow) * 100
@@ -64,14 +69,29 @@ func (s *AgentSvc) ConversationContext(ctx context.Context, id string) (*dtochat
 	if err != nil {
 		return nil, err
 	}
-	return contextResponse(turn), nil
+	info, err := (&servicesystem.SystemSvc{}).Info(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return contextResponse(turn, *info.ContextCompactionPercent), nil
 }
 
-// Reserve the final 10% for generation and respect a lower configured output limit.
-func contextOutputLimit(window, configured int) *int64 {
+func compactionPercent(value int) int {
+	if value == 0 {
+		return 90
+	}
+	return value
+}
+
+// Reserve the unoccupied part of the context for generation, honoring model limits.
+func contextOutputLimit(window, configured int, configuredPercent ...int) *int64 {
+	percent := 90
+	if len(configuredPercent) > 0 {
+		percent = compactionPercent(configuredPercent[0])
+	}
 	limit := int64(configured)
 	if window > 0 {
-		reserve := max(int64(window)/10, 1)
+		reserve := max(int64(window)*int64(100-percent)/100, 1)
 		if limit <= 0 || reserve < limit {
 			limit = reserve
 		}

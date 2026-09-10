@@ -75,6 +75,7 @@ func TestConversationAPI(t *testing.T) {
 	router.GET("/conversation/page", api.ConversationPage)
 	router.GET("/conversation/:id", api.ConversationDetail)
 	router.GET("/conversation/:id/turns", api.ConversationTurns)
+	router.GET("/conversation/:id/turns/:turn/blocks/:sequence", api.ConversationBlock)
 	router.GET("/conversation/:id/context", api.ConversationContext)
 	router.GET("/conversation/:id/title/wait", api.ConversationTitleWait)
 	router.POST("/conversation/:id/title/wait", api.ConversationTitleGenerate)
@@ -102,6 +103,19 @@ func TestConversationAPI(t *testing.T) {
 		return result.Data
 	}
 	ok, bad, missing := dtocode.SystemSuccess.Code, dtocode.RequestParameterError.Code, dtocode.ConversationNotFound.Code
+	compact := request("GET", "/conversation/123/turns?compact=true", "", ok)
+	if compact["page_size"] != float64(5) {
+		t.Fatalf("default history size: %+v", compact)
+	}
+	block := request("GET", "/conversation/123/turns/1/blocks/1", "", ok)
+	if block["text"] != "answer 1" {
+		t.Fatalf("block: %+v", block)
+	}
+	request("GET", "/conversation/project-chat/turns/1/blocks/1", "", missing)
+	request("GET", "/conversation/123/turns/0/blocks/1", "", bad)
+	request("GET", "/conversation/123/turns/1/blocks/0", "", bad)
+	request("GET", "/conversation/123/turns/1/blocks/999", "", missing)
+
 	usage := request("GET", "/conversation/123/context", "", ok)
 	if usage["percent"] != float64(50) || usage["context_tokens"] != float64(450) || usage["turn_index"] != float64(2) {
 		t.Fatalf("context: %+v", usage)

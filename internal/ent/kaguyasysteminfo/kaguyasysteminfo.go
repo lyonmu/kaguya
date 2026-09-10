@@ -22,6 +22,12 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// FieldAgentMaxSteps holds the string denoting the agent_max_steps field in the database.
 	FieldAgentMaxSteps = "agent_max_steps"
+	// FieldContextCompactionPercent holds the string denoting the context_compaction_percent field in the database.
+	FieldContextCompactionPercent = "context_compaction_percent"
+	// FieldTLSCertificatePem holds the string denoting the tls_certificate_pem field in the database.
+	FieldTLSCertificatePem = "tls_certificate_pem"
+	// FieldTLSPrivateKeyPem holds the string denoting the tls_private_key_pem field in the database.
+	FieldTLSPrivateKeyPem = "tls_private_key_pem"
 	// FieldCommandTimeoutSeconds holds the string denoting the command_timeout_seconds field in the database.
 	FieldCommandTimeoutSeconds = "command_timeout_seconds"
 	// FieldGlobalAgentsPaths holds the string denoting the global_agents_paths field in the database.
@@ -45,6 +51,9 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldDeletedAt,
 	FieldAgentMaxSteps,
+	FieldContextCompactionPercent,
+	FieldTLSCertificatePem,
+	FieldTLSPrivateKeyPem,
 	FieldCommandTimeoutSeconds,
 	FieldGlobalAgentsPaths,
 	FieldSystemPrompt,
@@ -80,6 +89,14 @@ var (
 	DefaultAgentMaxSteps int
 	// AgentMaxStepsValidator is a validator for the "agent_max_steps" field. It is called by the builders before save.
 	AgentMaxStepsValidator func(int) error
+	// DefaultContextCompactionPercent holds the default value on creation for the "context_compaction_percent" field.
+	DefaultContextCompactionPercent int
+	// ContextCompactionPercentValidator is a validator for the "context_compaction_percent" field. It is called by the builders before save.
+	ContextCompactionPercentValidator func(int) error
+	// DefaultTLSCertificatePem holds the default value on creation for the "tls_certificate_pem" field.
+	DefaultTLSCertificatePem string
+	// DefaultTLSPrivateKeyPem holds the default value on creation for the "tls_private_key_pem" field.
+	DefaultTLSPrivateKeyPem string
 	// DefaultCommandTimeoutSeconds holds the default value on creation for the "command_timeout_seconds" field.
 	DefaultCommandTimeoutSeconds int
 	// CommandTimeoutSecondsValidator is a validator for the "command_timeout_seconds" field. It is called by the builders before save.
@@ -126,6 +143,21 @@ func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByAgentMaxSteps orders the results by the agent_max_steps field.
 func ByAgentMaxSteps(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAgentMaxSteps, opts...).ToFunc()
+}
+
+// ByContextCompactionPercent orders the results by the context_compaction_percent field.
+func ByContextCompactionPercent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContextCompactionPercent, opts...).ToFunc()
+}
+
+// ByTLSCertificatePem orders the results by the tls_certificate_pem field.
+func ByTLSCertificatePem(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTLSCertificatePem, opts...).ToFunc()
+}
+
+// ByTLSPrivateKeyPem orders the results by the tls_private_key_pem field.
+func ByTLSPrivateKeyPem(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTLSPrivateKeyPem, opts...).ToFunc()
 }
 
 // ByCommandTimeoutSeconds orders the results by the command_timeout_seconds field.

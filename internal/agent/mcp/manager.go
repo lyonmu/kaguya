@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"sort"
@@ -76,7 +77,8 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 		cmd.WaitDelay = time.Second
 		transport = &sdk.CommandTransport{Command: cmd, TerminateDuration: time.Second}
 	default:
-		client := &http.Client{Transport: headerTransport{headers: config.Headers}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		endpoint, _ := url.Parse(config.URL) // Config.Validate has checked the URL.
+		client := &http.Client{Transport: headerTransport{headers: config.Headers, origin: endpoint}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 		if config.Transport == "sse" {
 			transport = &sdk.SSEClientTransport{Endpoint: config.URL, HTTPClient: client}
 		} else {
@@ -218,9 +220,17 @@ func (t persistentTransport) Connect(context.Context) (sdk.Connection, error) {
 	return t.Transport.Connect(t.ctx)
 }
 
-type headerTransport struct{ headers map[string]string }
+type headerTransport struct {
+	headers map[string]string
+	origin  *url.URL
+}
 
 func (t headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Legacy SSE can advertise an absolute POST endpoint. Do not forward
+	// credentials or tool arguments to a different origin (including HTTPS downgrade).
+	if t.origin == nil || req.URL.User != nil || !strings.EqualFold(req.URL.Scheme, t.origin.Scheme) || !strings.EqualFold(req.URL.Host, t.origin.Host) {
+		return nil, fmt.Errorf("MCP request endpoint must match the configured origin")
+	}
 	ctx := req.Context()
 	// 关闭会话的 DELETE 使用独立上限，避免故障远端阻塞动态停用。
 	if req.Method == http.MethodDelete {

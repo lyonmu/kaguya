@@ -310,7 +310,7 @@ const docTemplate = `{
         },
         "/v1/chat/conversation/{id}/turns": {
             "get": {
-                "description": "page\u003e0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 兼容原游标：首屏最新 limit 轮，用 next_before 向前加载。has_more 表示仍有更早轮次。所有结果与 blocks 均正序；工具输入输出合并，不返回模型私有 metadata。",
+                "description": "默认每页5轮，上限100轮。page\u003e0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 使用游标：首屏最新 limit 轮，用 next_before 向前加载。compact=true 时仅正文完整返回，工具及思考块只返回元信息，details_deferred=true 的块通过单块详情接口加载。所有结果与 blocks 均正序，不返回模型私有 metadata。",
                 "tags": [
                     "Chat History"
                 ],
@@ -328,6 +328,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "上页 next_before；0 表示最新",
                         "name": "before",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "折叠的工具/思考内容由详情接口按需加载",
+                        "name": "compact",
                         "in": "query"
                     },
                     {
@@ -359,6 +365,57 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/chat.TurnListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/chat/conversation/{id}/turns/{turn}/blocks/{sequence}": {
+            "get": {
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "按需读取单个工具或思考内容块",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "轮次索引",
+                        "name": "turn",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "轮内内容块序号",
+                        "name": "sequence",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.StoredBlock"
                                         }
                                     }
                                 }
@@ -869,6 +926,46 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/system.SystemInfoResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/info/tls": {
+            "put": {
+                "description": "generate=true 生成新的自签名证书；否则导入完整 PEM 证书与私钥。只返回公钥证书，不返回私钥。服务器仅支持 TLS 1.3。",
+                "tags": [
+                    "System Info"
+                ],
+                "summary": "替换 TLS 证书，重启后生效",
+                "parameters": [
+                    {
+                        "description": "TLS 配置",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.TLSSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.TLSInfoResp"
                                         }
                                     }
                                 }
@@ -1961,6 +2058,9 @@ const docTemplate = `{
         "chat.StoredBlock": {
             "type": "object",
             "properties": {
+                "details_deferred": {
+                    "type": "boolean"
+                },
                 "end_order": {
                     "type": "integer"
                 },
@@ -1969,6 +2069,9 @@ const docTemplate = `{
                 },
                 "finished_at": {
                     "type": "string"
+                },
+                "has_output": {
+                    "type": "boolean"
                 },
                 "input": {
                     "type": "string"
@@ -2446,6 +2549,11 @@ const docTemplate = `{
                     "maximum": 86400,
                     "minimum": 1
                 },
+                "context_compaction_percent": {
+                    "type": "integer",
+                    "maximum": 95,
+                    "minimum": 10
+                },
                 "default_model_id": {
                     "type": "string",
                     "maxLength": 64
@@ -2468,6 +2576,9 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 64
                 },
+                "tls": {
+                    "$ref": "#/definitions/system.TLSInfoResp"
+                },
                 "user_agent": {
                     "type": "string",
                     "maxLength": 512
@@ -2489,6 +2600,11 @@ const docTemplate = `{
                     "type": "integer",
                     "maximum": 86400,
                     "minimum": 1
+                },
+                "context_compaction_percent": {
+                    "type": "integer",
+                    "maximum": 95,
+                    "minimum": 10
                 },
                 "default_model_id": {
                     "type": "string",
@@ -2955,6 +3071,49 @@ const docTemplate = `{
                 }
             }
         },
+        "system.TLSInfoResp": {
+            "type": "object",
+            "properties": {
+                "certificate_pem": {
+                    "type": "string"
+                },
+                "fingerprint": {
+                    "type": "string"
+                },
+                "hosts": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "not_after": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.TLSSaveReq": {
+            "type": "object",
+            "properties": {
+                "certificate_pem": {
+                    "type": "string",
+                    "maxLength": 131072
+                },
+                "generate": {
+                    "type": "boolean"
+                },
+                "hosts": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "private_key_pem": {
+                    "type": "string",
+                    "maxLength": 32768
+                }
+            }
+        },
         "system.TokenUsageComposition": {
             "type": "object",
             "properties": {
@@ -3054,9 +3213,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "v0.0.1",
-	Host:             "http://localhost:9024",
+	Host:             "localhost:9024",
 	BasePath:         "/kaguya/api",
-	Schemes:          []string{"http"},
+	Schemes:          []string{"https"},
 	Title:            "kaguya Swagger API接口文档",
 	Description:      "kaguya 后端",
 	InfoInstanceName: "swagger",

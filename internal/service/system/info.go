@@ -29,6 +29,9 @@ func (s *SystemSvc) Info(ctx context.Context) (*dtosystem.SystemInfoResp, error)
 }
 
 func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSaveReq) (*dtosystem.SystemInfoResp, error) {
+	if req.ContextCompactionPercent != nil && (*req.ContextCompactionPercent < 10 || *req.ContextCompactionPercent > 95) {
+		return nil, ErrInvalidSystemInfo
+	}
 	if utf8.RuneCountInString(req.SystemPrompt) > 20000 || len(req.DefaultModelID) > 64 || len(req.TaskModelID) > 64 || strings.TrimSpace(req.UserAgent) == "" || len(req.UserAgent) > 512 {
 		return nil, ErrInvalidSystemInfo
 	}
@@ -62,6 +65,9 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	if req.AgentMaxSteps != nil {
 		update.SetAgentMaxSteps(*req.AgentMaxSteps)
 	}
+	if req.ContextCompactionPercent != nil {
+		update.SetContextCompactionPercent(*req.ContextCompactionPercent)
+	}
 	if req.CommandTimeoutSeconds != nil {
 		update.SetCommandTimeoutSeconds(*req.CommandTimeoutSeconds)
 	}
@@ -93,11 +99,13 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 	return &dtosystem.SystemInfoResp{
 		SystemInfoSaveReq: dtosystem.SystemInfoSaveReq{
-			SystemPrompt: row.SystemPrompt, UserAgent: row.UserAgent,
+			ContextCompactionPercent: &row.ContextCompactionPercent,
+			SystemPrompt:             row.SystemPrompt, UserAgent: row.UserAgent,
 			AgentMaxSteps: &row.AgentMaxSteps, CommandTimeoutSeconds: &row.CommandTimeoutSeconds, GlobalAgentsPaths: defaultAgentsPaths(row.GlobalAgentsPaths),
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
 		},
 		GlobalSystemPrompt: consts.GlobalSystemPrompt,
+		TLS:                tlsInfo(row.TLSCertificatePem),
 	}
 }
 

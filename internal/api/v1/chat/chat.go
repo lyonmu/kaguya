@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -42,8 +43,11 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 	c.Writer.WriteHeader(http.StatusOK)
 	c.Writer.Flush()
 
+	// Cancel the producer on every handler exit, including write and encoding failures.
+	ctx, cancel := context.WithCancel(c.Request.Context())
+	defer cancel()
 	dataChan := make(chan *dtochat.ChatResp)
-	go agentvc.Chat(c.Request.Context(), dataChan, &req)
+	go agentvc.Chat(ctx, dataChan, &req)
 
 	for {
 		select {

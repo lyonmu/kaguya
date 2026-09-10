@@ -1,7 +1,6 @@
 package pkg
 
 import (
-	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 
@@ -9,14 +8,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func NewGin(reg *prometheus.Registry, mode bool) (*gin.Engine, error) {
+func NewGin(reg *prometheus.Registry, mode bool, trustedHosts ...string) (*gin.Engine, error) {
 
 	if !mode {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	r := gin.New()
-	r.Use(cors.Default())
+	r.Use(requestSecurity(trustedHosts))
 	r.Use(gin.Recovery())
 	if mode {
 		r.Use(gin.Logger())

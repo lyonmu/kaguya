@@ -74,6 +74,7 @@ func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64,
 }
 
 type completedTurn struct {
+	AgentInstructions                                         *string
 	ContextMessages                                           []fantasy.Message
 	CompactionCount                                           int
 	ProjectID                                                 string
@@ -132,6 +133,13 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	}
 	if changed != 1 {
 		return ErrConversationBusy
+	}
+	if turn.AgentInstructions != nil {
+		// Preserve even an empty snapshot. Legacy conversations initialize once on
+		// their next successful turn, within the same history transaction.
+		if _, err := client.KaguyaConversation.Update().Where(kaguyaconversation.IDEQ(turn.ConversationID), kaguyaconversation.AgentInstructionsIsNil()).SetAgentInstructions(*turn.AgentInstructions).Save(ctx); err != nil {
+			return err
+		}
 	}
 	row, err := client.KaguyaChatTurn.Create().SetConversationID(turn.ConversationID).SetTurnIndex(turn.Version + 1).
 		SetUserContent(turn.UserContent).SetProviderID(turn.ProviderID).SetProviderName(turn.ProviderName).
@@ -281,12 +289,17 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 	// 展示查询不读取体积较大且包含 provider 私有元数据的模型上下文。
 	fields := make([]string, 0, len(kaguyachatturn.Columns))
 	for _, f := range kaguyachatturn.Columns {
-		if f != kaguyachatturn.FieldMessages {
+		if f != kaguyachatturn.FieldMessages && f != kaguyachatturn.FieldContextMessages {
 			fields = append(fields, f)
 		}
 	}
-	rows, err := q.Select(fields...).Order(kaguyachatturn.ByTurnIndex(sql.OrderDesc())).Limit(req.Limit + 1).
-		WithBlocks(func(q *ent.KaguyaChatBlockQuery) { q.Order(kaguyachatblock.BySequence()) }).All(ctx)
+	// Page numbers already have an exact turn-index range. Cursor mode uses
+	// one extra metadata row to detect older history, without loading its blocks.
+	queryLimit := req.Limit
+	if page == 0 {
+		queryLimit++
+	}
+	rows, err := q.Select(fields...).Order(kaguyachatturn.ByTurnIndex(sql.OrderDesc())).Limit(queryLimit).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -295,21 +308,59 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 	if resp.HasMore {
 		rows = rows[:req.Limit]
 	}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+	blocksByTurn := make(map[string][]*ent.KaguyaChatBlock)
+	if len(ids) > 0 {
+		blocksQuery := db.EntClient.KaguyaChatBlock.Query().Where(kaguyachatblock.TurnIDIn(ids...)).Order(kaguyachatblock.BySequence())
+		if req.Compact {
+			// Do not even read large folded payloads from the database.
+			blockFields := make([]string, 0, len(kaguyachatblock.Columns))
+			for _, field := range kaguyachatblock.Columns {
+				if field != kaguyachatblock.FieldText && field != kaguyachatblock.FieldInput && field != kaguyachatblock.FieldOutput && field != kaguyachatblock.FieldErrorMessage {
+					blockFields = append(blockFields, field)
+				}
+			}
+			blocksQuery.Select(blockFields...)
+		}
+		blocks, err := blocksQuery.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if req.Compact {
+			texts, err := db.EntClient.KaguyaChatBlock.Query().Where(kaguyachatblock.TurnIDIn(ids...), kaguyachatblock.TypeEQ(kaguyachatblock.TypeText)).Select(kaguyachatblock.FieldID, kaguyachatblock.FieldText).All(ctx)
+			if err != nil {
+				return nil, err
+			}
+			textByID := make(map[string]string, len(texts))
+			for _, block := range texts {
+				textByID[block.ID] = block.Text
+			}
+			for _, block := range blocks {
+				block.Text = textByID[block.ID]
+			}
+		}
+		for _, block := range blocks {
+			blocksByTurn[block.TurnID] = append(blocksByTurn[block.TurnID], block)
+		}
+	}
 	for i := len(rows) - 1; i >= 0; i-- {
 		row := rows[i]
 		turn := dtochat.StoredTurn{TurnIndex: row.TurnIndex, UserContent: row.UserContent, ProviderName: row.ProviderName,
 			ModelID: row.ModelID, ModelName: row.ModelName, APIProtocol: row.APIProtocol, StartedAt: row.StartedAt, FinishedAt: row.FinishedAt,
 			DurationMS: row.DurationMs, ToolCalls: row.ToolCalls, FinishReason: row.FinishReason,
 			Usage:  dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)},
-			Blocks: make([]dtochat.StoredBlock, 0, len(row.Edges.Blocks))}
-		for _, b := range row.Edges.Blocks {
-			block := dtochat.StoredBlock{Sequence: b.Sequence, Type: dtochat.BlockType(b.Type), Text: b.Text, ToolCallID: b.ToolCallID,
-				ToolName: b.ToolName, Input: b.Input, ProviderExecuted: b.ProviderExecuted, IsError: b.IsError, ErrorMessage: b.ErrorMessage,
-				StartedAt: b.StartedAt, FinishedAt: b.FinishedAt, StartOrder: b.StartOrder, EndOrder: b.EndOrder}
-			if len(b.Output) > 0 {
-				if err := json.Unmarshal(b.Output, &block.Output); err != nil {
-					return nil, fmt.Errorf("decode stored tool output: %w", err)
-				}
+			Blocks: make([]dtochat.StoredBlock, 0, len(blocksByTurn[row.ID]))}
+		for _, b := range blocksByTurn[row.ID] {
+			block, err := storedBlock(b)
+			if err != nil {
+				return nil, err
+			}
+			if req.Compact && b.Type != kaguyachatblock.TypeText {
+				block.DetailsDeferred = true
+				block.HasOutput = b.Type == kaguyachatblock.TypeToolCall && b.EndOrder > 0
 			}
 			turn.Blocks = append(turn.Blocks, block)
 		}
@@ -322,4 +373,33 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 		resp.NextBefore = resp.Items[0].TurnIndex
 	}
 	return resp, nil
+}
+
+func storedBlock(b *ent.KaguyaChatBlock) (dtochat.StoredBlock, error) {
+	block := dtochat.StoredBlock{Sequence: b.Sequence, Type: dtochat.BlockType(b.Type), Text: b.Text, ToolCallID: b.ToolCallID,
+		ToolName: b.ToolName, Input: b.Input, ProviderExecuted: b.ProviderExecuted, IsError: b.IsError, ErrorMessage: b.ErrorMessage,
+		StartedAt: b.StartedAt, FinishedAt: b.FinishedAt, StartOrder: b.StartOrder, EndOrder: b.EndOrder}
+	if len(b.Output) > 0 {
+		if err := json.Unmarshal(b.Output, &block.Output); err != nil {
+			return block, fmt.Errorf("decode stored tool output: %w", err)
+		}
+	}
+	return block, nil
+}
+
+func (s *AgentSvc) ConversationBlock(ctx context.Context, req *dtochat.BlockDetailReq) (*dtochat.StoredBlock, error) {
+	if req.TurnIndex < 1 || req.Sequence < 1 {
+		return nil, ErrConversationUpdate
+	}
+	row, err := db.EntClient.KaguyaChatBlock.Query().Where(kaguyachatblock.SequenceEQ(req.Sequence),
+		kaguyachatblock.HasTurnWith(kaguyachatturn.ConversationIDEQ(req.ID), kaguyachatturn.TurnIndexEQ(req.TurnIndex),
+			kaguyachatturn.HasConversationWith(kaguyaconversation.DeletedAtIsNil()))).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, ErrConversationNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	block, err := storedBlock(row)
+	return &block, err
 }

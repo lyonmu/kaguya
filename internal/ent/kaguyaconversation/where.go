@@ -90,6 +90,11 @@ func ProjectID(v string) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldEQ(FieldProjectID, v))
 }
 
+// AgentInstructions applies equality check predicate on the "agent_instructions" field. It's identical to AgentInstructionsEQ.
+func AgentInstructions(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldAgentInstructions, v))
+}
+
 // Favorite applies equality check predicate on the "favorite" field. It's identical to FavoriteEQ.
 func Favorite(v bool) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldEQ(FieldFavorite, v))
@@ -418,6 +423,81 @@ func ProjectIDEqualFold(v string) predicate.KaguyaConversation {
 // ProjectIDContainsFold applies the ContainsFold predicate on the "project_id" field.
 func ProjectIDContainsFold(v string) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldContainsFold(FieldProjectID, v))
+}
+
+// AgentInstructionsEQ applies the EQ predicate on the "agent_instructions" field.
+func AgentInstructionsEQ(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsNEQ applies the NEQ predicate on the "agent_instructions" field.
+func AgentInstructionsNEQ(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNEQ(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsIn applies the In predicate on the "agent_instructions" field.
+func AgentInstructionsIn(vs ...string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIn(FieldAgentInstructions, vs...))
+}
+
+// AgentInstructionsNotIn applies the NotIn predicate on the "agent_instructions" field.
+func AgentInstructionsNotIn(vs ...string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotIn(FieldAgentInstructions, vs...))
+}
+
+// AgentInstructionsGT applies the GT predicate on the "agent_instructions" field.
+func AgentInstructionsGT(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGT(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsGTE applies the GTE predicate on the "agent_instructions" field.
+func AgentInstructionsGTE(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGTE(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsLT applies the LT predicate on the "agent_instructions" field.
+func AgentInstructionsLT(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLT(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsLTE applies the LTE predicate on the "agent_instructions" field.
+func AgentInstructionsLTE(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLTE(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsContains applies the Contains predicate on the "agent_instructions" field.
+func AgentInstructionsContains(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldContains(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsHasPrefix applies the HasPrefix predicate on the "agent_instructions" field.
+func AgentInstructionsHasPrefix(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldHasPrefix(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsHasSuffix applies the HasSuffix predicate on the "agent_instructions" field.
+func AgentInstructionsHasSuffix(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldHasSuffix(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsIsNil applies the IsNil predicate on the "agent_instructions" field.
+func AgentInstructionsIsNil() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIsNull(FieldAgentInstructions))
+}
+
+// AgentInstructionsNotNil applies the NotNil predicate on the "agent_instructions" field.
+func AgentInstructionsNotNil() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotNull(FieldAgentInstructions))
+}
+
+// AgentInstructionsEqualFold applies the EqualFold predicate on the "agent_instructions" field.
+func AgentInstructionsEqualFold(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEqualFold(FieldAgentInstructions, v))
+}
+
+// AgentInstructionsContainsFold applies the ContainsFold predicate on the "agent_instructions" field.
+func AgentInstructionsContainsFold(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldContainsFold(FieldAgentInstructions, v))
 }
 
 // FavoriteEQ applies the EQ predicate on the "favorite" field.

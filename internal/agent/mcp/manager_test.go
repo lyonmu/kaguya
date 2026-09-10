@@ -2,10 +2,12 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,6 +17,31 @@ import (
 
 type echoInput struct {
 	Text string `json:"text"`
+}
+
+func TestSSERejectsCrossOriginEndpoint(t *testing.T) {
+	var leaked atomic.Bool
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { leaked.Store(true); w.WriteHeader(400) }))
+	defer other.Close()
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "event: endpoint\ndata: %s/messages\n\n", other.URL)
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+	}))
+	defer remote.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	conn, err := Prepare(ctx, Config{Name: "untrusted endpoint", Transport: "sse", URL: remote.URL, Headers: map[string]string{"Authorization": "Bearer secret"}, TimeoutSeconds: 2})
+	if conn != nil {
+		conn.Close()
+	}
+	if err == nil {
+		t.Fatal("cross-origin SSE endpoint accepted")
+	}
+	if leaked.Load() {
+		t.Fatal("request or credentials sent to another origin")
+	}
 }
 
 func testServer(started ...chan struct{}) *sdk.Server {

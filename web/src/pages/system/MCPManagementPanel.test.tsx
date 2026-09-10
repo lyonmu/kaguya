@@ -111,7 +111,7 @@ it('formats command arguments, preserves invalid input and saves argument bounda
   assert.ok(view.getAllByLabelText('启停说明').length > 0)
   fireEvent.click(view.getByRole('button', { name: '编辑' }))
   const dialog = await view.findByRole('dialog')
-  const editor = within(dialog).getByRole('textbox', { name: '命令参数' }) as HTMLTextAreaElement
+  const editor = await within(dialog).findByRole('textbox', { name: '命令参数' }) as HTMLTextAreaElement
   assert.ok(within(dialog).getAllByLabelText('保存说明').length > 0)
   assert.equal(within(dialog).queryByText('保存时会连接新配置；成功后替换原连接，失败时保留原配置。') === null, true)
   fireEvent.change(editor, { target: { value: '["-y",' } })

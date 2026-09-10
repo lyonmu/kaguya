@@ -22,6 +22,9 @@ func (KaguyaSystemInfo) Fields() []ent.Field {
 			return nil
 		}),
 		field.Int("agent_max_steps").Default(0).Min(0).Max(1000),
+		field.Int("context_compaction_percent").Default(90).Min(10).Max(95),
+		field.Text("tls_certificate_pem").Default(""),
+		field.Text("tls_private_key_pem").Default("").Sensitive(),
 		field.Int("command_timeout_seconds").Default(120).Min(1).Max(86400),
 		field.JSON("global_agents_paths", []string{}).Optional(),
 		field.Text("system_prompt").Default("").Comment("追加到全局人设后的自定义提示词"),

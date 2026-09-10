@@ -25,6 +25,8 @@ const (
 	FieldTitle = "title"
 	// FieldProjectID holds the string denoting the project_id field in the database.
 	FieldProjectID = "project_id"
+	// FieldAgentInstructions holds the string denoting the agent_instructions field in the database.
+	FieldAgentInstructions = "agent_instructions"
 	// FieldFavorite holds the string denoting the favorite field in the database.
 	FieldFavorite = "favorite"
 	// FieldTurnCount holds the string denoting the turn_count field in the database.
@@ -79,6 +81,7 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldTitle,
 	FieldProjectID,
+	FieldAgentInstructions,
 	FieldFavorite,
 	FieldTurnCount,
 	FieldLastMessageAt,
@@ -189,6 +192,11 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 // ByProjectID orders the results by the project_id field.
 func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProjectID, opts...).ToFunc()
+}
+
+// ByAgentInstructions orders the results by the agent_instructions field.
+func ByAgentInstructions(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAgentInstructions, opts...).ToFunc()
 }
 
 // ByFavorite orders the results by the favorite field.

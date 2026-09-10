@@ -68,6 +68,7 @@
 .chat-markdown pre code { padding: 0; background: transparent; }
 .chat-markdown a { color: var(--k-primary); text-decoration: underline; }
 .chat-markdown img { max-width: 100%; }
+.chat-image-load { max-width: 100%; padding: 8px 12px; border: 1px solid var(--k-border); border-radius: 8px; background: var(--k-elevated); color: var(--k-primary); cursor: pointer; overflow-wrap: anywhere; }
 .chat-markdown table { display: block; overflow: auto; border-collapse: collapse; margin: 12px 0; }
 .chat-markdown th, .chat-markdown td { padding: 8px; border: 1px solid var(--k-border); }
 .chat-markdown blockquote { border-left: 3px solid var(--k-primary); padding-left: 14px; color: var(--k-text-muted); }
@@ -198,3 +199,23 @@
 .dark .chat-code-block .hljs-string, .dark .chat-code-block .hljs-addition, .dark .chat-code-block .hljs-attr { color: #98cfa5; }
 .dark .chat-code-block .hljs-number, .dark .chat-code-block .hljs-literal, .dark .chat-code-block .hljs-deletion { color: #f2a2a4; }
 .dark .chat-code-block .hljs-title, .dark .chat-code-block .hljs-type, .dark .chat-code-block .hljs-name { color: #8fc5fa; }
+
+/* assistant-ui owns the chat viewport and composer; both share the console theme. */
+.assistant-thread { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; }
+.assistant-thread .chat-message-wrap { width: 100%; padding-top: 24px; }
+.assistant-thread .chat-messages { position: relative; padding-bottom: 24px; }
+.chat-scroll-bottom { position: sticky; bottom: 8px; display: block; margin: 0 auto; border: 1px solid var(--k-border); background: var(--k-surface); color: var(--k-text); border-radius: 20px; padding: 8px 14px; cursor: pointer; }
+.chat-scroll-bottom:disabled { visibility: hidden; }
+.chat-composer-input { display: block; width: 100%; color: var(--k-text); font: 14px/1.7 var(--font-sans); padding: 4px; }
+.chat-send, .chat-stop { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 36px; height: 36px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--k-border); cursor: pointer; }
+.chat-send { background: var(--k-primary); color: var(--k-surface); }
+.chat-stop { background: var(--k-surface); color: var(--k-danger); }
+.chat-send:disabled, .chat-stop:disabled { opacity: .45; cursor: not-allowed; }
+.chat-local-sessions { flex-shrink: 0; max-height: 30%; overflow: auto; padding: 8px 10px; border-top: 1px solid var(--k-border-soft); }
+.chat-local-sessions h3 { margin: 6px 10px; font-size: 11px; color: var(--k-text-muted); }
+.chat-page-rail button[aria-current="page"] span { background: var(--k-primary); }
+.assistant-thread .chat-welcome { margin: auto; padding: 40px 16px; }
+.assistant-thread .chat-message-panel:has(.chat-welcome) .chat-messages { flex: 0; padding-bottom: 0; }
+.assistant-thread [data-role="user"] .chat-message { margin-left: auto; width: fit-content; max-width: 85%; }
+.assistant-thread [data-role="user"] .chat-message-body { flex: 0 1 auto; display: flex; flex-direction: column; align-items: flex-end; }
+.assistant-thread [data-role="user"] .chat-user-text { width: fit-content; max-width: 100%; box-sizing: border-box; }

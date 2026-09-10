@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -123,6 +124,29 @@ func TestInitSQLiteWALAndPersistence(t *testing.T) {
 	var count int
 	if err := plain.QueryRow("SELECT count(*) FROM sqlite_master").Scan(&count); err == nil {
 		t.Fatal("ordinary SQLite could read the encrypted schema")
+	}
+}
+
+func TestDebugDoesNotLogDatabaseSecrets(t *testing.T) {
+	var output bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&output)
+	defer log.SetOutput(previous)
+	cfg := encryptedConfig(t)
+	if err := cfg.EnsureSQLiteDatabase(); err != nil {
+		t.Fatal(err)
+	}
+	client, err := db.InitSQLite(&cfg, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	const secret = "private-system-prompt-should-not-be-logged"
+	if err := client.KaguyaSystemInfo.Create().SetID("global").SetSystemPrompt(secret).Exec(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(output.String(), secret) {
+		t.Fatal("debug log contains database secret")
 	}
 }
 

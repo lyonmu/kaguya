@@ -5,6 +5,7 @@ import { useColorMode } from './app/colorMode'
 import { createKaguyaTheme } from './app/theme'
 import { AppLayout } from './components/layout/AppLayout'
 import type { SystemPage } from './components/layout/AppLayout'
+import { ChatProvider } from './features/chat/ChatProvider'
 import { ChatPage } from './pages/chat/ChatPage'
 
 const TokenUsagePage = lazy(() => import('./pages/system/TokenUsagePage').then(module => ({ default: module.TokenUsagePage })))
@@ -21,6 +22,7 @@ function App() {
   return (
     <ConfigProvider locale={zhCN} theme={theme}>
       <AntdApp>
+      <ChatProvider>
         <AppLayout
           colorMode={colorMode}
           currentPage={currentPage}
@@ -41,6 +43,7 @@ function App() {
           )}
           </Suspense>
         </AppLayout>
+      </ChatProvider>
       </AntdApp>
     </ConfigProvider>
   )

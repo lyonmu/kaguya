@@ -1,17 +1,18 @@
-import { useLayoutEffect, useRef } from "react";
-import { Alert, Empty, Spin } from "antd";
-import { VirtualList } from "./VirtualList";
+import { createContext, useContext, useLayoutEffect, useRef } from "react";
+import { Alert, Spin } from "antd";
+import { MessagePrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import { Markdown, CopyButton } from "./Markdown";
 import { ActivityBlock } from "./ActivityBlock";
 import type { Block, Turn } from "../types";
 import kaguyaAvatar from "../../../assets/kaguya.png";
 import userAvatar from "../../../assets/lyonmu.png";
 
-export function ContentBlock({ block, streaming = false }: { block: Block; streaming?: boolean }) {
- return block.type === 'text' ? <Markdown text={block.text ?? ''} /> : <ActivityBlock block={block} streaming={streaming} />
+export function ContentBlock({ block, streaming = false, conversationId, turnIndex }: { block: Block; streaming?: boolean; conversationId?: string; turnIndex?: number }) {
+ return block.type === 'text' ? <Markdown text={block.text ?? ''} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
 }
 
 interface Props {
+  conversationId?: string;
   turns: Turn[];
   loading: boolean;
   streaming: boolean;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function MessageList({
+  conversationId,
   turns,
   loading,
   streaming,
@@ -33,6 +35,17 @@ export function MessageList({
   onContinue,
 }: Props) {
   const rail = useRef<HTMLElement>(null);
+  const viewport = useRef<HTMLDivElement>(null)
+  const boundaryTime = useRef(0)
+  const touchY = useRef(0)
+  const boundary = (direction: -1 | 1) => {
+    const element = viewport.current
+    if (!element || loading || streaming || Date.now() - boundaryTime.current < 500) return
+    if ((direction < 0 && element.scrollTop <= 0) || (direction > 0 && element.scrollTop + element.clientHeight >= element.scrollHeight - 1)) {
+      boundaryTime.current = Date.now()
+      void onPageChange(page + direction, direction < 0)
+    }
+  }
   useLayoutEffect(() => {
     const selected = rail.current?.querySelector<HTMLElement>(
       '[aria-current="page"]',
@@ -55,73 +68,23 @@ export function MessageList({
           </div>
           <h1>今天有什么需要我帮忙的吗？</h1>
           <p>告诉 Kaguya 你在想什么，我会和你一起找到答案。</p>
-          <Empty
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="从这里开始，告诉我你的想法"
-          />
+
         </div>
       )}
-      <VirtualList
-        className="chat-messages"
-        items={turns}
-        itemKey={(turn) => turn.turn_index}
-        estimate={360}
-        initialEnd={initialEnd}
-        followEnd={streaming}
-        onBoundary={(direction) => {
-          if (!loading && !streaming)
-            void onPageChange(page + direction, direction < 0);
-        }}
-        renderItem={(turn) => (
-          <section className="chat-message-wrap">
-            <article className="chat-message">
-              <div className="chat-avatar">
-                <img src={userAvatar} alt="用户头像" />
-              </div>
-              <div className="chat-message-body">
-                <div className="chat-message-name">
-                  你 · {new Date(turn.started_at).toLocaleString()}
-                </div>
-                <div className="chat-user-text">{turn.user_content}</div>
-              </div>
-            </article>
-            <article className="chat-message">
-              <div className="chat-avatar ai">
-                <img src={kaguyaAvatar} alt="Kaguya 头像" />
-              </div>
-              <div className="chat-message-body">
-                <div className="chat-message-name">
-                  Kaguya {turn.model_name && `· ${turn.model_name}`}
-                </div>
-                {turn.blocks.map((block, index) => (
-                  <ContentBlock key={index} block={block} streaming={turn.status === "streaming"} />
-                ))}
-                {turn.status === "streaming" && (
-                  <div className="chat-muted" role="status">
-                    <Spin size="small" /> 正在生成…
-                  </div>
-                )}
-                {turn.error && (
-                  <Alert
-                    type={turn.status === "stopped" ? "warning" : "error"}
-                    title={turn.error}
-                    showIcon
-                  />
-                )}
-                {turn.finish_reason === 'step_limit' && <div className="chat-paused" role="status"><span>达到本轮步数上限，执行进度已保存。</span>{page === totalPages && turn === turns.at(-1) && onContinue && <button type="button" onClick={onContinue} disabled={streaming}>继续执行 →</button>}</div>}
-                {turn.status !== 'streaming' && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} /></div>}
-                {turn.usage && (
-                  <div className="chat-turn-meta">
-                    {turn.usage.total_tokens.toLocaleString()} tokens ·{" "}
-                    {(turn.duration_ms / 1000).toFixed(1)} s · {turn.tool_calls}{" "}
-                    次工具调用
-                  </div>
-                )}
-              </div>
-            </article>
-          </section>
-        )}
-      />
+      <ContinueContext.Provider value={{ onContinue: page === totalPages ? onContinue : undefined, streaming, conversationId }}>
+        <ThreadPrimitive.Viewport ref={viewport} key={`${page}:${initialEnd}`} className="chat-messages" autoScroll={initialEnd} tabIndex={0}
+          onWheel={event => { if (event.deltaY) boundary(event.deltaY < 0 ? -1 : 1) }}
+          onTouchStart={event => { touchY.current = event.touches[0].clientY }}
+          onTouchEnd={event => { const delta = touchY.current - event.changedTouches[0].clientY; if (Math.abs(delta) > 30) boundary(delta < 0 ? -1 : 1) }}
+          onKeyDown={event => {
+            if (event.target !== event.currentTarget) return
+            if (event.key === 'PageUp' || event.key === 'ArrowUp') boundary(-1)
+            if (event.key === 'PageDown' || event.key === 'ArrowDown') boundary(1)
+          }}>
+          <ThreadPrimitive.Messages components={{ UserMessage: RuntimeMessage, AssistantMessage: RuntimeMessage }} />
+          <ThreadPrimitive.ScrollToBottom className="chat-scroll-bottom" aria-label="滚动到最新消息">↓ 最新消息</ThreadPrimitive.ScrollToBottom>
+        </ThreadPrimitive.Viewport>
+      </ContinueContext.Provider>
       {totalPages > 0 && (
         <nav ref={rail} className="chat-page-rail" aria-label="对话内容分页">
           {Array.from({ length: totalPages }, (_, index) => index + 1).map(
@@ -142,4 +105,63 @@ export function MessageList({
       )}
     </div>
   );
+}
+
+const ContinueContext = createContext<{ onContinue?: () => void; streaming: boolean; conversationId?: string }>({ streaming: false })
+function RuntimeMessage() {
+  const turn = useAuiState(state => state.message.metadata.custom.turn) as Turn
+  const role = useAuiState(state => state.message.role)
+  const isLast = useAuiState(state => state.message.isLast)
+  const context = useContext(ContinueContext)
+  const onContinue = isLast ? context.onContinue : undefined
+  const streaming = context.streaming
+  return (
+          <MessagePrimitive.Root className="chat-message-wrap" data-role={role}>
+            {role === "user" && <article className="chat-message">
+              <div className="chat-avatar">
+                <img src={userAvatar} alt="用户头像" />
+              </div>
+              <div className="chat-message-body">
+                <div className="chat-message-name">
+                  你 · {new Date(turn.started_at).toLocaleString()}
+                </div>
+                <div className="chat-user-text">{turn.user_content}</div>
+              </div>
+            </article>}
+            {role === "assistant" && <article className="chat-message">
+              <div className="chat-avatar ai">
+                <img src={kaguyaAvatar} alt="Kaguya 头像" />
+              </div>
+              <div className="chat-message-body">
+                <div className="chat-message-name">
+                  Kaguya {turn.model_name && `· ${turn.model_name}`}
+                </div>
+                {turn.blocks.map((block, index) => (
+                  <ContentBlock key={block.sequence ?? index} block={block} streaming={turn.status === "streaming"} conversationId={context.conversationId} turnIndex={turn.turn_index} />
+                ))}
+                {turn.status === "streaming" && (
+                  <div className="chat-muted" role="status">
+                    <Spin size="small" /> 正在生成…
+                  </div>
+                )}
+                {turn.error && (
+                  <Alert
+                    type={turn.status === "stopped" ? "warning" : "error"}
+                    title={turn.error}
+                    showIcon
+                  />
+                )}
+                {turn.finish_reason === 'step_limit' && <div className="chat-paused" role="status"><span>达到本轮步数上限，执行进度已保存。</span>{onContinue && <button type="button" onClick={onContinue} disabled={streaming}>继续执行 →</button>}</div>}
+                {turn.status !== 'streaming' && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} /></div>}
+                {turn.usage && (
+                  <div className="chat-turn-meta">
+                    {turn.usage.total_tokens.toLocaleString()} tokens ·{" "}
+                    {(turn.duration_ms / 1000).toFixed(1)} s · {turn.tool_calls}{" "}
+                    次工具调用
+                  </div>
+                )}
+              </div>
+            </article>}
+          </MessagePrimitive.Root>
+  )
 }

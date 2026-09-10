@@ -84,6 +84,21 @@ func AgentMaxSteps(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldAgentMaxSteps, v))
 }
 
+// ContextCompactionPercent applies equality check predicate on the "context_compaction_percent" field. It's identical to ContextCompactionPercentEQ.
+func ContextCompactionPercent(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldContextCompactionPercent, v))
+}
+
+// TLSCertificatePem applies equality check predicate on the "tls_certificate_pem" field. It's identical to TLSCertificatePemEQ.
+func TLSCertificatePem(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldTLSCertificatePem, v))
+}
+
+// TLSPrivateKeyPem applies equality check predicate on the "tls_private_key_pem" field. It's identical to TLSPrivateKeyPemEQ.
+func TLSPrivateKeyPem(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldTLSPrivateKeyPem, v))
+}
+
 // CommandTimeoutSeconds applies equality check predicate on the "command_timeout_seconds" field. It's identical to CommandTimeoutSecondsEQ.
 func CommandTimeoutSeconds(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldCommandTimeoutSeconds, v))
@@ -277,6 +292,176 @@ func AgentMaxStepsLT(v int) predicate.KaguyaSystemInfo {
 // AgentMaxStepsLTE applies the LTE predicate on the "agent_max_steps" field.
 func AgentMaxStepsLTE(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldAgentMaxSteps, v))
+}
+
+// ContextCompactionPercentEQ applies the EQ predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldContextCompactionPercent, v))
+}
+
+// ContextCompactionPercentNEQ applies the NEQ predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldContextCompactionPercent, v))
+}
+
+// ContextCompactionPercentIn applies the In predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldContextCompactionPercent, vs...))
+}
+
+// ContextCompactionPercentNotIn applies the NotIn predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldContextCompactionPercent, vs...))
+}
+
+// ContextCompactionPercentGT applies the GT predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldContextCompactionPercent, v))
+}
+
+// ContextCompactionPercentGTE applies the GTE predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldContextCompactionPercent, v))
+}
+
+// ContextCompactionPercentLT applies the LT predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldContextCompactionPercent, v))
+}
+
+// ContextCompactionPercentLTE applies the LTE predicate on the "context_compaction_percent" field.
+func ContextCompactionPercentLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldContextCompactionPercent, v))
+}
+
+// TLSCertificatePemEQ applies the EQ predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemNEQ applies the NEQ predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemIn applies the In predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldTLSCertificatePem, vs...))
+}
+
+// TLSCertificatePemNotIn applies the NotIn predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldTLSCertificatePem, vs...))
+}
+
+// TLSCertificatePemGT applies the GT predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemGTE applies the GTE predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemLT applies the LT predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemLTE applies the LTE predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemContains applies the Contains predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemHasPrefix applies the HasPrefix predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemHasSuffix applies the HasSuffix predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemEqualFold applies the EqualFold predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldTLSCertificatePem, v))
+}
+
+// TLSCertificatePemContainsFold applies the ContainsFold predicate on the "tls_certificate_pem" field.
+func TLSCertificatePemContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldTLSCertificatePem, v))
+}
+
+// TLSPrivateKeyPemEQ applies the EQ predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemNEQ applies the NEQ predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemIn applies the In predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldTLSPrivateKeyPem, vs...))
+}
+
+// TLSPrivateKeyPemNotIn applies the NotIn predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldTLSPrivateKeyPem, vs...))
+}
+
+// TLSPrivateKeyPemGT applies the GT predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemGTE applies the GTE predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemLT applies the LT predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemLTE applies the LTE predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemContains applies the Contains predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemHasPrefix applies the HasPrefix predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemHasSuffix applies the HasSuffix predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemEqualFold applies the EqualFold predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldTLSPrivateKeyPem, v))
+}
+
+// TLSPrivateKeyPemContainsFold applies the ContainsFold predicate on the "tls_private_key_pem" field.
+func TLSPrivateKeyPemContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldTLSPrivateKeyPem, v))
 }
 
 // CommandTimeoutSecondsEQ applies the EQ predicate on the "command_timeout_seconds" field.

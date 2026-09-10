@@ -17,23 +17,23 @@ import (
 )
 
 type Replacement struct {
-	OldText string `json:"oldText" description:"Unique exact text in the ORIGINAL file."`
-	NewText string `json:"newText" description:"Replacement text; may be empty to delete."`
+	OldText string `json:"oldText" description:"Non-empty text copied from the current file. Include enough surrounding text to match exactly once; do not include displayed line numbers."`
+	NewText string `json:"newText" description:"Complete replacement for oldText. Required even when empty: use an empty string to delete the matched text."`
 }
 type EditInput struct {
-	Path  string        `json:"path"`
-	Edits []Replacement `json:"edits" description:"One or more disjoint replacements, all matched against the original file."`
+	Path  string        `json:"path" description:"One existing UTF-8 file inside the project; prefer a relative path. Symlink mutation paths are rejected."`
+	Edits []Replacement `json:"edits" description:"Non-empty array of {oldText,newText} objects. All match the same original file; a later entry cannot match text inserted by an earlier entry."`
 }
 type WriteInput struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	Path    string `json:"path" description:"Destination file inside the project; parent directories are created. Existing files are fully overwritten; symlink mutation paths are rejected."`
+	Content string `json:"content" description:"Entire UTF-8 file content, not a patch or fragment. Required; an empty string intentionally creates or truncates an empty file."`
 }
 
 func (s *Set) EditTool() fantasy.AgentTool {
-	return tool(s, "edit", "Edit a file with exact text replacements. Every edits[].oldText must uniquely match a non-overlapping region of the ORIGINAL file. All replacements are validated before writing. Preserve BOM and line endings. Merge nearby or overlapping changes.", s.edit)
+	return tool(s, "edit", `Make targeted replacements in one existing file after reading the relevant lines. Supply path and edits (an array), not a unified diff, old_string/new_string, or top-level oldText/newText. Each oldText must be non-empty and match exactly once in the ORIGINAL file; all entries are checked before any write. Merge overlapping changes into one replacement. If a match is missing or ambiguous, reread the affected range and add context before retrying. newText may be empty to delete. BOM and line endings are preserved. Example: {"path":"src/main.go","edits":[{"oldText":"const retries = 2","newText":"const retries = 3"}]}.`, s.edit)
 }
 func (s *Set) WriteTool() fantasy.AgentTool {
-	return tool(s, "write", "Create or overwrite a UTF-8 file. Automatically creates parent directories. Use only for new files or complete rewrites; prefer edit for targeted changes. Paths must stay inside the workspace.", s.write)
+	return tool(s, "write", `Create a new UTF-8 file or replace an existing file's ENTIRE content. This is not append and does not accept a patch; prefer edit for targeted changes to an existing file. Parent directories are created automatically. Both path and content are required; content may be empty to intentionally truncate the file. Example: {"path":"notes.txt","content":"First line\nSecond line\n"}. Paths must stay inside the project; symlink mutation paths are rejected.`, s.write)
 }
 func normalizeLF(text string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n")

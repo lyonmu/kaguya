@@ -125,7 +125,7 @@ func (b *ChatApiV1Group) ConversationTitleGenerate(c *gin.Context) {
 // ConversationTurns
 // @Tags Chat History
 // @Summary 按原始执行顺序读取完整轮次（聊天/Trace/工具详情）
-// @Description page>0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 兼容原游标：首屏最新 limit 轮，用 next_before 向前加载。has_more 表示仍有更早轮次。所有结果与 blocks 均正序；工具输入输出合并，不返回模型私有 metadata。
+// @Description 默认每页5轮，上限100轮。page>0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 使用游标：首屏最新 limit 轮，用 next_before 向前加载。compact=true 时仅正文完整返回，工具及思考块只返回元信息，details_deferred=true 的块通过单块详情接口加载。所有结果与 blocks 均正序，不返回模型私有 metadata。
 // @Param id path string true "会话雪花 ID"
 // @Param data query dtochat.TurnPageReq true "历史游标"
 // @Success 200 {object} dtocode.Response{data=dtochat.TurnListResp}
@@ -146,6 +146,29 @@ func (b *ChatApiV1Group) ConversationTurns(c *gin.Context) {
 		conversationFailure(c, err, dtocode.ConversationQueryFailure)
 		return
 	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// ConversationBlock
+// @Tags Chat History
+// @Summary 按需读取单个工具或思考内容块
+// @Param id path string true "会话雪花 ID"
+// @Param turn path int true "轮次索引"
+// @Param sequence path int true "轮内内容块序号"
+// @Success 200 {object} dtocode.Response{data=dtochat.StoredBlock}
+// @Router /v1/chat/conversation/{id}/turns/{turn}/blocks/{sequence} [get]
+func (b *ChatApiV1Group) ConversationBlock(c *gin.Context) {
+	var req dtochat.BlockDetailReq
+	if err := c.ShouldBindUri(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := agentvc.ConversationBlock(c.Request.Context(), &req)
+	if err != nil {
+		conversationFailure(c, err, dtocode.ConversationQueryFailure)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
 	dtocode.SystemSuccess.Success(resp, c)
 }
 

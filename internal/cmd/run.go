@@ -14,6 +14,7 @@ import (
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
+	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
 	initialize "github.com/lyonmu/kaguya/internal/init"
@@ -33,13 +34,20 @@ import (
 // @contact.name                Lyon Mu
 // @contact.url                 https://github.com/lyonmu
 // @contact.email               lyonmu@foxmail.com
-// @host                        http://localhost:9024
+// @host                        localhost:9024
 // @BasePath                    /kaguya/api
-// @schemes                     http
+// @schemes                     https
 
 func Run() {
 
-	zapLogger, err := global.Cfg.LogInfo.NewLogger()
+	var zapLogger *zap.Logger
+	var err error
+	if global.Cfg.PrepareTLS {
+		// stdout is a public PEM export; operational messages must go to stderr.
+		zapLogger, err = zap.NewProduction()
+	} else {
+		zapLogger, err = global.Cfg.LogInfo.NewLogger()
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create logger: %v\n", err)
 		os.Exit(1)
@@ -117,6 +125,30 @@ func Run() {
 		os.Exit(1)
 	}
 
+	tlsCtx, cancelTLS := context.WithTimeout(context.Background(), 15*time.Second)
+	if global.Cfg.RenewTLS {
+		_, err := (&servicesystem.SystemSvc{}).TLSUpdate(tlsCtx, &dtosystem.TLSSaveReq{Generate: true, Hosts: append([]string{global.Cfg.Host}, global.Cfg.TrustedHosts...)})
+		if err != nil {
+			cancelTLS()
+			global.Logger.Error("renew TLS configuration failed")
+			os.Exit(1)
+		}
+	}
+	tlsConfig, tlsErr := (&servicesystem.SystemSvc{}).PrepareTLS(tlsCtx, append([]string{global.Cfg.Host}, global.Cfg.TrustedHosts...))
+	cancelTLS()
+	if tlsErr != nil {
+		global.Logger.Error("prepare TLS configuration failed", zap.Error(tlsErr))
+		os.Exit(1)
+	}
+	if global.Cfg.PrepareTLS {
+		info, err := (&servicesystem.SystemSvc{}).Info(context.Background())
+		if err != nil {
+			global.Logger.Error("read public TLS certificate failed")
+			os.Exit(1)
+		}
+		fmt.Print(info.TLS.CertificatePEM)
+		return
+	}
 	mcpCtx, cancelMCP := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	restoreDone := make(chan struct{})
 	defer func() { cancelMCP(); <-restoreDone; agentmcp.Default.Close() }()
@@ -129,7 +161,7 @@ func Run() {
 
 	global.Metrics = pkg.NewPrometheusRegistry()
 	global.Logger.Info("start init register gin engine")
-	ginEngine, err := pkg.NewGin(global.Metrics, global.Cfg.Debug)
+	ginEngine, err := pkg.NewGin(global.Metrics, global.Cfg.Debug, global.Cfg.TrustedHosts...)
 	if err != nil {
 		global.Logger.Error("failed to create gin engine", zap.Error(err))
 		os.Exit(1)
@@ -144,10 +176,18 @@ func Run() {
 	router.InitRouter(ginEngine)
 
 	address := global.Cfg.ListenAddress()
-	global.Logger.Sugar().Infof("kaguya is listening on %s", address)
-	server := &http.Server{Addr: address, Handler: ginEngine}
+	global.Logger.Sugar().Infof("kaguya is listening on https://%s (TLS 1.3 only)", address)
+	server := &http.Server{
+		Addr: address, Handler: ginEngine,
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    32 * 1024,
+		// Streaming chats must not inherit a short HTTP write timeout.
+	}
 	serverDone := make(chan error, 1)
-	go func() { serverDone <- server.ListenAndServe() }()
+	go func() { serverDone <- server.ListenAndServeTLS("", "") }()
 	select {
 	case <-mcpCtx.Done():
 		<-restoreDone

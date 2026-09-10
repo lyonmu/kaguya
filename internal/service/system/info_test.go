@@ -135,16 +135,25 @@ func TestAgentSettingsPersistenceAndValidation(t *testing.T) {
 		t.Fatalf("defaults=%+v %v", info, err)
 	}
 	steps, timeout := 100, 300
-	req := &dtosystem.SystemInfoSaveReq{UserAgent: "test", AgentMaxSteps: &steps, CommandTimeoutSeconds: &timeout, GlobalAgentsPaths: []string{}}
+	percent := 75
+	if *info.ContextCompactionPercent != 90 {
+		t.Fatal("wrong default compaction percent")
+	}
+	req := &dtosystem.SystemInfoSaveReq{UserAgent: "test", AgentMaxSteps: &steps, CommandTimeoutSeconds: &timeout, GlobalAgentsPaths: []string{}, ContextCompactionPercent: &percent}
 	info, err = svc.InfoUpdate(ctx, req)
 	if err != nil || *info.AgentMaxSteps != 100 || *info.CommandTimeoutSeconds != 300 || info.GlobalAgentsPaths == nil || len(info.GlobalAgentsPaths) != 0 {
 		t.Fatalf("saved=%+v %v", info, err)
 	}
 	info, err = svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "old-client"})
-	if err != nil || *info.AgentMaxSteps != 100 || len(info.GlobalAgentsPaths) != 0 {
+	if err != nil || *info.AgentMaxSteps != 100 || len(info.GlobalAgentsPaths) != 0 || *info.ContextCompactionPercent != 75 {
 		t.Fatalf("old client reset settings: %+v %v", info, err)
 	}
 	steps = -1
+	for _, invalid := range []int{0, 9, 96, 100} {
+		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "ok", ContextCompactionPercent: &invalid}); !errors.Is(err, ErrInvalidSystemInfo) {
+			t.Fatalf("accepted percent %d", invalid)
+		}
+	}
 	if _, err = svc.InfoUpdate(ctx, req); !errors.Is(err, ErrInvalidSystemInfo) {
 		t.Fatalf("invalid steps: %v", err)
 	}

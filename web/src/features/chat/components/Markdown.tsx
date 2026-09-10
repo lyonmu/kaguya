@@ -48,6 +48,14 @@ function textContent(node: ReactNode): string {
   }).join('')
 }
 
+function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+  const [approvedSource, setApprovedSource] = useState<string>()
+  // Model-generated URLs may contain conversation data. Never fetch them automatically.
+  if (!src) return <span>{alt}</span>
+  if (approvedSource !== src) return <button type="button" className="chat-image-load" title={src} onClick={() => setApprovedSource(src)}>加载图片{alt ? `：${alt}` : ''}</button>
+  return <img src={src} alt={alt ?? ''} referrerPolicy="no-referrer" />
+}
+
 export function Markdown({ text }: { text: string }) {
   return <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{
     pre: ({ children }) => {
@@ -57,5 +65,6 @@ export function Markdown({ text }: { text: string }) {
     },
     table: ({ children }) => <div className="chat-table-scroll" tabIndex={0} aria-label="表格"><table>{children}</table></div>,
     a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+    img: MarkdownImage,
   }}>{text}</ReactMarkdown></div>
 }

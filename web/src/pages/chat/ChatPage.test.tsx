@@ -9,17 +9,25 @@ const globals = {
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
   SVGElement: dom.SVGElement, ShadowRoot: dom.ShadowRoot,
   MutationObserver: dom.MutationObserver, ResizeObserver: dom.ResizeObserver,
+  cancelAnimationFrame: dom.cancelAnimationFrame.bind(dom),
   getComputedStyle: dom.getComputedStyle.bind(dom),
+  requestAnimationFrame: dom.requestAnimationFrame.bind(dom),
   IS_REACT_ACT_ENVIRONMENT: true,
 }
 const previous = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
 for (const [key, value] of Object.entries(globals)) Object.defineProperty(globalThis, key, { configurable: true, writable: true, value })
 const { render, fireEvent, cleanup, waitFor, act, within } = await import('@testing-library/react')
 const { App } = await import('antd')
-const { ChatPage } = await import('./ChatPage')
+const { ChatPage: WorkspaceChatPage } = await import('./ChatPage')
+const { ChatProvider } = await import('../../features/chat/ChatProvider')
+function ChatPage() { return <ChatProvider><WorkspaceChatPage /></ChatProvider> }
 const { AppLayout } = await import('../../components/layout/AppLayout')
 const { VirtualList } = await import('../../features/chat/components/VirtualList')
-const { MessageList } = await import('../../features/chat/components/MessageList')
+const { MessageList: RuntimeMessageList } = await import('../../features/chat/components/MessageList')
+const { AssistantThread } = await import('../../features/chat/components/AssistantThread')
+function MessageList(props: React.ComponentProps<typeof RuntimeMessageList>) {
+  return <AssistantThread turns={props.turns} streaming={props.streaming} disabled={false} onSend={async () => {}} onStop={() => {}}><RuntimeMessageList {...props} /></AssistantThread>
+}
 const originalFetch = globalThis.fetch
 const response = (data: unknown) => Response.json({ code: 100000, data })
 afterEach(async () => {
@@ -49,8 +57,13 @@ it('hides runtime details, toggles the conversation panel and offers model selec
   assert.ok(view.container.querySelector('.chat-sidebar'))
   const selector = view.getByLabelText('对话模型')
   fireEvent.mouseDown(selector.closest('.ant-select')!.querySelector('.ant-select-selector') ?? selector)
-  fireEvent.click(await view.findByText('提供商 A'))
-  fireEvent.click(await view.findByText('模型 A'))
+  const popup = await waitFor(() => {
+    const element = Array.from(dom.document.querySelectorAll('.ant-cascader-dropdown:not(.ant-select-dropdown-hidden)')).at(-1)
+    assert.ok(element)
+    return element as unknown as HTMLElement
+  })
+  fireEvent.click(await within(popup).findByText('提供商 A'))
+  fireEvent.click(await within(popup).findByText('模型 A'))
   await waitFor(() => assert.ok(selector.closest('.ant-select')?.textContent?.includes('提供商 A / 模型 A')))
 })
 
@@ -122,4 +135,56 @@ it('opens AI providers when entering system settings', () => {
   const view = render(<AppLayout colorMode="light" currentPage="system-info" onPageChange={value => { page = value }} onToggleColorMode={() => {}} />)
   fireEvent.click(view.getByLabelText('系统管理'))
   assert.equal(page, 'ai-providers')
+})
+
+it('runs two conversations through assistant-ui and retains them across system navigation', async () => {
+  const streams: Array<{ signal: AbortSignal; emit: (flag: string, text?: string) => void }> = []
+  globalThis.fetch = (async (url, init) => {
+    const path = String(url)
+    if (path.endsWith('/sse')) {
+      const index = streams.length + 1
+      const signal = init!.signal as AbortSignal
+      return new Response(new ReadableStream({ start(controller) {
+        streams.push({ signal, emit(flag, text) {
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: `conv-${index}`, flag, content: text }, usage: { total_tokens: 1 } } })}\n\n`))
+          if (flag === 'done') controller.close()
+        } })
+        signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')))
+      } }), { headers: { 'Content-Type': 'text/event-stream' } })
+    }
+    if (path.includes('/model/label')) return response([])
+    if (path.includes('/page')) return response({ items: [], total: 0 })
+    if (path.endsWith('/context')) return response({ percent: null })
+    return response({ id: path.split('/').at(-1), title: '已完成的测试', turn_count: 1 })
+  }) as typeof fetch
+  const { useState } = await import('react')
+  function Navigation() {
+    const [page, setPage] = useState<import('../../components/layout/AppLayout').SystemPage>('chat')
+    return <App><ChatProvider><AppLayout colorMode="light" currentPage={page} onPageChange={setPage} onToggleColorMode={() => {}}>{page === 'chat' ? <WorkspaceChatPage /> : <div>配置页面</div>}</AppLayout></ChatProvider></App>
+  }
+  const view = render(<Navigation />)
+  fireEvent.change(view.getByLabelText('对话消息'), { target: { value: 'first task' } })
+  fireEvent.click(view.getByLabelText('发送消息'))
+  await waitFor(() => assert.equal(streams.length, 1))
+  fireEvent.click(view.getByRole('button', { name: 'plus 新建对话' }))
+  fireEvent.change(view.getByLabelText('对话消息'), { target: { value: 'second task' } })
+  fireEvent.keyDown(view.getByLabelText('对话消息'), { key: 'Enter' })
+  await waitFor(() => assert.equal(streams.length, 2))
+  await act(async () => { streams[0].emit('start'); streams[1].emit('start'); streams[0].emit('delta', 'first answer'); streams[1].emit('delta', 'second answer') })
+  assert.ok(view.getByText('second answer'))
+  assert.equal(view.queryByText('first answer'), null)
+  const footer = within(view.container.querySelector('.chat-sidebar-footer')! as HTMLElement)
+  fireEvent.click(footer.getByLabelText('系统管理'))
+  assert.ok(view.getByText('配置页面'))
+  assert.ok(streams.every(stream => !stream.signal.aborted))
+  await act(async () => { streams[0].emit('done') })
+  fireEvent.click(view.getByLabelText('对话管理'))
+  assert.ok(view.getByText('second answer'))
+  assert.equal(streams[1].signal.aborted, false)
+  fireEvent.click(view.getByRole('button', { name: '已完成的测试 查看结果' }))
+  assert.ok(view.getByText('first answer'))
+  fireEvent.click(view.getByRole('button', { name: '◌ second task 正在运行' }))
+  fireEvent.click(view.getByRole('button', { name: 'stop 停止' }))
+  await waitFor(() => assert.equal(streams[1].signal.aborted, true))
+  assert.equal(streams[0].signal.aborted, false)
 })

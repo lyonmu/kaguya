@@ -2,7 +2,9 @@ import { ApiRequestError, buildUrl, del, get, post, put } from '../../api/http'
 import type { ApiResponse } from '../../api/http'
 import { referencedFiles } from './mentions'
 import { consumeSSE } from './sse'
-import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage } from './types'
+import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage, Block } from './types'
+
+export const HISTORY_PAGE_SIZE = 5
 
 const PATH = '/v1/chat/conversation'
 
@@ -19,10 +21,10 @@ export function generateConversationTitle(id: string, signal?: AbortSignal) {
   return post<ConversationTitle>(`${PATH}/${encodeURIComponent(id)}/title/wait`, undefined, signal)
 }
 export function fetchTurns(id: string, before = 0, signal?: AbortSignal) {
-  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { before, limit: 20 }, signal)
+  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { before, limit: HISTORY_PAGE_SIZE, compact: true }, signal)
 }
 export function fetchTurnPage(id: string, page: number, signal?: AbortSignal) {
-  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: 20 }, signal)
+  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: HISTORY_PAGE_SIZE, compact: true }, signal)
 }
 export function updateConversation(id: string, payload: { title?: string; favorite?: boolean }) {
   return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload)
@@ -49,4 +51,8 @@ export async function streamChat(id: string, messages: string, signal: AbortSign
 
 export function searchProjectFiles(projectId: string, query: string, signal?: AbortSignal) {
   return get<{ files: string[]; truncated: boolean }>(`/v1/project/${encodeURIComponent(projectId)}/files`, { query }, signal)
+}
+
+export function fetchBlock(id: string, turn: number, sequence: number, signal?: AbortSignal) {
+  return get<Block>(`${PATH}/${encodeURIComponent(id)}/turns/${turn}/blocks/${sequence}`, undefined, signal)
 }

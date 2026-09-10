@@ -211,6 +211,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "title", Type: field.TypeString, Size: 200},
+		{Name: "agent_instructions", Type: field.TypeString, Nullable: true, Size: 2147483647, Comment: "会话首次成功轮次保存的全局及项目指令快照；NULL 表示尚未加载"},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
 		{Name: "turn_count", Type: field.TypeInt64, Comment: "已提交轮数，同时用于乐观并发校验", Default: 0},
 		{Name: "last_message_at", Type: field.TypeTime},
@@ -234,7 +235,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_conversation_kaguya_project_conversations",
-				Columns:    []*schema.Column{KaguyaConversationColumns[17]},
+				Columns:    []*schema.Column{KaguyaConversationColumns[18]},
 				RefColumns: []*schema.Column{KaguyaProjectColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -263,12 +264,12 @@ var (
 			{
 				Name:    "kaguyaconversation_deleted_at_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[7], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[8], KaguyaConversationColumns[0]},
 			},
 			{
 				Name:    "kaguyaconversation_deleted_at_favorite_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[5], KaguyaConversationColumns[7], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[6], KaguyaConversationColumns[8], KaguyaConversationColumns[0]},
 			},
 			{
 				Name:    "kaguyaconversation_deleted_at_title",
@@ -278,7 +279,7 @@ var (
 			{
 				Name:    "kaguyaconversation_project_id_deleted_at_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[17], KaguyaConversationColumns[3], KaguyaConversationColumns[7], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[18], KaguyaConversationColumns[3], KaguyaConversationColumns[8], KaguyaConversationColumns[0]},
 			},
 		},
 	}
@@ -513,6 +514,9 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "agent_max_steps", Type: field.TypeInt, Default: 0},
+		{Name: "context_compaction_percent", Type: field.TypeInt, Default: 90},
+		{Name: "tls_certificate_pem", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "tls_private_key_pem", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "command_timeout_seconds", Type: field.TypeInt, Default: 120},
 		{Name: "global_agents_paths", Type: field.TypeJSON, Nullable: true},
 		{Name: "system_prompt", Type: field.TypeString, Size: 2147483647, Comment: "追加到全局人设后的自定义提示词", Default: ""},

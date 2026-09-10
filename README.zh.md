@@ -20,6 +20,7 @@
 | 模块 | 可以做什么 |
 | --- | --- |
 | 流式对话 | 通过 SSE 接收回答，查看 Markdown 与提供商返回的思考内容，停止生成，为请求选择模型；同时提供 WebSocket API。 |
+| 并行对话 | 生成时可新建或切换对话；各会话独立接收结果和停止生成，切到系统页面也继续执行。同一会话一次只执行一轮。 |
 | 对话管理 | 继续已保存的对话，按标题前缀搜索，重命名和删除对话，按项目组织对话，分页浏览历史并查看轮次摘要。 |
 | 提供商与模型 | 在界面中管理提供商及其模型，配置完整请求 URL、API Key、协议类型和模型元数据。 |
 | MCP 管理 | 在 AI 配置页面管理 MCP 服务，支持 stdio、Streamable HTTP 和 SSE，动态启停并将工具接入聊天。 |
@@ -37,9 +38,11 @@
 
 通过左侧列表新建或打开历史对话，按标题前缀搜索，或切换 **对话**（仅普通对话）和 **项目** 列表。对话顶部提供重命名和删除操作。输入框可选择提供商及模型，也可使用默认模型：**Enter** 发送，**Shift + Enter** 换行，生成中点击 **停止** 可取消回答。
 
-回答支持 Markdown、代码块，以及提供商返回时可折叠查看的思考内容。轮次摘要显示 Token、耗时和工具调用次数。用量和模型窗口数据齐备时，输入框显示最近一次模型调用的上下文占用（输入含缓存，加输出），相对于模型窗口 90% 的占比，不再累计各轮费用。每次模型调用前检查 90% 阈值，自动总结较早内容并保留近期消息、工具调用配对和原始历史；压缩快照随成功轮次事务保存，续聊从快照恢复。生成遵守模型配置的输出上限和预留的 10% 窗口。窗口未知时不自动压缩。摘要使用当前聊天模型且不带工具，摘要消耗计入本轮用量；失败或无法安全压缩时明确报错。
+用户消息气泡随文字长度收窄，长句和连续字符自动换行。Markdown 图片需点击后加载，避免模型生成的图片 URL 自动向外发送请求。回答支持 Markdown、代码块，以及提供商返回时可折叠查看的思考内容。轮次摘要显示 Token、耗时和工具调用次数。用量和模型窗口数据齐备时，输入框显示最近一次模型调用的上下文占用（输入含缓存，加输出），相对于系统配置的有效窗口（默认模型窗口的 90%）的占比，不再累计各轮费用。每次模型调用前检查系统配置的压缩阈值，自动总结较早内容并保留近期消息、工具调用配对和原始历史；压缩快照随成功轮次事务保存，续聊从快照恢复。生成遵守模型配置的输出上限和按压缩比例预留的剩余窗口。窗口未知时不自动压缩。超长历史按受限大小分段总结，再逐步合并摘要，避免总结请求本身超出模型窗口。摘要使用当前聊天模型且不带工具，摘要消耗计入本轮用量；失败或无法安全压缩时明确报错。
 
 只有成功完成并保存的轮次会成为可继续使用的对话历史。失败或取消时的部分回答不会保存为完整轮次。配置后台任务模型后，界面会根据首轮成功的提问和回答请求生成简短中文标题，并保留手动设置的标题。
+
+历史列表和聊天内容分别分页：侧栏虚拟列表每次读取 20 个对话摘要；聊天正文每页读取 5 轮，翻页替换当前页。前端使用 `compact=true`，完整返回用户消息和回答正文，思考与工具块仅返回状态等元信息，展开时才加载该块的完整内容；关闭未完成的加载会取消请求，失败可重试。展示查询不读取模型消息或压缩上下文。轮次接口默认 `limit=5`，保留最大 100 轮及未启用 `compact` 时返回完整内容的兼容行为。分页控制轮数而非字节数，单条超长正文或主动展开的大块内容仍可能较大。
 
 ### 2. 提供商与模型
 
@@ -61,6 +64,8 @@
 
 ### MCP 管理
 
+HTTP MCP 请求（包括旧式 SSE 返回的消息端点）必须与配置 URL 同源；禁止跨域跳转或 HTTPS 降级，避免认证头及工具参数泄露。
+
 在 **系统管理 → AI 配置 → MCP 管理** 中新增、查询、编辑和删除服务，使用开关动态启停。配置存入 `kaguya_mcp_server` 表，启动时自动建表并恢复已启用服务；连接失败会显示异常状态，可手动重试。
 
 - 支持 `stdio`（可执行文件、JSON 参数数组、环境变量和绝对工作目录）、`streamable-http` 和旧版 `sse`（URL 与 HTTP 请求头）。认证可通过 `Authorization` 等请求头配置；暂不提供 OAuth 登录流程。
@@ -76,8 +81,9 @@
 - **默认对话模型**：请求没有显式选择模型时使用。
 - **后台任务模型**：用于生成对话标题，可以与对话模型不同。
 - **Agent Loop 最大步数**：默认 `0`（不限，与 pi 一致），也可设为 1–1000。达到手动设置的上限时，保存完整工具结果并暂停，可点击“继续执行”接着处理。已有配置保留原值，可在此改为 `0`。
+- **会话压缩比例**：按模型最大上下文的百分比配置，默认 `90`，允许 `10–95`；新一轮聊天读取最新值，输入框的有效窗口显示同步使用该配置。保留剩余窗口用于输出，并遵守模型的输出上限。降低阈值会更早压缩，增加摘要成本；这不能消除模型幻觉，窗口未知时仍不自动压缩。
 - **命令超时**：bash 默认及最大超时为 120 秒，可设为 1–86400 秒；单次工具参数只能缩短期限。MCP 继续使用各服务自己的超时。
-- **全局 AGENTS.md 路径**：有序数组，默认 `~/.config/agents/AGENTS.md` 和 `~/.codex/AGENTS.md`；支持修改、追加及清空禁用。每轮按服务进程用户读取，缺失文件跳过，重复实际路径去重；读取失败或总大小超过 256 KiB 会报错。不会用于标题任务。
+- **全局 AGENTS.md 路径**：有序数组，默认 `~/.config/agents/AGENTS.md` 和 `~/.codex/AGENTS.md`；支持修改、追加及清空禁用。每个会话首次按服务进程用户读取，并自动加入所属项目根目录的 `AGENTS.md`；文件名不区分大小写，支持 `agents.md`、`Agents.md` 等变体。多个大小写变体同时存在时按文件名排序全部读取，同一实际文件去重；先全局、后项目。缺失的全局文件或项目根目录没有指令文件时跳过；项目文件通过 `os.Root` 读取，拒绝符号链接逃逸。全局与项目内容合计最多 256 KiB，非普通文件、无效 UTF-8、读取失败或超限会报错。快照随首个成功轮次保存到会话，后续请求复用，不重复读文件、不在历史中逐轮追加；服务重启和上下文压缩也不会丢失快照。空快照同样保留；首轮失败或取消不会落库，重试时重新读取。升级前没有快照的旧会话，在下一次成功续聊时补存一次。修改文件或路径仅影响新会话；普通系统配置仍按轮次读取。每次模型请求仍需携带这份系统指令，减少文件读取不等于免除模型输入 Token；标题任务不使用它。子目录内另有作用范围的指令，仍由 Agent 在处理相应文件前查看。
 - **User-Agent**：用于服务端发起的聊天与标题生成请求。
 - **系统提示词**：保留只读的基础人设，自定义内容追加在其后用于聊天；自定义内容留空时仍保留基础人设。
 
@@ -99,7 +105,7 @@
 
 ### 原生二进制（推荐）
 
-源码构建需要 Go（版本以 `go.mod` 为准）、Bun、Make、Git、C 编译器、Tcl、curl、pkg-config 和 OpenSSL 开发文件（包含**静态 `libcrypto.a`**）。macOS 需安装 Xcode Command Line Tools，并执行 `brew install openssl@3 pkgconf tcl-tk`；Debian/Ubuntu 对应原生依赖为 `build-essential tcl pkg-config libssl-dev curl`。确保 `pkg-config --exists libcrypto` 成功，必要时设置 `PKG_CONFIG_PATH`。
+源码构建需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make、Git、C 编译器、Tcl、curl、pkg-config 和 OpenSSL 开发文件（包含**静态 `libcrypto.a`**）。macOS 需安装 Xcode Command Line Tools，并执行 `brew install openssl@3 pkgconf tcl-tk`；Debian/Ubuntu 对应原生依赖为 `build-essential tcl pkg-config libssl-dev curl`。确保 `pkg-config --exists libcrypto` 成功，必要时设置 `PKG_CONFIG_PATH`。
 
 ```sh
 git clone https://github.com/lyonmu/kaguya.git
@@ -120,10 +126,15 @@ CGO_ENABLED=1 make build
 | `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
 | `--db.key-file` | `DB_KEY_FILE` | 未设置时初始化／使用 `~/.kaguya/kaguya.key`；显式路径必须已存在 |
 | `--host` | — | `127.0.0.1` |
+| `--prepare-tls` | — | `false` |
+| `--renew-tls` | — | `false` |
+| `--trusted-host` | — | 空；额外信任的精确域名 |
 | `--port` | — | `9024` |
 | `--router-prefix` | — | `/kaguya/api` |
 
 服务默认绑定 `127.0.0.1:9024`，仅允许本机连接。需要远程访问时，显式运行 `./target/kaguya --host=0.0.0.0`；IPv6 本机访问可使用 `--host=::1`。`--host` 只接受 IP 地址，空值或无效地址会被拒绝。
+
+HTTP 和 WebSocket 拒绝跨域浏览器请求。默认仅接受 `localhost` 和 IP 地址作为请求 Host，以防 DNS 重绑定；通过自有域名的认证反向代理访问时，添加 `--trusted-host=agent.example.com`，代理须保留原始 Host、Origin 和 Sec-Fetch-Site，不要将任意外部 Host 重写为可信本机地址。Vite 开发代理已保留匹配的 Host/Origin。此校验不替代登录或网络访问控制。HTTP 请求体上限为 1 MiB；请求头读取上限 10 秒、请求读取上限 30 秒，SSE 回答不设短写入超时。
 
 ```sh
 ./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
@@ -135,15 +146,35 @@ DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
 
 **SQLCipher 运行策略：** 保留 `sqlite` 配置值和 Ent dialect，实际引擎是 SQLCipher 4，不是明文 SQLite。应用在打开业务数据库前验证 `cipher_version`，迁移前读取 schema 校验密钥。每个物理连接在打开数据库时应用密钥，早于 WAL 等 PRAGMA。启动时启用并检查 WAL，每个连接设置 5 秒锁等待超时及 `synchronous=FULL`。应用连接池限制为一个连接，串行处理进程内数据库操作。SQLite 仍只允许一个写事务，适合个人／单实例服务；数据库应放在本地文件系统，不要使用共享网络文件系统。数据库旁可能生成 `kaguya.db-wal` 和 `kaguya.db-shm`。已有 MySQL/PostgreSQL 数据不会自动迁移；修改路径会创建或打开另一份数据库。
 
+**TLS 1.3 与证书：** 数据库迁移及基础配置初始化后，程序读取 `kaguya_system_info` 中的证书和私钥，再启动 HTTPS。首次缺失时生成独立的 ECDSA P-256 自签名证书，有效期一年，包含 `localhost`、`127.0.0.1`、`::1`，以及明确配置的监听 IP 和可信域名。仅支持 TLS 1.3，不开放明文 HTTP 或降级入口。证书和私钥保存在 SQLCipher 加密数据库；查询只返回公钥证书、指纹、适用地址和到期时间，不返回私钥。
+
+系统配置中的 **HTTPS / TLS 1.3** 可下载公钥证书、重新自签或导入匹配的 PEM 证书链与私钥；保存后必须重启，现有连接不热切换。证书域名不会自动加入 Host 白名单，域名访问仍需 `--trusted-host`。自签证书不会自动获得浏览器信任，需在访问设备上核对 SHA-256 指纹并导入信任。不要关闭证书验证。首次准备证书、导出公钥且保持服务关闭可运行：
+
+```sh
+./target/kaguya --prepare-tls --log.console-enabled=false > ~/.kaguya/kaguya.crt
+openssl x509 -in ~/.kaguya/kaguya.crt -noout -fingerprint -sha256
+```
+
+此命令使用与正常启动相同的数据库参数，只初始化并退出，不启动监听或 MCP。已有证书会复用；到期、损坏或不匹配时启动明确失败，不自动更换身份。需要离线恢复时显式加 `--renew-tls` 重新自签，之后重新分发并信任公钥证书。备份数据库时也保留其中的 TLS 身份；TLS 私钥与 SQLCipher 密钥是两种不同的密钥。
+
+macOS 若出现 `remote error: tls: unknown certificate`，通常是访问客户端拒绝了自签名证书。核对导出文件的指纹后，可将它加入当前用户登录钥匙串的 SSL 信任：
+
+```bash
+security add-trusted-cert -r trustRoot -p ssl -k "$HOME/Library/Keychains/login.keychain-db" "$HOME/.kaguya/kaguya.crt"
+security verify-cert -c "$HOME/.kaguya/kaguya.crt" -p ssl -s localhost
+```
+
+随后重新打开浏览器连接。其他设备须分别配置证书信任；更换服务端证书后也需更新信任和开发代理使用的证书文件。
+
 **密钥管理：** 密钥必须是普通文件，内容为恰好 64 个十六进制字符（32 字节密码学随机数据），末尾可带 LF／CRLF。Unix 下拒绝组用户／其他用户可访问的密钥文件，请使用 `chmod 600`。它是 AES-256 原始密钥，**不是口令或 TLS 证书**。程序没有内置／默认秘密，也不会回退到未加密存储。启动日志之后、初始化数据库之前，由 `internal/init/sqlcipher.go` 检查密钥：未设置 `--db.key-file`／`DB_KEY_FILE`，且默认密钥及配置的数据库文件均不存在时，Go 生成 32 字节随机数据，写入私有临时文件并同步后原子发布，不覆盖已有文件。已有密钥校验后复用；密钥缺失但数据库文件（包括空文件）、WAL、SHM 或回滚日志已存在时，明确报错并要求恢复原密钥。显式指定的密钥路径必须已存在，即使指定的是默认位置。无效密钥不会被替换；错误密钥或明文数据库会打开失败，不自动转换。密钥内容不作为 CLI 参数、序列化配置或应用日志字段；内部 DSN 含密钥，禁止记录。`modernc.org/sqlite` 仅作为加密测试的独立明文引擎保留，应用不再使用它。
 
 **已有数据库：** 给明文 SQLite 配置密钥并不能直接加密旧文件。先停止并备份旧部署，再通过 SQLCipher 的带密钥 `ATTACH` 和 `sqlcipher_export()` 显式迁移到**新文件**，参考[官方转换说明](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868)。切换 `--db.path` 前，核对 schema、业务数据、时间字段和使用目标密钥重新打开的结果。MySQL/PostgreSQL 数据迁移需另行处理。本次不实现明文自动迁移、密钥轮换或旧版 SQLCipher 格式转换。
 
 **备份与升级：** 最简单的备份方式是先停止服务，将数据库及仍存在的 WAL/SHM 文件作为整体复制；写入期间不能只复制主数据库，也不要手动删除 WAL。密钥必须**单独、安全地备份**，丢失后无法恢复数据。在线导出应使用支持 SQLCipher 的工具，并为目标数据库显式设置密钥；不要假定普通 SQLite 备份或 `VACUUM INTO` 会生成加密备份。升级前备份数据和密钥、停止服务、替换二进制，再以相同运行用户、路径和密钥重启。前台日志由配置的 logger 输出；后台运行和启停管理交给服务管理器。
 
-**安全边界：** SQLCipher 加密数据库页及 WAL 中的页内容，不加密所有文件系统元数据、日志、工具输出或进程内存数据。密钥与数据库放在同一磁盘相邻位置，不能防止两者一起被窃取；有需要时采用独立挂载的秘密文件、操作系统秘密配置和磁盘加密。运行中的 Agent Bash 工具具有服务用户权限，可能访问密钥；数据库加密不是工具沙箱。TLS 证书保护网络传输，不保护本地密钥。远程访问控制台时，请使用带访问控制的 HTTPS 反向代理；应用本身没有内置登录。
+**安全边界：** SQLCipher 加密数据库页及 WAL 中的页内容，不加密所有文件系统元数据、日志、工具输出或进程内存数据。密钥与数据库放在同一磁盘相邻位置，不能防止两者一起被窃取；有需要时采用独立挂载的秘密文件、操作系统秘密配置和磁盘加密。运行中的 Agent Bash 工具具有服务用户权限，可能访问密钥；数据库加密不是工具沙箱。TLS 证书保护网络传输，不保护本地密钥。远程访问控制台时，请使用带访问控制的 HTTPS 反向代理；应用本身没有内置登录。调试模式也不记录含参数的数据库 SQL，避免提示词、API Key 和 MCP 凭据泄露到日志。
 
-打开 [http://localhost:9024](http://localhost:9024)，添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
+打开 [https://localhost:9024](https://localhost:9024)，添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
 
 知识库与语义检索可通过自行配置的外部 MCP 工具提供，不要求本地 pgvector 服务。应用不内置知识库、长期记忆、Embedding 或 FTS5 搜索。
 
@@ -189,7 +220,7 @@ PostgreSQL 数据通过 Compose 的绑定挂载 `${PWD}/pgvector:/var/lib/postgr
 
 ### 3. 配置首次对话
 
-在部署宿主机上打开 [http://localhost:9024](http://localhost:9024)。远程访问需要显式设置 `--host=0.0.0.0`。首次聊天前：
+在部署宿主机上打开 [https://localhost:9024](https://localhost:9024)。远程访问需要显式设置 `--host=0.0.0.0`。首次聊天前：
 
 1. 进入 **AI 提供商**，填写协议、完整请求 URL 和 API Key，新增提供商。
 2. 使用提供商的上游模型标识，添加至少一个模型。
@@ -238,8 +269,10 @@ docker compose up -d --no-deps kaguya-svc
 
 ## 架构
 
+聊天使用 assistant-ui 的 ExternalStoreRuntime、消息视口和输入组件，沿用 Go SSE 与数据库历史；配置表单、表格和通用控件继续使用 Ant Design，用量图表继续使用 ECharts。会话列表、消息和输入区采用侧栏式聊天布局。并发状态保存在当前浏览器应用内，刷新或关闭页面会断开流式请求；这不是服务端离线任务队列。Go 按请求使用独立 goroutine，同一会话保持互斥，不同会话可并发等待模型和工具。实际吞吐仍受提供商限流、数据库和主机资源约束。
+
 ```text
-浏览器：React 19 + TypeScript + Ant Design + Tailwind CSS + ECharts
+浏览器：React 19 + TypeScript + assistant-ui + Ant Design + Tailwind CSS + ECharts
     │  SSE 对话 / JSON API
     ▼
 Go 二进制：Kong CLI → Gin 路由 → 应用服务
@@ -277,6 +310,10 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 
 `tools.New(workspace, global.Logger)` 封装一组工具并提供 `CodingTools()`（前四个）、`ReadOnlyTools()`（read/grep/find/ls）和 `AllTools()`。项目聊天通过现有 `WithTools` 注册默认四个；查询工具作为可选工厂保留，不额外扩大默认模型工具清单。续聊从数据库恢复项目归属，不能通过请求的 `project_id` 改变目录。每轮默认不限模型步骤，可在系统配置设置上限；目录失效时明确报错，不退回主机工作目录。
 
+工具输入通过 JSON Schema 传入模型：Go 类型定义字段类型、必填项和说明，工具契约补充行号/数量/超时范围、非空字符串及 `edits` 数组约束。各工具描述包含正确的 JSON 参数示例、用途边界和失败后的修正方法。本地执行前复用预编译 Schema 校验，并额外拒绝顶层未知字段；嵌套 `edits` 对象的未知字段约束也会发送给模型。校验失败不执行工具，返回具体字段错误。Fantasy 当前只重建根级 `properties/required`，因此不宣称所有提供商都支持相同的严格生成模式。MCP 工具保留远端公布的描述和 Schema，不套用内置文件工具参数。
+
+工具日志和历史中的 `call_id` / `tool_call_id` 是上游协议的调用关联标识，必须原样返回以对应工具结果；其格式可包含 UUID。会话、轮次和内容块的数据库主键仍使用本地雪花 ID，二者不互相替换。
+
 服务端适配：文件操作使用 `os.Root` 限定项目范围，`write/edit` 不接受符号链接路径；同路径修改在进程内串行。文本/编辑/写入有 32MB 安全上限，超大文件请用 bash 分段处理；图片附件上限 10MB，PNG/JPEG/GIF 超过 2000 像素时缩小，WebP/BMP 原样传递。编辑支持 pi 的 Unicode/尾部空白匹配，保留未修改行；过大的 diff 会截断且不返回不完整的 patch。命令完整输出保存在项目内 `.kaguya/tool-output/`，可用 `read` 分页读取；请将该目录加入项目忽略规则并按需清理。当前前端沿用工具调用开始/结束与最终结果展示，不逐块推送 bash 输出。
 
 **权限警告：工作目录不是沙箱。** bash 以服务进程权限运行，可访问该用户能够访问的主机资源；文件工具的路径限制不约束 shell 命令。仅对可信用户开放服务，建议通过低权限用户或容器限制权限，不要将可执行工具的 API 直接暴露到公网。文件修改和命令副作用立即生效，即使对话失败、取消或历史未保存也不会回滚。日志记录工具名、调用 ID、项目/对话与耗时，不记录原始命令或文件内容。
@@ -293,6 +330,7 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 | `GET /kaguya/api/v1/chat/ws` | WebSocket 对话 |
 | `GET /kaguya/api/v1/chat/conversation/page` | 分页查询对话列表 |
 | `GET /kaguya/api/v1/chat/conversation/:id/turns` | 查询对话轮次 |
+| `GET /kaguya/api/v1/chat/conversation/:id/turns/:turn/blocks/:sequence` | 按需读取单个历史内容块 |
 | `GET /kaguya/api/v1/chat/conversation/:id/context` | 查询对话上下文统计 |
 | `GET /kaguya/api/v1/project/page` | 项目列表（名称前缀与分页） |
 | `GET /kaguya/api/v1/project/directories` | 浏览服务端运行用户主目录内的文件夹 |
@@ -314,7 +352,7 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 配置默认模型后，可以这样开启对话：
 
 ```sh
-curl -N http://localhost:9024/kaguya/api/v1/chat/sse \
+curl --cacert ~/.kaguya/kaguya.crt -N https://localhost:9024/kaguya/api/v1/chat/sse \
   -H 'Content-Type: application/json' \
   -H 'Accept: text/event-stream' \
   -d '{"flag":"chat","messages":"Hello, Kaguya"}'
@@ -324,7 +362,7 @@ curl -N http://localhost:9024/kaguya/api/v1/chat/sse \
 
 ## 开发
 
-源码开发需要 Go（版本以 `go.mod` 为准）、Bun、Make 及上文列出的原生依赖。执行 `CGO_ENABLED=1 make build` 后通过 `./target/kaguya` 运行（全新安装自动初始化默认密钥），无需 Docker／数据库服务。请使用 Make 目标而非直接 `go build`／`go test`，以应用 SQLCipher 链接参数。局部测试可先执行 `make native`，再执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`。
+源码开发需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make 及上文列出的原生依赖。执行 `CGO_ENABLED=1 make build` 后通过 `./target/kaguya` 运行（全新安装自动初始化默认密钥），无需 Docker／数据库服务。请使用 Make 目标而非直接 `go build`／`go test`，以应用 SQLCipher 链接参数。局部测试可先执行 `make native`，再执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`。
 
 在仓库根目录执行 `CGO_ENABLED=1 make install`，会完整构建前后端并将二进制安装到 `~/.local/bin/<仓库目录名>`（通常为 `~/.local/bin/kaguya`），权限为 `0755`。请先创建 `~/.local/bin` 并加入 `PATH`；该命令不会启动服务。
 
@@ -335,10 +373,10 @@ bun install --frozen-lockfile
 bun run test               # 前端测试
 bun run lint               # oxlint
 bun run build              # TypeScript 检查与 Vite 生产构建
-bun run dev                # Vite 开发服务器
+bun run dev # 默认信任 ~/.kaguya/kaguya.crt
 ```
 
-开发前端时，保持原生应用运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `http://localhost:9024`。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置。修改后端后，执行 `make build` 并重启二进制。
+开发前端时，保持原生应用运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `https://localhost:9024`，默认读取 `~/.kaguya/kaguya.crt` 信任本机公钥证书，可用 `KAGUYA_CA_CERT` 指定其他位置，保留证书验证。文件缺失时明确报错，请先运行上述 `--prepare-tls` 命令导出；生产构建不需要此文件。Vite 页面只用于本机开发；正常使用请打开后端内嵌的 HTTPS 页面。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置。修改后端后，执行 `make build` 并重启二进制。
 
 修改 Ent schema 后，在仓库根目录执行 `go generate ./internal/ent`，保持生成的 Ent 代码与 schema 同步。
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,7 +16,7 @@ import (
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 
-func TestChatAndTitleUseLiveSystemInfo(t *testing.T) {
+func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 	ctx, client := setupChatTest(t)
 	type upstreamRequest struct {
 		Agent    string
@@ -60,10 +62,27 @@ func TestChatAndTitleUseLiveSystemInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := ""
-	for i, modelID := range []string{m1.ID, m2.ID} {
-		config := dtosystem.SystemInfoSaveReq{SystemPrompt: fmt.Sprintf("自定义提示词-%d", i), UserAgent: fmt.Sprintf("Agent/%d", i), DefaultModelID: modelID, TaskModelID: modelID}
-		if _, err := (&servicesystem.SystemSvc{}).InfoUpdate(ctx, &config); err != nil {
+	agentsPath := filepath.Join(t.TempDir(), "AGENTS.md")
+	for i, modelID := range []string{m1.ID, m2.ID, m2.ID, m2.ID} {
+		if i == 3 {
+			id = "" // A new conversation observes the changed file.
+		}
+		instructions := fmt.Sprintf("live file instructions-%d", i)
+		if err := os.WriteFile(agentsPath, []byte(instructions), 0600); err != nil {
 			t.Fatal(err)
+		}
+		configIndex := min(i, 1)
+		config := dtosystem.SystemInfoSaveReq{SystemPrompt: fmt.Sprintf("自定义提示词-%d", configIndex), UserAgent: fmt.Sprintf("Agent/%d", configIndex), DefaultModelID: modelID, TaskModelID: modelID, GlobalAgentsPaths: []string{agentsPath}}
+		// Removing the file cannot affect a saved conversation snapshot.
+		if i == 2 {
+			if err := os.Remove(agentsPath); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if i < 2 {
+			if _, err := (&servicesystem.SystemSvc{}).InfoUpdate(ctx, &config); err != nil {
+				t.Fatal(err)
+			}
 		}
 		ch := make(chan *dtochat.ChatResp)
 		go (&AgentSvc{}).Chat(ctx, ch, &dtochat.ChatReq{ID: id, Messages: "hello"})
@@ -80,16 +99,21 @@ func TestChatAndTitleUseLiveSystemInfo(t *testing.T) {
 		if !done {
 			t.Fatal("chat did not finish")
 		}
-		wantModel := []string{"first-api", "second-api"}[i]
+		wantModel := []string{"first-api", "second-api"}[configIndex]
 		select {
 		case req := <-requests:
 			if req.Agent != config.UserAgent || req.Model != wantModel {
 				t.Fatalf("request=%+v", req)
 			}
-			if len(req.Messages) == 0 || req.Messages[0].Content != servicesystem.ChatSystemPrompt(config.SystemPrompt) {
+			instructionIndex := 0
+			if i == 3 {
+				instructionIndex = 3
+			}
+			wantPrompt := servicesystem.ChatSystemPrompt(config.SystemPrompt) + fmt.Sprintf("\n\nGlobal instructions from %s:\nlive file instructions-%d", agentsPath, instructionIndex)
+			if len(req.Messages) == 0 || req.Messages[0].Role != "system" || req.Messages[0].Content != wantPrompt {
 				t.Fatalf("system prompt=%+v", req.Messages)
 			}
-			if i == 1 {
+			if i > 0 {
 				for _, msg := range req.Messages {
 					if strings.Contains(msg.Content, "自定义提示词-0") {
 						t.Fatal("old system prompt persisted in history")
@@ -99,7 +123,7 @@ func TestChatAndTitleUseLiveSystemInfo(t *testing.T) {
 		case <-ctx.Done():
 			t.Fatal(ctx.Err())
 		}
-		if i == 1 {
+		if i > 0 {
 			title := defaultConversationTitle
 			if _, err := (&AgentSvc{}).ConversationUpdate(ctx, id, &dtochat.ConversationUpdateReq{Title: &title}); err != nil {
 				t.Fatal(err)

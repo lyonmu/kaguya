@@ -34,6 +34,7 @@ func resolveDirectory(path string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
+	originalHome := home
 	home, err = filepath.EvalSymlinks(home)
 	if err != nil {
 		return "", "", err
@@ -41,7 +42,7 @@ func resolveDirectory(path string) (string, string, error) {
 	if path == "" {
 		path = home
 	}
-	if !filepath.IsAbs(path) || !within(home, filepath.Clean(path)) {
+	if !filepath.IsAbs(path) || (!within(home, filepath.Clean(path)) && !within(originalHome, filepath.Clean(path))) {
 		return "", "", ErrInvalid
 	}
 	path, err = filepath.EvalSymlinks(path)

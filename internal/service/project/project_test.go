@@ -12,7 +12,10 @@ import (
 )
 
 func TestDirectoryBoundary(t *testing.T) {
-	home := t.TempDir()
+	home, homeErr := filepath.EvalSymlinks(t.TempDir())
+	if homeErr != nil {
+		t.Fatal(homeErr)
+	}
 	outside := t.TempDir()
 	t.Setenv("HOME", home)
 	previous := global.Logger
@@ -56,5 +59,30 @@ func TestDirectoryBoundary(t *testing.T) {
 	cancel()
 	if _, err := svc.Directories(ctx, home); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancel: %v", err)
+	}
+}
+
+func TestHomeSymlinkAcceptsOwnAliasButRejectsEscape(t *testing.T) {
+	real, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(t.TempDir(), "home")
+	if err := os.Symlink(real, alias); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", alias)
+	if err := os.Mkdir(filepath.Join(real, "project"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	_, got, err := resolveDirectory(filepath.Join(alias, "project"))
+	if err != nil || got != filepath.Join(real, "project") {
+		t.Fatalf("resolved=%q err=%v", got, err)
+	}
+	if err := os.Symlink(t.TempDir(), filepath.Join(real, "escape")); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := resolveDirectory(filepath.Join(alias, "escape")); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("escape=%v", err)
 	}
 }

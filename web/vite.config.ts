@@ -1,14 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { developmentCA } from './dev-ca.ts'
+import { Agent } from 'node:https'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss()],
   build: {
     rolldownOptions: {
       output: {
         codeSplitting: {
           groups: [
+            {
+              // Cache the chat runtime separately from application code.
+              name: 'vendor-assistant',
+              test: /[\\/]node_modules[\\/]@assistant-ui[\\/]/,
+            },
             {
               // 图表渲染引擎单独缓存，仍仅由懒加载用量页面引入。
               name: 'vendor-zrender',
@@ -28,9 +35,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/kaguya/api': {
-        target: 'http://localhost:9024',
-        changeOrigin: true,
+        target: 'https://localhost:9024',
+        agent: command === 'serve' ? new Agent({ minVersion: 'TLSv1.3', ca: developmentCA() }) : undefined,
+        // Preserve the browser's matching Host/Origin through the local proxy.
+        changeOrigin: false,
       },
     },
   },
-})
+}))

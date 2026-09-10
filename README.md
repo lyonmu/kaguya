@@ -20,6 +20,7 @@ The project is intended for learning, personal use, and exploring Agent runtime 
 | Area | What you can do |
 | --- | --- |
 | Streaming chat | Receive responses over SSE, view Markdown and provider-reported reasoning, stop generation, and choose a model for a request. A WebSocket API is also available. |
+| Concurrent conversations | Create or switch conversations while generating; each stream receives results and cancels independently, including while visiting system pages. Each conversation runs one turn at a time. |
 | Conversation management | Continue saved conversations, search by title prefix, rename, and delete conversations; organize conversations by project, browse paginated history and review turn summaries. |
 | Providers and models | Manage providers and their models through the UI; configure full request URLs, API keys, protocol types, and model metadata. |
 | MCP management | Manage MCP services under AI configuration, with stdio, Streamable HTTP, SSE, dynamic start/stop, and chat tool integration. |
@@ -37,9 +38,11 @@ Screenshots were captured from a running instance on **2026-09-09**. Model names
 
 Use the left sidebar to create or reopen a conversation, search by title prefix, or switch between **Conversations** (ordinary conversations only) and **Projects**. The conversation header provides rename and delete actions. The composer lets you select a provider/model or use the default model: **Enter** sends, **Shift + Enter** inserts a newline, and **Stop** cancels an active response.
 
-Replies support Markdown, code blocks, and collapsible reasoning when supplied by the provider. Turn summaries show tokens, duration, and tool-call counts. When usage and model-window data are available, the composer shows the latest model call’s context occupancy (input including cache, plus output) relative to 90% of the model window, rather than cumulative spending. Before each model call, the 90% threshold triggers a summary of older content while retaining recent messages, paired tool calls/results, and the original history. A continuation snapshot is saved transactionally with the successful turn and restored on subsequent turns. Generation respects the configured model output limit and the reserved 10% of the window. Unknown windows disable automatic compaction. Summaries use the current chat model without tools and their usage is included in the turn total; failed or unsafe compaction returns an explicit error.
+User message bubbles shrink to their text and wrap long sentences and unbroken strings. Markdown images load only after a click, avoiding automatic requests to model-generated image URLs. Replies support Markdown, code blocks, and collapsible reasoning when supplied by the provider. Turn summaries show tokens, duration, and tool-call counts. When usage and model-window data are available, the composer shows the latest model call’s context occupancy (input including cache, plus output) relative to the configured effective window (90% of the model window by default), rather than cumulative spending. Before each model call, the configured threshold triggers a summary of older content while retaining recent messages, paired tool calls/results, and the original history. A continuation snapshot is saved transactionally with the successful turn and restored on subsequent turns. Generation respects the configured model output limit and the remaining window reserved by the compaction percentage. Unknown windows disable automatic compaction. Oversized transcripts are summarized in bounded fragments and merged incrementally so the summary request itself does not overflow the model window. Summaries use the current chat model without tools and their usage is included in the turn total; failed or unsafe compaction returns an explicit error.
 
 Only successfully completed and saved turns become reusable conversation history. Failed or canceled partial replies are not saved as completed turns. With a background-task model configured, the UI requests a short Chinese title based on the first successful question and answer; manual titles are preserved.
+
+History lists and chat content are paged separately: the sidebar virtual list fetches 20 conversation summaries at a time; chat content fetches 5 turns per page and replaces the current page when navigating. The frontend requests `compact=true`, returning user messages and answer text in full while reasoning and tool blocks contain only metadata such as status. Expanding a block loads its full details; closing a pending expansion cancels the request, and failures can be retried. Display queries do not read model messages or compacted context. The turns endpoint defaults to `limit=5`, retains a maximum of 100, and returns full details for compatibility when `compact` is omitted. Pagination limits turn counts, not bytes: a very long message or an explicitly expanded block can still be large.
 
 ### 2. Providers and models
 
@@ -61,6 +64,8 @@ Each model has a display name and an upstream model identifier, plus metadata su
 
 ### MCP management
 
+HTTP MCP requests, including message endpoints advertised by legacy SSE, must share the configured URL’s origin. Cross-origin redirects and HTTPS downgrades are rejected to protect authentication headers and tool arguments.
+
 Open **System management → AI configuration → MCP management** to create, query, edit, delete, and dynamically enable or disable services. Configuration is stored in `kaguya_mcp_server`; startup creates the table and restores enabled services. Failed connections display an error status and can be retried manually.
 
 - Supports `stdio` (executable, JSON argument array, environment variables, and absolute working directory), `streamable-http`, and legacy `sse` (URL and HTTP headers). Configure authentication through headers such as `Authorization`; an OAuth login flow is not provided.
@@ -76,8 +81,9 @@ Open **System management → AI configuration → MCP management** to create, qu
 - **Default chat model**: used when a request does not select a model explicitly.
 - **Background-task model**: used for conversation-title generation; it can differ from the chat model.
 - **Agent Loop step limit**: defaults to `0` (unlimited, matching pi), or set 1–1000. Reaching a configured limit saves complete tool results and pauses; use “Continue” to resume. Existing settings retain their values and can be changed to `0` here.
+- **Context compaction percentage**: a percentage of the model’s maximum context, default `90`, range `10–95`. New chat turns read the current setting, and the composer’s effective-window display uses it too. The remaining window is reserved for output, respecting the model output cap. Lower thresholds compact earlier and incur more summary calls; this cannot eliminate hallucinations, and unknown model windows still disable automatic compaction.
 - **Command timeout**: bash defaults to a maximum of 120 seconds, configurable from 1–86400 seconds; individual tool arguments may only shorten it. MCP retains each server’s timeout.
-- **Global AGENTS.md paths**: an ordered array defaulting to `~/.config/agents/AGENTS.md` and `~/.codex/AGENTS.md`; edit, add, or clear paths to disable loading. Files are read each turn as the service user. Missing files are skipped and resolved paths deduplicated; read failures or a combined size above 256 KiB return an error. Title tasks do not load these files.
+- **Global AGENTS.md paths**: an ordered array defaulting to `~/.config/agents/AGENTS.md` and `~/.codex/AGENTS.md`; edit, add, or clear paths to disable loading. Files are read once per conversation as the service user, together with `AGENTS.md` in the associated project root. Filenames are case-insensitive, including `agents.md` and `Agents.md`. Coexisting case variants are all read in filename order, with identical files deduplicated; global instructions precede project instructions. Missing global files or absent project-root instructions are skipped. Project files are opened through `os.Root`, rejecting symlink escapes. Global and project content share a 256 KiB limit; non-regular files, invalid UTF-8, read failures, and oversized content return errors. The snapshot is saved with the first successful turn and reused without rereading files or appending duplicate instructions to turn history. It survives service restarts and context compaction. Empty snapshots are also retained; failed or cancelled first turns do not persist, so retries reread the files. Existing conversations without snapshots initialize one on their next successful continuation. File and path edits affect new conversations only; other system settings are still read each turn. Every model request still carries the saved system instructions: fewer file reads do not eliminate input-token costs. Title tasks do not use this snapshot. Additional instructions scoped to subdirectories are still inspected by the Agent before working on the relevant files.
 - **User-Agent**: applied to server-side chat and title-generation requests.
 - **System prompt**: the read-only base persona remains in place; custom text is appended for chat. Leaving custom text empty retains the base persona.
 
@@ -99,7 +105,7 @@ Analytics count **successfully saved chat turns**, including those from deleted 
 
 ### Native binary (recommended)
 
-Build from source with Go (version in `go.mod`), Bun, Make, Git, a C compiler, Tcl, curl, pkg-config, and OpenSSL development files including **static `libcrypto.a`**. On macOS, install the Xcode Command Line Tools and `brew install openssl@3 pkgconf tcl-tk`; on Debian/Ubuntu, the native dependencies are `build-essential tcl pkg-config libssl-dev curl`. Ensure `pkg-config --exists libcrypto` succeeds (set `PKG_CONFIG_PATH` if needed).
+Build from source with Go (minimum 1.26.8, as specified in `go.mod`), Bun, Make, Git, a C compiler, Tcl, curl, pkg-config, and OpenSSL development files including **static `libcrypto.a`**. On macOS, install the Xcode Command Line Tools and `brew install openssl@3 pkgconf tcl-tk`; on Debian/Ubuntu, the native dependencies are `build-essential tcl pkg-config libssl-dev curl`. Ensure `pkg-config --exists libcrypto` succeeds (set `PKG_CONFIG_PATH` if needed).
 
 ```sh
 git clone https://github.com/lyonmu/kaguya.git
@@ -120,10 +126,15 @@ Writable data is **not** stored in `go:embed`: after checking or initializing th
 | `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
 | `--db.key-file` | `DB_KEY_FILE` | Unset: initialize/use `~/.kaguya/kaguya.key`; explicit paths must already exist |
 | `--host` | — | `127.0.0.1` |
+| `--prepare-tls` | — | `false` |
+| `--renew-tls` | — | `false` |
+| `--trusted-host` | — | Empty; additional exact trusted hostname |
 | `--port` | — | `9024` |
 | `--router-prefix` | — | `/kaguya/api` |
 
 The server binds to `127.0.0.1:9024` by default, allowing connections only from the local machine. To allow remote access explicitly, run `./target/kaguya --host=0.0.0.0`; use `--host=::1` for IPv6 loopback. `--host` accepts an IP address and rejects empty or invalid values.
+
+HTTP and WebSocket reject cross-origin browser requests. Request Host values default to `localhost` and IP literals to prevent DNS rebinding. For an authenticated reverse proxy on your own domain, add `--trusted-host=agent.example.com` and preserve the original Host, Origin and Sec-Fetch-Site; do not rewrite arbitrary external Host values to a trusted local address. The Vite development proxy preserves matching Host/Origin values. These checks do not replace authentication or network access control. HTTP bodies are limited to 1 MiB, with a 10-second header read timeout and 30-second request read timeout; SSE answers have no short write timeout.
 
 ```sh
 ./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
@@ -135,15 +146,35 @@ Parent directories are created automatically. Relative paths resolve from the wo
 
 **SQLCipher operation:** the `sqlite` configuration value and Ent dialect remain unchanged; the engine is SQLCipher 4, not plaintext SQLite. The application verifies `cipher_version` before opening the business database and reads its schema before migration. Each physical connection receives the key during database opening, before WAL PRAGMAs. WAL is enabled and checked at startup; each connection uses a 5-second busy timeout and `synchronous=FULL`. The application pool allows one connection to serialize in-process database work. SQLite still permits only one writer, so use this deployment for a personal/single-instance service, with the database on a local filesystem, not a shared network filesystem. WAL can create `kaguya.db-wal` and `kaguya.db-shm` beside the database. Existing MySQL/PostgreSQL data is not migrated automatically; changing the path creates or opens a separate database.
 
+**TLS 1.3 and certificates:** After database migration and initialization, the application reads the certificate and private key from `kaguya_system_info`, then starts HTTPS. A missing initial pair creates a unique ECDSA P-256 self-signed certificate valid for one year, covering `localhost`, `127.0.0.1`, `::1`, and explicitly configured listener IPs and trusted hostnames. Only TLS 1.3 is accepted; no plaintext HTTP or downgrade listener is provided. Certificates and private keys are stored in the SQLCipher-encrypted database. Queries return only the public certificate, fingerprint, names and expiration, never the private key.
+
+System configuration → **HTTPS / TLS 1.3** supports downloading the public certificate, generating a replacement, or importing a matching PEM certificate chain and key. Saving requires a restart; existing connections do not switch identities live. Certificate names do not automatically enter the Host allowlist; domain access still requires `--trusted-host`. Self-signed certificates are not automatically trusted by browsers: verify the SHA-256 fingerprint and import trust on each accessing device. Do not disable certificate verification. To prepare and export the public certificate while keeping services stopped:
+
+```sh
+./target/kaguya --prepare-tls --log.console-enabled=false > ~/.kaguya/kaguya.crt
+openssl x509 -in ~/.kaguya/kaguya.crt -noout -fingerprint -sha256
+```
+
+This command accepts the same database arguments as normal startup, initializes and exits without listeners or MCP. Existing certificates are reused; expired, damaged or mismatched pairs fail startup instead of silently changing identity. For offline recovery, explicitly add `--renew-tls`, then redistribute and trust the new public certificate. Database backups preserve the TLS identity; the TLS private key and SQLCipher key serve different purposes.
+
+On macOS, `remote error: tls: unknown certificate` usually means the accessing client rejected the self-signed certificate. After checking the exported fingerprint, add it to SSL trust in the current user’s login keychain:
+
+```bash
+security add-trusted-cert -r trustRoot -p ssl -k "$HOME/Library/Keychains/login.keychain-db" "$HOME/.kaguya/kaguya.crt"
+security verify-cert -c "$HOME/.kaguya/kaguya.crt" -p ssl -s localhost
+```
+
+Then reopen the browser connection. Other devices need their own certificate trust configuration; replacing the server certificate also requires updating trust and the certificate file used by the development proxy.
+
 **Key management:** the key file must be a regular file containing exactly 64 hexadecimal characters (32 cryptographically random bytes), optionally followed by LF/CRLF. Unix group/other permissions are rejected; use `chmod 600`. It is a raw AES-256 key, **not a password or TLS certificate**. There is no embedded/default secret or unencrypted fallback. Immediately after the startup log, `internal/init/sqlcipher.go` checks the key before database initialization. If `--db.key-file`/`DB_KEY_FILE` is unset and both the default key and configured database files are absent, Go generates 32 random bytes, writes a private temporary file, syncs it, and atomically publishes the key without overwriting an existing file. Existing keys are validated and reused. A missing key with any existing database file (even empty), WAL, SHM, or rollback journal is an error: restore the original key. Explicitly supplied key paths must exist, even if they name the default location. Invalid existing keys are never replaced; wrong keys and plaintext databases fail to open without automatic conversion. Key contents are not CLI arguments, serialized configuration, or application log fields. The DSN contains the key internally and must never be logged. `modernc.org/sqlite` is retained only as an independent plaintext engine in encryption tests, not used by the application.
 
 **Existing databases:** a plaintext SQLite file cannot be encrypted merely by supplying a key. Stop and back up the old deployment, then perform an explicit migration to a **new file** using SQLCipher's keyed `ATTACH` and `sqlcipher_export()`; see the [official conversion guide](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868). Verify schema, application data, timestamps, and reopening with the intended key before switching `--db.path`. MySQL/PostgreSQL migration is separate. No automatic plaintext migration, key rotation, or legacy SQLCipher format conversion is implemented.
 
 **Backups and updates:** the simplest backup is to stop the service and copy the database together with any remaining WAL/SHM files as one set; never copy only the main database while writes are active or delete WAL files manually. Back up the key **separately and securely**: losing it makes the data unrecoverable. For live exports use SQLCipher-aware tooling with an explicitly keyed encrypted destination; do not assume generic SQLite backup or `VACUUM INTO` produces an encrypted backup. Before upgrading, back up the data/key, stop the service, replace the binary, and restart with the same service user, path, and key. Foreground logs go to the configured logger; use your service manager for background operation and lifecycle management.
 
-**Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. TLS certificates protect network transport, not the local key. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login.
+**Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. TLS certificates protect network transport, not the local key. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login. Debug mode also omits database SQL argument logging to keep prompts, API keys and MCP credentials out of logs.
 
-Open [http://localhost:9024](http://localhost:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
+Open [https://localhost:9024](https://localhost:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
 
 Knowledge bases and semantic retrieval can be supplied through externally configured MCP tools, without a local pgvector service. The application does not include a built-in knowledge base, long-term memory, embeddings, or FTS5 search.
 
@@ -189,7 +220,7 @@ PostgreSQL data is persisted through the Compose bind mount `${PWD}/pgvector:/va
 
 ### 3. Configure the first conversation
 
-Open [http://localhost:9024](http://localhost:9024) on the deployment host. Remote access requires explicitly setting `--host=0.0.0.0`. Before the first chat:
+Open [https://localhost:9024](https://localhost:9024) on the deployment host. Remote access requires explicitly setting `--host=0.0.0.0`. Before the first chat:
 
 1. Open **AI providers**, add a provider with its protocol, full request URL, and API key.
 2. Add at least one model with the provider's upstream model identifier.
@@ -238,8 +269,10 @@ docker compose up -d --no-deps kaguya-svc
 
 ## Architecture
 
+Chat uses assistant-ui ExternalStoreRuntime, message viewport, and composer primitives over the existing Go SSE transport and database history. Configuration forms, tables, and general controls retain Ant Design; usage charts retain ECharts. The chat layout uses a conversation sidebar, message area, and composer. Concurrent state lives in the current browser application: reloading or closing the page disconnects streams; this is not a server-side offline job queue. Go uses independent request goroutines with per-conversation exclusion, allowing different conversations to wait on models and tools concurrently. Throughput remains subject to provider limits, database capacity, and host resources.
+
 ```text
-Browser: React 19 + TypeScript + Ant Design + Tailwind CSS + ECharts
+Browser: React 19 + TypeScript + assistant-ui + Ant Design + Tailwind CSS + ECharts
     │  SSE chat / JSON API
     ▼
 Go binary: Kong CLI → Gin routes → application services
@@ -277,6 +310,10 @@ Seven Go tools follow [pi's tool design](https://github.com/earendil-works/pi/tr
 
 `tools.New(workspace, global.Logger)` owns the tools and exposes `CodingTools()` (the first four), `ReadOnlyTools()` (read/grep/find/ls), and `AllTools()`. Project chat registers the default four through existing `WithTools`; search factories remain optional without expanding the model's default tool list. Continuations restore the database project association; request `project_id` cannot change it. Each turn defaults to unlimited model steps; an optional limit is available in system configuration. An unavailable directory fails explicitly instead of falling back to the server's working directory.
 
+Tool inputs are sent to models as JSON Schema: Go types supply field types, required fields, and descriptions; tool contracts add line/count/timeout bounds, non-empty strings, and `edits` array constraints. Each tool description includes a valid JSON example, usage boundaries, and guidance for correcting failures. Execution reuses a precompiled schema and additionally rejects unknown root fields; nested `edits` object restrictions are also sent to the model. Validation failures return field-specific errors without executing the tool. Fantasy currently reconstructs only root `properties/required`, so identical strict-generation support across providers is not assumed. MCP tools retain their remote descriptions and schemas rather than inheriting built-in file-tool parameters.
+
+The `call_id` / `tool_call_id` in tool logs and history is an upstream protocol correlation identifier, returned unchanged to associate tool results; its format may include a UUID. Database primary keys for conversations, turns, and content blocks still use local snowflake IDs. The two identifiers are not interchangeable.
+
 Server adaptations: file operations use `os.Root` to stay within the workspace; `write/edit` reject symlink paths and serialize same-path mutations within the process. Text reads, edits, and writes have a 32MB safety limit; use bounded bash operations for larger files. Image attachments are capped at 10MB; PNG/JPEG/GIF images above 2000 pixels are resized, while WebP/BMP are passed through. Editing supports pi's Unicode/trailing-whitespace matching while preserving unchanged lines; oversized diffs are truncated without returning an incomplete patch. Full command output is retained in the project's `.kaguya/tool-output/` for paginated `read` access; add this directory to project ignore rules and clean it as needed. The frontend retains tool start/end and final-result rendering rather than streaming bash output chunks.
 
 **Permissions warning: a working directory is not a sandbox.** Bash runs with the server process's permissions and can access resources available to that user; file-tool path restrictions do not constrain shell commands. Restrict the service to trusted users, use a low-privilege account or container, and do not expose executable-tool APIs directly to the public Internet. File changes and command side effects take effect immediately and are not rolled back when a conversation fails, is cancelled, or is not persisted. Logs record tool names, call IDs, project/conversation IDs, and duration, not raw commands or file contents.
@@ -293,6 +330,7 @@ With the default route prefix, useful endpoints are:
 | `GET /kaguya/api/v1/chat/ws` | WebSocket chat |
 | `GET /kaguya/api/v1/chat/conversation/page` | Paginated conversation list |
 | `GET /kaguya/api/v1/chat/conversation/:id/turns` | Conversation turns |
+| `GET /kaguya/api/v1/chat/conversation/:id/turns/:turn/blocks/:sequence` | Load one historical content block on demand |
 | `GET /kaguya/api/v1/chat/conversation/:id/context` | Conversation context statistics |
 | `GET /kaguya/api/v1/project/page` | Project list (name prefix and pagination) |
 | `GET /kaguya/api/v1/project/directories` | Browse folders within the server user's home |
@@ -314,7 +352,7 @@ Conversation responses include `is_project`, derived from whether `project_id` i
 After configuring a default model, start a conversation with:
 
 ```sh
-curl -N http://localhost:9024/kaguya/api/v1/chat/sse \
+curl --cacert ~/.kaguya/kaguya.crt -N https://localhost:9024/kaguya/api/v1/chat/sse \
   -H 'Content-Type: application/json' \
   -H 'Accept: text/event-stream' \
   -d '{"flag":"chat","messages":"Hello, Kaguya"}'
@@ -324,7 +362,7 @@ Reuse the returned conversation `id` in subsequent request bodies to continue it
 
 ## Development
 
-Source development requires Go (version in `go.mod`), Bun, Make, and the native dependencies listed above. Use `CGO_ENABLED=1 make build`, then run `./target/kaguya` (the default key is initialized on a fresh installation); no Docker/database service is needed. Use the Make targets rather than bare `go build`/`go test` so the SQLCipher link settings are applied. For targeted tests, run `make native` then `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`.
+Source development requires Go (minimum 1.26.8, as specified in `go.mod`), Bun, Make, and the native dependencies listed above. Use `CGO_ENABLED=1 make build`, then run `./target/kaguya` (the default key is initialized on a fresh installation); no Docker/database service is needed. Use the Make targets rather than bare `go build`/`go test` so the SQLCipher link settings are applied. For targeted tests, run `make native` then `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`.
 
 Run `CGO_ENABLED=1 make install` from the repository root to build both frontend and backend and install the binary to `~/.local/bin/<repository-directory-name>` (usually `~/.local/bin/kaguya`) with mode `0755`. Create `~/.local/bin` first and add it to `PATH`; the command does not start the service.
 
@@ -335,10 +373,10 @@ bun install --frozen-lockfile
 bun run test               # Frontend tests
 bun run lint               # oxlint
 bun run build              # TypeScript checks and Vite production build
-bun run dev                # Vite development server
+bun run dev # Trust ~/.kaguya/kaguya.crt by default
 ```
 
-For frontend development, keep the native application running on port `9024`; Vite proxies `/kaguya/api` to `http://localhost:9024`. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned. Run `make build` and restart the binary after backend changes.
+For frontend development, keep the native application running on port `9024`; Vite proxies `/kaguya/api` to `https://localhost:9024`, trusting `~/.kaguya/kaguya.crt` by default, with `KAGUYA_CA_CERT` available to override the path, while keeping verification enabled. A missing file gives an explicit error: export it first using the `--prepare-tls` command above. Production builds do not require this file. The Vite page is for local development only; use the embedded HTTPS console for normal operation. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned. Run `make build` and restart the binary after backend changes.
 
 After changing Ent schemas, run `go generate ./internal/ent` from the repository root. Keep generated Ent code in sync with the schemas.
 
