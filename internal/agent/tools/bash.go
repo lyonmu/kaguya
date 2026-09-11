@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"math"
@@ -15,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/global"
 )
 
 type BashInput struct {
@@ -23,7 +23,7 @@ type BashInput struct {
 }
 
 func (s *Set) BashTool() fantasy.AgentTool {
-	return tool(s, "bash", `Run shell commands for targeted searches, directory listings, builds and tests. Each call starts in the project root; cd and environment changes do not persist to later calls. Use command, not cmd; timeout is in seconds, not milliseconds. For a subdirectory, put cd in the command. Returns stdout/stderr and exit status; only the last 2000 lines or 50KB are shown, with a saved output path on truncation. Read that file instead of rerunning just to see output. Example: {"command":"rg -n 'main' src","timeout":30}. Runs with the service user's permissions, not in a sandbox; cancellation stops the process group but does not undo side effects.`, s.bash)
+	return tool(s, "bash", `Run shell commands for targeted searches, directory listings, builds and tests. Each call starts in the project root; cd and environment changes do not persist to later calls. Use command, not cmd; timeout is in seconds, not milliseconds. For a subdirectory, put cd in the command. Returns stdout/stderr and exit status; only the last 2000 lines or 50KB are shown, with a temporary output path on truncation. Use read on that path instead of rerunning just to see output. Example: {"command":"rg -n 'main' src","timeout":30}. Runs with the service user's permissions, not in a sandbox; cancellation stops the process group but does not undo side effects.`, s.bash)
 }
 
 type outputAccumulator struct {
@@ -53,13 +53,21 @@ func (o *outputAccumulator) Write(p []byte) (int, error) {
 		lines++
 	}
 	if o.file == nil && (o.totalBytes > MaxBytes || lines > MaxLines) {
-		dir := ".kaguya/tool-output"
-		if err := o.s.root.MkdirAll(dir, 0700); err != nil {
+		if err := o.s.tempRoot.MkdirAll(o.s.outputDir, 0700); err != nil {
 			o.err = err
 			return 0, err
 		}
-		o.path = filepath.Join(dir, "bash-"+rand.Text()+".log")
-		f, err := o.s.root.OpenFile(o.path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if global.Id == nil {
+			o.err = errors.New("global ID generator is not initialized")
+			return 0, o.err
+		}
+		id, err := global.Id.GenID()
+		if err != nil {
+			o.err = fmt.Errorf("generate command output ID: %w", err)
+			return 0, o.err
+		}
+		o.path = filepath.Join(o.s.outputDir, fmt.Sprintf("bash-%d.log", id))
+		f, err := o.s.tempRoot.OpenFile(o.path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if err != nil {
 			o.err = err
 			return 0, err
@@ -111,9 +119,10 @@ func (o *outputAccumulator) finish() (fantasy.ToolResponse, error) {
 	}
 	details := map[string]any{}
 	if r.Truncated {
-		text += fmt.Sprintf("\n\n[Showing last %d lines / %d bytes of %d lines / %d bytes. Full output: %s]", r.OutputLines, r.OutputBytes, r.TotalLines, r.TotalBytes, o.path)
+		fullOutputPath := filepath.Join(o.s.tempBase, o.path)
+		text += fmt.Sprintf("\n\n[Showing last %d lines / %d bytes of %d lines / %d bytes. Full output: %s]", r.OutputLines, r.OutputBytes, r.TotalLines, r.TotalBytes, fullOutputPath)
 		details["truncation"] = r
-		details["fullOutputPath"] = filepath.Join(o.s.cwd, o.path)
+		details["fullOutputPath"] = fullOutputPath
 	}
 	return fantasy.WithResponseMetadata(fantasy.NewTextResponse(text), details), nil
 }

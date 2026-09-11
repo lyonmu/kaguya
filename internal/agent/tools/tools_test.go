@@ -18,12 +18,26 @@ import (
 	"unicode/utf8"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/global"
 	"go.uber.org/zap"
 )
 
+type testIDGenerator struct {
+	mu   sync.Mutex
+	next int64
+}
+
+func (g *testIDGenerator) GenID() (int64, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	id := g.next
+	g.next++
+	return id, nil
+}
+
 func setup(t *testing.T) *Set {
 	t.Helper()
-	s, err := New(t.TempDir(), zap.NewNop())
+	s, err := newSet(t.TempDir(), "test-conversation", t.TempDir(), time.Date(2026, 9, 11, 0, 0, 0, 0, time.Local), zap.NewNop())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,6 +64,10 @@ func requireOK(t *testing.T, r fantasy.ToolResponse) {
 }
 func TestToolSetAndValidation(t *testing.T) {
 	s := setup(t)
+	if invalid, err := newSet(t.TempDir(), "../escape", t.TempDir(), time.Now(), zap.NewNop()); err == nil {
+		_ = invalid.Close()
+		t.Fatal("unsafe conversation ID accepted")
+	}
 	names := []string{}
 	for _, tool := range s.AllTools() {
 		names = append(names, tool.Info().Name)
@@ -155,7 +173,7 @@ func TestEditAtomicityAndNormalization(t *testing.T) {
 }
 func TestMutationSerializationAndCancellation(t *testing.T) {
 	s := setup(t)
-	other, err := New(s.cwd, zap.NewNop())
+	other, err := New(s.cwd, "other-conversation", zap.NewNop())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,6 +266,9 @@ func TestBashCWDOutputExitAndTimeout(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash unavailable")
 	}
+	oldID := global.Id
+	global.Id = &testIDGenerator{next: 123456789}
+	t.Cleanup(func() { global.Id = oldID })
 	s := setup(t)
 	r := run(t, s.BashTool(), BashInput{Command: "pwd; printf error >&2"})
 	requireOK(t, r)
@@ -269,11 +290,28 @@ func TestBashCWDOutputExitAndTimeout(t *testing.T) {
 	if err := json.Unmarshal([]byte(r.Metadata), &metadata); err != nil {
 		t.Fatal(err)
 	}
+	expectedPath := filepath.Join(s.tempBase, "kaguya", "20260911", "test-conversation", "bash-123456789.log")
+	if metadata.Path != expectedPath {
+		t.Fatalf("unexpected output path %q", metadata.Path)
+	}
 	b, err := os.ReadFile(metadata.Path)
 	if err != nil || !strings.HasPrefix(string(b), "line-0\n") || strings.Count(string(b), "\n") != 2100 {
 		t.Fatal("full output not preserved", err)
 	}
-	requireOK(t, run(t, s.ReadTool(), ReadInput{Path: metadata.Path}))
+	firstPage := run(t, s.ReadTool(), ReadInput{Path: metadata.Path})
+	requireOK(t, firstPage)
+	if !strings.Contains(firstPage.Content, "offset=2001") {
+		t.Fatal("missing output continuation", firstPage.Content)
+	}
+	if _, err := os.Stat(metadata.Path); err != nil {
+		t.Fatal("output removed before final page", err)
+	}
+	offset := 2001
+	lastPage := run(t, s.ReadTool(), ReadInput{Path: metadata.Path, Offset: &offset})
+	requireOK(t, lastPage)
+	if _, err := os.Stat(metadata.Path); err != nil {
+		t.Fatal("output removed before turn ended", err)
+	}
 	timeout := 0.05
 	start := time.Now()
 	r = run(t, s.BashTool(), BashInput{Command: "echo before; (sleep 0.3; touch leaked-child) & wait", Timeout: &timeout})
@@ -290,7 +328,64 @@ func TestBashCWDOutputExitAndTimeout(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal(err)
 	}
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(metadata.Path); err != nil {
+		t.Fatal("temporary output removed by application", err)
+	}
+	if _, err := os.Stat(filepath.Join(s.cwd, ".kaguya")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("temporary output written into project", err)
+	}
 }
+
+func TestReadRejectsOtherConversationTemporaryOutput(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash unavailable")
+	}
+	oldID := global.Id
+	global.Id = &testIDGenerator{next: 200}
+	t.Cleanup(func() { global.Id = oldID })
+
+	cwd, tempBase := t.TempDir(), t.TempDir()
+	now := time.Date(2026, 9, 11, 0, 0, 0, 0, time.Local)
+	first, err := newSet(cwd, "first", tempBase, now, zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := newSet(cwd, "second", tempBase, now, zap.NewNop())
+	if err != nil {
+		_ = first.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = first.Close(); _ = second.Close() })
+
+	r := run(t, first.BashTool(), BashInput{Command: "for ((i=0;i<2100;i++)); do echo line-$i; done"})
+	requireOK(t, r)
+	var metadata struct {
+		Path string `json:"fullOutputPath"`
+	}
+	if err := json.Unmarshal([]byte(r.Metadata), &metadata); err != nil {
+		t.Fatal(err)
+	}
+	requireOK(t, run(t, first.ReadTool(), ReadInput{Path: metadata.Path}))
+	if !run(t, second.ReadTool(), ReadInput{Path: metadata.Path}).IsError {
+		t.Fatal("another conversation read temporary output")
+	}
+	if !run(t, first.ReadTool(), ReadInput{Path: filepath.Join(tempBase, "unrelated.log")}).IsError {
+		t.Fatal("read accepted unrelated temporary path")
+	}
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := second.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(metadata.Path); err != nil {
+		t.Fatal("temporary output removed on close", err)
+	}
+}
+
 func TestSearchTools(t *testing.T) {
 	s := setup(t)
 	requireOK(t, run(t, s.WriteTool(), WriteInput{Path: ".gitignore", Content: "ignored.txt\n"}))
@@ -332,7 +427,7 @@ func TestSearchTools(t *testing.T) {
 }
 
 func TestConfiguredCommandTimeout(t *testing.T) {
-	s, err := New(t.TempDir(), zap.NewNop())
+	s, err := New(t.TempDir(), "timeout-conversation", zap.NewNop())
 	if err != nil {
 		t.Fatal(err)
 	}

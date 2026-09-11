@@ -31,7 +31,7 @@ func (s *AgentSvc) projectTools(ctx context.Context, conversationID, requestedPr
 	if err != nil {
 		return nil, fmt.Errorf("project workspace unavailable: %w", err)
 	}
-	set, err := codingtools.New(path, global.Logger.With(zap.String("conversation_id", conversationID), zap.String("project_id", projectID)))
+	set, err := codingtools.New(path, conversationID, global.Logger.With(zap.String("conversation_id", conversationID), zap.String("project_id", projectID)))
 	if err != nil {
 		return nil, err
 	}

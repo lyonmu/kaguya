@@ -11,6 +11,9 @@ import (
 	"image/png"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -24,10 +27,11 @@ type ReadInput struct {
 }
 
 func (s *Set) ReadTool() fantasy.AgentTool {
-	return tool(s, "read", `Read one existing text file or image inside the project workspace. To list/search paths, use bash instead. Text returns at most 2000 lines or 50KB; follow the returned next offset when truncated. offset and limit are 1-based start line and line count, not a range string. Images (jpg/png/gif/webp/bmp) are returned as attachments; omit offset/limit for images. Example: {"path":"src/main.go","offset":20,"limit":80}.`, s.read)
+	return tool(s, "read", `Read one existing text file or image inside the project workspace, or a temporary bash output path returned during this conversation. Other paths outside the workspace are rejected. To list/search paths, use bash instead. Text returns at most 2000 lines or 50KB; follow the returned next offset when truncated. offset and limit are 1-based start line and line count, not a range string. Images (jpg/png/gif/webp/bmp) are returned as attachments; omit offset/limit for images. Example: {"path":"src/main.go","offset":20,"limit":80}.`, s.read)
 }
-func (s *Set) readBytes(ctx context.Context, path string) ([]byte, error) {
-	f, err := openReadFile(s.root, path)
+
+func readRootBytes(ctx context.Context, root *os.Root, path string) ([]byte, error) {
+	f, err := openReadFile(root, path)
 	if err != nil {
 		return nil, err
 	}
@@ -62,15 +66,56 @@ func (s *Set) readBytes(ctx context.Context, path string) ([]byte, error) {
 	}
 	return out.Bytes(), nil
 }
+
+func (s *Set) readBytes(ctx context.Context, path string) ([]byte, error) {
+	return readRootBytes(ctx, s.root, path)
+}
+
+func (s *Set) resolveRead(path string) (*os.Root, string, bool, error) {
+	path = strings.TrimPrefix(path, "@")
+	if filepath.IsAbs(path) {
+		outputDir := filepath.Join(s.tempBase, s.outputDir)
+		rel, err := filepath.Rel(outputDir, filepath.Clean(path))
+		if err == nil && filepath.Dir(rel) == "." && validBashOutputName(rel) {
+			root, err := os.OpenRoot(outputDir)
+			if err != nil {
+				return nil, "", false, err
+			}
+			return root, rel, true, nil
+		}
+	}
+	path, err := s.resolve(path)
+	if err != nil {
+		return nil, "", false, err
+	}
+	return s.root, path, false, nil
+}
+
+func validBashOutputName(name string) bool {
+	idText, ok := strings.CutPrefix(name, "bash-")
+	if !ok {
+		return false
+	}
+	idText, ok = strings.CutSuffix(idText, ".log")
+	if !ok {
+		return false
+	}
+	id, err := strconv.ParseInt(idText, 10, 64)
+	return err == nil && id > 0 && strconv.FormatInt(id, 10) == idText
+}
+
 func (s *Set) read(ctx context.Context, in ReadInput) (fantasy.ToolResponse, error) {
 	if in.Offset != nil && *in.Offset < 1 || in.Limit != nil && *in.Limit < 1 {
 		return fantasy.ToolResponse{}, errors.New("offset and limit must be positive integers")
 	}
-	path, err := s.resolve(in.Path)
+	root, path, closeRoot, err := s.resolveRead(in.Path)
 	if err != nil {
 		return fantasy.ToolResponse{}, err
 	}
-	data, err := s.readBytes(ctx, path)
+	if closeRoot {
+		defer root.Close()
+	}
+	data, err := readRootBytes(ctx, root, path)
 	if err != nil {
 		return fantasy.ToolResponse{}, err
 	}
