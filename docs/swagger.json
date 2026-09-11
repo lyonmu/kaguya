@@ -473,7 +473,7 @@
         },
         "/v1/chat/ws": {
             "get": {
-                "description": "WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID；下行 chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的 block_end 不重复内容，唯一的整轮 done 仅携带 Usage",
+                "description": "WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID，project_id 仅新对话使用，files 为项目内文件引用（最多 8 个，仅 SSE 同等的首轮引用行为）；下行 chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的 block_end 不重复内容，唯一的整轮 done 仅携带 Usage",
                 "produces": [
                     "application/json"
                 ],

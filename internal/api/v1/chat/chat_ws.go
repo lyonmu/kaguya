@@ -14,7 +14,7 @@ import (
 // ChatWS
 // @Tags      Chat
 // @Summary   ChatWS
-// @Description WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID；下行 chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的 block_end 不重复内容，唯一的整轮 done 仅携带 Usage
+// @Description WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID，project_id 仅新对话使用，files 为项目内文件引用（最多 8 个，仅 SSE 同等的首轮引用行为）；下行 chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的 block_end 不重复内容，唯一的整轮 done 仅携带 Usage
 // @Produce   json
 // @Success   200  {object}  dtocode.Response{code=number,data=dtochat.ChatResp,message=string}  "WS 帧，每帧为一个 dtocode.Response"
 // @Router    /v1/chat/ws [GET]
@@ -102,9 +102,11 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 			dataChan := make(chan *dtochat.ChatResp)
 			go agentvc.Chat(turnCtx, dataChan, &dtochat.ChatReq{
-				ID:       req.ID,
-				ModelID:  req.ModelID,
-				Messages: req.Messages,
+				ID:        req.ID,
+				ModelID:   req.ModelID,
+				Messages:  req.Messages,
+				ProjectID: req.ProjectID,
+				Files:     req.Files,
 			})
 
 			// 每轮转发 goroutine：dataChan → send，映射 flag
