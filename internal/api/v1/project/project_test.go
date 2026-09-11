@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -40,6 +42,10 @@ func TestProjectAPI(t *testing.T) {
 	api := &ProjectApiV1Group{}
 	r.GET("/project/page", api.ProjectPage)
 	r.GET("/project/directories", api.ProjectDirectories)
+	r.GET("/project/:id/tree", api.ProjectTree)
+	r.GET("/project/:id/content", api.ProjectContent)
+	r.GET("/project/:id/git/status", api.ProjectGitStatus)
+	r.GET("/project/:id/git/diff", api.ProjectGitDiff)
 	r.GET("/project/:id", api.ProjectDetail)
 	r.POST("/project", api.ProjectCreate)
 	r.PUT("/project/:id", api.ProjectUpdate)
@@ -73,6 +79,16 @@ func TestProjectAPI(t *testing.T) {
 		t.Fatalf("page=%+v", page)
 	}
 	request("GET", "/project/directories", "", code.SystemSuccess.Code)
+	if err := os.WriteFile(filepath.Join(home, "note.txt"), []byte("hello\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	request("GET", "/project/"+id+"/tree", "", code.SystemSuccess.Code)
+	request("GET", "/project/"+id+"/content?path=note.txt", "", code.SystemSuccess.Code)
+	request("GET", "/project/"+id+"/content?path=..%2Fescape", "", 103002)
+	request("GET", "/project/"+id+"/content", "", code.RequestParameterError.Code)
+	request("GET", "/project/"+id+"/git/status", "", code.SystemSuccess.Code)
+	request("GET", "/project/"+id+"/git/diff?path=note.txt", "", 103004)
+	request("GET", "/project/"+id+"/git/diff", "", code.RequestParameterError.Code)
 	request("GET", "/project/directories?path=/", "", 103002)
 	request("GET", "/project/page?page=0", "", code.RequestParameterError.Code)
 	request("POST", "/project", `{"name":"x"}`, code.RequestParameterError.Code)

@@ -23,6 +23,8 @@ func failure(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrNotFound):
 		global.Logger.Sugar().Warnf("project not found: %v", err)
 		code.Response{Code: 103001, Message: "项目不存在或已删除"}.Failure(c)
+	case errors.Is(err, service.ErrNotGit):
+		code.Response{Code: 103004, Message: "当前项目不是 Git 仓库，无法查看代码改动"}.Failure(c)
 	case errors.Is(err, service.ErrInvalid), errors.Is(err, os.ErrNotExist), errors.Is(err, os.ErrPermission):
 		global.Logger.Sugar().Warnf("invalid project request: %v", err)
 		code.Response{Code: 103002, Message: "项目参数无效，目录必须位于运行用户主目录内且可访问"}.Failure(c)

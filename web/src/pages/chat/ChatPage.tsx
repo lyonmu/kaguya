@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Segmented, Spin } from 'antd'
-import { DeleteOutlined, EditOutlined, MenuOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { deleteConversation, updateConversation } from '../../features/chat/api'
 import { useConversations } from '../../features/chat/useConversations'
 import { useWorkspaceChat } from '../../features/chat/chatContext'
@@ -15,6 +15,9 @@ import { fetchProject } from '../../features/project/api'
 import type { ConversationTarget } from '../../features/chat/types'
 import './chat.css'
 
+// 代码浏览器连同 diff 视图库只在打开时加载，避免进入主包。
+const CodeBrowserDrawer = lazy(() => import('../../features/code/components/CodeBrowserDrawer').then(module => ({ default: module.CodeBrowserDrawer })))
+
 export function ChatPage() {
   const { message, modal } = App.useApp()
   const [view, setView] = useState('对话')
@@ -28,6 +31,7 @@ export function ChatPage() {
   const setDraft = (value: string) => chat.setDraft(value, view === '项目' ? project?.id : undefined)
   const setReferences = (value: string[]) => chat.setReferences(value, view === '项目' ? project?.id : undefined)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [codeOpen, setCodeOpen] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [title, setTitle] = useState('')
@@ -104,6 +108,7 @@ export function ChatPage() {
   const conversationItems = visibleTarget && !visibleTarget.projectId && !sessions.items.some(item => item.id === visibleTarget.id)
     ? [{ id: visibleTarget.id, title: visibleTarget.title, model_name: '', last_message_at: '' }, ...sessions.items] : sessions.items
   const showConversations = view === '对话' || !!project || !!chat.projectId || !!chat.turns.length
+  const activeProjectId = chat.conversation?.project_id ?? chat.projectId ?? (view === '项目' ? project?.id : undefined)
   const sidebar = <div className="chat-sidebar-inner">
     <div className="chat-sidebar-head"><div className="chat-sidebar-title"><h2>对话管理</h2><Button size="small" icon={<PlusOutlined />} disabled={saving || !showConversations} onClick={() => select('')}>新建对话</Button></div>
       {view === '对话' && <Input aria-label="搜索对话标题前缀" placeholder="搜索对话（标题前缀）" prefix={<SearchOutlined />} value={sessions.keyword} onChange={event => sessions.search(event.target.value)} allowClear maxLength={200} />}
@@ -125,7 +130,8 @@ export function ChatPage() {
     <section className="chat-main">
       <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1><span className="chat-pill">{chat.localSessions.filter(item => item.streaming).length} 个运行中</span></div>
         <div className="chat-header-actions">
-          <Dropdown menu={{ items: [{ key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, { key: 'delete', label: '删除对话', danger: true, icon: <DeleteOutlined />, disabled: !chat.conversation }], onClick: ({ key }) => {
+          <Dropdown menu={{ items: [{ key: 'code', label: '查看代码与改动', icon: <CodeOutlined />, disabled: !activeProjectId }, { key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, { key: 'delete', label: '删除对话', danger: true, icon: <DeleteOutlined />, disabled: !chat.conversation }], onClick: ({ key }) => {
+            if (key === 'code') { setCodeOpen(true); return }
             if (key === 'reload') void chat.select(chat.id)
             if (key === 'rename') { setTitle(chat.conversation?.title ?? ''); setRenaming(true) }
             if (key === 'delete') remove()
@@ -140,5 +146,6 @@ export function ChatPage() {
       {!showSidebar && <div className={sidebarCollapsed ? 'chat-bottom-actions' : 'chat-bottom-actions chat-bottom-actions-mobile'}><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>}
     </section>
     <Modal title="重命名对话" open={renaming} confirmLoading={saving} onCancel={() => setRenaming(false)} onOk={() => void update({ title: title.trim() })} okButtonProps={{ disabled: !title.trim() }}><Input aria-label="对话标题" value={title} maxLength={200} onChange={event => setTitle(event.target.value)} /></Modal>
+    {codeOpen && activeProjectId && <Suspense fallback={null}><CodeBrowserDrawer open projectId={activeProjectId} projectName={project?.name ?? chat.conversation?.title} onClose={() => setCodeOpen(false)} /></Suspense>}
   </div>
 }

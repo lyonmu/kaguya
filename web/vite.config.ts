@@ -1,16 +1,48 @@
 import { defineConfig } from 'vite'
+import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { developmentCA } from './dev-ca.ts'
 import { Agent } from 'node:https'
+import { fileURLToPath } from 'node:url'
+import { developmentCA } from './dev-ca.ts'
+
+// @git-diff-view/core 静态引入 lowlight 的全量语言集（约 1MB）。把库内部的
+// `lowlight` 解析到精选语言集的替代模块：highlighter 接口不变，但只打包常用语言，
+// 且不会把高亮语言包带进聊天首屏。
+function lowlightSubset(): Plugin {
+  const subset = fileURLToPath(new URL('./src/features/code/lowlightSubset.ts', import.meta.url))
+  return {
+    name: 'kaguya:lowlight-subset',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      if (source === 'lowlight' && importer?.includes('@git-diff-view')) return subset
+      return null
+    },
+  }
+}
 
 export default defineConfig(({ command }) => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), lowlightSubset()],
+  // 让开发服务器也使用与生产一致的精选语言集。
+  optimizeDeps: { exclude: ['@git-diff-view/lowlight', 'lowlight'] },
   build: {
     rolldownOptions: {
       output: {
         codeSplitting: {
           groups: [
+            {
+              // 代码浏览器的 diff 引擎只在打开面板时加载；与高亮引擎分开缓存，
+              // 避免单一懒加载包超过体积预算。
+              name: 'vendor-diff-view',
+              test: /[\\/]node_modules[\\/]@git-diff-view[\\/]/,
+              includeDependenciesRecursively: false,
+            },
+            {
+              // 高亮引擎被聊天气泡与 diff 视图共用，独立缓存且不递归带入语言包以外的依赖。
+              name: 'vendor-highlight',
+              test: /[\\/]node_modules[\\/](?:highlight\.js|lowlight)[\\/]/,
+              includeDependenciesRecursively: false,
+            },
             {
               // Ant Design X Mermaid 的代码视图携带完整 Prism 语法集合；单独缓存，
               // 避免它进入聊天首屏或与 Mermaid 渲染核心合并。

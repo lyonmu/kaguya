@@ -39,6 +39,11 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     const renderer = chunks.find(chunk => chunk.isDynamicEntry && chunk.name === 'mermaid')
     assert.ok(renderer, 'Mermaid renderer must remain lazy-loaded')
     assert.ok(!initialChunks.has(renderer.fileName), 'Mermaid renderer must stay out of the initial payload')
+    for (const name of ['vendor-highlight', 'vendor-diff-view', 'CodeBrowserDrawer']) {
+      const chunk = chunks.find(item => item.name === name)
+      assert.ok(chunk, `${name} must exist`)
+      assert.ok(!initialChunks.has(chunk.fileName), `${name} must stay out of the initial payload`)
+    }
     for (const page of ['SystemInfoPage', 'ProviderManagementPage', 'AccessLogPage', 'TokenUsagePage']) {
       assert.ok(chunks.some(chunk => chunk.isDynamicEntry && chunk.name === page), `${page} must remain lazy-loaded`)
     }

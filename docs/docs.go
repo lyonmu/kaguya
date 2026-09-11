@@ -743,6 +743,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/project/{id}/content": {
+            "get": {
+                "description": "最大读取 512KB，超出截断；二进制返回 binary=true 且不带内容",
+                "tags": [
+                    "Project"
+                ],
+                "summary": "读取项目内单个文本文件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "maxLength": 4096,
+                        "type": "string",
+                        "name": "path",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.ContentResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/project/{id}/files": {
             "get": {
                 "tags": [
@@ -777,6 +822,127 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/project.FileSearchResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project/{id}/git/diff": {
+            "get": {
+                "description": "输出相对 HEAD 的 diff；未跟踪文件按新增内容输出，最大 1MB，超出截断。非 Git 项目返回业务码 103004",
+                "tags": [
+                    "Project"
+                ],
+                "summary": "单个变更文件的统一 diff",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "maxLength": 4096,
+                        "type": "string",
+                        "name": "path",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.GitDiffResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project/{id}/git/status": {
+            "get": {
+                "description": "非 Git 目录或缺少 git 命令时返回 is_git=false 并携带 message，不视为错误",
+                "tags": [
+                    "Project"
+                ],
+                "summary": "项目未提交变更清单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.GitStatusResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/project/{id}/tree": {
+            "get": {
+                "description": "单次最多返回 5000 个节点，超出时 truncated=true；路径始终相对项目根",
+                "tags": [
+                    "Project"
+                ],
+                "summary": "项目文件树，跳过隐藏项与依赖产物目录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "项目 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/project.TreeResp"
                                         }
                                     }
                                 }
@@ -2362,6 +2528,26 @@ const docTemplate = `{
                 }
             }
         },
+        "project.ContentResp": {
+            "type": "object",
+            "properties": {
+                "binary": {
+                    "type": "boolean"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
         "project.Directory": {
             "type": "object",
             "properties": {
@@ -2401,6 +2587,72 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.GitDiffResp": {
+            "type": "object",
+            "properties": {
+                "binary": {
+                    "type": "boolean"
+                },
+                "diff": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "truncated": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "project.GitFile": {
+            "type": "object",
+            "properties": {
+                "additions": {
+                    "type": "integer"
+                },
+                "deletions": {
+                    "type": "integer"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "staged": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "project.GitStatusResp": {
+            "type": "object",
+            "properties": {
+                "branch": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.GitFile"
+                    }
+                },
+                "head": {
+                    "type": "string"
+                },
+                "is_git": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
                 },
                 "truncated": {
                     "type": "boolean"
@@ -2465,6 +2717,49 @@ const docTemplate = `{
                 "path": {
                     "type": "string",
                     "maxLength": 4096
+                }
+            }
+        },
+        "project.TreeItem": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.TreeItem"
+                    }
+                },
+                "is_dir": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "project.TreeResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.TreeItem"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "truncated": {
+                    "type": "boolean"
                 }
             }
         },
