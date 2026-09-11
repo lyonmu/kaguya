@@ -2,14 +2,21 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/global"
+	serviceagent "github.com/lyonmu/kaguya/internal/service/agent"
 	"github.com/lyonmu/kaguya/pkg"
 )
+
+// chatWSWriteTimeout 限制单帧写出时长，客户端长时间不读取时断开连接，
+// 避免写 goroutine 与生成轮次永久阻塞。
+const chatWSWriteTimeout = 30 * time.Second
 
 // ChatWS
 // @Tags      Chat
@@ -41,6 +48,11 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 	// 唯一写 goroutine：串行写出所有下行帧
 	go func() {
 		for resp := range send {
+			if err := conn.SetWriteDeadline(time.Now().Add(chatWSWriteTimeout)); err != nil {
+				cancelConn()
+				_ = conn.Close()
+				return
+			}
 			if err := conn.WriteJSON(resp); err != nil {
 				cancelConn() // 断连立即取消生成，防止未完成轮次落库
 				global.Logger.Sugar().Errorf("websocket write failed, err is %+v", err)
@@ -155,7 +167,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 func mapFrame(v *dtochat.ChatResp) (dtocode.Response, bool) {
 	resp := dtocode.SystemSuccess
 	if v.Err != nil {
-		resp = dtocode.ChatSSEFailure
+		resp = chatFailure(v.Err)
 		chat := v.Chat
 		chat.Flag = dtochat.WSFlagError
 		resp.Data = dtochat.ChatResp{Chat: chat}
@@ -163,4 +175,19 @@ func mapFrame(v *dtochat.ChatResp) (dtocode.Response, bool) {
 	}
 	resp.Data = v
 	return resp, false
+}
+
+// chatFailure 只把服务层哨兵错误映射为固定的用户可读响应；
+// 其余内部错误保持通用提示，细节由服务端日志保留。
+func chatFailure(err error) dtocode.Response {
+	switch {
+	case errors.Is(err, serviceagent.ErrConversationBusy):
+		return dtocode.ChatWSBusy
+	case errors.Is(err, serviceagent.ErrConversationNotFound):
+		return dtocode.ConversationNotFound
+	case errors.Is(err, serviceagent.ErrChatModelNotConfigured):
+		return dtocode.ChatModelNotConfigured
+	default:
+		return dtocode.ChatSSEFailure
+	}
 }

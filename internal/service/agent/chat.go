@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -32,6 +33,10 @@ func send(ctx context.Context, dataChan chan *dtochat.ChatResp, resp *dtochat.Ch
 	}
 }
 
+// ErrChatModelNotConfigured 表示未指定模型且系统配置无默认模型；
+// API 层据其返回固定的用户可读提示。
+var ErrChatModelNotConfigured = errors.New("chat model is not configured")
+
 // Chat 执行一次流式对话：查询所选模型（空值用默认）→ 组装 Agent → Stream 增量推送。
 func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, req *dtochat.ChatReq) {
 	defer close(dataChan)
@@ -46,7 +51,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		modelID = info.DefaultModelID
 	}
 	if modelID == "" {
-		send(ctx, dataChan, &dtochat.ChatResp{Err: fmt.Errorf("请先在系统配置中选择默认模型，或在输入框选择模型")})
+		send(ctx, dataChan, &dtochat.ChatResp{Err: ErrChatModelNotConfigured})
 		return
 	}
 	// 使用本地模型记录 ID，避免不同提供商相同 API 模型名冲突。

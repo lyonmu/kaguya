@@ -3,14 +3,20 @@ package chat
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/global"
 )
+
+// sseWriteTimeout 限制单帧写出时长，客户端长时间不读取时结束响应，
+// 避免流式 goroutine 常驻；模型思考产生的大间隔不受影响，只限制阻塞的写入。
+const sseWriteTimeout = 60 * time.Second
 
 // ChatSSE
 // @Tags      Chat
@@ -70,6 +76,9 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 				return
 			}
 
+			if !refreshSSEWriteDeadline(c) {
+				return
+			}
 			if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", data); err != nil {
 				return
 			}
@@ -80,4 +89,10 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 			}
 		}
 	}
+}
+
+// refreshSSEWriteDeadline 每次写帧前刷新截止时间；测试记录器不支持写入截止时间。
+func refreshSSEWriteDeadline(c *gin.Context) bool {
+	err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Now().Add(sseWriteTimeout))
+	return err == nil || errors.Is(err, http.ErrNotSupported)
 }
