@@ -82,3 +82,29 @@ it('loads the file tree with git badges and renders diff and file views on deman
   await waitFor(() => assert.equal(browser.style.getPropertyValue('--code-side-width'), '372px'))
   assert.equal(dom.localStorage.getItem('kaguya-code-side-width'), '372')
 })
+
+it('reloads file content when the project changes without closing the drawer', async () => {
+  const contentRequests: string[] = []
+  globalThis.fetch = (async (url: string) => {
+    const value = String(url)
+    if (value.includes('/tree')) return response({ name: 'repo', path: '', items: [
+      { name: 'main.go', path: 'main.go', is_dir: false, size: 20 },
+    ], truncated: false })
+    if (value.includes('/git/status')) return response({ is_git: false, message: '当前项目不是 Git 仓库', files: [], truncated: false })
+    if (value.includes('/content')) {
+      contentRequests.push(value)
+      return response({ path: 'main.go', size: 20, binary: false, truncated: false, content: value.includes('/project/a/') ? 'package a\n' : 'package b\n' })
+    }
+    return response({})
+  }) as typeof fetch
+  const view = render(<App><CodeBrowserDrawer open projectId="a" projectName="a" onClose={() => {}} /></App>)
+  const panel = within(document.body)
+  await waitFor(() => assert.ok(panel.getByText('main.go')))
+  const label = panel.getByText('main.go')
+  fireEvent.click(label.closest('.ant-tree-node-content-wrapper') ?? label)
+  await waitFor(() => assert.match(dom.document.querySelector('.code-line-text')?.textContent ?? '', /package a/))
+  view.rerender(<App><CodeBrowserDrawer open projectId="b" projectName="b" onClose={() => {}} /></App>)
+  await waitFor(() => assert.match(dom.document.querySelector('.code-line-text')?.textContent ?? '', /package b/))
+  assert.ok(contentRequests.some(url => url.includes('/project/a/content')))
+  assert.ok(contentRequests.some(url => url.includes('/project/b/content')))
+})

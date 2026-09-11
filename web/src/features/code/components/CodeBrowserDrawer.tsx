@@ -62,6 +62,8 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
   const [fileError, setFileError] = useState('')
   const contentCache = useRef(new Map<string, FileContent>())
   const diffCache = useRef(new Map<string, FileDiff>())
+  // 缓存按项目隔离：面板打开期间切换项目时不能复用其他项目同名文件的内容。
+  const cacheKey = useCallback((path: string) => `${projectId}\n${path}`, [projectId])
   const theme = useDiffTheme()
 
   const statusMap = useMemo(() => {
@@ -123,7 +125,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
     setFileError('')
     if (view === 'diff') {
       setContent(undefined)
-      const cached = diffCache.current.get(selected)
+      const cached = diffCache.current.get(cacheKey(selected))
       if (cached) {
         setDiff(cached)
         setFileLoading(false)
@@ -134,7 +136,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
       fetchFileDiff(projectId, selected, controller.signal)
         .then(data => {
           if (controller.signal.aborted) return
-          diffCache.current.set(selected, data)
+          diffCache.current.set(cacheKey(selected), data)
           setDiff(data)
         })
         .catch(loadError => {
@@ -145,7 +147,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
         })
     } else {
       setDiff(undefined)
-      const cached = contentCache.current.get(selected)
+      const cached = contentCache.current.get(cacheKey(selected))
       if (cached) {
         setContent(cached)
         setFileLoading(false)
@@ -156,7 +158,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
       fetchFileContent(projectId, selected, controller.signal)
         .then(data => {
           if (controller.signal.aborted) return
-          contentCache.current.set(selected, data)
+          contentCache.current.set(cacheKey(selected), data)
           setContent(data)
         })
         .catch(loadError => {
@@ -167,7 +169,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
         })
     }
     return () => controller.abort()
-  }, [open, selected, view, projectId, version])
+  }, [open, selected, view, projectId, version, cacheKey])
 
   const refresh = useCallback(() => {
     contentCache.current.clear()
@@ -300,10 +302,10 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
             {fileLoading && <div className="code-loading"><Spin size="small" /></div>}
             {!fileLoading && fileError && <Alert type="error" showIcon message={fileError} />}
             {!fileLoading && !fileError && selected && view === 'diff' && diff && (
-              <DiffViewer key={`diff:${selected}`} path={selected} diff={diff.diff} binary={diff.binary} truncated={diff.truncated} mode={mode} theme={theme} />
+              <DiffViewer key={`diff:${projectId}:${selected}`} path={selected} diff={diff.diff} binary={diff.binary} truncated={diff.truncated} mode={mode} theme={theme} />
             )}
             {!fileLoading && !fileError && selected && view === 'file' && content && (
-              <FileViewer key={`file:${selected}`} path={selected} data={content} />
+              <FileViewer key={`file:${projectId}:${selected}`} path={selected} data={content} />
             )}
             {!fileLoading && !fileError && !selected && (
               <Empty
