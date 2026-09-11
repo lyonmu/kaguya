@@ -81,6 +81,27 @@ func TestProviderRequestURL(t *testing.T) {
 	}
 }
 
+// 所有提供商共享独立的 Transport：不能改动 http.DefaultTransport，且必须有响应头超时。
+func TestProviderTransportConfiguration(t *testing.T) {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		t.Skip("default transport is not *http.Transport")
+	}
+	transport, ok := newProviderTransport().(*http.Transport)
+	if !ok {
+		t.Fatal("provider transport is not *http.Transport")
+	}
+	if transport == base {
+		t.Fatal("provider transport must not mutate http.DefaultTransport")
+	}
+	if transport.ResponseHeaderTimeout != providerHeaderTimeout {
+		t.Fatalf("ResponseHeaderTimeout=%s", transport.ResponseHeaderTimeout)
+	}
+	if transport.MaxIdleConnsPerHost != 16 {
+		t.Fatalf("MaxIdleConnsPerHost=%d", transport.MaxIdleConnsPerHost)
+	}
+}
+
 func TestProviderRequestURLRequired(t *testing.T) {
 	for _, input := range []string{"", "example.com", "/v1/responses", "ftp://example.com", "https://", "https://%", " https://example.com/v1/responses", "https://user:secret@example.com/api", "https://example.com/api#fragment"} {
 		if _, err := New(WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: input, APIKey: "test", ModelID: "test"})); err == nil {

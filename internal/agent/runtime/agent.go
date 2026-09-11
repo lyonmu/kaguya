@@ -86,7 +86,7 @@ func New(opts ...Option) (*Agent, error) {
 		a.provider = a.providerCfg.Name
 		a.model = a.providerCfg.ModelID
 	}
-	lm = withRetryableStreamErrors(lm)
+	lm = withRetryableStreamErrors(withIdleStreamTimeout(lm, providerIdleTimeout))
 
 	agentOpts := make([]fantasy.AgentOption, 0, 2)
 	if a.systemPrompt != "" {
