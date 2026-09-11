@@ -59,7 +59,9 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	if len(oldTools) != 1 || len(agentmcp.Default.Tools()) != 1 {
 		t.Fatal("wrong tools after replacement")
 	}
-	badRemote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "secret should not leak", 401) }))
+	badRemote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "secret should not leak", http.StatusUnauthorized)
+	}))
 	defer badRemote.Close()
 	invalid := *req
 	invalid.URL = badRemote.URL

@@ -87,7 +87,7 @@ func TestTransportsAndDynamicStop(t *testing.T) {
 				}
 				httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if r.Header.Get("Authorization") != "Bearer secret" {
-						http.Error(w, "unauthorized", 401)
+						http.Error(w, "unauthorized", http.StatusUnauthorized)
 						return
 					}
 					handler.ServeHTTP(w, r)
