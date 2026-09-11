@@ -12,6 +12,13 @@ export default defineConfig(({ command }) => ({
         codeSplitting: {
           groups: [
             {
+              // Ant Design X Mermaid 的代码视图携带完整 Prism 语法集合；单独缓存，
+              // 避免它进入聊天首屏或与 Mermaid 渲染核心合并。
+              name: 'vendor-antdx-highlighter',
+              test: /[\\/]node_modules[\\/](?:react-syntax-highlighter|refractor)[\\/]/,
+              includeDependenciesRecursively: false,
+            },
+            {
               // Mermaid's bundled parser is larger than the general chunk budget;
               // isolate it so it stays out of the initial chat payload.
               name: 'vendor-mermaid-parser',

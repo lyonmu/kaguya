@@ -3,9 +3,9 @@ import { Alert, Button, Tooltip } from 'antd'
 import { ModelCascader } from '../../providers/ModelCascader'
 import { fetchModelLabels } from '../../providers/api'
 import type { ModelLabelOption } from '../../providers/types'
-import { FileTextOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
+import { CloseOutlined, FileTextOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
 import { ComposerPrimitive, useAui } from '@assistant-ui/react'
-import { activeMention, mentionToken, referencedFiles } from '../mentions'
+import { activeMention } from '../mentions'
 import { searchProjectFiles } from '../api'
 import { ContextProgress } from './ContextProgress'
 
@@ -17,11 +17,13 @@ interface Props {
   onModelChange: (value: string) => void
   value: string
   onChange: (value: string) => void
+  references: string[]
+  onReferencesChange: (value: string[]) => void
   streaming: boolean
   disabled: boolean
 }
 
-export function Composer({ projectId, conversationId, turnCount, modelId, onModelChange, value, onChange, streaming, disabled }: Props) {
+export function Composer({ projectId, conversationId, turnCount, modelId, onModelChange, value, onChange, references, onReferencesChange, streaming, disabled }: Props) {
   const runtime = useAui()
   useEffect(() => { runtime.composer.setText(value) }, [runtime, value])
   const input = useRef<HTMLTextAreaElement>(null)
@@ -34,7 +36,6 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
   const [selected, setSelected] = useState(0)
   const mention = projectId && !dismissed && !streaming && !disabled ? activeMention(value, caret) : undefined
   const query = mention?.query
-  const references = projectId ? referencedFiles(value) : []
   useEffect(() => { setDismissed(false); setCaret(0) }, [projectId, conversationId])
   useEffect(() => {
     setFiles([]); setFilesError(''); setSelected(0)
@@ -52,14 +53,14 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
   }, [query, projectId])
   const chooseFile = (path: string) => {
     if (!mention) return
-    const token = mentionToken(path) + ' '
-    onChange(value.slice(0, mention.start) + token + value.slice(mention.end))
+    if (!references.includes(path) && references.length < 8) onReferencesChange([...references, path])
+    onChange(value.slice(0, mention.start) + value.slice(mention.end))
     setDismissed(true)
     requestAnimationFrame(() => {
       const textarea = input.current
       textarea?.focus()
-      textarea?.setSelectionRange(mention.start + token.length, mention.start + token.length)
-      setCaret(mention.start + token.length)
+      textarea?.setSelectionRange(mention.start, mention.start)
+      setCaret(mention.start)
     })
   }
   const [models, setModels] = useState<ModelLabelOption[]>([])
@@ -88,45 +89,50 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
           </div>}
           {truncated && !filesLoading && <div className="chat-mention-footer">结果已限制，请输入更具体的路径</div>}
         </div>}
-        <ComposerPrimitive.Input
-          ref={input}
-          aria-controls={mention ? 'project-file-mentions' : undefined}
-          aria-expanded={!!mention}
-          aria-activedescendant={mention && files.length ? `file-mention-${selected}` : undefined}
-          aria-label="对话消息"
-          className="chat-composer-input"
-          placeholder={projectId ? "描述任务，输入 @ 引用项目文件…" : "输入问题，与 Kaguya 对话…"}
-          value={value}
-          onChange={event => { onChange(event.target.value); setCaret(event.target.selectionStart); setDismissed(false) }}
-          onSelect={event => setCaret(event.currentTarget.selectionStart)}
-          onBlur={() => setDismissed(true)}
-          minRows={2}
-          maxRows={7}
-          disabled={disabled}
-          submitMode="none"
-          cancelOnEscape={false}
-          onKeyDown={event => {
-            if (event.nativeEvent.isComposing) return
-            if (mention) {
-              if (event.key === 'Escape') { event.preventDefault(); setDismissed(true); return }
-              if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && files.length) {
-                event.preventDefault()
-                const next = (selected + (event.key === 'ArrowDown' ? 1 : -1) + files.length) % files.length
-                setSelected(next)
-                document.getElementById(`file-mention-${next}`)?.scrollIntoView({ block: 'nearest' })
-                return
+        <div className="chat-composer-input-area">
+          {references.length > 0 && <div className="chat-reference-chips" aria-label="已引用文件">{references.map(path => <span key={path}>
+            <FileTextOutlined />
+            <span title={path}>@{path}</span>
+            <button type="button" aria-label={`移除引用 ${path}`} disabled={streaming || disabled} onClick={() => onReferencesChange(references.filter(item => item !== path))}><CloseOutlined /></button>
+          </span>)}</div>}
+          <ComposerPrimitive.Input
+            ref={input}
+            aria-controls={mention ? 'project-file-mentions' : undefined}
+            aria-expanded={!!mention}
+            aria-activedescendant={mention && files.length ? `file-mention-${selected}` : undefined}
+            aria-label="对话消息"
+            className="chat-composer-input"
+            placeholder={projectId ? "描述任务，输入 @ 引用项目文件…" : "输入问题，与 Kaguya 对话…"}
+            value={value}
+            onChange={event => { onChange(event.target.value); setCaret(event.target.selectionStart); setDismissed(false) }}
+            onSelect={event => setCaret(event.currentTarget.selectionStart)}
+            onBlur={() => setDismissed(true)}
+            minRows={2}
+            maxRows={7}
+            disabled={disabled}
+            submitMode="none"
+            cancelOnEscape={false}
+            onKeyDown={event => {
+              if (event.nativeEvent.isComposing) return
+              if (mention) {
+                if (event.key === 'Escape') { event.preventDefault(); setDismissed(true); return }
+                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && files.length) {
+                  event.preventDefault()
+                  const next = (selected + (event.key === 'ArrowDown' ? 1 : -1) + files.length) % files.length
+                  setSelected(next)
+                  document.getElementById(`file-mention-${next}`)?.scrollIntoView({ block: 'nearest' })
+                  return
+                }
+                if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (files[selected]) chooseFile(files[selected]); return }
               }
-              if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (files[selected]) chooseFile(files[selected]); return }
-            }
-            if (references.length > 8 || disabled || streaming) return
-            if (event.key === 'Enter'  && !event.shiftKey && !event.nativeEvent.isComposing) {
-              event.preventDefault()
-              runtime.composer.send()
-            }
-          }}
-        />
-        {references.length > 0 && <div className="chat-reference-chips" aria-label="已引用文件">{references.map(path => <span key={path}><FileTextOutlined /><span title={path}>{path}</span></span>)}</div>}
-        {references.length > 8 && <div className="chat-failure" role="alert">每次最多引用 8 个文件，请减少引用</div>}
+              if (references.length > 8 || disabled || streaming) return
+              if (event.key === 'Enter'  && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault()
+                runtime.composer.send()
+              }
+            }}
+          />
+        </div>
         <div className="chat-composer-bottom">
           <ModelCascader
             aria-label="对话模型"

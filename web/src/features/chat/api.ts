@@ -1,6 +1,5 @@
 import { ApiRequestError, buildUrl, del, get, post, put } from '../../api/http'
 import type { ApiResponse } from '../../api/http'
-import { referencedFiles } from './mentions'
 import { consumeSSE } from './sse'
 import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage, Block } from './types'
 
@@ -32,12 +31,12 @@ export function updateConversation(id: string, payload: { title?: string; favori
 export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }
-export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string) {
+export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string, files: string[] = []) {
   const response = await fetch(buildUrl('/v1/chat/sse'), {
     method: 'POST',
     headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined, project_id: projectId || undefined, files: projectId ? referencedFiles(messages) : undefined }),
+    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined, project_id: projectId || undefined, files: projectId && files.length ? files : undefined }),
     signal,
   })
   if (!response.ok || !response.headers.get('content-type')?.includes('text/event-stream')) {

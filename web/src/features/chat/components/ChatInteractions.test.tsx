@@ -83,8 +83,8 @@ it('distinguishes execution from completed input, failures, and interrupted call
   assert.ok(view.getByText('未完成'))
 })
 
-it('renders Mermaid in the first completed answer and recovers from invalid source', async () => {
-  // Exercise parsing and component lifecycle here; real SVG layout is verified in a browser.
+it('uses Ant Design X Mermaid after streaming and recovers from invalid source', async () => {
+  // Exercise parsing and component lifecycle here; interactive layout is verified in a browser.
   const mermaid = (await import('mermaid')).default
   const rendering = mock.method(mermaid, 'render', async (_id: string, code: string) => {
     await mermaid.parse(code)
@@ -93,36 +93,27 @@ it('renders Mermaid in the first completed answer and recovers from invalid sour
   try {
     const source = '```mermaid\nflowchart LR\n A[Docker] --> B[Prometheus]\n```'
     const view = render(<Markdown text={'```mermaid\nflowchart LR\n A['} streaming />)
-    assert.ok(view.getByText('图表生成中…'))
-    assert.equal(view.queryByAltText('Mermaid 图表'), null)
+    assert.equal(view.queryByText('图表生成中…'), null)
+    assert.equal(view.getByLabelText('mermaid 代码').textContent, 'flowchart LR\n A[')
     assert.equal(rendering.mock.callCount(), 0)
     view.rerender(<Markdown text={source} />)
-    const diagram = await view.findByAltText('Mermaid 图表', {}, { timeout: 10000 })
-    const src = diagram.getAttribute('src')!
-    assert.ok(src.startsWith('data:image/svg+xml;'))
-    assert.ok(decodeURIComponent(src).includes('Prometheus'))
-    assert.match(decodeURIComponent(src), /<br\s*\/>/)
-    assert.match(decodeURIComponent(src), /width="1200"/)
-    assert.match(decodeURIComponent(src), /height="400"/)
-    fireEvent.click(view.getByRole('button', { name: '原尺寸查看' }))
-    assert.equal(view.getByRole('button', { name: '适应宽度' }).getAttribute('aria-pressed'), 'true')
-    assert.ok(view.container.querySelector('.chat-mermaid-preview.full-size'))
-    assert.equal(view.container.querySelector('.chat-mermaid-preview svg'), null)
+    await waitFor(() => assert.ok(view.container.querySelector('.ant-mermaid-graph svg')), { timeout: 10000 })
+    assert.ok(view.container.querySelector('.ant-mermaid'))
+    assert.ok(view.getByText('图片'))
+    assert.ok(view.getByText('代码'))
     view.rerender(<Markdown text={source + '\n\n说明文字'} />)
-    assert.equal(view.getByAltText('Mermaid 图表'), diagram)
+    assert.ok(view.container.querySelector('.ant-mermaid-graph svg'))
     view.rerender(<Markdown text={'```mermaid\nnot a diagram\n```'} />)
     await view.findByText('图表无法渲染，请检查 Mermaid 源码。')
-    assert.equal(view.container.querySelector('details')?.open, true)
     view.rerender(<Markdown text={'```mermaid\nsequenceDiagram\n participant A as 客户端\n participant B as 服务端\n A->>B: 请求\n B-->>A: 响应\n```'} />)
-    await view.findByAltText('Mermaid 图表')
+    await waitFor(() => assert.ok(view.container.querySelector('.ant-mermaid-graph svg')), { timeout: 10000 })
     assert.equal(view.queryByText('图表无法渲染，请检查 Mermaid 源码。'), null)
-    assert.equal(dom.document.querySelectorAll('[id^="dkaguya-diagram-"]').length, 0)
   } finally {
     rendering.mock.restore()
   }
 })
 
-it('searches project files, inserts quoted paths by keyboard, and dismisses on Escape', async () => {
+it('embeds selected project files without quoted input tokens and dismisses on Escape', async () => {
   const searches: string[] = []
   globalThis.fetch = (async url => {
     if (String(url).includes('/files')) {
@@ -134,7 +125,8 @@ it('searches project files, inserts quoted paths by keyboard, and dismisses on E
   let sends = 0
   function Draft() {
     const [value, setValue] = useState('')
-    return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => { sends++ }} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} modelId="" onModelChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
+    const [references, setReferences] = useState<string[]>([])
+    return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => { sends++ }} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} references={references} onReferencesChange={setReferences} modelId="" onModelChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
   }
   const view = render(<Draft />)
   const textarea = view.getByLabelText('对话消息') as HTMLTextAreaElement
@@ -144,11 +136,15 @@ it('searches project files, inserts quoted paths by keyboard, and dismisses on E
   view.getAllByRole('option').forEach(option => { option.scrollIntoView = () => {} })
   fireEvent.keyDown(textarea, { key: 'ArrowDown' })
   fireEvent.keyDown(textarea, { key: 'Enter' })
-  await waitFor(() => assert.equal(textarea.value, '看看 @"docs/my file.md" '))
+  await waitFor(() => assert.equal(textarea.value, '看看 '))
   assert.equal(sends, 0)
   assert.equal(view.queryByRole('listbox', { name: '项目文件' }), null)
   assert.ok(view.getByLabelText('已引用文件'))
+  assert.ok(view.getByText('@docs/my file.md'))
+  assert.equal(textarea.value.includes('"'), false)
   assert.ok(searches[0].includes('/42/files'))
+  fireEvent.click(view.getByRole('button', { name: '移除引用 docs/my file.md' }))
+  assert.equal(view.queryByLabelText('已引用文件'), null)
   fireEvent.change(textarea, { target: { value: '@main', selectionStart: 5 } })
   await waitFor(() => assert.ok(view.getByRole('listbox', { name: '项目文件' })))
   fireEvent.keyDown(textarea, { key: 'Escape' })

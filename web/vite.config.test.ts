@@ -19,10 +19,12 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     assert.ok(chunks.some(chunk => chunk.fileName.includes('vendor-react-')))
     const parser = chunks.find(chunk => chunk.name === 'vendor-mermaid-parser')
     assert.ok(parser, 'Mermaid parser must have its own chunk')
+    const highlighter = chunks.find(chunk => chunk.name === 'vendor-antdx-highlighter')
+    assert.ok(highlighter, 'Ant Design X code highlighter must have its own chunk')
     for (const chunk of chunks) {
       const size = Buffer.byteLength(chunk.code)
-      // 完整 Mermaid 解析器使用单独预算，其他模块继续遵守原来的限制。
-      const budget = chunk === parser ? 750_000 : 500_000
+      // Mermaid 解析器与 Ant Design X 的完整 Prism 集合只在图表交互时加载。
+      const budget = chunk === parser || chunk === highlighter ? 750_000 : 500_000
       assert.ok(size <= budget, `${chunk.fileName}: ${size} bytes exceeds the ${budget / 1000} kB budget`)
     }
     const initialChunks = new Set<string>()
@@ -33,6 +35,7 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     }
     chunks.filter(chunk => chunk.isEntry).forEach(chunk => visit(chunk.fileName))
     assert.ok(!initialChunks.has(parser.fileName), 'Mermaid parser must stay out of the initial payload')
+    assert.ok(!initialChunks.has(highlighter.fileName), 'Ant Design X code highlighter must stay out of the initial payload')
     const renderer = chunks.find(chunk => chunk.isDynamicEntry && chunk.name === 'mermaid')
     assert.ok(renderer, 'Mermaid renderer must remain lazy-loaded')
     assert.ok(!initialChunks.has(renderer.fileName), 'Mermaid renderer must stay out of the initial payload')

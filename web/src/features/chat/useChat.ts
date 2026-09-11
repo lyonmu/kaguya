@@ -21,10 +21,11 @@ interface Session {
   completion?: AbortController
   projectId?: string
   draft: string
+  references: string[]
   modelId: string
 }
 let nextKey = 0
-const createSession = (id = ''): Session => ({ key: `session-${++nextKey}`, id, draft: '', modelId: '', turns: [], page: 1, totalPages: 0, initialEnd: true, loading: false, streaming: false, error: '' })
+const createSession = (id = ''): Session => ({ key: `session-${++nextKey}`, id, draft: '', references: [], modelId: '', turns: [], page: 1, totalPages: 0, initialEnd: true, loading: false, streaming: false, error: '' })
 
 // Each stream owns its session object. Navigation only changes which object is displayed.
 export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title: ConversationTitle) => void) {
@@ -61,7 +62,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       session = createSession(id)
       sessions.current.set(session.key, session)
     }
-    if (!previous.id && !previous.turns.length && !previous.draft && !previous.streaming && previous !== session) sessions.current.delete(previous.key)
+    if (!previous.id && !previous.turns.length && !previous.draft && !previous.references.length && !previous.streaming && previous !== session) sessions.current.delete(previous.key)
     selected.current = session
     if (session !== previous) setViewKey(value => value + 1)
     // Completed background results remain visible; explicit reload refreshes persisted history.
@@ -116,6 +117,8 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
   const send = async (text: string, modelId?: string, projectId?: string) => {
     const session = selected.current
     if (!text.trim() || session.stream || session.request) return
+    const files = [...session.references]
+    session.references = []
     const controller = new AbortController()
     session.stream = controller
     session.streaming = true
@@ -155,7 +158,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         session.turns = [...session.turns.slice(0, -1), turn]
         completed = frame.chat.flag === 'done'
         notify()
-      }, modelId, session.projectId)
+      }, modelId, session.projectId, files)
     } catch (error) {
       const message = controller.signal.aborted ? '已停止生成；本轮可能未保存，可重新加载历史确认' : errorText(error)
       if (turn) session.turns = [...session.turns.slice(0, -1), { ...turn, status: controller.signal.aborted ? 'stopped' : 'error', error: message }]
@@ -192,15 +195,16 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
 
   const session = selected.current
   return {
-    draft: session.draft, modelId: session.modelId, projectId: session.projectId,
+    draft: session.draft, references: session.references, modelId: session.modelId, projectId: session.projectId,
     setDraft: (value: string, projectId?: string) => { selected.current.draft = value; selected.current.projectId ??= projectId; notify() },
+    setReferences: (value: string[], projectId?: string) => { selected.current.references = value; selected.current.projectId ??= projectId; notify() },
     setModelId: (value: string) => { selected.current.modelId = value; notify() },
     id: session.id, sessionKey: session.key, viewKey, conversation: session.conversation,
     setConversation: (value: Conversation) => { selected.current.conversation = value; notify() },
     turns: session.turns, loading: session.loading, streaming: session.streaming, error: session.error,
     page: session.page, totalPages: session.totalPages, initialEnd: session.initialEnd,
     // Unsaved and failed new conversations must remain reachable, even before the start frame.
-    localSessions: [...sessions.current.values()].filter(item => item.turns.length > 0 || item.draft.trim()).map(item => ({ key: item.key, id: item.id, title: item.conversation?.title || item.turns[0]?.user_content || item.draft, streaming: item.streaming, draft: !item.turns.length, projectId: item.projectId })),
+    localSessions: [...sessions.current.values()].filter(item => item.turns.length > 0 || item.draft.trim() || item.references.length).map(item => ({ key: item.key, id: item.id, title: item.conversation?.title || item.turns[0]?.user_content || item.draft || item.references[0], streaming: item.streaming, draft: !item.turns.length, projectId: item.projectId })),
     select, goToPage, send,
     forget: () => { const item = selected.current; if (!item.streaming) { item.completion?.abort(); sessions.current.delete(item.key) } },
     cancelTitleWait: () => selected.current.completion?.abort(),

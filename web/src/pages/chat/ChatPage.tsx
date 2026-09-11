@@ -24,8 +24,9 @@ export function ChatPage() {
   const [projectVersion, setProjectVersion] = useState(0)
   const refreshProjects = () => setProjectVersion(value => value + 1)
   const chat = useWorkspaceChat(async () => { await sessions.refreshQuietly(); refreshProjects() }, title => { sessions.updateTitle(title); refreshProjects() })
-  const { draft, modelId, setModelId } = chat
+  const { draft, references, modelId, setModelId } = chat
   const setDraft = (value: string) => chat.setDraft(value, view === '项目' ? project?.id : undefined)
+  const setReferences = (value: string[]) => chat.setReferences(value, view === '项目' ? project?.id : undefined)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -134,7 +135,7 @@ export function ChatPage() {
       {chat.error && <Alert type="error" title={chat.error} showIcon />}
       <AssistantThread key={chat.sessionKey} turns={chat.turns} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving} onSend={send} onStop={chat.stop}>
       <MessageList conversationId={chat.id} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
-      <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : chat.projectId ?? (view === "项目" ? project?.id : undefined)} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation && !chat.turns.length)} />
+      <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : chat.projectId ?? (view === "项目" ? project?.id : undefined)} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} references={references} onReferencesChange={setReferences} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation && !chat.turns.length)} />
       </AssistantThread>
       {!showSidebar && <div className={sidebarCollapsed ? 'chat-bottom-actions' : 'chat-bottom-actions chat-bottom-actions-mobile'}><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>}
     </section>
