@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Tree } from 'antd'
+import { FileIcon } from './FileIcon'
 import type { GitFile, ProjectNode } from '../types'
 
 const STATUS_TEXT: Record<string, string> = {
@@ -84,7 +85,13 @@ export function FileTree({ items, changed, selected, changedOnly, onSelect }: {
         selectedKeys={selected ? [selected] : []}
         titleRender={node => {
           const item = node as unknown as TreeNode
-          return <span className="code-tree-title"><span className="code-tree-name">{item.name}</span><StatusBadge status={changed.get(item.path)} /></span>
+          return (
+            <span className="code-tree-title">
+              {!item.isDir && <FileIcon path={item.path} />}
+              <span className="code-tree-name">{item.name}</span>
+              <StatusBadge status={changed.get(item.path)} />
+            </span>
+          )
         }}
         onSelect={(_keys, info) => {
           const item = info.node as unknown as TreeNode

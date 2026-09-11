@@ -5,6 +5,7 @@ import { fetchFileContent, fetchFileDiff, fetchGitStatus, fetchProjectTree } fro
 import type { CodeBrowseView, FileContent, FileDiff, GitFile, GitStatus, ProjectNode, ProjectTree } from '../types'
 import { useDiffTheme } from '../useDiffTheme'
 import { DiffViewer } from './DiffViewer'
+import { FileIcon } from './FileIcon'
 import { FileTree, StatusBadge } from './FileTree'
 import { FileViewer } from './FileViewer'
 import '../code.css'
@@ -209,6 +210,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
           <div className="code-view-head">
             {selected ? (
               <div className="code-view-title">
+                <FileIcon path={selected} />
                 <span className="code-view-path" title={selected}>{selected}</span>
                 <StatusBadge status={file} />
                 {file && <span className="code-view-stats">+{file.additions} −{file.deletions}</span>}
