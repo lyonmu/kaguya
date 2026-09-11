@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -21,6 +22,8 @@ type BashInput struct {
 	Command string   `json:"command" description:"Shell command string executed by bash -c from the project root. Quote paths with spaces. No command array or separate cwd parameter."`
 	Timeout *float64 `json:"timeout,omitempty" description:"Positive timeout in seconds, not milliseconds (maximum 2147483.647). Omit to use the system timeout. A larger value cannot extend the system timeout; the smaller limit wins."`
 }
+
+var newline = []byte{'\n'}
 
 func (s *Set) BashTool() fantasy.AgentTool {
 	return tool(s, "bash", `Run shell commands for targeted searches, directory listings, builds and tests. Each call starts in the project root; cd and environment changes do not persist to later calls. Use command, not cmd; timeout is in seconds, not milliseconds. For a subdirectory, put cd in the command. Returns stdout/stderr and exit status; only the last 2000 lines or 50KB are shown, with a temporary output path on truncation. Use read on that path instead of rerunning just to see output. Example: {"command":"rg -n 'main' src","timeout":30}. Runs with the service user's permissions, not in a sandbox; cancellation stops the process group but does not undo side effects.`, s.bash)
@@ -44,7 +47,8 @@ func (o *outputAccumulator) Write(p []byte) (int, error) {
 		return 0, o.err
 	}
 	o.totalBytes += len(p)
-	o.totalNewlines += strings.Count(string(p), "\n")
+	// bytes.Count 不复制输出切片；命令可能产生数十 MB 输出。
+	o.totalNewlines += bytes.Count(p, newline)
 	if len(p) > 0 {
 		o.lastNewline = p[len(p)-1] == '\n'
 	}
