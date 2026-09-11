@@ -9,6 +9,7 @@ const globals = {
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
   SVGElement: dom.SVGElement, ShadowRoot: dom.ShadowRoot,
   MutationObserver: dom.MutationObserver, ResizeObserver: dom.ResizeObserver,
+  PointerEvent: dom.PointerEvent,
   cancelAnimationFrame: dom.cancelAnimationFrame.bind(dom),
   getComputedStyle: dom.getComputedStyle.bind(dom),
   requestAnimationFrame: dom.requestAnimationFrame.bind(dom),
@@ -70,4 +71,14 @@ it('loads the file tree with git badges and renders diff and file views on deman
   fireEvent.click(panel.getByText('文件'))
   await waitFor(() => assert.ok(dom.document.querySelector('.code-lines')), { timeout: 4000 })
   assert.ok((dom.document.querySelector('.code-line-text')?.textContent ?? '').includes('package main'))
+  // 拖动分隔条调整文件树宽度，并把结果写入本地存储。
+  const browser = dom.document.querySelector('.code-browser') as unknown as HTMLElement
+  const resizer = dom.document.querySelector('.code-resizer') as unknown as HTMLElement
+  assert.ok(resizer)
+  assert.equal(browser.style.getPropertyValue('--code-side-width'), '292px')
+  fireEvent.pointerDown(resizer, { pointerId: 1, clientX: 400 })
+  fireEvent.pointerMove(resizer, { pointerId: 1, clientX: 480 })
+  fireEvent.pointerUp(resizer, { pointerId: 1, clientX: 480 })
+  await waitFor(() => assert.equal(browser.style.getPropertyValue('--code-side-width'), '372px'))
+  assert.equal(dom.localStorage.getItem('kaguya-code-side-width'), '372')
 })

@@ -1,5 +1,8 @@
-.code-browser { height: 100%; display: flex; min-height: 0; background: var(--k-surface); color: var(--k-text); }
-.code-browser-side { width: 292px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--k-border-soft); background: var(--k-panel); }
+.code-browser { height: 100%; display: flex; min-height: 0; background: var(--k-surface); color: var(--k-text); --code-side-width: 292px; }
+.code-browser-side { width: var(--code-side-width); flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; background: var(--k-panel); }
+.code-resizer { position: relative; z-index: 1; flex: 0 0 7px; cursor: col-resize; touch-action: none; }
+.code-resizer::before { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--k-border-soft); transition: left .15s, width .15s, background .15s; }
+.code-resizer:hover::before, .code-resizer:active::before { left: 2px; width: 3px; background: var(--k-primary); }
 .code-browser-side > .ant-alert { margin: 8px; }
 .code-browser-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
 
@@ -12,7 +15,8 @@
 
 .code-tree { flex: 1; min-height: 0; padding: 4px 0; overflow: hidden; }
 .code-tree .ant-tree { background: transparent; font-size: 13px; }
-.code-tree-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.code-tree .ant-tree-node-content-wrapper { min-width: 0; }
+.code-tree-title { display: inline-flex; align-items: center; gap: 6px; width: 100%; min-width: 0; }
 .code-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .code-file-icon { flex-shrink: 0; }
 .code-badge { flex-shrink: 0; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 4px; font-size: 10px; font-weight: 600; color: #fff; }
@@ -58,5 +62,6 @@
 
 @media (max-width: 760px) {
   .code-browser { flex-direction: column; }
-  .code-browser-side { width: 100%; height: 38%; border-right: 0; border-bottom: 1px solid var(--k-border-soft); }
+  .code-browser-side { width: 100%; height: 38%; border-bottom: 1px solid var(--k-border-soft); }
+  .code-resizer { display: none; }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { Alert, Button, Drawer, Empty, Segmented, Spin, Switch, Tooltip } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { fetchFileContent, fetchFileDiff, fetchGitStatus, fetchProjectTree } from '../api'
@@ -11,6 +11,22 @@ import { FileViewer } from './FileViewer'
 import '../code.css'
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : '加载失败，请重试')
+
+// 文件树侧栏宽度：可拖动调整，并按会话记住。
+const SIDE_WIDTH_KEY = 'kaguya-code-side-width'
+const SIDE_MIN_WIDTH = 200
+const SIDE_MAX_WIDTH = 720
+
+function initialSideWidth() {
+  if (typeof window === 'undefined') return 292
+  try {
+    const saved = Number(window.localStorage.getItem(SIDE_WIDTH_KEY))
+    if (Number.isFinite(saved) && saved >= SIDE_MIN_WIDTH) return Math.min(SIDE_MAX_WIDTH, saved)
+  } catch {
+    // 隐私模式等场景下读取失败时使用默认宽度
+  }
+  return 292
+}
 
 function formatSize(size: number) {
   if (size < 1024) return `${size} B`
@@ -38,6 +54,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
   const [selected, setSelected] = useState<string>()
   const [view, setView] = useState<CodeBrowseView>('file')
   const [mode, setMode] = useState<'unified' | 'split'>('unified')
+  const [sideWidth, setSideWidth] = useState(initialSideWidth)
   const [changedOnly, setChangedOnly] = useState(false)
   const [content, setContent] = useState<FileContent>()
   const [diff, setDiff] = useState<FileDiff>()
@@ -166,6 +183,37 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
   const file = selected ? statusMap.get(selected) : undefined
   const fileSize = selected ? sizeMap.get(selected) : undefined
   const width = Math.min(1280, Math.round((typeof window === 'undefined' ? 1440 : window.innerWidth) * 0.94))
+  const resizeStart = useRef<{ pointerX: number; startWidth: number } | null>(null)
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDE_WIDTH_KEY, String(sideWidth))
+    } catch {
+      // 存储失败不影响当前会话的宽度
+    }
+  }, [sideWidth])
+  const onResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      // 合成事件或不支持指针捕获的环境下仍由元素上的监听处理拖动
+    }
+    resizeStart.current = { pointerX: event.clientX, startWidth: sideWidth }
+  }
+  const onResizeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = resizeStart.current
+    if (!start) return
+    const available = typeof window === 'undefined' ? 1440 : window.innerWidth
+    const upper = Math.min(SIDE_MAX_WIDTH, Math.round(available * 0.7))
+    setSideWidth(Math.min(upper, Math.max(SIDE_MIN_WIDTH, start.startWidth + event.clientX - start.pointerX)))
+  }
+  const onResizeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    resizeStart.current = null
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    } catch {
+      // 同上，忽略不支持指针捕获的环境
+    }
+  }
   return (
     <Drawer
       className="code-browser-drawer"
@@ -194,7 +242,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
       }
       styles={{ body: { padding: 0, overflow: 'hidden' } }}
     >
-      <div className="code-browser">
+      <div className="code-browser" style={{ '--code-side-width': `${sideWidth}px` } as CSSProperties}>
         <div className="code-browser-side">
           {error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={refresh}>重试</Button>} />}
           {tree ? (
@@ -203,6 +251,16 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
             loading && <div className="code-loading"><Spin size="small" /></div>
           )}
         </div>
+        <div
+          className="code-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="拖动调整文件树宽度"
+          onPointerDown={onResizeStart}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeEnd}
+          onPointerCancel={onResizeEnd}
+        />
         <div className="code-browser-main">
           {!error && status && !status.is_git && <Alert type="info" showIcon message={status.message ?? '当前项目不是 Git 仓库，仅支持浏览文件'} />}
           {status?.truncated && <Alert type="warning" showIcon message="变更文件较多，仅显示前 1000 个" />}
