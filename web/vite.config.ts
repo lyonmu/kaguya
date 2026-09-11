@@ -21,11 +21,38 @@ function lowlightSubset(): Plugin {
   }
 }
 
+// @ant-design/x 的代码高亮默认使用 PrismLight 并按语言动态注册，只有
+// prismLightMode=false 才会走全量 Prism；而全量入口会引入 refractor/all
+// 的全部语法（约 600KB）。这里把裸包名重定向到 PrismLight，保留导出形状，
+// 同时避免整包语法进入构建；按语言动态导入的子路径不受影响。
+function prismLightSubset(): Plugin {
+  const virtualId = '\0kaguya:react-syntax-highlighter'
+  return {
+    name: 'kaguya:prism-light-subset',
+    enforce: 'pre',
+    resolveId(source) {
+      if (source === 'react-syntax-highlighter') return virtualId
+      return null
+    },
+    load(id) {
+      if (id !== virtualId) return null
+      return [
+        "import PrismLight from 'react-syntax-highlighter/dist/esm/prism-light'",
+        'export { PrismLight }',
+        'export const Prism = PrismLight',
+      ].join('\n')
+    },
+  }
+}
+
 export default defineConfig(({ command }) => ({
-  plugins: [react(), tailwindcss(), lowlightSubset()],
-  // 让开发服务器也使用与生产一致的精选语言集。
-  optimizeDeps: { exclude: ['@git-diff-view/lowlight', 'lowlight'] },
+  plugins: [react(), tailwindcss(), lowlightSubset(), prismLightSubset()],
+  // 让开发服务器也使用与生产一致的精选语言集与 PrismLight。
+  optimizeDeps: { exclude: ['@git-diff-view/lowlight', 'lowlight', 'react-syntax-highlighter'] },
   build: {
+    // Mermaid 解析器核心是单个预打包模块（打包后约 680KB），无法再拆分；
+    // 它只由新版 Mermaid 图表按需加载，因此放宽单块体积告警阈值。
+    chunkSizeWarningLimit: 700,
     rolldownOptions: {
       output: {
         codeSplitting: {
@@ -51,10 +78,10 @@ export default defineConfig(({ command }) => ({
               includeDependenciesRecursively: false,
             },
             {
-              // Ant Design X Mermaid 的代码视图携带完整 Prism 语法集合；单独缓存，
-              // 避免它进入聊天首屏或与 Mermaid 渲染核心合并。
+              // Ant Design X Mermaid 代码视图的高亮器与样式；语言按需注册，
+              // 单独缓存以免进入聊天首屏。虚拟模块与高亮器同块，避免产生导入环。
               name: 'vendor-antdx-highlighter',
-              test: /[\\/]node_modules[\\/](?:react-syntax-highlighter|refractor)[\\/]/,
+              test: /[\\/]node_modules[\\/](?:react-syntax-highlighter|refractor)[\\/]|kaguya:react-syntax-highlighter/,
               includeDependenciesRecursively: false,
             },
             {
