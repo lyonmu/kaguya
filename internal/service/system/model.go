@@ -219,6 +219,11 @@ func (s *SystemSvc) ModelDelete(ctx context.Context, id string) error {
 
 // ModelLabels 查询模型下拉选项，可按提供商过滤。
 func (s *SystemSvc) ModelLabels(ctx context.Context, req *dtosystem.SystemModelLabelReq) ([]*dtosystem.SystemModelLabelResp, error) {
+	info, err := db.EntClient.KaguyaSystemInfo.Get(ctx, consts.SystemInfoID)
+	if err != nil {
+		global.Logger.Sugar().Errorf("query system config for model labels failed: %v", err)
+		return nil, err
+	}
 	query := modelQuery(db.EntClient)
 	if req.ProviderID != "" {
 		query.Where(kaguyamodelsinfo.ProviderIDEQ(req.ProviderID))
@@ -237,7 +242,8 @@ func (s *SystemSvc) ModelLabels(ctx context.Context, req *dtosystem.SystemModelL
 	items := make([]*dtosystem.SystemModelLabelResp, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, &dtosystem.SystemModelLabelResp{
-			Label: row.ModelName, Value: row.ID, ProviderID: row.ProviderID, ModelID: row.ModelID, ProviderName: row.Edges.Provider.ProviderName,
+			Label: row.ModelName, Value: row.ID, ProviderID: row.ProviderID, ModelID: row.ModelID,
+			ProviderName: row.Edges.Provider.ProviderName, IsDefault: row.ID == info.DefaultModelID,
 		})
 	}
 	return items, nil

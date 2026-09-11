@@ -3,7 +3,7 @@ import { Alert, Button, Tooltip } from 'antd'
 import { ModelCascader } from '../../providers/ModelCascader'
 import { fetchModelLabels } from '../../providers/api'
 import type { ModelLabelOption } from '../../providers/types'
-import { FileTextOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
+import { FileTextOutlined, SafetyCertificateOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
 import { ComposerPrimitive, useAui } from '@assistant-ui/react'
 import { activeMention } from '../mentions'
 import { searchProjectFiles } from '../api'
@@ -141,25 +141,32 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
           />
         </div>
         <div className="chat-composer-bottom">
-          <ModelCascader
-            aria-label="对话模型"
-            className="chat-model-select"
-            value={modelId}
-            onChange={onModelChange}
-            disabled={streaming || disabled}
-            loading={loading}
-            models={models}
-            defaultOption
-          />
+          <Tooltip title={projectId ? '可直接读取和修改当前项目，并执行命令' : '普通对话不会调用项目工具'}>
+            <span className={`chat-access-mode${projectId ? ' is-full' : ''}`} aria-label={projectId ? '完全访问当前项目' : '普通对话'}>
+              <SafetyCertificateOutlined /><span>{projectId ? '完全访问' : '普通对话'}</span>
+            </span>
+          </Tooltip>
           <div className="chat-composer-actions">
-          <ContextProgress conversationId={conversationId} turnCount={turnCount} />
-          {streaming ? (
-            <ComposerPrimitive.Cancel className="chat-stop"><StopOutlined /> 停止</ComposerPrimitive.Cancel>
-          ) : (
-            <Tooltip title="Enter 发送，Shift + Enter 换行。AI 内容可能有误，请核实重要信息。">
-              <span><ComposerPrimitive.Send className="chat-send" aria-label="发送消息" disabled={!value.trim() || disabled || references.length > 8}><SendOutlined /></ComposerPrimitive.Send></span>
-            </Tooltip>
-          )}
+            <ContextProgress conversationId={conversationId} turnCount={turnCount} />
+            <ModelCascader
+              aria-label="对话模型"
+              className="chat-model-select"
+              value={modelId}
+              onChange={onModelChange}
+              disabled={streaming || disabled}
+              loading={loading}
+              models={models}
+              defaultOption
+              displayLeafOnly
+              placement="bottomRight"
+            />
+            {streaming ? (
+              <ComposerPrimitive.Cancel className="chat-stop"><StopOutlined /> 停止</ComposerPrimitive.Cancel>
+            ) : (
+              <Tooltip title="Enter 发送，Shift + Enter 换行。AI 内容可能有误，请核实重要信息。">
+                <span><ComposerPrimitive.Send className="chat-send" aria-label="发送消息" disabled={!value.trim() || disabled || references.length > 8}><SendOutlined /></ComposerPrimitive.Send></span>
+              </Tooltip>
+            )}
           </div>
         </div>
       </ComposerPrimitive.Root>

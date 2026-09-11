@@ -73,6 +73,7 @@ export interface ModelLabelOption {
   provider_id: string
   provider_name: string
   model_id: string
+  is_default: boolean
 }
 
 export interface LabelOption {

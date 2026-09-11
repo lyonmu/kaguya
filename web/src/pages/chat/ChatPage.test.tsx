@@ -45,7 +45,7 @@ after(async () => {
 
 it('hides runtime details, toggles the conversation panel and offers model selection', async () => {
   globalThis.fetch = (async url => {
-    if (String(url).includes('/model/label')) return response([{ label: '模型 A', value: 'local-a', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-a' }])
+    if (String(url).includes('/model/label')) return response([{ label: '模型 A', value: 'local-a', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-a', is_default: true }])
     return response({ items: [], total: 0 })
   }) as typeof fetch
   const view = render(<App><ChatPage /></App>)
@@ -56,15 +56,18 @@ it('hides runtime details, toggles the conversation panel and offers model selec
   fireEvent.click(view.getByLabelText('展开会话列表'))
   assert.ok(view.container.querySelector('.chat-sidebar'))
   const selector = view.getByLabelText('对话模型')
+  await waitFor(() => assert.equal(selector.closest('.ant-select')?.textContent?.trim(), '模型 A'))
   fireEvent.mouseDown(selector.closest('.ant-select')!.querySelector('.ant-select-selector') ?? selector)
   const popup = await waitFor(() => {
     const element = Array.from(dom.document.querySelectorAll('.ant-cascader-dropdown:not(.ant-select-dropdown-hidden)')).at(-1)
     assert.ok(element)
     return element as unknown as HTMLElement
   })
+  assert.equal(within(popup).queryByText(/跟随系统配置/), null)
   fireEvent.click(await within(popup).findByText('提供商 A'))
   fireEvent.click(await within(popup).findByText('模型 A'))
-  await waitFor(() => assert.ok(selector.closest('.ant-select')?.textContent?.includes('提供商 A / 模型 A')))
+  await waitFor(() => assert.equal(selector.closest('.ant-select')?.textContent?.trim(), '模型 A'))
+  assert.ok(view.getByLabelText('普通对话'))
 })
 
 it('groups navigation with refresh and keeps it accessible after collapsing the conversation list', async () => {

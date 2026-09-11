@@ -131,4 +131,5 @@ type SystemModelLabelResp struct {
 	Value        string `json:"value"`
 	ProviderID   string `json:"provider_id"`
 	ModelID      string `json:"model_id"`
+	IsDefault    bool   `json:"is_default"`
 }

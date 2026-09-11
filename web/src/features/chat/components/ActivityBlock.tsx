@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircleOutlined, CloseCircleOutlined, CodeOutlined, FileTextOutlined, LoadingOutlined, BulbOutlined, DownOutlined } from '@ant-design/icons'
 import type { Block } from '../types'
-import { CodeBlock, Markdown } from './Markdown'
+import { CodeBlock, CopyButton, Markdown } from './Markdown'
 import { fetchBlock } from '../api'
 
 function useDuration(block: Block, running: boolean) {
@@ -54,6 +54,8 @@ export function ActivityBlock({ block: summary, streaming = false, conversationI
   const state = failed ? 'failed' : running ? 'running' : !thinking && !block.output && !block.has_output ? 'interrupted' : 'done'
   const status = { failed: '失败', running: thinking ? '思考中' : '执行中', interrupted: '未完成', done: thinking ? '思考完成' : '完成' }[state]
   const input = Object.keys(info.input).length ? JSON.stringify(info.input, null, 2) : block.input || '（无参数）'
+  const inputAction = block.tool_name === 'bash' && typeof info.input.command === 'string' ? info.input.command : input
+  const outputAction = block.output && block.output.type !== 'media' ? block.output.text || '（空输出）' : block.error_message || ''
   return <details className={`chat-activity ${thinking ? 'chat-reasoning' : 'chat-tool-card'} is-${state}`} open={open} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>
       <span className="chat-activity-icon">{running ? <LoadingOutlined spin /> : thinking ? <BulbOutlined /> : failed ? <CloseCircleOutlined /> : block.tool_name === 'bash' ? <CodeOutlined /> : <FileTextOutlined />}</span>
@@ -64,9 +66,13 @@ export function ActivityBlock({ block: summary, streaming = false, conversationI
     {open && pending && <div className="chat-activity-body">{loadError ? <><p className="chat-failure">{loadError}</p><button type="button" onClick={() => setRetry(value => value + 1)}>重试加载详情</button></> : <span role="status">正在加载详情…</span>}</div>}
     {open && !pending && (thinking ? <div className="chat-reasoning-content"><Markdown text={block.text || '正在整理思路…'} streaming={running} /></div> : <div className="chat-activity-body">
       <div className="chat-activity-section">{block.tool_name === 'bash' ? '命令' : '参数'}</div>
-      <CodeBlock code={block.tool_name === 'bash' && typeof info.input.command === 'string' ? info.input.command : input} language={block.tool_name === 'bash' ? 'bash' : 'json'} />
-      {block.output && <><div className="chat-activity-section">输出</div><CodeBlock code={block.output.type === 'media' ? `媒体输出 · ${block.output.media_type || '未知类型'}（不自动加载）` : block.output.text || '（空输出）'} language="output" /></>}
+      <CodeBlock code={inputAction} language={block.tool_name === 'bash' ? 'bash' : 'json'} copyable={false} />
+      {block.output && <><div className="chat-activity-section">输出</div><CodeBlock code={block.output.type === 'media' ? `媒体输出 · ${block.output.media_type || '未知类型'}（不自动加载）` : block.output.text || '（空输出）'} language="output" copyable={false} /></>}
       {block.error_message && <p className="chat-failure">{block.error_message}</p>}
+      <div className="chat-local-actions" aria-label={`${info.label}本地操作`}>
+        <CopyButton text={inputAction} label={block.tool_name === 'bash' ? '复制命令' : '复制参数'} visibleLabel={block.tool_name === 'bash' ? '复制命令' : '复制参数'} />
+        {outputAction && <CopyButton text={outputAction} label="复制输出" visibleLabel="复制输出" />}
+      </div>
     </div>)}
   </details>
 }

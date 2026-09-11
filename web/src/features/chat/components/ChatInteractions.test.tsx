@@ -83,6 +83,23 @@ it('distinguishes execution from completed input, failures, and interrupted call
   assert.ok(view.getByText('未完成'))
 })
 
+it('keeps tool display read-only and exposes separate local copy actions', async () => {
+  let copied = ''
+  const write = navigator.clipboard.writeText
+  navigator.clipboard.writeText = async text => { copied = text }
+  try {
+    const view = render(<ActivityBlock block={{ type: 'tool_call', phase: 'block_end', tool_name: 'bash', input: '{"command":"go test ./..."}', output: { type: 'text', text: 'ok' } }} />)
+    const details = view.container.querySelector('details')!
+    await act(async () => { details.open = true; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+    const actions = view.getByLabelText('执行命令本地操作')
+    assert.equal(actions.querySelectorAll('button').length, 2)
+    await act(async () => { fireEvent.click(view.getByRole('button', { name: '复制命令' })) })
+    assert.equal(copied, 'go test ./...')
+    await act(async () => { fireEvent.click(view.getByRole('button', { name: '复制输出' })) })
+    assert.equal(copied, 'ok')
+  } finally { navigator.clipboard.writeText = write }
+})
+
 it('uses Ant Design X Mermaid after streaming and recovers from invalid source', async () => {
   // Exercise parsing and component lifecycle here; interactive layout is verified in a browser.
   const mermaid = (await import('mermaid')).default
@@ -129,6 +146,7 @@ it('embeds selected project files inline and removes references when their token
     return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => { sends++ }} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} references={references} onReferencesChange={setReferences} modelId="" onModelChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
   }
   const view = render(<Draft />)
+  assert.ok(view.getByLabelText('完全访问当前项目'))
   const textarea = view.getByLabelText('对话消息') as HTMLTextAreaElement
   fireEvent.change(textarea, { target: { value: '看看 @', selectionStart: 4 } })
   await waitFor(() => assert.equal(view.getAllByRole('option').length, 2))

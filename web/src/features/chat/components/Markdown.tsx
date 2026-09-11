@@ -6,7 +6,7 @@ import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { MermaidBlock } from './MermaidBlock'
 
-export function CopyButton({ text, label = '复制代码' }: { text: string; label?: string }) {
+export function CopyButton({ text, label = '复制代码', visibleLabel = '复制' }: { text: string; label?: string; visibleLabel?: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle')
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -19,11 +19,11 @@ export function CopyButton({ text, label = '复制代码' }: { text: string; lab
     timer.current = setTimeout(() => setState('idle'), 2500)
   }
   return <button type="button" className="chat-copy" onClick={() => void copy()} aria-label={label} title={state === 'error' ? '复制失败，请选择文本后手动复制' : label}>
-    {state === 'copied' ? <CheckOutlined /> : <CopyOutlined />}<span aria-live="polite">{state === 'copied' ? '已复制' : state === 'error' ? '复制失败' : '复制'}</span>
+    {state === 'copied' ? <CheckOutlined /> : <CopyOutlined />}<span aria-live="polite">{state === 'copied' ? '已复制' : state === 'error' ? '复制失败' : visibleLabel}</span>
   </button>
 }
 
-export function CodeBlock({ code, language = 'text' }: { code: string; language?: string }) {
+export function CodeBlock({ code, language = 'text', copyable = true }: { code: string; language?: string; copyable?: boolean }) {
   const [highlighted, setHighlighted] = useState<{ source: string; language: string; html: string }>()
   useEffect(() => {
     if (language === 'text' || language === 'output' || code.length > 50000) return
@@ -38,7 +38,7 @@ export function CodeBlock({ code, language = 'text' }: { code: string; language?
   }, [code, language])
   const html = highlighted?.source === code && highlighted.language === language ? highlighted.html : undefined
   return <div className="chat-code-block">
-    <div className="chat-code-header"><span>{language}</span><CopyButton text={code} /></div>
+    <div className="chat-code-header"><span>{language}</span>{copyable && <CopyButton text={code} />}</div>
     <pre tabIndex={0} aria-label={`${language} 代码`}><code>{html === undefined ? code : <span dangerouslySetInnerHTML={{ __html: html }} />}</code></pre>
   </div>
 }

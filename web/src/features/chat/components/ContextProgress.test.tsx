@@ -37,6 +37,7 @@ it('loads on completion, refreshes each turn and clears on new conversation', as
   assert.equal(calls, 0)
   view.rerender(<ContextProgress conversationId="a" turnCount={1} />)
   await waitFor(() => assert.ok(view.getByLabelText('上下文占用 50.0%')))
+  assert.equal(view.container.querySelector('.ant-progress-text'), null)
   view.rerender(<ContextProgress conversationId="a" turnCount={2} />)
   await waitFor(() => assert.ok(view.getByLabelText('上下文占用 100.0%')))
   view.rerender(<ContextProgress />)

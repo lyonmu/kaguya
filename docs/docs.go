@@ -2797,6 +2797,9 @@ const docTemplate = `{
         "system.SystemModelLabelResp": {
             "type": "object",
             "properties": {
+                "is_default": {
+                    "type": "boolean"
+                },
                 "label": {
                     "type": "string"
                 },

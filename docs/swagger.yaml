@@ -724,6 +724,8 @@ definitions:
     type: object
   system.SystemModelLabelResp:
     properties:
+      is_default:
+        type: boolean
       label:
         type: string
       model_id:

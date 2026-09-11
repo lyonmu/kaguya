@@ -162,6 +162,15 @@ func TestDefaultModelIsUniqueGlobally(t *testing.T) {
 			t.Fatalf("default selection: %+v %v", info, err)
 		}
 	}
+	labels, err := svc.ModelLabels(ctx, &dtosystem.SystemModelLabelReq{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, label := range labels {
+		if label.IsDefault != (label.Value == firstModel.ID) {
+			t.Fatalf("model label default mismatch: label=%+v default_model_id=%s", label, firstModel.ID)
+		}
+	}
 	if count, err := db.EntClient.KaguyaSystemInfo.Query().Count(ctx); err != nil || count != 1 {
 		t.Fatalf("system config count=%d err=%v", count, err)
 	}

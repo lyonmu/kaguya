@@ -3,6 +3,13 @@ import { Button, Progress, Spin, Tooltip } from 'antd'
 import { fetchConversationContext } from '../api'
 import type { ConversationContext } from '../types'
 
+function compactTokens(value?: number | null) {
+  if (value == null) return '未知'
+  if (value < 1000) return value.toLocaleString()
+  const scaled = value / 1000
+  return `${scaled < 10 ? scaled.toFixed(1) : Math.round(scaled)}k`
+}
+
 export function ContextProgress({ conversationId, turnCount }: { conversationId?: string; turnCount?: number }) {
   const [data, setData] = useState<ConversationContext>()
   const [error, setError] = useState('')
@@ -25,15 +32,17 @@ export function ContextProgress({ conversationId, turnCount }: { conversationId?
   const percent = data?.percent
   const known = percent != null
   const title = loading ? '正在加载上下文占用…' : error ? <>{error} <Button size="small" onClick={() => setRevision(value => value + 1)}>重试</Button></> : !conversationId ? '首轮对话结束后显示上下文占用' : <>
-    <div>{data?.model_name || '最后一轮模型'} · 当前上下文占用</div>
-    <div>{data?.context_tokens?.toLocaleString() ?? '未知'} / {data?.effective_window.toLocaleString() ?? '未知'} tokens</div>
-    <div>有效窗口为模型最大上下文的 {Math.round((data?.window_ratio ?? 0.9) * 100)}%（其余预留给输出）</div>
-    <div>{known ? `占有效窗口 ${percent.toFixed(1)}%，占最大窗口 ${data?.max_window_percent?.toFixed(1)}%` : '历史记录、模型窗口或供应商用量缺失，暂无法计算'}</div>
-    <div>使用最近一次模型调用的输入（含缓存）和输出估算占用；达到系统配置的压缩比例时，下次模型调用前自动压缩早期内容，保留近期消息和原始历史。</div>
+    <div className="chat-context-tooltip">
+      <span>{data?.model_name || '最后一轮模型'} · 上下文窗口</span>
+      {known ? <>
+        <strong>{Math.round(percent)}% 已用（剩余 {Math.max(0, 100 - Math.round(percent))}%）</strong>
+        <span>已用 {compactTokens(data?.context_tokens)} tokens，共 {compactTokens(data?.effective_window)} 可用</span>
+      </> : <span>历史记录或模型窗口信息不足，暂无法计算</span>}
+    </div>
   </>
-  return <Tooltip title={title}>
+  return <Tooltip title={title} placement="top">
     <span className="chat-context-progress" tabIndex={0} aria-label={known ? `上下文占用 ${percent.toFixed(1)}%` : '上下文占用未知'}>
-      {loading ? <Spin size="small" /> : <Progress type="circle" size={28} strokeWidth={10} percent={Math.min(percent ?? 0, 100)} status={known && percent >= 100 ? 'exception' : 'normal'} strokeColor={known && percent >= 100 ? '#ff4d4f' : known && percent >= 80 ? '#faad14' : undefined} format={() => known ? `${Math.round(percent)}%` : '—'} />}
+      {loading ? <Spin size="small" /> : <Progress type="circle" size={22} strokeWidth={16} percent={Math.min(percent ?? 0, 100)} status={known && percent >= 100 ? 'exception' : 'normal'} strokeColor={known && percent >= 100 ? '#ff4d4f' : known && percent >= 80 ? '#faad14' : undefined} showInfo={false} />}
     </span>
   </Tooltip>
 }

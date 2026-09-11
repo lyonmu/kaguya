@@ -39,8 +39,8 @@ it('loads, edits and saves system config with local model record IDs', async () 
   const config = { context_compaction_percent: 90, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', user_agent: 'kaguya', default_model_id: '', task_model_id: '', global_system_prompt: '只读基础人设' }
   globalThis.fetch = (async (url, init) => {
     if (String(url).includes('/model/label')) return response([
-      { label: '聊天模型', value: 'local-chat', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-chat' },
-      { label: '任务模型', value: 'local-task', provider_name: '提供商 B', provider_id: 'p2', model_id: 'api-task' },
+      { label: '聊天模型', value: 'local-chat', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-chat', is_default: true },
+      { label: '任务模型', value: 'local-task', provider_name: '提供商 B', provider_id: 'p2', model_id: 'api-task', is_default: false },
     ])
     if (init?.method === 'PUT') { saved = JSON.parse(String(init.body)); return response({ ...config, ...saved }) }
     return response(config)
@@ -70,8 +70,8 @@ it('loads, edits and saves system config with local model record IDs', async () 
 
 it('searches models by API ID, clears configuration and restores the chat default', async () => {
   const models = [
-    { label: '同名模型', value: 'local-a', provider_name: '提供商 A', provider_id: 'a', model_id: 'api-alpha' },
-    { label: '同名模型', value: 'local-b', provider_name: '提供商 B', provider_id: 'b', model_id: 'api-beta' },
+    { label: '同名模型', value: 'local-a', provider_name: '提供商 A', provider_id: 'a', model_id: 'api-alpha', is_default: true },
+    { label: '同名模型', value: 'local-b', provider_name: '提供商 B', provider_id: 'b', model_id: 'api-beta', is_default: false },
   ]
   let selected = ''
   const view = render(<ModelCascader aria-label="模型" models={models} onChange={value => { selected = value }} />)
@@ -87,10 +87,17 @@ it('searches models by API ID, clears configuration and restores the chat defaul
   assert.equal(selected, '')
   view.unmount()
   selected = 'local-a'
-  const chat = render(<ModelCascader aria-label="模型" models={models} value={selected} defaultOption onChange={value => { selected = value }} />)
+  const chat = render(<ModelCascader aria-label="模型" models={models} value={selected} defaultOption displayLeafOnly onChange={value => { selected = value }} />)
   const chatInput = chat.getByRole('combobox', { name: '模型' })
+  assert.equal(chatInput.closest('.ant-select')?.textContent?.trim(), '同名模型')
   fireEvent.mouseDown(chatInput.closest('.ant-select')!.querySelector('.ant-select-selector') ?? chatInput)
-  fireEvent.click(await chat.findByText('默认模型'))
+  const chatPopup = await waitFor(() => {
+    const element = Array.from(dom.document.querySelectorAll('.ant-cascader-dropdown:not(.ant-select-dropdown-hidden)')).at(-1)
+    assert.ok(element)
+    return element as unknown as HTMLElement
+  })
+  fireEvent.click(await within(chatPopup).findByText('提供商 A'))
+  fireEvent.click(await within(chatPopup).findByText('同名模型'))
   assert.equal(selected, '')
 })
 
