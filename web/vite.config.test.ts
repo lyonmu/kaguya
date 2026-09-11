@@ -23,8 +23,8 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     assert.ok(highlighter, 'Ant Design X code highlighter must have its own chunk')
     for (const chunk of chunks) {
       const size = Buffer.byteLength(chunk.code)
-      // Mermaid 解析器与 Ant Design X 的完整 Prism 集合只在图表交互时加载。
-      const budget = chunk === parser || chunk === highlighter ? 750_000 : 500_000
+      // Mermaid 解析器核心是单个预打包模块，无法再拆分，单独放宽阈值。
+      const budget = chunk === parser ? 750_000 : 500_000
       assert.ok(size <= budget, `${chunk.fileName}: ${size} bytes exceeds the ${budget / 1000} kB budget`)
     }
     const initialChunks = new Set<string>()
@@ -69,6 +69,11 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     }
     for (const page of ['SystemInfoPage', 'ProviderManagementPage', 'AccessLogPage', 'TokenUsagePage']) {
       assert.ok(chunks.some(chunk => chunk.isDynamicEntry && chunk.name === page), `${page} must remain lazy-loaded`)
+    }
+    // 离线部署：HTML 与 CSS 只能引用构建产物，不能依赖 CDN 或外部资源。
+    for (const asset of output.output) {
+      if (asset.type !== 'asset' || !/\.(?:html|css)$/.test(asset.fileName)) continue
+      assert.ok(!/https?:\/\//.test(String(asset.source)), `${asset.fileName} references an external resource`)
     }
   }
 })
