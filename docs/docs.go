@@ -514,7 +514,7 @@ const docTemplate = `{
         },
         "/v1/project": {
             "post": {
-                "description": "名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 103003",
+                "description": "名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 107003",
                 "tags": [
                     "Project"
                 ],
@@ -675,7 +675,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "名称可重复；不能修改为其他未删除项目使用的目录，冲突返回业务码 103003",
+                "description": "名称可重复；不能修改为其他未删除项目使用的目录，冲突返回业务码 107003",
                 "tags": [
                     "Project"
                 ],

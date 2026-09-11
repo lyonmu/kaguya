@@ -1,5 +1,5 @@
 import type { ApiResponse } from '../../api/http'
-import { ApiRequestError } from '../../api/http'
+import { ApiRequestError, SUCCESS_CODE } from '../../api/http'
 import type { ChatFrame } from './types'
 
 // Decode lines incrementally: both UTF-8 characters and CRLF can cross chunks.
@@ -22,7 +22,7 @@ export async function consumeSSE(
     } catch {
       throw new ApiRequestError('无法解析 SSE 事件')
     }
-    if (!payload || payload.code !== 100000 || payload.data?.chat?.flag === 'error') {
+    if (!payload || payload.code !== SUCCESS_CODE || payload.data?.chat?.flag === 'error') {
       throw new ApiRequestError(payload?.message || '对话生成失败', { code: payload?.code })
     }
     const frame = payload.data

@@ -6,7 +6,7 @@ export interface ApiResponse<T> {
 
 type QueryValue = string | number | boolean | null | undefined
 
-const SUCCESS_CODE = 100000
+export const SUCCESS_CODE = 100000
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/kaguya/api').replace(
   /\/$/,
   '',

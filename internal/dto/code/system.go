@@ -15,18 +15,19 @@ var (
 	AccessLogQueryFailure = Response{Code: 101000, Message: "访问日志查询失败"}
 
 	// 提供商管理相关
-	ProviderQueryFailure     = Response{Code: 102000, Message: "提供商查询失败"}
-	ProviderNotFound         = Response{Code: 102001, Message: "提供商不存在"}
-	ProviderCreateFailure    = Response{Code: 102002, Message: "提供商创建失败"}
-	ProviderUpdateFailure    = Response{Code: 102003, Message: "提供商更新失败"}
-	ProviderDeleteFailure    = Response{Code: 102004, Message: "提供商删除失败"}
-	ProviderNameAlreadyExist = Response{Code: 102005, Message: "提供商名称已存在"}
+	ProviderQueryFailure     = Response{Code: 106000, Message: "提供商查询失败"}
+	ProviderNotFound         = Response{Code: 106001, Message: "提供商不存在"}
+	ProviderCreateFailure    = Response{Code: 106002, Message: "提供商创建失败"}
+	ProviderUpdateFailure    = Response{Code: 106003, Message: "提供商更新失败"}
+	ProviderDeleteFailure    = Response{Code: 106004, Message: "提供商删除失败"}
+	ProviderNameAlreadyExist = Response{Code: 106005, Message: "提供商名称已存在"}
 
 	// MCP 管理相关
 	MCPFailure        = Response{Code: 105000, Message: "MCP 操作失败"}
 	MCPNotFound       = Response{Code: 105001, Message: "MCP 服务不存在"}
 	MCPDuplicate      = Response{Code: 105002, Message: "MCP 服务名称已存在"}
 	MCPConnectFailure = Response{Code: 105003, Message: "MCP 连接或工具发现失败，请检查服务配置"}
+	MCPConfigInvalid  = Response{Code: 105004, Message: "MCP 配置无效"}
 
 	// 模型管理相关
 	ModelQueryFailure   = Response{Code: 103000, Message: "模型查询失败"}

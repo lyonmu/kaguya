@@ -19,18 +19,18 @@ func failure(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrPathExists):
 		global.Logger.Sugar().Warnf("duplicate project directory: %v", err)
-		code.Response{Code: 103003, Message: "该目录已被其他项目使用，请选择不同的目录"}.Failure(c)
+		code.ProjectPathInUse.Failure(c)
 	case errors.Is(err, service.ErrNotFound):
 		global.Logger.Sugar().Warnf("project not found: %v", err)
-		code.Response{Code: 103001, Message: "项目不存在或已删除"}.Failure(c)
+		code.ProjectNotFound.Failure(c)
 	case errors.Is(err, service.ErrNotGit):
-		code.Response{Code: 103004, Message: "当前项目不是 Git 仓库，无法查看代码改动"}.Failure(c)
+		code.ProjectNotGit.Failure(c)
 	case errors.Is(err, service.ErrInvalid), errors.Is(err, os.ErrNotExist), errors.Is(err, os.ErrPermission):
 		global.Logger.Sugar().Warnf("invalid project request: %v", err)
-		code.Response{Code: 103002, Message: "项目参数无效，目录必须位于运行用户主目录内且可访问"}.Failure(c)
+		code.ProjectParameterError.Failure(c)
 	default:
 		global.Logger.Sugar().Errorf("project operation failed: %v", err)
-		code.Response{Code: 103000, Message: "项目操作失败"}.Failure(c)
+		code.ProjectOperationFailure.Failure(c)
 	}
 }
 
@@ -97,7 +97,7 @@ func (*ProjectApiV1Group) ProjectDetail(c *gin.Context) {
 // ProjectCreate
 // @Tags Project
 // @Summary 新建主机目录项目（不创建主机文件夹）
-// @Description 名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 103003
+// @Description 名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 107003
 // @Param data body dto.SaveReq true "项目信息"
 // @Success 200 {object} code.Response{data=dto.Resp}
 // @Router /v1/project [post]
@@ -106,7 +106,7 @@ func (*ProjectApiV1Group) ProjectCreate(c *gin.Context) { save(c, "") }
 // ProjectUpdate
 // @Tags Project
 // @Summary 更新项目
-// @Description 名称可重复；不能修改为其他未删除项目使用的目录，冲突返回业务码 103003
+// @Description 名称可重复；不能修改为其他未删除项目使用的目录，冲突返回业务码 107003
 // @Param id path string true "项目 ID"
 // @Param data body dto.SaveReq true "项目信息"
 // @Success 200 {object} code.Response{data=dto.Resp}

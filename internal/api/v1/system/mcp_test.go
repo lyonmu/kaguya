@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/db"
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	"github.com/lyonmu/kaguya/internal/global"
@@ -67,11 +68,11 @@ func TestMCPAPIValidationAndCRUD(t *testing.T) {
 	}
 	request("POST", "/mcp", `{}`, 100001)
 	request("POST", "/mcp", `{"name":"invalid","transport":"stdio","command":"echo","timeout_seconds":0}`, 100001)
-	request("POST", "/mcp", `{"name":"invalid","transport":"sse","url":"file:///tmp","timeout_seconds":1}`, 105004)
+	request("POST", "/mcp", `{"name":"invalid","transport":"sse","url":"file:///tmp","timeout_seconds":1}`, dtocode.MCPConfigInvalid.Code)
 	valid := `{"name":"test","transport":"stdio","command":"echo","args":[],"env":{"KEY":"secret"},"timeout_seconds":1}`
 	created := request("POST", "/mcp", valid, 100000)
 	id := fmt.Sprint(created["id"])
-	request("POST", "/mcp", valid, 105002)
+	request("POST", "/mcp", valid, dtocode.MCPDuplicate.Code)
 	request("GET", "/mcp/page?page=0", "", 100001)
 	request("GET", "/mcp/page?page_size=101", "", 100001)
 	page := request("GET", "/mcp/page", "", 100000)
@@ -86,6 +87,6 @@ func TestMCPAPIValidationAndCRUD(t *testing.T) {
 	request("PUT", "/mcp/"+id+"/state", `{"enabled":false}`, 100000)
 	request("PUT", "/mcp/"+id, strings.Replace(valid, `"test"`, `"updated"`, 1), 100000)
 	request("DELETE", "/mcp/"+id, "", 100000)
-	request("GET", "/mcp/"+id, "", 105001)
-	request("PUT", "/mcp/"+id+"/state", `{"enabled":true}`, 105001)
+	request("GET", "/mcp/"+id, "", dtocode.MCPNotFound.Code)
+	request("PUT", "/mcp/"+id+"/state", `{"enabled":true}`, dtocode.MCPNotFound.Code)
 }

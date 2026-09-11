@@ -18,7 +18,7 @@ func mcpFailure(c *gin.Context, err error) {
 	case errors.Is(err, servicesystem.ErrMCPConnect):
 		dtocode.Response{Code: dtocode.MCPConnectFailure.Code, Message: err.Error()}.Failure(c)
 	case errors.Is(err, servicesystem.ErrMCPInvalid):
-		dtocode.Response{Code: 105004, Message: err.Error()}.Failure(c)
+		dtocode.Response{Code: dtocode.MCPConfigInvalid.Code, Message: err.Error()}.Failure(c)
 	default:
 		dtocode.MCPFailure.Failure(c)
 	}
