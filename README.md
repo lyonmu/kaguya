@@ -354,6 +354,10 @@ With the default route prefix, useful endpoints are:
 
 Conversation responses include `is_project`, derived from whether `project_id` is null, so no database backfill is needed. Lists default to ordinary conversations only; `is_project=true` selects project conversations and `project_id` scopes a specific project (passing it alone retains project filtering). Combining `project_id` with `is_project=false` is invalid. Filtering happens before database pagination and counting. New SSE/WS chats accept `project_id`; saved conversations retain their stored association.
 
+Business JSON endpoints share one envelope: HTTP 200 with `{"code": ..., "message": ..., "data": ...}`; `100000` means success and any other code carries a user-readable `message`. Codes are grouped by domain (`101xxx` access logs, `102xxx` chat, `103xxx` models, `104xxx` system settings, `105xxx` MCP, `106xxx` providers, `107xxx` projects). Browser-level rejections (untrusted host, oversized body) still use plain HTTP 403/413.
+
+Single-instance limits: SQLCipher serializes writes through one connection, and the process bounds simultaneous turns (`16`) and background title tasks (`2`). A turn beyond the limit fails fast with code `102009`; a skipped title retries after the next successful turn. A conversation resumes from its last compaction snapshot, so long histories read only the snapshot and later turns. Provider requests have a two-minute response-header timeout and a five-minute stream idle timeout, and stalled streams are cancelled as retryable errors. WebSocket frames and SSE writes use per-frame write deadlines, so a client that stops reading cannot pin a turn open.
+
 After configuring a default model, start a conversation with:
 
 ```sh

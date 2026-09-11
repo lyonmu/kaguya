@@ -19,6 +19,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/global"
 	initialize "github.com/lyonmu/kaguya/internal/init"
 	"github.com/lyonmu/kaguya/internal/router"
+	serviceagent "github.com/lyonmu/kaguya/internal/service/agent"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 	"github.com/lyonmu/kaguya/pkg"
 	"go.uber.org/zap"
@@ -192,11 +193,18 @@ func Run() {
 	case <-mcpCtx.Done():
 		<-restoreDone
 		agentmcp.Default.Close()
+		serviceagent.Shutdown()
 		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancelShutdown()
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			_ = server.Close()
 		}
+		// 等待进行中的轮次落库/退出，避免数据库关闭后继续写入。
+		waitCtx, cancelWait := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := serviceagent.WaitActive(waitCtx); err != nil {
+			global.Logger.Warn("timed out waiting for active chat turns", zap.Error(err))
+		}
+		cancelWait()
 	case err := <-serverDone:
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			global.Logger.Error("HTTP server failed", zap.Error(err))

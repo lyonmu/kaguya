@@ -138,10 +138,16 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 // client/logger/config 均在启动时捕获，不在后台重新读取可变全局状态。
 func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentruntime.ProviderConfig, question, answer string) <-chan conversationTitleResult {
 	result := make(chan conversationTitleResult, 1)
+	// 标题任务满员时直接跳过：下一轮成功结束后客户端会再次请求，不排队等待。
+	if !tryAcquire(titleSlots) {
+		close(result)
+		return result
+	}
 	done := make(chan struct{})
 	conversationTitles.Lock()
 	if conversationTitles.pending[cfg.ConversationID] != nil {
 		conversationTitles.Unlock()
+		releaseSlot(titleSlots)
 		close(result)
 		return result
 	}
@@ -149,6 +155,8 @@ func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentrun
 	conversationTitles.Unlock()
 	go func() {
 		defer close(result)
+		defer releaseSlot(titleSlots)
+		defer beginWork()()
 		defer func() {
 			conversationTitles.Lock()
 			if conversationTitles.pending[cfg.ConversationID] == done {
@@ -157,7 +165,7 @@ func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentrun
 			close(done)
 			conversationTitles.Unlock()
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), conversationTitleTimeout)
+		ctx, cancel := context.WithTimeout(titleTaskCtx, conversationTitleTimeout)
 		defer cancel()
 		// 再次检查，避免准备配置期间手动改名/删除后仍调用模型。
 		row, err := client.KaguyaConversation.Get(ctx, cfg.ConversationID)

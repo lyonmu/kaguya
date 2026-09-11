@@ -39,6 +39,7 @@ var ErrChatModelNotConfigured = errors.New("chat model is not configured")
 
 // Chat 执行一次流式对话：查询所选模型（空值用默认）→ 组装 Agent → Stream 增量推送。
 func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, req *dtochat.ChatReq) {
+	defer beginWork()()
 	defer close(dataChan)
 
 	info, err := (&servicesystem.SystemSvc{}).Info(ctx)
@@ -90,6 +91,11 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return
 	}
 	defer release()
+	if !tryAcquire(chatSlots) {
+		send(ctx, dataChan, &dtochat.ChatResp{Err: ErrChatConcurrencyLimited, Chat: dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}})
+		return
+	}
+	defer releaseSlot(chatSlots)
 	history, version, err := loadConversation(ctx, convID)
 	if err != nil {
 		global.Logger.Sugar().Errorf("load conversation failed: %v", err)

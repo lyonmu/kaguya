@@ -187,6 +187,8 @@ func chatFailure(err error) dtocode.Response {
 		return dtocode.ConversationNotFound
 	case errors.Is(err, serviceagent.ErrChatModelNotConfigured):
 		return dtocode.ChatModelNotConfigured
+	case errors.Is(err, serviceagent.ErrChatConcurrencyLimited):
+		return dtocode.ChatConcurrencyLimited
 	default:
 		return dtocode.ChatSSEFailure
 	}

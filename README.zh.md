@@ -365,6 +365,10 @@ curl --cacert ~/.kaguya/kaguya.crt -N https://localhost:9024/kaguya/api/v1/chat/
 
 在后续请求体中复用返回的会话 `id`，即可继续该会话的历史。显式选择模型时，传入值为本地模型记录 ID 的 `model_id`。流式帧使用 `start`、`delta`、`done` 和 `error`，完整轮次保存成功后才会发送 `done`。当前接口契约可查阅 [路由定义](internal/router/v1/) 与 [聊天 DTO](internal/dto/chat/)。
 
+业务 JSON 接口共用同一响应信封：HTTP 200，`{"code": ..., "message": ..., "data": ...}`；`100000` 表示成功，其他码携带用户可读的 `message`。码段按域划分（`101xxx` 访问日志、`102xxx` 聊天、`103xxx` 模型、`104xxx` 系统配置、`105xxx` MCP、`106xxx` 提供商、`107xxx` 项目）。浏览器层拒绝（不可信 Host、超大请求体）仍返回普通 HTTP 403/413。
+
+单实例下：SQLCipher 通过单连接串行写入，进程限制同时进行的对话轮次（16）与后台标题任务（2），超出的轮次快速失败并返回 `102009`，被跳过的标题会在下一轮成功后重试。续聊从最近一次压缩快照开始读取，长会话只读快照及之后的轮次。提供商请求带 2 分钟响应头超时与 5 分钟流空闲超时，挂起的流会被取消并按可重试错误上报；WebSocket 帧与 SSE 写入带单帧写截止时间，停止读取的客户端不会长期占据轮次。
+
 ## 开发
 
 源码开发需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make 及上文列出的原生依赖。执行 `CGO_ENABLED=1 make build` 后通过 `./target/kaguya` 运行（全新安装自动初始化默认密钥），无需 Docker／数据库服务。请使用 Make 目标而非直接 `go build`／`go test`，以应用 SQLCipher 链接参数。局部测试可先执行 `make native`，再执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`。
