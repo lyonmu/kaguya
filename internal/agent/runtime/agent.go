@@ -16,6 +16,7 @@ import (
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/global"
+	"go.uber.org/zap"
 )
 
 // ProviderConfig 描述如何通过提供商协议构造底层模型。
@@ -360,6 +361,6 @@ func (a *Agent) record(
 	}
 
 	if err := a.recorder.RecordUsage(ctx, turn); err != nil {
-		global.Logger.Sugar().Warnf("record agent usage failed", "error", err)
+		global.Logger.Warn("record agent usage failed", zap.Error(err))
 	}
 }

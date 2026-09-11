@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,9 @@ import (
 	"charm.land/fantasy"
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/global"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // 使用真实 provider 适配器解析 HTTP 响应，避免只验证手工构造的 fantasy.Usage。
@@ -98,4 +102,46 @@ type usageTestRecorder struct{ usage token.TurnUsage }
 func (r *usageTestRecorder) RecordUsage(_ context.Context, usage token.TurnUsage) error {
 	r.usage = usage
 	return nil
+}
+
+type failingUsageRecorder struct{ err error }
+
+func (r failingUsageRecorder) RecordUsage(context.Context, token.TurnUsage) error { return r.err }
+
+// 记录失败只写结构化 warning，不能把字段参数拼进格式化字符串。
+func TestRecordUsageFailureIsLogged(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"chat_test","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)
+	}))
+	defer server.Close()
+
+	core, logs := observer.New(zap.WarnLevel)
+	previous := global.Logger
+	global.Logger = zap.New(core)
+	t.Cleanup(func() { global.Logger = previous })
+
+	wantErr := errors.New("usage sink unavailable")
+	a, err := New(
+		WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL + "/v1/chat/completions", APIKey: "test", ModelID: "test"}),
+		WithRecorder(failingUsageRecorder{err: wantErr}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.Generate(context.Background(), fantasy.AgentCall{Prompt: "hello"}); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := logs.FilterMessage("record agent usage failed").All()
+	if len(entries) != 1 {
+		t.Fatalf("warning log entries = %d (%+v)", len(entries), logs.All())
+	}
+	entry := entries[0]
+	if entry.Level != zap.WarnLevel {
+		t.Fatalf("log level = %s", entry.Level)
+	}
+	if got := fmt.Sprint(entry.ContextMap()["error"]); got != wantErr.Error() {
+		t.Fatalf("logged error = %q, want %q", got, wantErr.Error())
+	}
 }
