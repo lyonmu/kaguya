@@ -16,7 +16,7 @@ it('resolves material icon names by file name and extension', () => {
 
 it('falls back to the generic file icon with embedded svg data', () => {
   const icon = fileIconForPath('data.unknown')
-  assert.equal(icon.width, 16)
+  assert.equal(icon.viewBox, '0 0 16 16')
   assert.ok(icon.body.startsWith('<path'))
   assert.ok(fileIconForPath('main.go').body.length > 0)
 })

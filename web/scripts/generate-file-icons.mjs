@@ -55,11 +55,10 @@ try {
     const svg = readFileSync(join(workdir, `package/icons/${name}.svg`), 'utf8')
     const match = svg.match(/<svg\b([^>]*)>([\s\S]*)<\/svg>/)
     if (!match) throw new Error(`parse svg: ${name}`)
-    const viewBox = match[1].match(/viewBox="([^"]+)"/)?.[1].trim().split(/[\s,]+/).map(Number)
-    const width = viewBox?.[2] || 16
-    const height = viewBox?.[3] || 16
+    // 部分图标使用负坐标原点（如 0 -960 960 960），必须保留完整 viewBox。
+    const viewBox = match[1].match(/viewBox="([^"]+)"/)?.[1].trim() || '0 0 16 16'
     const body = namespaceIds(match[2].trim(), `mit-${name}`)
-    data[name] = { body, width, height }
+    data[name] = { body, viewBox }
   }
 
   const pick = mapping => Object.fromEntries(
@@ -80,8 +79,7 @@ try {
 ${license.trim().split('\n').map(line => `// ${line}`.trimEnd()).join('\n')}
 export interface FileIconData {
   body: string
-  width: number
-  height: number
+  viewBox: string
 }
 
 export const FILE_ICON_DATA: Record<string, FileIconData> = {
