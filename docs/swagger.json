@@ -917,7 +917,7 @@
                 "tags": [
                     "Project"
                 ],
-                "summary": "项目文件树，跳过隐藏项与依赖产物目录",
+                "summary": "项目文件树，按 .gitignore / .dockerignore 过滤并跳过 .git 与依赖产物目录",
                 "parameters": [
                     {
                         "type": "string",

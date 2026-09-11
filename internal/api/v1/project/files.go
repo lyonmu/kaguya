@@ -8,7 +8,7 @@ import (
 
 // ProjectTree
 // @Tags Project
-// @Summary 项目文件树，跳过隐藏项与依赖产物目录
+// @Summary 项目文件树，按 .gitignore / .dockerignore 过滤并跳过 .git 与依赖产物目录
 // @Description 单次最多返回 5000 个节点，超出时 truncated=true；路径始终相对项目根
 // @Param id path string true "项目 ID"
 // @Success 200 {object} code.Response{data=dto.TreeResp}

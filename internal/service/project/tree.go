@@ -33,7 +33,8 @@ func cleanRelative(path string) (string, error) {
 	return clean, nil
 }
 
-// Tree 遍历项目根并返回嵌套文件树，跳过隐藏项与常见依赖/产物目录。
+// Tree 遍历项目根并返回嵌套文件树，包含隐藏项，按 .gitignore / .dockerignore 过滤，
+// 并跳过 .git 与常见依赖/产物目录。
 func (s *ProjectSvc) Tree(ctx context.Context, id string) (*dto.TreeResp, error) {
 	dir, err := s.Workspace(ctx, id)
 	if err != nil {
@@ -44,6 +45,7 @@ func (s *ProjectSvc) Tree(ctx context.Context, id string) (*dto.TreeResp, error)
 		return nil, err
 	}
 	defer root.Close()
+	ignore := newIgnoreMatcher(root)
 	children := map[string][]*dto.TreeItem{}
 	visited := 0
 	resp := &dto.TreeResp{Name: filepath.Base(dir), Items: []*dto.TreeItem{}}
@@ -58,7 +60,7 @@ func (s *ProjectSvc) Tree(ctx context.Context, id string) (*dto.TreeResp, error)
 			return nil
 		}
 		name := entry.Name()
-		if strings.HasPrefix(name, ".") {
+		if name == ".git" {
 			if entry.IsDir() {
 				return fs.SkipDir
 			}
@@ -66,6 +68,12 @@ func (s *ProjectSvc) Tree(ctx context.Context, id string) (*dto.TreeResp, error)
 		}
 		if entry.IsDir() && excludedTreeDir(name) {
 			return fs.SkipDir
+		}
+		if ignore.ignored(path, entry.IsDir()) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		}
 		visited++
 		if visited > treeMaxItems {

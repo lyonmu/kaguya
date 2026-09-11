@@ -190,25 +190,31 @@ func TestTreeAndContent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tree.Name != "files" || tree.Truncated || len(tree.Items) != 4 {
+	if tree.Name != "files" || tree.Truncated || len(tree.Items) != 5 {
 		t.Fatalf("tree=%+v", tree)
 	}
 	for _, item := range tree.Items {
-		if item.Name == "node_modules" || strings.HasPrefix(item.Name, ".") {
+		if item.Name == "node_modules" || item.Name == ".git" {
 			t.Fatalf("excluded item=%+v", item)
 		}
 	}
-	// 目录排在文件之前，隐藏项被跳过。
+	// 目录排在文件之前，.git 被忽略，隐藏文件仍保留。
 	if !tree.Items[0].IsDir || tree.Items[0].Name != "src" || tree.Items[0].Path != "src" {
 		t.Fatalf("first=%+v", tree.Items[0])
 	}
-	var src *dto.TreeItem
+	var hidden, src *dto.TreeItem
 	for _, item := range tree.Items {
-		if item.Name == "src" {
+		switch item.Name {
+		case ".hidden":
+			hidden = item
+		case "src":
 			src = item
 		}
 	}
-	if src == nil || len(src.Children) != 2 || src.Children[0].Name != "deep" || src.Children[1].Name != "app.ts" {
+	if hidden == nil || hidden.IsDir || hidden.Path != ".hidden" {
+		t.Fatalf("hidden=%+v", hidden)
+	}
+	if src == nil || len(src.Children) != 3 || src.Children[0].Name != "deep" || src.Children[1].Name != ".cache" || src.Children[2].Name != "app.ts" {
 		t.Fatalf("src=%+v", src)
 	}
 
@@ -236,6 +242,81 @@ func TestTreeAndContent(t *testing.T) {
 	for _, path := range []string{"../secret", "/etc/hostname", "", "src/../.."} {
 		if _, err := svc.Content(context.Background(), id, path); !errors.Is(err, ErrInvalid) {
 			t.Fatalf("content accepted %q: %v", path, err)
+		}
+	}
+}
+
+func TestTreeIgnoreFiles(t *testing.T) {
+	svc, home, _ := setupGitTest(t)
+	dir := filepath.Join(home, "ignored")
+	for _, item := range []string{"build", "src", "src/vendor", "web", "logs/archive"} {
+		if err := os.MkdirAll(filepath.Join(dir, item), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files := map[string]string{
+		".gitignore":             "build/\n*.log\n!keep.log\nsrc/vendor/\nlogs/**/debug.txt\n",
+		".dockerignore":          "web/tmp\n",
+		"app.log":                "log\n",
+		"keep.log":               "keep\n",
+		"main.go":                "package main\n",
+		"build/out.bin":          "binary\n",
+		"src/a.go":               "package a\n",
+		"src/vendor/lib.go":      "package lib\n",
+		"web/app.go":             "package web\n",
+		"web/local.txt":          "local\n",
+		"web/tmp":                "tmp\n",
+		"web/.gitignore":         "local.txt\n",
+		"logs/archive/a.txt":     "keep\n",
+		"logs/app.log":           "log\n",
+		"logs/archive/debug.txt": "debug\n",
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id := createProject(t, svc, dir)
+
+	tree, err := svc.Tree(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tree.Truncated {
+		t.Fatalf("tree=%+v", tree)
+	}
+	names := make([]string, 0, len(tree.Items))
+	for _, item := range tree.Items {
+		names = append(names, item.Name)
+	}
+	assertItems := func(got []string, want []string) {
+		t.Helper()
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("items=%v want=%v", got, want)
+		}
+	}
+	// build/ 与 *.log 被忽略，!keep.log 重新包含；目录仍排在文件前。
+	assertItems(names, []string{"logs", "src", "web", ".dockerignore", ".gitignore", "keep.log", "main.go"})
+	for _, item := range tree.Items {
+		switch item.Name {
+		case "src":
+			if len(item.Children) != 1 || item.Children[0].Name != "a.go" {
+				t.Fatalf("src=%+v", item)
+			}
+		case "web":
+			var webNames []string
+			for _, child := range item.Children {
+				webNames = append(webNames, child.Name)
+			}
+			assertItems(webNames, []string{".gitignore", "app.go"})
+		case "logs":
+			// logs/**/debug.txt 只过滤深层文件，logs/app.log 由 *.log 命中。
+			if len(item.Children) != 1 || item.Children[0].Name != "archive" {
+				t.Fatalf("logs=%+v", item)
+			}
+			if len(item.Children[0].Children) != 1 || item.Children[0].Children[0].Name != "a.txt" {
+				t.Fatalf("logs/archive=%+v", item.Children[0])
+			}
 		}
 	}
 }
