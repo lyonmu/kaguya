@@ -168,7 +168,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
   return (
     <Drawer
       className="code-browser-drawer"
-      width={width}
+      size={width}
       open={open}
       onClose={onClose}
       destroyOnHidden

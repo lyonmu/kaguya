@@ -31,10 +31,17 @@ export default defineConfig(({ command }) => ({
         codeSplitting: {
           groups: [
             {
-              // 代码浏览器的 diff 引擎只在打开面板时加载；与高亮引擎分开缓存，
-              // 避免单一懒加载包超过体积预算。
+              // 高亮语言集与 lowlight 适配层被 diff 引擎和文件查看器共享；
+              // 单独成包以避免 vendor-diff-view 反向依赖应用入口 chunk 形成循环。
+              name: 'code-highlight',
+              test: /src[\\/]features[\\/]code[\\/](?:highlight|lowlightSubset)\.ts/,
+              includeDependenciesRecursively: false,
+            },
+            {
+              // diff 引擎及其运行时依赖：包含辅助包以避免共享模块
+              // 回落到应用入口 chunk 造成反向依赖。
               name: 'vendor-diff-view',
-              test: /[\\/]node_modules[\\/]@git-diff-view[\\/]/,
+              test: /[\\/]node_modules[\\/](?:@git-diff-view|@vue|reactivity-store|use-sync-external-store|fast-diff)[\\/]/,
               includeDependenciesRecursively: false,
             },
             {

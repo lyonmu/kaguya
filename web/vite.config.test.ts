@@ -34,6 +34,29 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
       chunks.find(chunk => chunk.fileName === fileName)?.imports.forEach(visit)
     }
     chunks.filter(chunk => chunk.isEntry).forEach(chunk => visit(chunk.fileName))
+    // 静态 chunk 循环会让模块初始化顺序错乱（典型症状是运行时 “x is not a function”），
+    // 动态导入属于异步边界，不计入循环。
+    const owners = new Map(chunks.map(chunk => [chunk.fileName, chunk]))
+    const visiting = new Set<string>()
+    const settled = new Set<string>()
+    const cycle: string[] = []
+    const detect = (fileName: string, chain: string[]): boolean => {
+      if (visiting.has(fileName)) {
+        cycle.push(...chain.slice(chain.indexOf(fileName)), fileName)
+        return true
+      }
+      if (settled.has(fileName) || cycle.length) return cycle.length > 0
+      visiting.add(fileName)
+      for (const next of owners.get(fileName)?.imports ?? []) {
+        if (!owners.has(next)) continue
+        if (detect(next, [...chain, fileName])) break
+      }
+      visiting.delete(fileName)
+      settled.add(fileName)
+      return cycle.length > 0
+    }
+    for (const chunk of chunks) detect(chunk.fileName, [])
+    assert.equal(cycle.length, 0, `chunk import cycle detected: ${cycle.join(' -> ')}`)
     assert.ok(!initialChunks.has(parser.fileName), 'Mermaid parser must stay out of the initial payload')
     assert.ok(!initialChunks.has(highlighter.fileName), 'Ant Design X code highlighter must stay out of the initial payload')
     const renderer = chunks.find(chunk => chunk.isDynamicEntry && chunk.name === 'mermaid')
