@@ -32,6 +32,7 @@ func InitMySQL(c *config.DatabaseConfig, _ bool) (*ent.Client, error) {
 		return nil, openErr
 	}
 	if createErr := client.Schema.Create(context.Background(), migrate.WithForeignKeys(false)); createErr != nil {
+		_ = client.Close()
 		return nil, createErr
 	}
 	return client, nil
