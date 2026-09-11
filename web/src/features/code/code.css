@@ -10,10 +10,10 @@
 .code-toolbar-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .code-changed-only { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--k-text-muted); }
 
-.code-tree { flex: 1; min-height: 0; padding: 4px 0; }
+.code-tree { flex: 1; min-height: 0; padding: 4px 0; overflow: hidden; }
 .code-tree .ant-tree { background: transparent; font-size: 13px; }
-.code-tree-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.code-tree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-tree-title { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.code-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .code-file-icon { flex-shrink: 0; }
 .code-badge { flex-shrink: 0; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 4px; font-size: 10px; font-weight: 600; color: #fff; }
 .code-badge-modified { background: #d99127; }
@@ -38,6 +38,7 @@
 .code-line { display: flex; height: 20px; white-space: pre; }
 .code-line-number { position: sticky; left: 0; flex-shrink: 0; box-sizing: border-box; padding: 0 12px 0 8px; text-align: right; color: var(--k-text-subtle); background: var(--k-surface); user-select: none; }
 .code-line-text { padding-right: 24px; }
+
 
 .code-empty { margin: auto; }
 .code-diff { flex: 1; min-height: 0; overflow: auto; }

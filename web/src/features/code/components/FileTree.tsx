@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Tree } from 'antd'
 import { FileIcon } from './FileIcon'
 import type { GitFile, ProjectNode } from '../types'
@@ -54,6 +54,14 @@ function buildNodes(items: ProjectNode[], changed: Map<string, GitFile>, changed
   return nodes
 }
 
+// 选中文件所在目录链，用于在默认折叠的文件树里展开定位。
+function ancestorKeys(path: string): string[] {
+  const parts = path.split('/')
+  const keys: string[] = []
+  for (let index = 1; index < parts.length; index++) keys.push(parts.slice(0, index).join('/'))
+  return keys
+}
+
 export function FileTree({ items, changed, selected, changedOnly, onSelect }: {
   items: ProjectNode[]
   changed: Map<string, GitFile>
@@ -63,6 +71,7 @@ export function FileTree({ items, changed, selected, changedOnly, onSelect }: {
 }) {
   const container = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState(320)
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([])
   useLayoutEffect(() => {
     const element = container.current
     if (!element) return
@@ -73,6 +82,15 @@ export function FileTree({ items, changed, selected, changedOnly, onSelect }: {
     return () => observer.disconnect()
   }, [])
   const nodes = useMemo(() => buildNodes(items, changed, changedOnly), [items, changed, changedOnly])
+  // 默认只展开选中文件的父目录链，不整树铺开，避免深层目录撑满侧栏。
+  useEffect(() => {
+    if (!selected) return
+    setExpandedKeys(current => {
+      const next = new Set(current)
+      for (const key of ancestorKeys(selected)) next.add(key)
+      return next.size === current.length ? current : Array.from(next)
+    })
+  }, [selected, changedOnly])
   return (
     <div ref={container} className="code-tree">
       <Tree
@@ -81,7 +99,8 @@ export function FileTree({ items, changed, selected, changedOnly, onSelect }: {
         height={height}
         virtual
         blockNode
-        defaultExpandAll
+        expandedKeys={expandedKeys}
+        onExpand={keys => setExpandedKeys(keys.map(String))}
         selectedKeys={selected ? [selected] : []}
         titleRender={node => {
           const item = node as unknown as TreeNode

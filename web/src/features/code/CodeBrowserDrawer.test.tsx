@@ -43,7 +43,10 @@ it('loads the file tree with git badges and renders diff and file views on deman
   globalThis.fetch = (async (url: string) => {
     const value = String(url)
     requests.push(value)
-    if (value.includes('/tree')) return response({ name: 'repo', path: '', items: [{ name: 'main.go', path: 'main.go', is_dir: false, size: 20 }], truncated: false })
+    if (value.includes('/tree')) return response({ name: 'repo', path: '', items: [
+      { name: 'src', path: 'src', is_dir: true, size: 0, children: [{ name: 'nested.go', path: 'src/nested.go', is_dir: false, size: 10 }] },
+      { name: 'main.go', path: 'main.go', is_dir: false, size: 20 },
+    ], truncated: false })
     if (value.includes('/git/status')) return response({ is_git: true, branch: 'main', head: 'abc1234', files: [{ path: 'main.go', status: 'modified', staged: false, additions: 1, deletions: 0 }], truncated: false })
     if (value.includes('/git/diff')) return response({ path: 'main.go', status: 'modified', binary: false, truncated: false, diff })
     if (value.includes('/content')) return response({ path: 'main.go', size: 20, binary: false, truncated: false, content: 'package main\n' })
@@ -54,6 +57,12 @@ it('loads the file tree with git badges and renders diff and file views on deman
   const panel = within(document.body)
   await waitFor(() => assert.ok(panel.getByText('main.go')))
   assert.ok(panel.getByText('M'))
+  // 目录默认折叠，手动展开后才渲染子节点。
+  assert.equal(panel.queryByText('nested.go'), null)
+  const srcNode = panel.getByText('src').closest('.ant-tree-treenode')
+  assert.ok(srcNode)
+  fireEvent.click(srcNode.querySelector('.ant-tree-switcher')!)
+  await waitFor(() => assert.ok(panel.getByText('nested.go')))
   const label = panel.getByText('main.go')
   fireEvent.click(label.closest('.ant-tree-node-content-wrapper') ?? label)
   await waitFor(() => assert.ok(dom.document.querySelector('.code-diff')), { timeout: 4000 })
