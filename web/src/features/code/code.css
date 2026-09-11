@@ -39,6 +39,16 @@
 .code-line-number { position: sticky; left: 0; flex-shrink: 0; box-sizing: border-box; padding: 0 12px 0 8px; text-align: right; color: var(--k-text-subtle); background: var(--k-surface); user-select: none; }
 .code-line-text { padding-right: 24px; }
 
+/* 文件查看器复用聊天代码块的 highlight.js 配色，保持两处语法高亮一致。 */
+.code-lines .hljs-comment, .code-lines .hljs-quote { color: var(--k-text-muted); font-style: italic; }
+.code-lines .hljs-keyword, .code-lines .hljs-selector-tag, .code-lines .hljs-built_in { color: #7c3db2; }
+.code-lines .hljs-string, .code-lines .hljs-addition, .code-lines .hljs-attr { color: #216e45; }
+.code-lines .hljs-number, .code-lines .hljs-literal, .code-lines .hljs-deletion { color: #ac383b; }
+.code-lines .hljs-title, .code-lines .hljs-type, .code-lines .hljs-name { color: #1c65b0; }
+.dark .code-lines .hljs-keyword, .dark .code-lines .hljs-selector-tag, .dark .code-lines .hljs-built_in { color: #cca8f5; }
+.dark .code-lines .hljs-string, .dark .code-lines .hljs-addition, .dark .code-lines .hljs-attr { color: #98cfa5; }
+.dark .code-lines .hljs-number, .dark .code-lines .hljs-literal, .dark .code-lines .hljs-deletion { color: #f2a2a4; }
+.dark .code-lines .hljs-title, .dark .code-lines .hljs-type, .dark .code-lines .hljs-name { color: #8fc5fa; }
 
 .code-empty { margin: auto; }
 .code-diff { flex: 1; min-height: 0; overflow: auto; }
