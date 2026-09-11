@@ -518,6 +518,7 @@ var (
 		{Name: "tls_certificate_pem", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "tls_private_key_pem", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "command_timeout_seconds", Type: field.TypeInt, Default: 120},
+		{Name: "chat_max_retries", Type: field.TypeInt, Comment: "聊天模型流式请求的最大重试次数；0 表示禁用", Default: 5},
 		{Name: "global_agents_paths", Type: field.TypeJSON, Nullable: true},
 		{Name: "system_prompt", Type: field.TypeString, Size: 2147483647, Comment: "追加到全局人设后的自定义提示词", Default: ""},
 		{Name: "user_agent", Type: field.TypeString, Size: 512, Comment: "出站模型 API 请求的 User-Agent", Default: "kaguya-agent/0.0.1"},

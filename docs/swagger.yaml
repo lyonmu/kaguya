@@ -543,6 +543,10 @@ definitions:
         maximum: 1000
         minimum: 0
         type: integer
+      chat_max_retries:
+        maximum: 20
+        minimum: 0
+        type: integer
       command_timeout_seconds:
         maximum: 86400
         minimum: 1
@@ -579,6 +583,10 @@ definitions:
     properties:
       agent_max_steps:
         maximum: 1000
+        minimum: 0
+        type: integer
+      chat_max_retries:
+        maximum: 20
         minimum: 0
         type: integer
       command_timeout_seconds:

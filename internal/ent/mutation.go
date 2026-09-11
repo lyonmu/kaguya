@@ -10870,6 +10870,8 @@ type KaguyaSystemInfoMutation struct {
 	tls_private_key_pem           *string
 	command_timeout_seconds       *int
 	addcommand_timeout_seconds    *int
+	chat_max_retries              *int
+	addchat_max_retries           *int
 	global_agents_paths           *[]string
 	appendglobal_agents_paths     []string
 	system_prompt                 *string
@@ -11347,6 +11349,62 @@ func (m *KaguyaSystemInfoMutation) ResetCommandTimeoutSeconds() {
 	m.addcommand_timeout_seconds = nil
 }
 
+// SetChatMaxRetries sets the "chat_max_retries" field.
+func (m *KaguyaSystemInfoMutation) SetChatMaxRetries(i int) {
+	m.chat_max_retries = &i
+	m.addchat_max_retries = nil
+}
+
+// ChatMaxRetries returns the value of the "chat_max_retries" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ChatMaxRetries() (r int, exists bool) {
+	v := m.chat_max_retries
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChatMaxRetries returns the old "chat_max_retries" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldChatMaxRetries(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChatMaxRetries is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChatMaxRetries requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChatMaxRetries: %w", err)
+	}
+	return oldValue.ChatMaxRetries, nil
+}
+
+// AddChatMaxRetries adds i to the "chat_max_retries" field.
+func (m *KaguyaSystemInfoMutation) AddChatMaxRetries(i int) {
+	if m.addchat_max_retries != nil {
+		*m.addchat_max_retries += i
+	} else {
+		m.addchat_max_retries = &i
+	}
+}
+
+// AddedChatMaxRetries returns the value that was added to the "chat_max_retries" field in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedChatMaxRetries() (r int, exists bool) {
+	v := m.addchat_max_retries
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetChatMaxRetries resets all changes to the "chat_max_retries" field.
+func (m *KaguyaSystemInfoMutation) ResetChatMaxRetries() {
+	m.chat_max_retries = nil
+	m.addchat_max_retries = nil
+}
+
 // SetGlobalAgentsPaths sets the "global_agents_paths" field.
 func (m *KaguyaSystemInfoMutation) SetGlobalAgentsPaths(s []string) {
 	m.global_agents_paths = &s
@@ -11590,7 +11648,7 @@ func (m *KaguyaSystemInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaSystemInfoMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.created_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
 	}
@@ -11614,6 +11672,9 @@ func (m *KaguyaSystemInfoMutation) Fields() []string {
 	}
 	if m.command_timeout_seconds != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCommandTimeoutSeconds)
+	}
+	if m.chat_max_retries != nil {
+		fields = append(fields, kaguyasysteminfo.FieldChatMaxRetries)
 	}
 	if m.global_agents_paths != nil {
 		fields = append(fields, kaguyasysteminfo.FieldGlobalAgentsPaths)
@@ -11654,6 +11715,8 @@ func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.TLSPrivateKeyPem()
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		return m.CommandTimeoutSeconds()
+	case kaguyasysteminfo.FieldChatMaxRetries:
+		return m.ChatMaxRetries()
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		return m.GlobalAgentsPaths()
 	case kaguyasysteminfo.FieldSystemPrompt:
@@ -11689,6 +11752,8 @@ func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldTLSPrivateKeyPem(ctx)
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		return m.OldCommandTimeoutSeconds(ctx)
+	case kaguyasysteminfo.FieldChatMaxRetries:
+		return m.OldChatMaxRetries(ctx)
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		return m.OldGlobalAgentsPaths(ctx)
 	case kaguyasysteminfo.FieldSystemPrompt:
@@ -11764,6 +11829,13 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetCommandTimeoutSeconds(v)
 		return nil
+	case kaguyasysteminfo.FieldChatMaxRetries:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChatMaxRetries(v)
+		return nil
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		v, ok := value.([]string)
 		if !ok {
@@ -11816,6 +11888,9 @@ func (m *KaguyaSystemInfoMutation) AddedFields() []string {
 	if m.addcommand_timeout_seconds != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCommandTimeoutSeconds)
 	}
+	if m.addchat_max_retries != nil {
+		fields = append(fields, kaguyasysteminfo.FieldChatMaxRetries)
+	}
 	return fields
 }
 
@@ -11830,6 +11905,8 @@ func (m *KaguyaSystemInfoMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedContextCompactionPercent()
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		return m.AddedCommandTimeoutSeconds()
+	case kaguyasysteminfo.FieldChatMaxRetries:
+		return m.AddedChatMaxRetries()
 	}
 	return nil, false
 }
@@ -11859,6 +11936,13 @@ func (m *KaguyaSystemInfoMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddCommandTimeoutSeconds(v)
+		return nil
+	case kaguyasysteminfo.FieldChatMaxRetries:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddChatMaxRetries(v)
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaSystemInfo numeric field %s", name)
@@ -11925,6 +12009,9 @@ func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		m.ResetCommandTimeoutSeconds()
+		return nil
+	case kaguyasysteminfo.FieldChatMaxRetries:
+		m.ResetChatMaxRetries()
 		return nil
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		m.ResetGlobalAgentsPaths()

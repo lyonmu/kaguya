@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"charm.land/fantasy"
@@ -180,7 +181,11 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 
 	// 流式执行对话
 	streamCtx := token.WithConversationID(ctx, convID)
+	retryCtx, cancelRetries := context.WithCancel(streamCtx)
+	defer cancelRetries()
+	var stepStreamed atomic.Bool
 	stream := newChatStream(func(block dtochat.ContentBlock) error {
+		stepStreamed.Store(true)
 		chat := dtochat.Chat{ID: convID, Flag: dtochat.WSFlagDelta, Block: &block}
 		if block.Type == dtochat.BlockTypeText && block.Phase == dtochat.BlockPhaseDelta {
 			chat.Content = block.Text
@@ -195,8 +200,24 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return nil
 	})
 	call := stream.callbacks()
-	// 流式内容已发送后不能透明重试，否则失败尝试会混入同一轮展示/历史。
-	maxRetries := 0
+	// Fantasy 对临时提供商错误执行指数退避。每个 Agent step 单独判断：当前
+	// step 尚未输出时可安全重试；一旦输出过任何块便取消重试，避免内容重复。
+	var retryPreventedError atomic.Pointer[fantasy.ProviderError]
+	retryCount := 0
+	call.OnStepStart = func(_ int) error {
+		stepStreamed.Store(false)
+		return nil
+	}
+	call.OnRetry = func(err *fantasy.ProviderError, delay time.Duration) {
+		if stepStreamed.Load() {
+			retryPreventedError.CompareAndSwap(nil, err)
+			cancelRetries()
+			return
+		}
+		retryCount++
+		global.Logger.Sugar().Warnf("retry chat stream: conversation_id=%s retry=%d/%d delay=%s err=%v", convID, retryCount, *info.ChatMaxRetries, delay, err)
+	}
+	maxRetries := *info.ChatMaxRetries
 	call.MaxRetries = &maxRetries
 	call.MaxOutputTokens = contextOutputLimit(model.TokenContextWindow, model.TokenMaxOutputTokens, *info.ContextCompactionPercent)
 	if len(tools) > 0 && *info.AgentMaxSteps > 0 {
@@ -228,8 +249,11 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	call.Prompt = requestPrompt
 	call.Messages = history
 	startedAt := time.Now()
-	result, err := ag.Stream(streamCtx, call)
+	result, err := ag.Stream(retryCtx, call)
 	finishedAt := time.Now()
+	if retryErr := retryPreventedError.Load(); retryErr != nil {
+		err = retryErr
+	}
 	if err == nil {
 		err = ctx.Err()
 	}

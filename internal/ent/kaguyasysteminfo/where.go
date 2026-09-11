@@ -104,6 +104,11 @@ func CommandTimeoutSeconds(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldCommandTimeoutSeconds, v))
 }
 
+// ChatMaxRetries applies equality check predicate on the "chat_max_retries" field. It's identical to ChatMaxRetriesEQ.
+func ChatMaxRetries(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldChatMaxRetries, v))
+}
+
 // SystemPrompt applies equality check predicate on the "system_prompt" field. It's identical to SystemPromptEQ.
 func SystemPrompt(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldSystemPrompt, v))
@@ -502,6 +507,46 @@ func CommandTimeoutSecondsLT(v int) predicate.KaguyaSystemInfo {
 // CommandTimeoutSecondsLTE applies the LTE predicate on the "command_timeout_seconds" field.
 func CommandTimeoutSecondsLTE(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldCommandTimeoutSeconds, v))
+}
+
+// ChatMaxRetriesEQ applies the EQ predicate on the "chat_max_retries" field.
+func ChatMaxRetriesEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldChatMaxRetries, v))
+}
+
+// ChatMaxRetriesNEQ applies the NEQ predicate on the "chat_max_retries" field.
+func ChatMaxRetriesNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldChatMaxRetries, v))
+}
+
+// ChatMaxRetriesIn applies the In predicate on the "chat_max_retries" field.
+func ChatMaxRetriesIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldChatMaxRetries, vs...))
+}
+
+// ChatMaxRetriesNotIn applies the NotIn predicate on the "chat_max_retries" field.
+func ChatMaxRetriesNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldChatMaxRetries, vs...))
+}
+
+// ChatMaxRetriesGT applies the GT predicate on the "chat_max_retries" field.
+func ChatMaxRetriesGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldChatMaxRetries, v))
+}
+
+// ChatMaxRetriesGTE applies the GTE predicate on the "chat_max_retries" field.
+func ChatMaxRetriesGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldChatMaxRetries, v))
+}
+
+// ChatMaxRetriesLT applies the LT predicate on the "chat_max_retries" field.
+func ChatMaxRetriesLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldChatMaxRetries, v))
+}
+
+// ChatMaxRetriesLTE applies the LTE predicate on the "chat_max_retries" field.
+func ChatMaxRetriesLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldChatMaxRetries, v))
 }
 
 // GlobalAgentsPathsIsNil applies the IsNil predicate on the "global_agents_paths" field.

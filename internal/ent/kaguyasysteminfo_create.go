@@ -135,6 +135,20 @@ func (_c *KaguyaSystemInfoCreate) SetNillableCommandTimeoutSeconds(v *int) *Kagu
 	return _c
 }
 
+// SetChatMaxRetries sets the "chat_max_retries" field.
+func (_c *KaguyaSystemInfoCreate) SetChatMaxRetries(v int) *KaguyaSystemInfoCreate {
+	_c.mutation.SetChatMaxRetries(v)
+	return _c
+}
+
+// SetNillableChatMaxRetries sets the "chat_max_retries" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableChatMaxRetries(v *int) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetChatMaxRetries(*v)
+	}
+	return _c
+}
+
 // SetGlobalAgentsPaths sets the "global_agents_paths" field.
 func (_c *KaguyaSystemInfoCreate) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoCreate {
 	_c.mutation.SetGlobalAgentsPaths(v)
@@ -282,6 +296,10 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultCommandTimeoutSeconds
 		_c.mutation.SetCommandTimeoutSeconds(v)
 	}
+	if _, ok := _c.mutation.ChatMaxRetries(); !ok {
+		v := kaguyasysteminfo.DefaultChatMaxRetries
+		_c.mutation.SetChatMaxRetries(v)
+	}
 	if _, ok := _c.mutation.SystemPrompt(); !ok {
 		v := kaguyasysteminfo.DefaultSystemPrompt
 		_c.mutation.SetSystemPrompt(v)
@@ -341,6 +359,14 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 	if v, ok := _c.mutation.CommandTimeoutSeconds(); ok {
 		if err := kaguyasysteminfo.CommandTimeoutSecondsValidator(v); err != nil {
 			return &ValidationError{Name: "command_timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.command_timeout_seconds": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ChatMaxRetries(); !ok {
+		return &ValidationError{Name: "chat_max_retries", err: errors.New(`ent: missing required field "KaguyaSystemInfo.chat_max_retries"`)}
+	}
+	if v, ok := _c.mutation.ChatMaxRetries(); ok {
+		if err := kaguyasysteminfo.ChatMaxRetriesValidator(v); err != nil {
+			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.SystemPrompt(); !ok {
@@ -432,6 +458,10 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.CommandTimeoutSeconds(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
 		_node.CommandTimeoutSeconds = value
+	}
+	if value, ok := _c.mutation.ChatMaxRetries(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldChatMaxRetries, field.TypeInt, value)
+		_node.ChatMaxRetries = value
 	}
 	if value, ok := _c.mutation.GlobalAgentsPaths(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON, value)
@@ -610,6 +640,24 @@ func (u *KaguyaSystemInfoUpsert) UpdateCommandTimeoutSeconds() *KaguyaSystemInfo
 // AddCommandTimeoutSeconds adds v to the "command_timeout_seconds" field.
 func (u *KaguyaSystemInfoUpsert) AddCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpsert {
 	u.Add(kaguyasysteminfo.FieldCommandTimeoutSeconds, v)
+	return u
+}
+
+// SetChatMaxRetries sets the "chat_max_retries" field.
+func (u *KaguyaSystemInfoUpsert) SetChatMaxRetries(v int) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldChatMaxRetries, v)
+	return u
+}
+
+// UpdateChatMaxRetries sets the "chat_max_retries" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateChatMaxRetries() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldChatMaxRetries)
+	return u
+}
+
+// AddChatMaxRetries adds v to the "chat_max_retries" field.
+func (u *KaguyaSystemInfoUpsert) AddChatMaxRetries(v int) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldChatMaxRetries, v)
 	return u
 }
 
@@ -853,6 +901,27 @@ func (u *KaguyaSystemInfoUpsertOne) AddCommandTimeoutSeconds(v int) *KaguyaSyste
 func (u *KaguyaSystemInfoUpsertOne) UpdateCommandTimeoutSeconds() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateCommandTimeoutSeconds()
+	})
+}
+
+// SetChatMaxRetries sets the "chat_max_retries" field.
+func (u *KaguyaSystemInfoUpsertOne) SetChatMaxRetries(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetChatMaxRetries(v)
+	})
+}
+
+// AddChatMaxRetries adds v to the "chat_max_retries" field.
+func (u *KaguyaSystemInfoUpsertOne) AddChatMaxRetries(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddChatMaxRetries(v)
+	})
+}
+
+// UpdateChatMaxRetries sets the "chat_max_retries" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateChatMaxRetries() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateChatMaxRetries()
 	})
 }
 
@@ -1274,6 +1343,27 @@ func (u *KaguyaSystemInfoUpsertBulk) AddCommandTimeoutSeconds(v int) *KaguyaSyst
 func (u *KaguyaSystemInfoUpsertBulk) UpdateCommandTimeoutSeconds() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateCommandTimeoutSeconds()
+	})
+}
+
+// SetChatMaxRetries sets the "chat_max_retries" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetChatMaxRetries(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetChatMaxRetries(v)
+	})
+}
+
+// AddChatMaxRetries adds v to the "chat_max_retries" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddChatMaxRetries(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddChatMaxRetries(v)
+	})
+}
+
+// UpdateChatMaxRetries sets the "chat_max_retries" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateChatMaxRetries() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateChatMaxRetries()
 	})
 }
 

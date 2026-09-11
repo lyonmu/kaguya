@@ -147,6 +147,27 @@ func (_u *KaguyaSystemInfoUpdate) AddCommandTimeoutSeconds(v int) *KaguyaSystemI
 	return _u
 }
 
+// SetChatMaxRetries sets the "chat_max_retries" field.
+func (_u *KaguyaSystemInfoUpdate) SetChatMaxRetries(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetChatMaxRetries()
+	_u.mutation.SetChatMaxRetries(v)
+	return _u
+}
+
+// SetNillableChatMaxRetries sets the "chat_max_retries" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableChatMaxRetries(v *int) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetChatMaxRetries(*v)
+	}
+	return _u
+}
+
+// AddChatMaxRetries adds value to the "chat_max_retries" field.
+func (_u *KaguyaSystemInfoUpdate) AddChatMaxRetries(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddChatMaxRetries(v)
+	return _u
+}
+
 // SetGlobalAgentsPaths sets the "global_agents_paths" field.
 func (_u *KaguyaSystemInfoUpdate) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpdate {
 	_u.mutation.SetGlobalAgentsPaths(v)
@@ -285,6 +306,11 @@ func (_u *KaguyaSystemInfoUpdate) check() error {
 			return &ValidationError{Name: "command_timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.command_timeout_seconds": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ChatMaxRetries(); ok {
+		if err := kaguyasysteminfo.ChatMaxRetriesValidator(v); err != nil {
+			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := kaguyasysteminfo.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.user_agent": %w`, err)}
@@ -343,6 +369,12 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedCommandTimeoutSeconds(); ok {
 		_spec.AddField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ChatMaxRetries(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldChatMaxRetries, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedChatMaxRetries(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldChatMaxRetries, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.GlobalAgentsPaths(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON, value)
@@ -506,6 +538,27 @@ func (_u *KaguyaSystemInfoUpdateOne) AddCommandTimeoutSeconds(v int) *KaguyaSyst
 	return _u
 }
 
+// SetChatMaxRetries sets the "chat_max_retries" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetChatMaxRetries(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetChatMaxRetries()
+	_u.mutation.SetChatMaxRetries(v)
+	return _u
+}
+
+// SetNillableChatMaxRetries sets the "chat_max_retries" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableChatMaxRetries(v *int) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetChatMaxRetries(*v)
+	}
+	return _u
+}
+
+// AddChatMaxRetries adds value to the "chat_max_retries" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddChatMaxRetries(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddChatMaxRetries(v)
+	return _u
+}
+
 // SetGlobalAgentsPaths sets the "global_agents_paths" field.
 func (_u *KaguyaSystemInfoUpdateOne) SetGlobalAgentsPaths(v []string) *KaguyaSystemInfoUpdateOne {
 	_u.mutation.SetGlobalAgentsPaths(v)
@@ -657,6 +710,11 @@ func (_u *KaguyaSystemInfoUpdateOne) check() error {
 			return &ValidationError{Name: "command_timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.command_timeout_seconds": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ChatMaxRetries(); ok {
+		if err := kaguyasysteminfo.ChatMaxRetriesValidator(v); err != nil {
+			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := kaguyasysteminfo.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.user_agent": %w`, err)}
@@ -732,6 +790,12 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if value, ok := _u.mutation.AddedCommandTimeoutSeconds(); ok {
 		_spec.AddField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ChatMaxRetries(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldChatMaxRetries, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedChatMaxRetries(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldChatMaxRetries, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.GlobalAgentsPaths(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON, value)

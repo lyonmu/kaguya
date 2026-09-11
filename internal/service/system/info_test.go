@@ -131,17 +131,17 @@ func TestAgentSettingsPersistenceAndValidation(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	svc := &SystemSvc{}
 	info, err := svc.Info(ctx)
-	if err != nil || *info.AgentMaxSteps != 0 || *info.CommandTimeoutSeconds != 120 || len(info.GlobalAgentsPaths) != 2 {
+	if err != nil || *info.AgentMaxSteps != 0 || *info.CommandTimeoutSeconds != 120 || *info.ChatMaxRetries != 5 || len(info.GlobalAgentsPaths) != 2 {
 		t.Fatalf("defaults=%+v %v", info, err)
 	}
-	steps, timeout := 100, 300
+	steps, timeout, retries := 100, 300, 7
 	percent := 75
 	if *info.ContextCompactionPercent != 90 {
 		t.Fatal("wrong default compaction percent")
 	}
-	req := &dtosystem.SystemInfoSaveReq{UserAgent: "test", AgentMaxSteps: &steps, CommandTimeoutSeconds: &timeout, GlobalAgentsPaths: []string{}, ContextCompactionPercent: &percent}
+	req := &dtosystem.SystemInfoSaveReq{UserAgent: "test", AgentMaxSteps: &steps, CommandTimeoutSeconds: &timeout, ChatMaxRetries: &retries, GlobalAgentsPaths: []string{}, ContextCompactionPercent: &percent}
 	info, err = svc.InfoUpdate(ctx, req)
-	if err != nil || *info.AgentMaxSteps != 100 || *info.CommandTimeoutSeconds != 300 || info.GlobalAgentsPaths == nil || len(info.GlobalAgentsPaths) != 0 {
+	if err != nil || *info.AgentMaxSteps != 100 || *info.CommandTimeoutSeconds != 300 || *info.ChatMaxRetries != 7 || info.GlobalAgentsPaths == nil || len(info.GlobalAgentsPaths) != 0 {
 		t.Fatalf("saved=%+v %v", info, err)
 	}
 	info, err = svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "old-client"})
@@ -158,6 +158,11 @@ func TestAgentSettingsPersistenceAndValidation(t *testing.T) {
 		t.Fatalf("invalid steps: %v", err)
 	}
 	steps = 1
+	retries = 21
+	if _, err = svc.InfoUpdate(ctx, req); !errors.Is(err, ErrInvalidSystemInfo) {
+		t.Fatalf("invalid retries: %v", err)
+	}
+	retries = 7
 	req.GlobalAgentsPaths = []string{"relative/AGENTS.md"}
 	if _, err = svc.InfoUpdate(ctx, req); !errors.Is(err, ErrInvalidSystemInfo) {
 		t.Fatalf("relative path: %v", err)

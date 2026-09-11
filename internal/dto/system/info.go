@@ -5,6 +5,7 @@ type SystemInfoSaveReq struct {
 	ContextCompactionPercent *int     `json:"context_compaction_percent,omitempty" binding:"omitempty,min=10,max=95"`
 	AgentMaxSteps            *int     `json:"agent_max_steps,omitempty" binding:"omitempty,min=0,max=1000"`
 	CommandTimeoutSeconds    *int     `json:"command_timeout_seconds,omitempty" binding:"omitempty,min=1,max=86400"`
+	ChatMaxRetries           *int     `json:"chat_max_retries,omitempty" binding:"omitempty,min=0,max=20"`
 	GlobalAgentsPaths        []string `json:"global_agents_paths"`
 	SystemPrompt             string   `json:"system_prompt" binding:"max=20000"`
 	UserAgent                string   `json:"user_agent" binding:"required,max=512"`

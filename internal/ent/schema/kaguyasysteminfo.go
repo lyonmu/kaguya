@@ -26,6 +26,7 @@ func (KaguyaSystemInfo) Fields() []ent.Field {
 		field.Text("tls_certificate_pem").Default(""),
 		field.Text("tls_private_key_pem").Default("").Sensitive(),
 		field.Int("command_timeout_seconds").Default(120).Min(1).Max(86400),
+		field.Int("chat_max_retries").Default(5).Min(0).Max(20).Comment("聊天模型流式请求的最大重试次数；0 表示禁用"),
 		field.JSON("global_agents_paths", []string{}).Optional(),
 		field.Text("system_prompt").Default("").Comment("追加到全局人设后的自定义提示词"),
 		field.String("user_agent").MaxLen(512).Default(consts.DefaultUserAgent).Comment("出站模型 API 请求的 User-Agent"),

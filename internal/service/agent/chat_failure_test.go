@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -19,6 +20,9 @@ func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
 	for _, mode := range []string{"error", "disconnect", "cancel", "length", "storage"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, client := setupChatTest(t)
+			if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetChatMaxRetries(0).Exec(ctx); err != nil {
+				t.Fatal(err)
+			}
 			if err := saveCompletedTurn(ctx, testCompletedTurn("123", 0)); err != nil {
 				t.Fatal(err)
 			}
@@ -113,5 +117,50 @@ func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
 				t.Fatalf("usage changed: %+v %v", detail, err)
 			}
 		})
+	}
+}
+
+func TestChatRetriesTransientStreamOverload(t *testing.T) {
+	ctx, client := setupChatTest(t)
+	var requests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		call := requests.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		if call == 1 {
+			fmt.Fprint(w, "data: {\"error\":{\"type\":\"service_unavailable_error\",\"code\":\"server_is_overloaded\",\"message\":\"overloaded\"}}\n\n")
+			return
+		}
+		fmt.Fprint(w, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"recovered\"},\"finish_reason\":null}]}\n\n")
+		fmt.Fprint(w, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+	p, err := client.KaguyaProviderInfo.Create().SetProviderName("retry").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("retry").SetModelID("retry").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetDefaultModelID(model.ID).SetChatMaxRetries(1).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	ch := make(chan *dtochat.ChatResp)
+	go (&AgentSvc{}).Chat(ctx, ch, &dtochat.ChatReq{Messages: "retry overload"})
+	var done, failures int
+	var text strings.Builder
+	for frame := range ch {
+		if frame.Err != nil {
+			failures++
+		}
+		if frame.Chat.Flag == dtochat.WSFlagDone {
+			done++
+		}
+		if frame.Chat.Block != nil && frame.Chat.Block.Type == dtochat.BlockTypeText {
+			text.WriteString(frame.Chat.Block.Text)
+		}
+	}
+	if requests.Load() != 2 || done != 1 || failures != 0 || text.String() != "recovered" {
+		t.Fatalf("requests=%d done=%d failures=%d text=%q", requests.Load(), done, failures, text.String())
 	}
 }

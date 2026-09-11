@@ -113,7 +113,7 @@ func TestProjectFileSearchAndReferenceBoundary(t *testing.T) {
 	ctx, client := setupChatTest(t)
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	for _, path := range []string{"src/main.go", "space file.txt", "node_modules/hidden.txt", ".git/config"} {
+	for _, path := range []string{"src/main.go", "space file.txt", "node_modules/hidden.txt", ".git/config", ".env", "src/.generated/output.go"} {
 		full := filepath.Join(home, path)
 		if err := os.MkdirAll(filepath.Dir(full), 0700); err != nil {
 			t.Fatal(err)

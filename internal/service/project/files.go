@@ -40,6 +40,14 @@ func (s *ProjectSvc) Files(ctx context.Context, id, query string) (*FileSearchRe
 		if walkErr != nil {
 			return walkErr
 		}
+		// Dot-prefixed entries are hidden from the mention picker at every depth.
+		// Keep the synthetic walk root "." itself so traversal can begin.
+		if path != "." && strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		visited++
 		if visited > 20000 {
 			result.Truncated = true
@@ -47,7 +55,7 @@ func (s *ProjectSvc) Files(ctx context.Context, id, query string) (*FileSearchRe
 		}
 		if d.IsDir() {
 			switch d.Name() {
-			case ".git", ".codegraph", ".kaguya", "node_modules", "vendor", "target", "dist", ".next", ".venv", "__pycache__":
+			case "node_modules", "vendor", "target", "dist", "__pycache__":
 				return fs.SkipDir
 			}
 			return nil

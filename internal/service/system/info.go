@@ -41,7 +41,7 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 			return nil, ErrInvalidSystemInfo
 		}
 	}
-	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || len(req.GlobalAgentsPaths) > 32 {
+	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || req.ChatMaxRetries != nil && (*req.ChatMaxRetries < 0 || *req.ChatMaxRetries > 20) || len(req.GlobalAgentsPaths) > 32 {
 		return nil, ErrInvalidSystemInfo
 	}
 	for _, path := range req.GlobalAgentsPaths {
@@ -70,6 +70,9 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	}
 	if req.CommandTimeoutSeconds != nil {
 		update.SetCommandTimeoutSeconds(*req.CommandTimeoutSeconds)
+	}
+	if req.ChatMaxRetries != nil {
+		update.SetChatMaxRetries(*req.ChatMaxRetries)
 	}
 	if req.GlobalAgentsPaths != nil {
 		update.SetGlobalAgentsPaths(req.GlobalAgentsPaths)
@@ -101,7 +104,7 @@ func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 		SystemInfoSaveReq: dtosystem.SystemInfoSaveReq{
 			ContextCompactionPercent: &row.ContextCompactionPercent,
 			SystemPrompt:             row.SystemPrompt, UserAgent: row.UserAgent,
-			AgentMaxSteps: &row.AgentMaxSteps, CommandTimeoutSeconds: &row.CommandTimeoutSeconds, GlobalAgentsPaths: defaultAgentsPaths(row.GlobalAgentsPaths),
+			AgentMaxSteps: &row.AgentMaxSteps, CommandTimeoutSeconds: &row.CommandTimeoutSeconds, ChatMaxRetries: &row.ChatMaxRetries, GlobalAgentsPaths: defaultAgentsPaths(row.GlobalAgentsPaths),
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
 		},
 		GlobalSystemPrompt: consts.GlobalSystemPrompt,

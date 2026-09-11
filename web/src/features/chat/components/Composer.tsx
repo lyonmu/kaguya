@@ -3,7 +3,7 @@ import { Alert, Button, Tooltip } from 'antd'
 import { ModelCascader } from '../../providers/ModelCascader'
 import { fetchModelLabels } from '../../providers/api'
 import type { ModelLabelOption } from '../../providers/types'
-import { CloseOutlined, FileTextOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
+import { FileTextOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
 import { ComposerPrimitive, useAui } from '@assistant-ui/react'
 import { activeMention } from '../mentions'
 import { searchProjectFiles } from '../api'
@@ -54,13 +54,18 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
   const chooseFile = (path: string) => {
     if (!mention) return
     if (!references.includes(path) && references.length < 8) onReferencesChange([...references, path])
-    onChange(value.slice(0, mention.start) + value.slice(mention.end))
+    const token = `@${path}`
+    const tail = value.slice(mention.end)
+    const separator = tail === '' || !/^\s/.test(tail) ? ' ' : ''
+    const nextValue = value.slice(0, mention.start) + token + separator + tail
+    const nextCaret = mention.start + token.length + separator.length
+    onChange(nextValue)
     setDismissed(true)
     requestAnimationFrame(() => {
       const textarea = input.current
       textarea?.focus()
-      textarea?.setSelectionRange(mention.start, mention.start)
-      setCaret(mention.start)
+      textarea?.setSelectionRange(nextCaret, nextCaret)
+      setCaret(nextCaret)
     })
   }
   const [models, setModels] = useState<ModelLabelOption[]>([])
@@ -90,11 +95,6 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
           {truncated && !filesLoading && <div className="chat-mention-footer">结果已限制，请输入更具体的路径</div>}
         </div>}
         <div className="chat-composer-input-area">
-          {references.length > 0 && <div className="chat-reference-chips" aria-label="已引用文件">{references.map(path => <span key={path}>
-            <FileTextOutlined />
-            <span title={path}>@{path}</span>
-            <button type="button" aria-label={`移除引用 ${path}`} disabled={streaming || disabled} onClick={() => onReferencesChange(references.filter(item => item !== path))}><CloseOutlined /></button>
-          </span>)}</div>}
           <ComposerPrimitive.Input
             ref={input}
             aria-controls={mention ? 'project-file-mentions' : undefined}
@@ -104,7 +104,14 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
             className="chat-composer-input"
             placeholder={projectId ? "描述任务，输入 @ 引用项目文件…" : "输入问题，与 Kaguya 对话…"}
             value={value}
-            onChange={event => { onChange(event.target.value); setCaret(event.target.selectionStart); setDismissed(false) }}
+            onChange={event => {
+              const nextValue = event.target.value
+              onChange(nextValue)
+              const retained = references.filter(path => nextValue.includes(`@${path}`))
+              if (retained.length !== references.length) onReferencesChange(retained)
+              setCaret(event.target.selectionStart)
+              setDismissed(false)
+            }}
             onSelect={event => setCaret(event.currentTarget.selectionStart)}
             onBlur={() => setDismissed(true)}
             minRows={2}

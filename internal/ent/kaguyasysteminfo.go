@@ -34,6 +34,8 @@ type KaguyaSystemInfo struct {
 	TLSPrivateKeyPem string `json:"-"`
 	// CommandTimeoutSeconds holds the value of the "command_timeout_seconds" field.
 	CommandTimeoutSeconds int `json:"command_timeout_seconds,omitempty"`
+	// 聊天模型流式请求的最大重试次数；0 表示禁用
+	ChatMaxRetries int `json:"chat_max_retries,omitempty"`
 	// GlobalAgentsPaths holds the value of the "global_agents_paths" field.
 	GlobalAgentsPaths []string `json:"global_agents_paths,omitempty"`
 	// 追加到全局人设后的自定义提示词
@@ -54,7 +56,7 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyasysteminfo.FieldGlobalAgentsPaths:
 			values[i] = new([]byte)
-		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds:
+		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries:
 			values[i] = new(sql.NullInt64)
 		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldTLSCertificatePem, kaguyasysteminfo.FieldTLSPrivateKeyPem, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldUserAgent, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
 			values[i] = new(sql.NullString)
@@ -129,6 +131,12 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field command_timeout_seconds", values[i])
 			} else if value.Valid {
 				_m.CommandTimeoutSeconds = int(value.Int64)
+			}
+		case kaguyasysteminfo.FieldChatMaxRetries:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field chat_max_retries", values[i])
+			} else if value.Valid {
+				_m.ChatMaxRetries = int(value.Int64)
 			}
 		case kaguyasysteminfo.FieldGlobalAgentsPaths:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -222,6 +230,9 @@ func (_m *KaguyaSystemInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("command_timeout_seconds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CommandTimeoutSeconds))
+	builder.WriteString(", ")
+	builder.WriteString("chat_max_retries=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ChatMaxRetries))
 	builder.WriteString(", ")
 	builder.WriteString("global_agents_paths=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GlobalAgentsPaths))

@@ -113,7 +113,7 @@ it('uses Ant Design X Mermaid after streaming and recovers from invalid source',
   }
 })
 
-it('embeds selected project files without quoted input tokens and dismisses on Escape', async () => {
+it('embeds selected project files inline and removes references when their tokens are deleted', async () => {
   const searches: string[] = []
   globalThis.fetch = (async url => {
     if (String(url).includes('/files')) {
@@ -136,15 +136,13 @@ it('embeds selected project files without quoted input tokens and dismisses on E
   view.getAllByRole('option').forEach(option => { option.scrollIntoView = () => {} })
   fireEvent.keyDown(textarea, { key: 'ArrowDown' })
   fireEvent.keyDown(textarea, { key: 'Enter' })
-  await waitFor(() => assert.equal(textarea.value, '看看 '))
+  await waitFor(() => assert.equal(textarea.value, '看看 @docs/my file.md '))
   assert.equal(sends, 0)
   assert.equal(view.queryByRole('listbox', { name: '项目文件' }), null)
-  assert.ok(view.getByLabelText('已引用文件'))
-  assert.ok(view.getByText('@docs/my file.md'))
+  assert.equal(view.queryByLabelText('已引用文件'), null)
   assert.equal(textarea.value.includes('"'), false)
   assert.ok(searches[0].includes('/42/files'))
-  fireEvent.click(view.getByRole('button', { name: '移除引用 docs/my file.md' }))
-  assert.equal(view.queryByLabelText('已引用文件'), null)
+  fireEvent.change(textarea, { target: { value: '看看 ', selectionStart: 3 } })
   fireEvent.change(textarea, { target: { value: '@main', selectionStart: 5 } })
   await waitFor(() => assert.ok(view.getByRole('listbox', { name: '项目文件' })))
   fireEvent.keyDown(textarea, { key: 'Escape' })

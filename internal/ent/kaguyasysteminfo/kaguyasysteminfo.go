@@ -30,6 +30,8 @@ const (
 	FieldTLSPrivateKeyPem = "tls_private_key_pem"
 	// FieldCommandTimeoutSeconds holds the string denoting the command_timeout_seconds field in the database.
 	FieldCommandTimeoutSeconds = "command_timeout_seconds"
+	// FieldChatMaxRetries holds the string denoting the chat_max_retries field in the database.
+	FieldChatMaxRetries = "chat_max_retries"
 	// FieldGlobalAgentsPaths holds the string denoting the global_agents_paths field in the database.
 	FieldGlobalAgentsPaths = "global_agents_paths"
 	// FieldSystemPrompt holds the string denoting the system_prompt field in the database.
@@ -55,6 +57,7 @@ var Columns = []string{
 	FieldTLSCertificatePem,
 	FieldTLSPrivateKeyPem,
 	FieldCommandTimeoutSeconds,
+	FieldChatMaxRetries,
 	FieldGlobalAgentsPaths,
 	FieldSystemPrompt,
 	FieldUserAgent,
@@ -101,6 +104,10 @@ var (
 	DefaultCommandTimeoutSeconds int
 	// CommandTimeoutSecondsValidator is a validator for the "command_timeout_seconds" field. It is called by the builders before save.
 	CommandTimeoutSecondsValidator func(int) error
+	// DefaultChatMaxRetries holds the default value on creation for the "chat_max_retries" field.
+	DefaultChatMaxRetries int
+	// ChatMaxRetriesValidator is a validator for the "chat_max_retries" field. It is called by the builders before save.
+	ChatMaxRetriesValidator func(int) error
 	// DefaultSystemPrompt holds the default value on creation for the "system_prompt" field.
 	DefaultSystemPrompt string
 	// DefaultUserAgent holds the default value on creation for the "user_agent" field.
@@ -163,6 +170,11 @@ func ByTLSPrivateKeyPem(opts ...sql.OrderTermOption) OrderOption {
 // ByCommandTimeoutSeconds orders the results by the command_timeout_seconds field.
 func ByCommandTimeoutSeconds(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCommandTimeoutSeconds, opts...).ToFunc()
+}
+
+// ByChatMaxRetries orders the results by the chat_max_retries field.
+func ByChatMaxRetries(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldChatMaxRetries, opts...).ToFunc()
 }
 
 // BySystemPrompt orders the results by the system_prompt field.

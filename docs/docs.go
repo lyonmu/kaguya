@@ -2544,6 +2544,11 @@ const docTemplate = `{
                     "maximum": 1000,
                     "minimum": 0
                 },
+                "chat_max_retries": {
+                    "type": "integer",
+                    "maximum": 20,
+                    "minimum": 0
+                },
                 "command_timeout_seconds": {
                     "type": "integer",
                     "maximum": 86400,
@@ -2594,6 +2599,11 @@ const docTemplate = `{
                 "agent_max_steps": {
                     "type": "integer",
                     "maximum": 1000,
+                    "minimum": 0
+                },
+                "chat_max_retries": {
+                    "type": "integer",
+                    "maximum": 20,
                     "minimum": 0
                 },
                 "command_timeout_seconds": {
