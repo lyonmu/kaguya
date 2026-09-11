@@ -246,7 +246,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
     >
       <div className="code-browser" style={{ '--code-side-width': `${sideWidth}px` } as CSSProperties}>
         <div className="code-browser-side">
-          {error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={refresh}>重试</Button>} />}
+          {error && <Alert type="error" showIcon title={error} action={<Button size="small" onClick={refresh}>重试</Button>} />}
           {tree ? (
             <FileTree items={tree.items} changed={statusMap} selected={selected} changedOnly={changedOnly} onSelect={selectFile} />
           ) : (
@@ -264,9 +264,9 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
           onPointerCancel={onResizeEnd}
         />
         <div className="code-browser-main">
-          {!error && status && !status.is_git && <Alert type="info" showIcon message={status.message ?? '当前项目不是 Git 仓库，仅支持浏览文件'} />}
-          {status?.truncated && <Alert type="warning" showIcon message="变更文件较多，仅显示前 1000 个" />}
-          {tree?.truncated && <Alert type="warning" showIcon message="项目文件较多，文件树仅显示部分内容" />}
+          {!error && status && !status.is_git && <Alert type="info" showIcon title={status.message ?? '当前项目不是 Git 仓库，仅支持浏览文件'} />}
+          {status?.truncated && <Alert type="warning" showIcon title="变更文件较多，仅显示前 1000 个" />}
+          {tree?.truncated && <Alert type="warning" showIcon title="项目文件较多，文件树仅显示部分内容" />}
           <div className="code-view-head">
             {selected ? (
               <div className="code-view-title">
@@ -300,7 +300,7 @@ export function CodeBrowserDrawer({ open, projectId, projectName, onClose }: {
           </div>
           <div className="code-view-body">
             {fileLoading && <div className="code-loading"><Spin size="small" /></div>}
-            {!fileLoading && fileError && <Alert type="error" showIcon message={fileError} />}
+            {!fileLoading && fileError && <Alert type="error" showIcon title={fileError} />}
             {!fileLoading && !fileError && selected && view === 'diff' && diff && (
               <DiffViewer key={`diff:${projectId}:${selected}`} path={selected} diff={diff.diff} binary={diff.binary} truncated={diff.truncated} mode={mode} theme={theme} />
             )}

@@ -425,7 +425,7 @@ export function ProviderManagementPage() {
         </Form>
       </Card>
 
-      {error ? <Alert className="mb-3.5" message="提供商加载失败" description={error} showIcon type="error" /> : null}
+      {error ? <Alert className="mb-3.5" title="提供商加载失败" description={error} showIcon type="error" /> : null}
 
       <Card className="overflow-hidden border-k-border! bg-k-surface! shadow-sm shadow-black/5" styles={{ body: { padding: 0 } }}>
         <div className="flex min-h-16 items-center justify-between border-b border-k-border-soft px-4 py-3.5">

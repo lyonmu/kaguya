@@ -330,7 +330,7 @@ export function AccessLogPage() {
           }
           className="mb-3.5"
           description={error}
-          message="访问日志加载失败"
+          title="访问日志加载失败"
           showIcon
           type="error"
         />

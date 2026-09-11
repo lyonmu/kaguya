@@ -13,10 +13,10 @@ export function FileViewer({ path, data }: { path: string; data: FileContent }) 
   return (
     <>
       {data.truncated && (
-        <Alert type="warning" banner message="文件超过 512KB，仅显示前 512KB 内容，已关闭语法高亮" />
+        <Alert type="warning" banner title="文件超过 512KB，仅显示前 512KB 内容，已关闭语法高亮" />
       )}
       {!data.truncated && data.content.length > HIGHLIGHT_MAX_CHARS && (
-        <Alert type="info" banner message="文件较大，已关闭语法高亮以保证滚动流畅" />
+        <Alert type="info" banner title="文件较大，已关闭语法高亮以保证滚动流畅" />
       )}
       <CodeLines lines={lines} />
     </>
