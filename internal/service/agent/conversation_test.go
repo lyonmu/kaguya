@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"charm.land/fantasy/providers/anthropic"
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 )
 
 func testCompletedTurn(id string, version int64) completedTurn {
@@ -251,5 +253,77 @@ func TestCompactHistoryDefersLargeBlocksAndPreservesPaging(t *testing.T) {
 	}
 	if _, err := svc.ConversationBlock(ctx, request); !errors.Is(err, ErrConversationNotFound) {
 		t.Fatalf("deleted history exposed: %v", err)
+	}
+}
+
+// 最后一次压缩快照之前的原始消息不再参与续聊拼接。
+func TestLoadConversationUsesLatestSnapshot(t *testing.T) {
+	ctx, _ := setupChatTest(t)
+	if err := saveCompletedTurn(ctx, testCompletedTurn("snapshot", 0)); err != nil {
+		t.Fatal(err)
+	}
+	second := testCompletedTurn("snapshot", 1)
+	second.ContextMessages = []fantasy.Message{fantasy.NewUserMessage("第一次快照")}
+	second.CompactionCount = 1
+	if err := saveCompletedTurn(ctx, second); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveCompletedTurn(ctx, testCompletedTurn("snapshot", 2)); err != nil {
+		t.Fatal(err)
+	}
+	fourth := testCompletedTurn("snapshot", 3)
+	fourth.ContextMessages = []fantasy.Message{fantasy.NewUserMessage("第二次快照")}
+	fourth.CompactionCount = 1
+	if err := saveCompletedTurn(ctx, fourth); err != nil {
+		t.Fatal(err)
+	}
+	fifth := testCompletedTurn("snapshot", 4)
+	if err := saveCompletedTurn(ctx, fifth); err != nil {
+		t.Fatal(err)
+	}
+	history, version, err := loadConversation(ctx, "snapshot")
+	if err != nil || version != 5 {
+		t.Fatalf("version=%d err=%v", version, err)
+	}
+	want := append([]fantasy.Message{fantasy.NewUserMessage("第二次快照")}, fifth.Messages...)
+	gotJSON, err := json.Marshal(history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantJSON, err := json.Marshal(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(gotJSON) != string(wantJSON) {
+		t.Fatalf("history=%s want=%s", gotJSON, wantJSON)
+	}
+	if strings.Contains(string(gotJSON), "第一次快照") {
+		t.Fatal("earlier snapshot leaked into continuation")
+	}
+}
+
+// block 超过单批上限时仍按顺序完整落库。
+func TestSaveCompletedTurnPersistsManyBlocks(t *testing.T) {
+	ctx, client := setupChatTest(t)
+	turn := testCompletedTurn("many-blocks", 0)
+	turn.Blocks = make([]dtochat.StoredBlock, 501)
+	for i := range turn.Blocks {
+		turn.Blocks[i] = dtochat.StoredBlock{Sequence: int64(i + 1), Type: dtochat.BlockTypeText, Text: fmt.Sprintf("block-%d", i+1),
+			StartedAt: turn.StartedAt, FinishedAt: turn.FinishedAt, StartOrder: int64(i + 1), EndOrder: int64(i + 2)}
+	}
+	if err := saveCompletedTurn(ctx, turn); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := client.KaguyaChatBlock.Query().Order(kaguyachatblock.BySequence()).All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != len(turn.Blocks) {
+		t.Fatalf("blocks=%d want %d", len(rows), len(turn.Blocks))
+	}
+	for i, row := range rows {
+		if row.Sequence != int64(i+1) || row.Text != fmt.Sprintf("block-%d", i+1) {
+			t.Fatalf("block %d: %+v", i, row)
+		}
 	}
 }

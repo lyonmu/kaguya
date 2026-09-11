@@ -55,8 +55,20 @@ func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64,
 	if row.DeletedAt != nil {
 		return nil, 0, ErrConversationNotFound
 	}
-	turns, err := db.EntClient.KaguyaChatTurn.Query().
-		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(row.TurnCount)).
+	query := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(row.TurnCount))
+	// 压缩快照就是完整的续聊上下文，最后一次快照之前的原始消息不再参与拼接；
+	// compaction_count>0 与快照由同一 compactor 产生（见 compaction.snapshot），
+	// 用它定位最新快照，避免读取快照前的轮次和大字段 messages。
+	latest, err := query.Clone().Where(kaguyachatturn.CompactionCountGT(0)).
+		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).Select(kaguyachatturn.FieldTurnIndex).First(ctx)
+	if err != nil && !ent.IsNotFound(err) {
+		return nil, 0, err
+	}
+	if err == nil {
+		query.Where(kaguyachatturn.TurnIndexGTE(latest.TurnIndex))
+	}
+	turns, err := query.
 		Select(kaguyachatturn.FieldMessages, kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldTurnIndex).
 		Order(kaguyachatturn.ByTurnIndex()).All(ctx)
 	if err != nil {
@@ -141,31 +153,43 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 			return err
 		}
 	}
-	row, err := client.KaguyaChatTurn.Create().SetConversationID(turn.ConversationID).SetTurnIndex(turn.Version + 1).
+	createTurn := client.KaguyaChatTurn.Create().SetConversationID(turn.ConversationID).SetTurnIndex(turn.Version + 1).
 		SetUserContent(turn.UserContent).SetProviderID(turn.ProviderID).SetProviderName(turn.ProviderName).
 		SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetAPIProtocol(turn.APIProtocol).
 		SetStartedAt(turn.StartedAt.UTC()).SetFinishedAt(turn.FinishedAt.UTC()).SetDurationMs(duration).SetToolCalls(toolCalls).
 		SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
 		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
 		SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
-		SetContextMessages(turn.ContextMessages).SetCompactionCount(turn.CompactionCount).
-		SetMessages(turn.Messages).Save(ctx)
+		SetCompactionCount(turn.CompactionCount)
+	// 未压缩的轮次不写 context_messages，列保持 SQL NULL，快照存在时才有 JSON 数组。
+	if turn.ContextMessages != nil {
+		createTurn.SetContextMessages(turn.ContextMessages)
+	}
+	row, err := createTurn.SetMessages(turn.Messages).Save(ctx)
 	if err != nil {
 		return err
 	}
-	for _, b := range turn.Blocks {
-		create := client.KaguyaChatBlock.Create().SetTurnID(row.ID).SetSequence(b.Sequence).SetType(kaguyachatblock.Type(b.Type)).
-			SetText(b.Text).SetToolCallID(b.ToolCallID).SetToolName(b.ToolName).SetInput(b.Input).
-			SetProviderExecuted(b.ProviderExecuted).SetIsError(b.IsError).SetErrorMessage(b.ErrorMessage).
-			SetStartedAt(b.StartedAt).SetFinishedAt(b.FinishedAt).SetStartOrder(b.StartOrder).SetEndOrder(b.EndOrder)
-		if b.Output != nil {
-			output, err := json.Marshal(b.Output)
-			if err != nil {
-				return err
+	// block 单独逐条 INSERT 会长时间占用 SQLite 唯一连接；按批合并写入，
+	// 保持同一事务的原子性，同时避免单条语句变量数过大。
+	const blockBatchSize = 200
+	for start := 0; start < len(turn.Blocks); start += blockBatchSize {
+		end := min(start+blockBatchSize, len(turn.Blocks))
+		builders := make([]*ent.KaguyaChatBlockCreate, 0, end-start)
+		for _, b := range turn.Blocks[start:end] {
+			create := client.KaguyaChatBlock.Create().SetTurnID(row.ID).SetSequence(b.Sequence).SetType(kaguyachatblock.Type(b.Type)).
+				SetText(b.Text).SetToolCallID(b.ToolCallID).SetToolName(b.ToolName).SetInput(b.Input).
+				SetProviderExecuted(b.ProviderExecuted).SetIsError(b.IsError).SetErrorMessage(b.ErrorMessage).
+				SetStartedAt(b.StartedAt).SetFinishedAt(b.FinishedAt).SetStartOrder(b.StartOrder).SetEndOrder(b.EndOrder)
+			if b.Output != nil {
+				output, err := json.Marshal(b.Output)
+				if err != nil {
+					return err
+				}
+				create.SetOutput(output)
 			}
-			create.SetOutput(output)
+			builders = append(builders, create)
 		}
-		if err := create.Exec(ctx); err != nil {
+		if err := client.KaguyaChatBlock.CreateBulk(builders...).Exec(ctx); err != nil {
 			return err
 		}
 	}
