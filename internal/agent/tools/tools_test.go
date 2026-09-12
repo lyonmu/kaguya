@@ -441,3 +441,95 @@ func TestConfiguredCommandTimeout(t *testing.T) {
 		}
 	}
 }
+
+// 跨日期的续聊必须能读取本会话前一天已返回的输出路径，其它会话仍需拒绝。
+func TestReadBashOutputAcrossDatesSameConversation(t *testing.T) {
+	cwd, tempBase := t.TempDir(), t.TempDir()
+	yesterday := time.Date(2026, 9, 10, 0, 0, 0, 0, time.Local)
+	s, err := newSet(cwd, "cross-date", tempBase, yesterday, zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	dir := filepath.Join(tempBase, s.conversationOutputDir())
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "bash-42.log")
+	if err := os.WriteFile(path, []byte("line-1\nline-2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// 同会话（新一轮）用今天的日期创建 Set，也必须能读旧日期文件。
+	today, err := newSet(cwd, "cross-date", tempBase, time.Now(), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = today.Close() })
+	requireOK(t, run(t, today.ReadTool(), ReadInput{Path: path}))
+	if !strings.Contains(run(t, today.ReadTool(), ReadInput{Path: path}).Content, "line-1") {
+		t.Fatal("cross-date output missing")
+	}
+
+	other, err := newSet(cwd, "other-conversation", tempBase, time.Now(), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = other.Close() })
+	if !run(t, other.ReadTool(), ReadInput{Path: path}).IsError {
+		t.Fatal("another conversation read cross-date output")
+	}
+	// 结构不符的输出路径仍然拒绝。
+	bogus := filepath.Join(filepath.Dir(dir), "bash-42.log")
+	if !run(t, today.ReadTool(), ReadInput{Path: bogus}).IsError {
+		t.Fatal("read accepted output without conversation directory")
+	}
+}
+
+// 单条命令输出达到磁盘配额时必须终止命令、保留 tail 并说明原因。
+func TestBashOutputQuotaStopsCommandAndKeepsTail(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Skip("bash unavailable")
+	}
+	oldID := global.Id
+	global.Id = &testIDGenerator{next: 9001}
+	t.Cleanup(func() { global.Id = oldID })
+	cwd, tempBase := t.TempDir(), t.TempDir()
+	s, err := newSet(cwd, "quota", tempBase, time.Now(), zap.NewNop())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+	s.commandOutputLimit = 64 * 1024
+
+	start := time.Now()
+	r := run(t, s.BashTool(), BashInput{Command: "yes 0123456789abcdef | head -c 2000000; sleep 30"})
+	if !r.IsError && !strings.Contains(r.Content, "Output limit reached") {
+		t.Fatalf("quota stop not reported: %s", r.Content)
+	}
+	if !strings.Contains(r.Content, "Output limit reached") {
+		t.Fatalf("missing quota explanation: %s", r.Content)
+	}
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("quota did not stop the command: %s", elapsed)
+	}
+	var metadata struct {
+		Path string `json:"fullOutputPath"`
+	}
+	if err := json.Unmarshal([]byte(r.Metadata), &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if metadata.Path == "" {
+		t.Fatal("saved output path missing")
+	}
+	info, err := os.Stat(metadata.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Size() > s.commandOutputLimit {
+		t.Fatalf("saved output exceeds quota: %d", info.Size())
+	}
+	if info.Size() == 0 {
+		t.Fatal("saved output is empty")
+	}
+}

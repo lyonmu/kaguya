@@ -24,6 +24,16 @@ const MaxFileBytes = 32 * 1024 * 1024
 const toolOutputBaseDir = "/tmp"
 const toolOutputAppDir = "kaguya"
 
+// 完整输出文件的磁盘边界：单条命令与单个会话目录都有硬上限，
+// 达到上限后终止命令并保留已写入内容，不静默丢弃也不无界占用磁盘。
+const (
+
+	// maxCommandOutputBytes 限制单条命令保存的完整输出。
+	maxCommandOutputBytes = 64 << 20
+	// maxConversationOutputBytes 限制单个会话目录保存的全部输出。
+	maxConversationOutputBytes = 256 << 20
+)
+
 // Set owns a pinned directory handle. Close only after the agent has stopped.
 // Each chat turn gets its own Set; mutation locks are shared across Sets.
 type Set struct {
@@ -32,8 +42,12 @@ type Set struct {
 	root           *os.Root
 	tempRoot       *os.Root
 	tempBase       string
-	outputDir      string
-	logger         *zap.Logger
+	conversationID string
+	outputDir      string // 相对 tempRoot 的 <app>/<date>/<conversation> 目录
+	outputDate     time.Time
+	// commandOutputLimit 是单条命令保存输出的有效上限；测试可下调。
+	commandOutputLimit int64
+	logger             *zap.Logger
 }
 
 func New(cwd, conversationID string, logger *zap.Logger) (*Set, error) {
@@ -66,10 +80,18 @@ func newSet(cwd, conversationID, tempBase string, now time.Time, logger *zap.Log
 	}
 	return &Set{
 		cwd: abs, root: root, tempRoot: tempRoot, tempBase: tempBase,
-		outputDir: filepath.Join(toolOutputAppDir, now.Format("20060102"), conversationID),
-		logger:    logger, commandTimeout: 120 * time.Second,
+		conversationID: conversationID, outputDir: filepath.Join(toolOutputAppDir, conversationID), outputDate: now,
+		commandOutputLimit: maxCommandOutputBytes,
+		logger:             logger, commandTimeout: 120 * time.Second,
 	}, nil
 }
+
+// conversationOutputDir 返回本次命令输出使用的会话目录（带创建当天日期）。
+// 日期固定在 Set 创建时，同一轮内多次输出落在同一目录。
+func (s *Set) conversationOutputDir() string {
+	return filepath.Join(toolOutputAppDir, s.outputDate.Format("20060102"), s.conversationID)
+}
+
 func (s *Set) Close() error {
 	return errors.Join(s.tempRoot.Close(), s.root.Close())
 }

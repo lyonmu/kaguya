@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"math"
 	"os"
 	"os/exec"
@@ -29,6 +30,7 @@ func (s *Set) BashTool() fantasy.AgentTool {
 	return tool(s, "bash", `Run shell commands for targeted searches, directory listings, builds and tests. Each call starts in the project root; cd and environment changes do not persist to later calls. Use command, not cmd; timeout is in seconds, not milliseconds. For a subdirectory, put cd in the command. Returns stdout/stderr and exit status; only the last 2000 lines or 50KB are shown, with a temporary output path on truncation. Use read on that path instead of rerunning just to see output. Example: {"command":"rg -n 'main' src","timeout":30}. Runs with the service user's permissions, not in a sandbox; cancellation stops the process group but does not undo side effects.`, s.bash)
 }
 
+// outputAccumulator 收集命令输出：内存保留 tail，超限时写入会话输出目录。
 type outputAccumulator struct {
 	mu                        sync.Mutex
 	s                         *Set
@@ -36,8 +38,30 @@ type outputAccumulator struct {
 	totalBytes, totalNewlines int
 	lastNewline               bool
 	file                      *os.File
+	fileBytes                 int64
 	path                      string
+	quotaHit                  bool
+	onQuota                   func() // 达到磁盘配额时终止命令
 	err                       error
+}
+
+// conversationQuotaHit 报告会话输出目录是否已达到磁盘上限。
+// 只统计本应用创建的文件，不跟随符号链接。
+func (o *outputAccumulator) conversationQuotaHit() bool {
+	dir := filepath.Dir(filepath.Join(o.s.tempBase, o.path))
+	var total int64
+	_ = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil || !info.Mode().IsRegular() {
+			return nil
+		}
+		total += info.Size()
+		return nil
+	})
+	return total >= maxConversationOutputBytes
 }
 
 func (o *outputAccumulator) Write(p []byte) (int, error) {
@@ -57,7 +81,7 @@ func (o *outputAccumulator) Write(p []byte) (int, error) {
 		lines++
 	}
 	if o.file == nil && (o.totalBytes > MaxBytes || lines > MaxLines) {
-		if err := o.s.tempRoot.MkdirAll(o.s.outputDir, 0700); err != nil {
+		if err := o.s.tempRoot.MkdirAll(filepath.Dir(filepath.Join(o.s.conversationOutputDir(), "x")), 0700); err != nil {
 			o.err = err
 			return 0, err
 		}
@@ -70,7 +94,16 @@ func (o *outputAccumulator) Write(p []byte) (int, error) {
 			o.err = fmt.Errorf("generate command output ID: %w", err)
 			return 0, o.err
 		}
-		o.path = filepath.Join(o.s.outputDir, fmt.Sprintf("bash-%d.log", id))
+		o.path = filepath.Join(o.s.conversationOutputDir(), fmt.Sprintf("bash-%d.log", id))
+		if o.conversationQuotaHit() {
+			// 不静默丢弃，也不新建超限文件；已累计的内存 tail 仍可返回。
+			o.quotaHit = true
+			o.path = ""
+			if o.onQuota != nil {
+				o.onQuota()
+			}
+			return len(p), nil
+		}
 		f, err := o.s.tempRoot.OpenFile(o.path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if err != nil {
 			o.err = err
@@ -81,11 +114,27 @@ func (o *outputAccumulator) Write(p []byte) (int, error) {
 			o.err = err
 			return 0, err
 		}
+		o.fileBytes = int64(len(o.tail))
 	}
 	if o.file != nil {
-		if _, err := o.file.Write(p); err != nil {
-			o.err = err
-			return 0, err
+		// 单文件配额：写满后停止落盘并终止命令，tail 与原因如实返回。
+		limit := min(o.s.commandOutputLimit, maxCommandOutputBytes)
+		if remain := limit - o.fileBytes; remain > 0 {
+			chunk := p
+			if int64(len(chunk)) > remain {
+				chunk = chunk[:remain]
+			}
+			if _, err := o.file.Write(chunk); err != nil {
+				o.err = err
+				return 0, err
+			}
+			o.fileBytes += int64(len(chunk))
+		}
+		if o.fileBytes >= limit {
+			o.quotaHit = true
+			if o.onQuota != nil {
+				o.onQuota()
+			}
 		}
 	}
 	o.tail = append(o.tail, p...)
@@ -128,6 +177,12 @@ func (o *outputAccumulator) finish() (fantasy.ToolResponse, error) {
 		details["truncation"] = r
 		details["fullOutputPath"] = fullOutputPath
 	}
+	if o.quotaHit {
+		// 配额原因与可用路径必须明确告知，而不是让模型误以为命令正常结束。
+		limit := min(o.s.commandOutputLimit, maxCommandOutputBytes)
+		text += fmt.Sprintf("\n\n[Output limit reached (%d MiB per command or %d MiB per conversation). The command was stopped and later output was not saved.]", limit>>20, maxConversationOutputBytes>>20)
+		details["outputQuotaBytes"] = limit
+	}
 	return fantasy.WithResponseMetadata(fantasy.NewTextResponse(text), details), nil
 }
 func (s *Set) bash(ctx context.Context, in BashInput) (fantasy.ToolResponse, error) {
@@ -151,7 +206,7 @@ func (s *Set) bash(ctx context.Context, in BashInput) (fantasy.ToolResponse, err
 	cmd := exec.CommandContext(runCtx, "bash", "-c", in.Command)
 	cmd.Dir = s.cwd
 	cmd.Env = append(os.Environ(), "KAGUYA_WORKSPACE="+s.cwd)
-	output := &outputAccumulator{s: s}
+	output := &outputAccumulator{s: s, onQuota: cancel}
 	cmd.Stdout = output
 	cmd.Stderr = output
 	configureProcess(cmd)

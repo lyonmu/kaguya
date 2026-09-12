@@ -30,7 +30,7 @@ func (s *Set) ReadTool() fantasy.AgentTool {
 	return tool(s, "read", `Read one existing text file or image inside the project workspace, or a temporary bash output path returned during this conversation. Other paths outside the workspace are rejected. To list/search paths, use bash instead. Text returns at most 2000 lines or 50KB; follow the returned next offset when truncated. offset and limit are 1-based start line and line count, not a range string. Images (jpg/png/gif/webp/bmp) are returned as attachments; omit offset/limit for images. Example: {"path":"src/main.go","offset":20,"limit":80}.`, s.read)
 }
 
-func readRootBytes(ctx context.Context, root *os.Root, path string) ([]byte, error) {
+func readRootBytes(ctx context.Context, root *os.Root, path string, maxBytes int64) ([]byte, error) {
 	f, err := openReadFile(root, path)
 	if err != nil {
 		return nil, err
@@ -43,8 +43,8 @@ func readRootBytes(ctx context.Context, root *os.Root, path string) ([]byte, err
 	if !info.Mode().IsRegular() {
 		return nil, errors.New("path must be a regular file")
 	}
-	if info.Size() > MaxFileBytes {
-		return nil, fmt.Errorf("file exceeds %dMB safety limit; use bash to inspect a bounded range", MaxFileBytes/1024/1024)
+	if info.Size() > maxBytes {
+		return nil, fmt.Errorf("file exceeds %dMB safety limit; use bash to inspect a bounded range", maxBytes/1024/1024)
 	}
 	var out bytes.Buffer
 	buf := make([]byte, 32*1024)
@@ -54,7 +54,7 @@ func readRootBytes(ctx context.Context, root *os.Root, path string) ([]byte, err
 		}
 		n, err := f.Read(buf)
 		out.Write(buf[:n])
-		if out.Len() > MaxFileBytes {
+		if int64(out.Len()) > maxBytes {
 			return nil, errors.New("file grew beyond safety limit")
 		}
 		if err == io.EOF {
@@ -68,27 +68,48 @@ func readRootBytes(ctx context.Context, root *os.Root, path string) ([]byte, err
 }
 
 func (s *Set) readBytes(ctx context.Context, path string) ([]byte, error) {
-	return readRootBytes(ctx, s.root, path)
+	return readRootBytes(ctx, s.root, path, MaxFileBytes)
 }
 
+// resolveRead 接受项目内路径，或本会话的 bash 完整输出路径（含旧日期）。
 func (s *Set) resolveRead(path string) (*os.Root, string, bool, error) {
-	path = strings.TrimPrefix(path, "@")
-	if filepath.IsAbs(path) {
-		outputDir := filepath.Join(s.tempBase, s.outputDir)
-		rel, err := filepath.Rel(outputDir, filepath.Clean(path))
-		if err == nil && filepath.Dir(rel) == "." && validBashOutputName(rel) {
-			root, err := os.OpenRoot(outputDir)
-			if err != nil {
-				return nil, "", false, err
-			}
-			return root, rel, true, nil
+	if rel, ok := s.bashOutputRelative(path); ok {
+		root, err := os.OpenRoot(s.tempBase)
+		if err != nil {
+			return nil, "", false, err
 		}
+		return root, rel, true, nil
 	}
 	path, err := s.resolve(path)
 	if err != nil {
 		return nil, "", false, err
 	}
 	return s.root, path, false, nil
+}
+
+// maxReadBytes 按来源选择读取上限：项目文件受限，本会话输出可到单命令配额。
+func (s *Set) maxReadBytes(fromTemp bool) int64 {
+	if fromTemp {
+		return maxCommandOutputBytes
+	}
+	return MaxFileBytes
+}
+
+// bashOutputRelative 把绝对路径识别为本次会话的输出文件，返回 tempBase 相对路径。
+// 只接受 <app>/<date>/<conversation>/bash-<id>.log 结构，拒绝其它会话与任意文件。
+func (s *Set) bashOutputRelative(path string) (string, bool) {
+	if !filepath.IsAbs(path) {
+		return "", false
+	}
+	rel, err := filepath.Rel(s.tempBase, filepath.Clean(path))
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", false
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if len(parts) != 4 || parts[0] != toolOutputAppDir || parts[2] != s.conversationID || !validBashOutputName(parts[3]) {
+		return "", false
+	}
+	return filepath.FromSlash(strings.Join(parts, "/")), true
 }
 
 func validBashOutputName(name string) bool {
@@ -108,14 +129,14 @@ func (s *Set) read(ctx context.Context, in ReadInput) (fantasy.ToolResponse, err
 	if in.Offset != nil && *in.Offset < 1 || in.Limit != nil && *in.Limit < 1 {
 		return fantasy.ToolResponse{}, errors.New("offset and limit must be positive integers")
 	}
-	root, path, closeRoot, err := s.resolveRead(in.Path)
+	root, path, fromTemp, err := s.resolveRead(in.Path)
 	if err != nil {
 		return fantasy.ToolResponse{}, err
 	}
-	if closeRoot {
+	if fromTemp {
 		defer root.Close()
 	}
-	data, err := readRootBytes(ctx, root, path)
+	data, err := readRootBytes(ctx, root, path, s.maxReadBytes(fromTemp))
 	if err != nil {
 		return fantasy.ToolResponse{}, err
 	}
