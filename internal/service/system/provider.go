@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -12,6 +13,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
+	"github.com/lyonmu/kaguya/internal/secret"
 )
 
 func providerQuery(client *ent.Client) *ent.KaguyaProviderInfoQuery {
@@ -73,17 +75,22 @@ func (s *SystemSvc) ProviderDetail(ctx context.Context, id string) (*dtosystem.S
 	return resp, nil
 }
 
-// ProviderCreate 创建提供商。
+// ProviderCreate 创建提供商。API Key 加密后入库，响应只返回掩码。
 func (s *SystemSvc) ProviderCreate(ctx context.Context, req *dtosystem.SystemProviderSaveReq) (*dtosystem.SystemProviderResp, error) {
 	kind := req.ProviderType
 	if kind == "" {
 		kind = consts.ProviderTypeNormal
 	}
+	apiKey, err := secret.Encrypt(req.APIKey)
+	if err != nil {
+		global.Logger.Sugar().Errorf("encrypt provider api key failed: name=%s, err=%v", req.ProviderName, err)
+		return nil, ErrProviderSecret
+	}
 	row, err := db.EntClient.KaguyaProviderInfo.Create().
 		SetProviderType(kind).
 		SetProviderName(req.ProviderName).
 		SetAPIProtocol(req.APIProtocol).
-		SetAPIKey(req.APIKey).
+		SetAPIKey(apiKey).
 		SetBaseURL(req.BaseURL).
 		Save(ctx)
 	if err != nil {
@@ -100,20 +107,27 @@ func (s *SystemSvc) ProviderCreate(ctx context.Context, req *dtosystem.SystemPro
 	return resp, nil
 }
 
-// ProviderUpdate 修改提供商。
+// ProviderUpdate 修改提供商。请求中 api_key 为空表示保留原密钥，不回传也不覆盖。
 func (s *SystemSvc) ProviderUpdate(ctx context.Context, id string, req *dtosystem.SystemProviderSaveReq) (*dtosystem.SystemProviderResp, error) {
 	kind := req.ProviderType
 	if kind == "" {
 		kind = consts.ProviderTypeNormal
 	}
-	row, err := db.EntClient.KaguyaProviderInfo.UpdateOneID(id).
+	update := db.EntClient.KaguyaProviderInfo.UpdateOneID(id).
 		Where(kaguyaproviderinfo.DeletedAtIsNil()).
 		SetProviderName(req.ProviderName).
 		SetProviderType(kind).
 		SetAPIProtocol(req.APIProtocol).
-		SetAPIKey(req.APIKey).
-		SetBaseURL(req.BaseURL).
-		Save(ctx)
+		SetBaseURL(req.BaseURL)
+	if strings.TrimSpace(req.APIKey) != "" {
+		apiKey, err := secret.Encrypt(req.APIKey)
+		if err != nil {
+			global.Logger.Sugar().Errorf("encrypt provider api key failed: id=%s, err=%v", id, err)
+			return nil, ErrProviderSecret
+		}
+		update.SetAPIKey(apiKey)
+	}
+	row, err := update.Save(ctx)
 	if err != nil {
 		switch {
 		case ent.IsNotFound(err):
@@ -131,6 +145,26 @@ func (s *SystemSvc) ProviderUpdate(ctx context.Context, id string, req *dtosyste
 	resp := &dtosystem.SystemProviderResp{}
 	resp.LoadDb(row)
 	return resp, nil
+}
+
+// ProviderAPIKey 解密并返回单个提供商的 API Key 明文，仅供前端显式查看时调用，
+// 不进入列表响应。
+func (s *SystemSvc) ProviderAPIKey(ctx context.Context, id string) (*dtosystem.SystemProviderAPIKeyResp, error) {
+	row, err := providerQuery(db.EntClient).Where(kaguyaproviderinfo.IDEQ(id)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			global.Logger.Sugar().Warnf("provider not found for api key: id=%s", id)
+			return nil, ErrProviderNotFound
+		}
+		global.Logger.Sugar().Errorf("query provider api key failed: id=%s, err=%v", id, err)
+		return nil, err
+	}
+	plain, err := secret.Decrypt(row.APIKey)
+	if err != nil {
+		global.Logger.Sugar().Errorf("decrypt provider api key failed: id=%s, err=%v", id, err)
+		return nil, ErrProviderSecret
+	}
+	return &dtosystem.SystemProviderAPIKeyResp{ID: row.ID, APIKey: plain}, nil
 }
 
 // ProviderDelete 软删除提供商，并同步软删除其下所有模型。

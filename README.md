@@ -23,7 +23,7 @@ The project is intended for learning, personal use, and exploring Agent runtime 
 | Concurrent conversations | Create or switch conversations while generating; each stream receives results and cancels independently, including while visiting system pages. Each conversation runs one turn at a time. |
 | Conversation management | Continue saved conversations, search by title prefix, rename, and delete conversations; organize conversations by project, browse paginated history and review turn summaries. |
 | Code preview | Project conversations can open a code browser from the header menu: a file tree with Git badges, file contents, and unified or split diffs against the uncommitted HEAD state. |
-| Providers and models | Manage providers and their models through the UI; configure full request URLs, API keys, protocol types, and model metadata. |
+| Providers and models | Manage providers and their models through the UI; configure full request URLs, API keys, protocol types, and model metadata. API keys are encrypted at rest and APIs return only a mask. |
 | MCP management | Manage MCP services under AI configuration, with stdio, Streamable HTTP, SSE, dynamic start/stop, and chat tool integration. |
 | System configuration | Choose separate default chat and background-task models, append a custom system prompt, and configure the upstream `User-Agent`. Saved settings apply to new requests without restarting. |
 | Token analytics | Inspect total usage, daily peaks, active conversations, an activity heatmap, and token composition by model or provider. |
@@ -62,6 +62,17 @@ Providers support three explicitly selected API protocols:
 Replace the example host with your provider's actual endpoint. **The request URL must include the complete endpoint path**: Kaguya uses it as configured and does not append `/chat/completions`, `/responses`, or `/messages`. Provider types include standard (`normal`) and OpenCode Go (`opencode-go`); the latter adds the OpenCode session header.
 
 Each model has a display name and an upstream model identifier, plus metadata such as reasoning level, context window, maximum output tokens, and Tool/Vision/JSON capabilities. These fields describe the model; they do not by themselves enable attachments, register tools, or guarantee that every parameter is forwarded to the upstream API. Chat API model selection uses the **local model record ID**, not the upstream model identifier.
+
+### API key storage
+
+API keys are stored with AES-256-GCM and an `enc:v1:` version prefix so that historical records stay identifiable if the algorithm changes. List and detail endpoints return only a mask (for example `sk-l••••7890`); the full plaintext requires an explicit `GET /v1/system/provider/{id}/api-key`, which the console calls only when you click **view**. When editing a provider, an empty `api_key` keeps the stored secret instead of overwriting it with the mask.
+
+The encryption key is selected in this order:
+
+1. A startup flag or environment variable, for example `KAGUYA_SECRET_KEY=<32 bytes as hex or base64>`;
+2. Otherwise, a key derived from the TLS certificate private key with HKDF-SHA256.
+
+The two differ in what they protect. An **external key lives outside the database**, so ciphertext stays unreadable if the database file, a backup, or an export leaks. A **certificate-derived key lives in the same database as the ciphertext**: it keeps plaintext out of the database file and exports but cannot withstand a full database theft. Rotating the TLS certificate changes the derived key, so `TLSUpdate` decrypts with the old key and re-encrypts every stored API key before storing the new certificate. If a certificate is replaced outside the application while the database is not updated, re-enter the API key: provider administration returns `106006`, and chat or title endpoints return `102010`. Upgrading an existing installation encrypts historical plaintext records in place on first startup; the migration is idempotent.
 
 ### MCP management
 
@@ -129,6 +140,7 @@ Writable data is **not** stored in `go:embed`: after checking or initializing th
 | `--host` | — | `127.0.0.1` |
 | `--prepare-tls` | — | `false` |
 | `--renew-tls` | — | `false` |
+| `--secret-key` | `KAGUYA_SECRET_KEY` | Empty; when empty the API key encryption key is derived from the TLS certificate private key |
 | `--trusted-host` | — | Empty; additional exact trusted hostname |
 | `--port` | — | `9024` |
 | `--router-prefix` | — | `/kaguya/api` |
@@ -173,7 +185,7 @@ Then reopen the browser connection. Other devices need their own certificate tru
 
 **Backups and updates:** the simplest backup is to stop the service and copy the database together with any remaining WAL/SHM files as one set; never copy only the main database while writes are active or delete WAL files manually. Back up the key **separately and securely**: losing it makes the data unrecoverable. For live exports use SQLCipher-aware tooling with an explicitly keyed encrypted destination; do not assume generic SQLite backup or `VACUUM INTO` produces an encrypted backup. Before upgrading, back up the data/key, stop the service, replace the binary, and restart with the same service user, path, and key. Foreground logs go to the configured logger; use your service manager for background operation and lifecycle management.
 
-**Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. TLS certificates protect network transport, not the local key. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login. Debug mode also omits database SQL argument logging to keep prompts, API keys and MCP credentials out of logs.
+**Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. TLS certificates protect network transport, not the local key; an API key encryption key derived from the certificate private key shares the database with the ciphertext and likewise cannot withstand theft of the whole database. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login. Debug mode also omits database SQL argument logging to keep prompts, API keys and MCP credentials out of logs.
 
 Open [https://localhost:9024](https://localhost:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
 
@@ -345,7 +357,8 @@ With the default route prefix, useful endpoints are:
 | `POST /kaguya/api/v1/system/mcp` | Create MCP configuration (disabled by default) |
 | `GET / PUT / DELETE /kaguya/api/v1/system/mcp/:id` | MCP detail, update, and delete |
 | `PUT /kaguya/api/v1/system/mcp/:id/state` | Dynamic start/stop with `{"enabled": true/false}` |
-| `GET /kaguya/api/v1/system/provider/page` | Provider list |
+| `GET /kaguya/api/v1/system/provider/page` | Provider list (API keys are masked) |
+| `GET /kaguya/api/v1/system/provider/:id/api-key` | Explicitly reveal one provider's API key |
 | `GET /kaguya/api/v1/system/model/page` | Model list |
 | `GET /kaguya/api/v1/system/usage` | Token analytics |
 | `GET /kaguya/api/v1/system/info` | System settings (`PUT` updates them) |
@@ -354,7 +367,7 @@ With the default route prefix, useful endpoints are:
 
 Conversation responses include `is_project`, derived from whether `project_id` is null, so no database backfill is needed. Lists default to ordinary conversations only; `is_project=true` selects project conversations and `project_id` scopes a specific project (passing it alone retains project filtering). Combining `project_id` with `is_project=false` is invalid. Filtering happens before database pagination and counting. New SSE/WS chats accept `project_id`; saved conversations retain their stored association.
 
-Business JSON endpoints share one envelope: HTTP 200 with `{"code": ..., "message": ..., "data": ...}`; `100000` means success and any other code carries a user-readable `message`. Codes are grouped by domain (`101xxx` access logs, `102xxx` chat, `103xxx` models, `104xxx` system settings, `105xxx` MCP, `106xxx` providers, `107xxx` projects). Browser-level rejections (untrusted host, oversized body) still use plain HTTP 403/413.
+Business JSON endpoints share one envelope: HTTP 200 with `{"code": ..., "message": ..., "data": ...}`; `100000` means success and any other code carries a user-readable `message`. Codes are grouped by domain (`102xxx` chat, `103xxx` models, `104xxx` system settings, `105xxx` MCP, `106xxx` providers, `107xxx` projects). Browser-level rejections (untrusted host, oversized body) still use plain HTTP 403/413.
 
 Single-instance limits: SQLCipher serializes writes through one connection, and the process bounds simultaneous turns (`16`) and background title tasks (`2`). A turn beyond the limit fails fast with code `102009`; a skipped title retries after the next successful turn. A conversation resumes from its last compaction snapshot, so long histories read only the snapshot and later turns. Provider requests have a two-minute response-header timeout and a five-minute stream idle timeout, and stalled streams are cancelled as retryable errors. WebSocket frames and SSE writes use per-frame write deadlines, so a client that stops reading cannot pin a turn open.
 

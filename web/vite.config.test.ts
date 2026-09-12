@@ -21,10 +21,13 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     assert.ok(parser, 'Mermaid parser must have its own chunk')
     const highlighter = chunks.find(chunk => chunk.name === 'vendor-antdx-highlighter')
     assert.ok(highlighter, 'Ant Design X code highlighter must have its own chunk')
+    const echarts = chunks.find(chunk => chunk.name === 'vendor-echarts')
+    assert.ok(echarts, 'ECharts must have its own chunk')
     for (const chunk of chunks) {
       const size = Buffer.byteLength(chunk.code)
-      // Mermaid 解析器核心是单个预打包模块，无法再拆分，单独放宽阈值。
-      const budget = chunk === parser ? 750_000 : 500_000
+      // Mermaid 解析器与 ECharts 都是单个预打包的重型库，无法再拆分，
+      // 且只由懒加载页面引入，因此单独放宽阈值。
+      const budget = chunk === parser ? 750_000 : chunk === echarts ? 620_000 : 500_000
       assert.ok(size <= budget, `${chunk.fileName}: ${size} bytes exceeds the ${budget / 1000} kB budget`)
     }
     const initialChunks = new Set<string>()
@@ -62,12 +65,12 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     const renderer = chunks.find(chunk => chunk.isDynamicEntry && chunk.name === 'mermaid')
     assert.ok(renderer, 'Mermaid renderer must remain lazy-loaded')
     assert.ok(!initialChunks.has(renderer.fileName), 'Mermaid renderer must stay out of the initial payload')
-    for (const name of ['vendor-highlight', 'vendor-diff-view', 'CodeBrowserDrawer']) {
+    for (const name of ['vendor-highlight', 'vendor-diff-view', 'CodeBrowserDrawer', 'vendor-echarts']) {
       const chunk = chunks.find(item => item.name === name)
       assert.ok(chunk, `${name} must exist`)
       assert.ok(!initialChunks.has(chunk.fileName), `${name} must stay out of the initial payload`)
     }
-    for (const page of ['SystemInfoPage', 'ProviderManagementPage', 'AccessLogPage', 'TokenUsagePage']) {
+    for (const page of ['SystemInfoPage', 'ProviderManagementPage', 'TokenUsagePage']) {
       assert.ok(chunks.some(chunk => chunk.isDynamicEntry && chunk.name === page), `${page} must remain lazy-loaded`)
     }
     // 离线部署：HTML 与 CSS 只能引用构建产物，不能依赖 CDN 或外部资源。

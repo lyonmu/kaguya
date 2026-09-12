@@ -76,7 +76,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -113,7 +113,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -157,7 +157,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -190,7 +190,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                            "$ref": "#/definitions/code.Response"
                         }
                     }
                 }
@@ -218,7 +218,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -256,7 +256,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -272,7 +272,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。",
+                "description": "每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007，提供商的 API Key 无法解密返回 102010。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。",
                 "tags": [
                     "Chat History"
                 ],
@@ -292,7 +292,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -358,7 +358,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -409,7 +409,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -452,7 +452,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -490,7 +490,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -536,7 +536,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -572,7 +572,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -622,7 +622,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -659,7 +659,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -704,7 +704,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -737,7 +737,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                            "$ref": "#/definitions/code.Response"
                         }
                     }
                 }
@@ -772,7 +772,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -815,7 +815,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -860,7 +860,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -898,7 +898,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -936,96 +936,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/project.TreeResp"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/system/accesslog/page": {
-            "get": {
-                "description": "获取访问日志分页列表；start_time/end_time 为秒级 Unix 时间戳，首尾秒包含，0 或省略表示不限。不接受日期字符串、负数、毫秒时间戳或反向范围。",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "SystemAccessLogPage",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "访问IP",
-                        "name": "access_ip",
-                        "in": "query"
-                    },
-                    {
-                        "maximum": 253402300799,
-                        "minimum": 0,
-                        "type": "integer",
-                        "example": 1735948799,
-                        "description": "结束时间（Unix 秒，包含）；0 或省略表示不限",
-                        "name": "end_time",
-                        "in": "query"
-                    },
-                    {
-                        "minimum": 1,
-                        "type": "integer",
-                        "default": 1,
-                        "description": "页码",
-                        "name": "page",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 1000,
-                        "minimum": 10,
-                        "type": "integer",
-                        "default": 10,
-                        "description": "每页条数",
-                        "name": "page_size",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "maximum": 253402300799,
-                        "minimum": 0,
-                        "type": "integer",
-                        "example": 1735689600,
-                        "description": "开始时间（Unix 秒，包含）；0 或省略表示不限",
-                        "name": "start_time",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "100000,success",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "code": {
-                                            "type": "number"
-                                        },
-                                        "data": {
-                                            "$ref": "#/definitions/system.SystemAccessLogListResp"
-                                        },
-                                        "message": {
-                                            "type": "string"
                                         }
                                     }
                                 }
@@ -1047,7 +964,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1085,7 +1002,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1125,7 +1042,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1164,7 +1081,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1212,7 +1129,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1249,7 +1166,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1293,7 +1210,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1326,7 +1243,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                            "$ref": "#/definitions/code.Response"
                         }
                     }
                 }
@@ -1362,7 +1279,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1401,7 +1318,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1441,7 +1358,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1501,7 +1418,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1538,7 +1455,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1582,7 +1499,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1615,7 +1532,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                            "$ref": "#/definitions/code.Response"
                         }
                     }
                 }
@@ -1644,7 +1561,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1679,7 +1596,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1749,7 +1666,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1786,7 +1703,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1830,7 +1747,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -1863,7 +1780,44 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                            "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/provider/{id}/api-key": {
+            "get": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "查看提供商 API Key 明文（前端显式触发，不进入列表响应）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "提供商 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemProviderAPIKeyResp"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1902,7 +1856,7 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response"
+                                    "$ref": "#/definitions/code.Response"
                                 },
                                 {
                                     "type": "object",
@@ -2447,6 +2401,20 @@ const docTemplate = `{
                 "WSFlagError"
             ]
         },
+        "code.Response": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 100000
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
         "consts.ProviderProtocol": {
             "type": "string",
             "enum": [
@@ -2496,20 +2464,6 @@ const docTemplate = `{
                 "IsTrue",
                 "IsFalse"
             ]
-        },
-        "github_com_lyonmu_kaguya_internal_dto_code.Response": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "integer",
-                    "example": 100000
-                },
-                "data": {},
-                "message": {
-                    "type": "string",
-                    "example": "success"
-                }
-            }
         },
         "mcp.Status": {
             "type": "object",
@@ -2760,71 +2714,6 @@ const docTemplate = `{
                 },
                 "truncated": {
                     "type": "boolean"
-                }
-            }
-        },
-        "system.SystemAccessLogListResp": {
-            "type": "object",
-            "properties": {
-                "items": {
-                    "description": "操作日志列表",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/system.SystemAccessLogResp"
-                    }
-                },
-                "page": {
-                    "description": "页码",
-                    "type": "integer"
-                },
-                "page_size": {
-                    "description": "每页条数",
-                    "type": "integer"
-                },
-                "total": {
-                    "description": "总条数",
-                    "type": "integer"
-                }
-            }
-        },
-        "system.SystemAccessLogResp": {
-            "type": "object",
-            "properties": {
-                "access_ip": {
-                    "description": "访问IP",
-                    "type": "string"
-                },
-                "access_time": {
-                    "description": "操作时间",
-                    "type": "integer"
-                },
-                "browser_engine_name": {
-                    "description": "浏览器引擎名称",
-                    "type": "string"
-                },
-                "browser_engine_version": {
-                    "description": "浏览器引擎版本",
-                    "type": "string"
-                },
-                "browser_name": {
-                    "description": "浏览器名称",
-                    "type": "string"
-                },
-                "browser_version": {
-                    "description": "浏览器版本",
-                    "type": "string"
-                },
-                "id": {
-                    "description": "ID",
-                    "type": "string"
-                },
-                "os": {
-                    "description": "操作系统",
-                    "type": "string"
-                },
-                "platform": {
-                    "description": "操作平台",
-                    "type": "string"
                 }
             }
         },
@@ -3267,6 +3156,17 @@ const docTemplate = `{
                 }
             }
         },
+        "system.SystemProviderAPIKeyResp": {
+            "type": "object",
+            "properties": {
+                "api_key": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
         "system.SystemProviderLabelResp": {
             "type": "object",
             "properties": {
@@ -3303,6 +3203,9 @@ const docTemplate = `{
             "properties": {
                 "api_key": {
                     "type": "string"
+                },
+                "api_key_set": {
+                    "type": "boolean"
                 },
                 "api_protocol": {
                     "$ref": "#/definitions/consts.ProviderProtocol"

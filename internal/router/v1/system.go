@@ -10,7 +10,6 @@ type SystemRouter struct{}
 func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.ApiV1Group) {
 	systemRouter := group.Group("v1/system")
 	{
-		systemRouter.GET("accesslog/page", apiGroup.SystemAccessLogPage)
 		systemRouter.GET("usage", apiGroup.SystemTokenUsage)
 		systemRouter.GET("info", apiGroup.SystemInfo)
 		systemRouter.PUT("info", apiGroup.SystemInfoUpdate)
@@ -26,6 +25,7 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 		systemRouter.GET("provider/page", apiGroup.SystemProviderPage)
 		systemRouter.GET("provider/label", apiGroup.SystemProviderLabels)
 		systemRouter.GET("provider/:id", apiGroup.SystemProviderDetail)
+		systemRouter.GET("provider/:id/api-key", apiGroup.SystemProviderAPIKey)
 		systemRouter.POST("provider", apiGroup.SystemProviderCreate)
 		systemRouter.PUT("provider/:id", apiGroup.SystemProviderUpdate)
 		systemRouter.DELETE("provider/:id", apiGroup.SystemProviderDelete)

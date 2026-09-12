@@ -25,13 +25,8 @@ func InitRouter(e *gin.Engine) {
 	e.HEAD("/", v1api.Front)
 	e.NoRoute(v1api.Front)
 
-	// 创建操作日志中间件
-	// accessLogMiddleware := middleware.NewAccessLogMiddleware()
-
 	// Router group
 	group := e.Group(global.Cfg.RouterPrefix)
-
-	// group.Use(accessLogMiddleware.AccessLog())
 
 	// swagger
 	swaggerRouter := group.Group("swagger")

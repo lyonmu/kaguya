@@ -9,7 +9,6 @@ import { ChatProvider } from './features/chat/ChatProvider'
 import { ChatPage } from './pages/chat/ChatPage'
 
 const TokenUsagePage = lazy(() => import('./pages/system/TokenUsagePage').then(module => ({ default: module.TokenUsagePage })))
-const AccessLogPage = lazy(() => import('./pages/system/AccessLogPage').then(module => ({ default: module.AccessLogPage })))
 const AIConfigurationPage = lazy(() => import('./pages/system/AIConfigurationPage').then(module => ({ default: module.AIConfigurationPage })))
 
 const SystemInfoPage = lazy(() => import('./pages/system/SystemInfoPage').then(module => ({ default: module.SystemInfoPage })))
@@ -36,10 +35,8 @@ function App() {
             <TokenUsagePage />
           ) : currentPage === 'system-info' ? (
             <SystemInfoPage />
-          ) : currentPage === 'ai-providers' ? (
-            <AIConfigurationPage />
           ) : (
-            <AccessLogPage />
+            <AIConfigurationPage />
           )}
           </Suspense>
         </AppLayout>

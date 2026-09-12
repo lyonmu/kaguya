@@ -361,6 +361,16 @@ definitions:
     - WSFlagDelta
     - WSFlagDone
     - WSFlagError
+  code.Response:
+    properties:
+      code:
+        example: 100000
+        type: integer
+      data: {}
+      message:
+        example: success
+        type: string
+    type: object
   consts.ProviderProtocol:
     enum:
     - openai-chat
@@ -399,16 +409,6 @@ definitions:
     - IsUnknown
     - IsTrue
     - IsFalse
-  github_com_lyonmu_kaguya_internal_dto_code.Response:
-    properties:
-      code:
-        example: 100000
-        type: integer
-      data: {}
-      message:
-        example: success
-        type: string
-    type: object
   mcp.Status:
     properties:
       message:
@@ -573,53 +573,6 @@ definitions:
         type: string
       truncated:
         type: boolean
-    type: object
-  system.SystemAccessLogListResp:
-    properties:
-      items:
-        description: 操作日志列表
-        items:
-          $ref: '#/definitions/system.SystemAccessLogResp'
-        type: array
-      page:
-        description: 页码
-        type: integer
-      page_size:
-        description: 每页条数
-        type: integer
-      total:
-        description: 总条数
-        type: integer
-    type: object
-  system.SystemAccessLogResp:
-    properties:
-      access_ip:
-        description: 访问IP
-        type: string
-      access_time:
-        description: 操作时间
-        type: integer
-      browser_engine_name:
-        description: 浏览器引擎名称
-        type: string
-      browser_engine_version:
-        description: 浏览器引擎版本
-        type: string
-      browser_name:
-        description: 浏览器名称
-        type: string
-      browser_version:
-        description: 浏览器版本
-        type: string
-      id:
-        description: ID
-        type: string
-      os:
-        description: 操作系统
-        type: string
-      platform:
-        description: 操作平台
-        type: string
     type: object
   system.SystemInfoResp:
     properties:
@@ -920,6 +873,13 @@ definitions:
     - reasoning_effort
     - reasoning_enabled
     type: object
+  system.SystemProviderAPIKeyResp:
+    properties:
+      api_key:
+        type: string
+      id:
+        type: string
+    type: object
   system.SystemProviderLabelResp:
     properties:
       label:
@@ -944,6 +904,8 @@ definitions:
     properties:
       api_key:
         type: string
+      api_key_set:
+        type: boolean
       api_protocol:
         $ref: '#/definitions/consts.ProviderProtocol'
       base_url:
@@ -1108,7 +1070,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            $ref: '#/definitions/code.Response'
       summary: 软删除会话（删除后不可查询或续聊）
       tags:
       - Chat History
@@ -1124,7 +1086,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.ConversationResp'
@@ -1150,7 +1112,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.ConversationResp'
@@ -1173,7 +1135,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.ConversationContextResp'
@@ -1195,7 +1157,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.ConversationTitleResp'
@@ -1204,7 +1166,8 @@ paths:
       tags:
       - Chat History
     post:
-      description: 每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。
+      description: 每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007，提供商的
+        API Key 无法解密返回 102010。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。
       parameters:
       - description: 会话雪花 ID
         in: path
@@ -1216,7 +1179,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.ConversationTitleResp'
@@ -1260,7 +1223,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.TurnListResp'
@@ -1291,7 +1254,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.StoredBlock'
@@ -1336,7 +1299,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/chat.ConversationListResp'
@@ -1363,7 +1326,7 @@ paths:
           description: SSE 流式响应，每帧为一个 ChatResp
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 code:
                   type: number
@@ -1388,7 +1351,7 @@ paths:
           description: WS 帧，每帧为一个 dtocode.Response
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 code:
                   type: number
@@ -1415,7 +1378,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.Resp'
@@ -1435,7 +1398,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            $ref: '#/definitions/code.Response'
       summary: 删除项目并解除对话归属，保留历史和主机文件
       tags:
       - Project
@@ -1451,7 +1414,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.Resp'
@@ -1478,7 +1441,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.Resp'
@@ -1505,7 +1468,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.ContentResp'
@@ -1530,7 +1493,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.FileSearchResp'
@@ -1557,7 +1520,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.GitDiffResp'
@@ -1579,7 +1542,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.GitStatusResp'
@@ -1601,7 +1564,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.TreeResp'
@@ -1621,7 +1584,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.DirectoryResp'
@@ -1651,7 +1614,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/project.PageResp'
@@ -1659,62 +1622,6 @@ paths:
       summary: 项目分页列表
       tags:
       - Project
-  /v1/system/accesslog/page:
-    get:
-      description: 获取访问日志分页列表；start_time/end_time 为秒级 Unix 时间戳，首尾秒包含，0 或省略表示不限。不接受日期字符串、负数、毫秒时间戳或反向范围。
-      parameters:
-      - description: 访问IP
-        in: query
-        name: access_ip
-        type: string
-      - description: 结束时间（Unix 秒，包含）；0 或省略表示不限
-        example: 1735948799
-        in: query
-        maximum: 253402300799
-        minimum: 0
-        name: end_time
-        type: integer
-      - default: 1
-        description: 页码
-        in: query
-        minimum: 1
-        name: page
-        required: true
-        type: integer
-      - default: 10
-        description: 每页条数
-        in: query
-        maximum: 1000
-        minimum: 10
-        name: page_size
-        required: true
-        type: integer
-      - description: 开始时间（Unix 秒，包含）；0 或省略表示不限
-        example: 1735689600
-        in: query
-        maximum: 253402300799
-        minimum: 0
-        name: start_time
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: 100000,success
-          schema:
-            allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
-            - properties:
-                code:
-                  type: number
-                data:
-                  $ref: '#/definitions/system.SystemAccessLogListResp'
-                message:
-                  type: string
-              type: object
-      summary: SystemAccessLogPage
-      tags:
-      - System
   /v1/system/info:
     get:
       responses:
@@ -1722,7 +1629,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemInfoResp'
@@ -1744,7 +1651,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemInfoResp'
@@ -1768,7 +1675,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.TLSInfoResp'
@@ -1790,7 +1697,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemMCPResp'
@@ -1810,7 +1717,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            $ref: '#/definitions/code.Response'
       summary: 删除 MCP 配置并关闭连接
       tags:
       - System MCP
@@ -1826,7 +1733,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemMCPResp'
@@ -1852,7 +1759,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemMCPResp'
@@ -1879,7 +1786,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemMCPResp'
@@ -1907,7 +1814,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemMCPListResp'
@@ -1929,7 +1836,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemModelResp'
@@ -1949,7 +1856,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            $ref: '#/definitions/code.Response'
       summary: 删除模型
       tags:
       - System Model
@@ -1965,7 +1872,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemModelResp'
@@ -1991,7 +1898,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemModelResp'
@@ -2013,7 +1920,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   items:
@@ -2050,7 +1957,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemModelListResp'
@@ -2072,7 +1979,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemProviderResp'
@@ -2092,7 +1999,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            $ref: '#/definitions/code.Response'
       summary: 删除提供商及其模型
       tags:
       - System Provider
@@ -2108,7 +2015,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemProviderResp'
@@ -2134,12 +2041,33 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemProviderResp'
               type: object
       summary: 修改提供商
+      tags:
+      - System Provider
+  /v1/system/provider/{id}/api-key:
+    get:
+      parameters:
+      - description: 提供商 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemProviderAPIKeyResp'
+              type: object
+      summary: 查看提供商 API Key 明文（前端显式触发，不进入列表响应）
       tags:
       - System Provider
   /v1/system/provider/label:
@@ -2153,7 +2081,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   items:
@@ -2198,7 +2126,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.SystemProviderListResp'
@@ -2230,7 +2158,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/github_com_lyonmu_kaguya_internal_dto_code.Response'
+            - $ref: '#/definitions/code.Response'
             - properties:
                 data:
                   $ref: '#/definitions/system.TokenUsageResp'

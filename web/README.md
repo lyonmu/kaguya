@@ -1,6 +1,6 @@
 # Kaguya Agent Console
 
-Kaguya 的 React 管理控制台。默认首页为对话工作区，系统管理中保留访问日志和 AI 提供商配置。
+Kaguya 的 React 管理控制台。默认首页为对话工作区，系统管理中提供用量分析和 AI 提供商配置。
 
 ## 技术栈
 

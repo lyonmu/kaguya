@@ -5,6 +5,7 @@ import type {
   LabelOption,
   ModelPayload,
   ModelLabelOption,
+  ProviderAPIKeyResponse,
   ProviderPageResponse,
   ProviderPayload,
   ProviderQuery,
@@ -36,6 +37,11 @@ export function createProvider(payload: ProviderPayload) {
 
 export function updateProvider(id: string, payload: ProviderPayload) {
   return put<AIProvider>(`${PROVIDER_PATH}/${id}`, payload)
+}
+
+/** 按需获取单个提供商的 API Key 明文，仅在用户显式查看时调用。 */
+export function fetchProviderAPIKey(id: string, signal?: AbortSignal) {
+  return get<ProviderAPIKeyResponse>(`${PROVIDER_PATH}/${id}/api-key`, undefined, signal)
 }
 
 export function deleteProvider(id: string) {

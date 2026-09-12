@@ -97,9 +97,12 @@ export default defineConfig(({ command }) => ({
               test: /[\\/]node_modules[\\/]@assistant-ui[\\/]/,
             },
             {
-              // 图表渲染引擎单独缓存，仍仅由懒加载用量页面引入。
-              name: 'vendor-zrender',
-              test: /[\\/]node_modules[\\/]zrender[\\/]/,
+              // 图表引擎（ECharts 及其 zrender 渲染器）只由懒加载的用量页面引入。
+              // 它是仓库中最大的第三方图形库，独立成包既避免页面 chunk 被撑大，
+              // 也让页面代码变化不会使整个图形引擎缓存失效。
+              // 注意：该包体积固定超过通用预算，测试中单独设阈值。
+              name: 'vendor-echarts',
+              test: /[\\/]node_modules[\\/](?:echarts|zrender)[\\/]/,
             },
             {
               // 独立缓存 React 运行时，避免与 Ant Design 合并成超大的共享包。

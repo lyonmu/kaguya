@@ -21,6 +21,7 @@ func TestMapFrameKnownFailures(t *testing.T) {
 		{"not found", serviceagent.ErrConversationNotFound, dtocode.ConversationNotFound},
 		{"model", serviceagent.ErrChatModelNotConfigured, dtocode.ChatModelNotConfigured},
 		{"concurrency", serviceagent.ErrChatConcurrencyLimited, dtocode.ChatConcurrencyLimited},
+		{"provider secret", serviceagent.ErrProviderSecretUnavailable, dtocode.ProviderSecretUnusable},
 		{"unknown", errors.New("provider failed with secret"), dtocode.ChatSSEFailure},
 	}
 	for _, tt := range tests {

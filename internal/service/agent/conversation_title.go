@@ -117,13 +117,17 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 			return nil, err
 		}
 		provider := model.Edges.Provider
+		apiKey, err := providerAPIKey(provider, id)
+		if err != nil {
+			return nil, err
+		}
 		var answer strings.Builder
 		for _, block := range turn.Edges.Blocks {
 			answer.WriteString(block.Text)
 		}
 		cfg := agentruntime.ProviderConfig{
 			Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(provider.APIProtocol),
-			BaseURL: provider.BaseURL, APIKey: provider.APIKey, ModelID: model.ModelID, ConversationID: id, UserAgent: info.UserAgent,
+			BaseURL: provider.BaseURL, APIKey: apiKey, ModelID: model.ModelID, ConversationID: id, UserAgent: info.UserAgent,
 		}
 		if err := ctx.Err(); err != nil {
 			return nil, err

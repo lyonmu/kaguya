@@ -6,9 +6,6 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// KaguyaAccessLog is the predicate function for kaguyaaccesslog builders.
-type KaguyaAccessLog func(*sql.Selector)
-
 // KaguyaChatBlock is the predicate function for kaguyachatblock builders.
 type KaguyaChatBlock func(*sql.Selector)
 

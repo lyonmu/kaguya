@@ -19,6 +19,8 @@ func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
 	switch {
 	case errors.Is(err, serviceagent.ErrTaskModelNotConfigured):
 		dtocode.TaskModelNotConfigured.Failure(c)
+	case errors.Is(err, serviceagent.ErrProviderSecretUnavailable):
+		dtocode.ProviderSecretUnusable.Failure(c)
 	case errors.Is(err, serviceagent.ErrConversationNotFound):
 		dtocode.ConversationNotFound.Failure(c)
 	case errors.Is(err, serviceagent.ErrConversationBusy):
@@ -100,7 +102,7 @@ func (b *ChatApiV1Group) ConversationTitleWait(c *gin.Context) {
 // ConversationTitleGenerate
 // @Tags Chat History
 // @Summary 默认标题生成或重试，并等待已保存标题
-// @Description 每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。
+// @Description 每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007，提供商的 API Key 无法解密返回 102010。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。
 // @Param id path string true "会话雪花 ID"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationTitleResp}
 // @Router /v1/chat/conversation/{id}/title/wait [post]

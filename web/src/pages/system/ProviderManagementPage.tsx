@@ -3,6 +3,7 @@ import {
   ApiOutlined,
   DeleteOutlined,
   EditOutlined,
+  EyeOutlined,
   PlusOutlined,
   ReloadOutlined,
   RobotOutlined,
@@ -34,6 +35,7 @@ import {
   createProvider,
   deleteModel,
   deleteProvider,
+  fetchProviderAPIKey,
   fetchProviderLabels,
   updateModel,
   updateProvider,
@@ -73,12 +75,6 @@ interface FilterValues {
   apiProtocol?: ProviderProtocol
 }
 
-function maskAPIKey(value?: string) {
-  if (!value) return '未配置'
-  if (value.length <= 8) return '••••••••'
-  return `${value.slice(0, 4)}••••${value.slice(-4)}`
-}
-
 export function ProviderManagementPage() {
   const { message } = App.useApp()
   const [filterForm] = Form.useForm<FilterValues>()
@@ -93,6 +89,8 @@ export function ProviderManagementPage() {
   const [modelSaving, setModelSaving] = useState(false)
   const [selectedProviderID, setSelectedProviderID] = useState<string>()
   const [providerLabels, setProviderLabels] = useState<LabelOption[]>([])
+  const [revealingID, setRevealingID] = useState<string>()
+  const [revealedKey, setRevealedKey] = useState<{ name: string; value: string }>()
 
   const selectedProvider = useMemo(
     () => data.items.find((item) => item.id === selectedProviderID),
@@ -125,7 +123,8 @@ export function ProviderManagementPage() {
       provider_name: provider.provider_name,
       provider_type: provider.provider_type,
       api_protocol: provider.api_protocol,
-      api_key: provider.api_key,
+      // 后端只返回掩码，因此不预填；留空表示保留已存储的密钥。
+      api_key: '',
       base_url: provider.base_url,
     })
     setProviderModalOpen(true)
@@ -159,6 +158,19 @@ export function ProviderManagementPage() {
       reload()
     } catch (requestError) {
       message.error(requestError instanceof Error ? requestError.message : '删除失败')
+    }
+  }
+
+  // 明文只在用户点击查看时按需拉取，不随列表响应下发，也不长期保存在页面状态里。
+  const revealAPIKey = async (provider: AIProvider) => {
+    setRevealingID(provider.id)
+    try {
+      const result = await fetchProviderAPIKey(provider.id)
+      setRevealedKey({ name: provider.provider_name, value: result.api_key || '未配置' })
+    } catch (requestError) {
+      message.error(requestError instanceof Error ? requestError.message : '读取 API Key 失败')
+    } finally {
+      setRevealingID(undefined)
     }
   }
 
@@ -274,12 +286,26 @@ export function ProviderManagementPage() {
       title: 'API Key',
       dataIndex: 'api_key',
       key: 'api_key',
-      width: 150,
-      render: (value: string) => (
-        <span className="font-mono text-[11px] text-k-text-muted">
-          {maskAPIKey(value)}
-        </span>
-      ),
+      width: 190,
+      render: (value: string, record: AIProvider) =>
+        record.api_key_set ? (
+          <Space size={2}>
+            {/* 后端只返回掩码，明文需要显式查看。 */}
+            <span className="font-mono text-[11px] text-k-text-muted">{value}</span>
+            <Tooltip title="查看完整 API Key">
+              <Button
+                aria-label={`查看 ${record.provider_name} 的 API Key`}
+                icon={<EyeOutlined />}
+                loading={revealingID === record.id}
+                onClick={() => revealAPIKey(record)}
+                size="small"
+                type="text"
+              />
+            </Tooltip>
+          </Space>
+        ) : (
+          <span className="text-[11px] text-k-text-subtle">未配置</span>
+        ),
     },
     {
       title: '模型',
@@ -482,10 +508,28 @@ export function ProviderManagementPage() {
           <Form.Item label="完整请求 URL" name="base_url" rules={[{ required: true, message: '请输入包含实际端点的完整请求 URL' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="原样请求，不自动追加 /v1、/responses、/chat/completions 或 /messages。">
             <Input placeholder="例如 https://api.example.com/v1/chat/completions" />
           </Form.Item>
-          <Form.Item label="API Key" name="api_key">
-            <Input.Password autoComplete="new-password" placeholder="请输入 API Key" />
+          <Form.Item label="API Key" name="api_key" tooltip={editingProvider ? '留空表示保留已存储的密钥；填写则覆盖。' : undefined}>
+            <Input.Password autoComplete="new-password" placeholder={editingProvider ? '留空则不修改已存储的密钥' : '请输入 API Key'} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 明文只在这个弹窗里展示，关闭即从页面状态移除。 */}
+      <Modal
+        footer={<Button onClick={() => setRevealedKey(undefined)} type="primary">关闭</Button>}
+        onCancel={() => setRevealedKey(undefined)}
+        open={Boolean(revealedKey)}
+        title={revealedKey ? `${revealedKey.name} 的 API Key` : 'API Key'}
+      >
+        <Alert
+          className="mb-3"
+          description="明文只在本次查看时下发，请勿截图或转发。"
+          showIcon
+          type="warning"
+        />
+        <Typography.Paragraph className="mb-0!" copyable={{ text: revealedKey?.value }}>
+          <span className="font-mono text-[12px] break-all">{revealedKey?.value}</span>
+        </Typography.Paragraph>
       </Modal>
 
       <Drawer

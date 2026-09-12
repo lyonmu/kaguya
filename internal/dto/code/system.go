@@ -11,9 +11,6 @@ var (
 	SystemInfoQueryFailure  = Response{Code: 104000, Message: "系统配置查询失败"}
 	SystemInfoUpdateFailure = Response{Code: 104001, Message: "系统配置保存失败"}
 
-	// 操作日志相关
-	AccessLogQueryFailure = Response{Code: 101000, Message: "访问日志查询失败"}
-
 	// 提供商管理相关
 	ProviderQueryFailure     = Response{Code: 106000, Message: "提供商查询失败"}
 	ProviderNotFound         = Response{Code: 106001, Message: "提供商不存在"}
@@ -21,6 +18,7 @@ var (
 	ProviderUpdateFailure    = Response{Code: 106003, Message: "提供商更新失败"}
 	ProviderDeleteFailure    = Response{Code: 106004, Message: "提供商删除失败"}
 	ProviderNameAlreadyExist = Response{Code: 106005, Message: "提供商名称已存在"}
+	ProviderSecretInvalid   = Response{Code: 106006, Message: "API Key 加解密失败，请重新填写"}
 
 	// MCP 管理相关
 	MCPFailure        = Response{Code: 105000, Message: "MCP 操作失败"}

@@ -25,11 +25,18 @@ export interface AIProvider {
   id: string
   provider_name: string
   api_protocol: ProviderProtocol
+  /** 后端只返回掩码，明文需调用 fetchProviderAPIKey 单独获取。 */
   api_key: string
+  api_key_set: boolean
   base_url: string
   models: AIModel[]
   created_at: string
   updated_at: string
+}
+
+export interface ProviderAPIKeyResponse {
+  id: string
+  api_key: string
 }
 
 export interface ProviderPageResponse {
@@ -50,6 +57,7 @@ export interface ProviderPayload {
   provider_type: ProviderType
   provider_name: string
   api_protocol: ProviderProtocol
+  /** 留空表示保留已存储的密钥；后端不会回传明文供表单预填。 */
   api_key: string
   base_url: string
 }

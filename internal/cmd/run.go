@@ -141,6 +141,16 @@ func Run() {
 		global.Logger.Error("prepare TLS configuration failed", zap.Error(tlsErr))
 		os.Exit(1)
 	}
+	// API Key 静态加密在读取提供商配置前就绪；失败时降级为明文存储并明确告警，
+	// 以免密钥材料问题导致服务无法启动。
+	secretCtx, cancelSecret := context.WithTimeout(context.Background(), 30*time.Second)
+	secretErr := (&servicesystem.SystemSvc{}).InitSecret(secretCtx, global.Cfg.SecretKey)
+	cancelSecret()
+	if secretErr != nil {
+		global.Logger.Warn("provider API key encryption is disabled; keys are stored as plaintext", zap.Error(secretErr))
+	} else if !global.Cfg.SecretKeySet() {
+		global.Logger.Warn("provider API keys use a key derived from the TLS certificate; set KAGUYA_SECRET_KEY to protect them independently of the database")
+	}
 	if global.Cfg.PrepareTLS {
 		info, err := (&servicesystem.SystemSvc{}).Info(context.Background())
 		if err != nil {

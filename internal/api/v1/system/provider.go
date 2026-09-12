@@ -55,6 +55,33 @@ func (b *SystemApiV1Group) SystemProviderDetail(c *gin.Context) {
 	dtocode.SystemSuccess.Success(resp, c)
 }
 
+// SystemProviderAPIKey
+// @Tags System Provider
+// @Summary 查看提供商 API Key 明文（前端显式触发，不进入列表响应）
+// @Param id path string true "提供商 ID"
+// @Success 200 {object} dtocode.Response{data=dtosystem.SystemProviderAPIKeyResp}
+// @Router /v1/system/provider/{id}/api-key [get]
+func (b *SystemApiV1Group) SystemProviderAPIKey(c *gin.Context) {
+	var req dtosystem.SystemIDReq
+	if err := c.ShouldBindUri(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := systemsvc.ProviderAPIKey(c.Request.Context(), req.ID)
+	if err != nil {
+		switch {
+		case errors.Is(err, servicesystem.ErrProviderNotFound):
+			dtocode.ProviderNotFound.Failure(c)
+		case errors.Is(err, servicesystem.ErrProviderSecret):
+			dtocode.ProviderSecretInvalid.Failure(c)
+		default:
+			dtocode.ProviderQueryFailure.Failure(c)
+		}
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
 // SystemProviderCreate
 // @Tags System Provider
 // @Summary 创建提供商

@@ -16,6 +16,7 @@ type Cli struct {
 	RenewTLS     bool           `name:"renew-tls" help:"With --prepare-tls, explicitly replace the stored certificate with a new self-signed certificate"`
 	Debug        bool           `name:"debug" short:"d" long:"debug" help:"Enable debug mode" default:"false"`
 	MachineID    int            `name:"machine-id" short:"m" long:"machine-id" help:"Machine ID for the application" default:"1"`
+	SecretKey    string         `name:"secret-key" long:"secret-key" env:"KAGUYA_SECRET_KEY" help:"Key material for encrypting stored provider API keys: 32 bytes as hex or base64; defaults to deriving from the TLS certificate private key"`
 	RouterPrefix string         `name:"router-prefix" short:"r" long:"router-prefix" help:"Router prefix for the application" default:"/kaguya/api"`
 	DB           DatabaseConfig `embed:"" prefix:"db." mapstructure:"db" json:"db" yaml:"db"`
 	LogInfo      LogConfig      `embed:"" prefix:"log." mapstructure:"log" json:"log" yaml:"log"`
@@ -49,3 +50,6 @@ func (c *Cli) Validate() error {
 func (c *Cli) ListenAddress() string {
 	return net.JoinHostPort(c.Host, strconv.Itoa(int(c.Port)))
 }
+
+// SecretKeySet 报告是否显式配置了外部加密密钥。
+func (c *Cli) SecretKeySet() bool { return strings.TrimSpace(c.SecretKey) != "" }
