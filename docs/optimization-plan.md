@@ -423,3 +423,43 @@ benchmark 需先存在，不能把“无 benchmark 的空运行成功”计作�
 | 历史/统计/前端 | 分页和折叠详情正确；UTC 与 completed 统计口径不变；迟到响应不覆盖新状态 |
 
 发布前备份数据库和独立密钥；涉及 schema 的变更在副本上验证迁移，并保留可回退版本。不得回滚到不能读取新密文/schema 的二进制；若只变更内部状态协调/响应头，应避免引入不必要迁移。每个实施 PR 使用中文 Conventional Commit，说明实际改变、验证结果和剩余风险；本方案和测试截图不默认暂存或提交。
+
+## 11. 实施进度与剩余项
+
+本节记录按上述顺序实施的结果；已完成项附对应提交方向，未完成项说明原因与剩余风险。实施只按方案范围修改，未引入数据库、鉴权或框架迁移。
+
+### 11.1 已完成（含验证）
+
+| 编号 | 状态 | 实施内容 | 验证 |
+| --- | --- | --- | --- |
+| O01 | 完成 | `secret` 增加不可变 `Cipher`，`TLSUpdate` 独占凭据锁并在单事务内保存证书与重写全部密文，提交后 `Publish`；无效显式密钥不再清空活动密钥 | `internal/secret`、`internal/service/system` 新增失败回滚、重启可读、密钥保留测试；全量 race 通过 |
+| O02 | 完成 | `snapshot` 单临界区返回块与聚合统计；`flush` 用局部变量收集水位，commit 成功后才写回；更新路径校验影响行数 | `chat_recorder_test.go` 故障注入覆盖部分写失败、commit 失败、快照并发 delta、块丢失 |
+| O03 | 完成 | 查看类 git 命令禁用 textconv/fsmonitor、过滤 `GIT_*` 环境变量、独立进程组 + `WaitDelay`、字面仓库相对路径 | `git_hardening_test.go` 覆盖 textconv/fsmonitor 不执行、环境变量不改写目标、特殊文件名、子目录项目 |
+| O04 | 完成 | session 增加 `opVersion` 与 confirm 控制器，发送/切页/重载/删除/卸载使其失效；确认只按索引更新目标轮次 | `hooks.test.tsx` 新增延迟确认失效与停止竞态用例 |
+| O05 | 完成 | `stop` 点击时捕获 controller 与身份，finally 不再读取可变的 `session.stream` | 同上；旧实现下用例失败 |
+| O06 | 完成 | `workLifecycle` 统一准入/取消/等待；WS 连接注册表在关停时主动关闭；HTTP `BaseContext` 传播应用取消并注入 `ErrorLog`；关停顺序先取消再等待落库 | agent/api 生命周期测试；全量 race 通过 |
+| O07 | 完成 | 预览改用非阻塞打开后 `fstat`，FIFO 等非普通文件快速报错 | `content_fifo_test.go`、`content_boundary_test.go` |
+| O08 | 完成 | 单命令 64 MiB / 单会话 256 MiB 配额，达限终止命令并说明；同会话旧日期输出可读，跨会话仍拒绝 | `tools_test.go` 新增跨日期读取与配额终止用例 |
+| O10 | 完成 | 提供商列表/详情/明文 Key 响应统一 `Cache-Control: no-store`；启动日志不再声称明文降级 | `provider_cache_test.go`；加密失败策略随 O01 收敛 |
+| O11 | 完成 | MCP 连接时编译完整 schema，调用前本地校验；`Info` 返回独立 schema 副本 | `manager_test.go` 新增校验、schema 隔离、不支持 schema 拒绝用例 |
+| O12 | 完成 | 按服务 ID 的引用计数串行门替代全局 mutex，等待可取消；新建不再持锁 | `mcp_test.go` 隔离、取消与锁回收用例 |
+| O15 | 完成 | 刷新只重取首页与末尾页，分页请求固定并发；加载函数稳定引用 | `hooks.test.tsx` 30 页刷新请求数与并发上限用例（旧实现失败） |
+| O18 | 完成 | 144/288 WebP 衍生图 + `srcSet`，favicon 改 64px WebP，原图保留但不进构建 | 衍生图合计 48 KiB；`vite.config.test.ts` 增加预算与大图检查 |
+| O20 | 部分完成 | HTTP `ErrorLog` 接入 zap；`fmt.Print`/SSE 编码等必要输出保持；加密不可用日志修正 | `go vet`、全量测试 |
+| O21 | 部分完成 | README 中英文同步 TLS 轮换原子性、输出配额与跨日期边界；源码注释同步 | `git diff --check`、双语对照 |
+
+### 11.2 未实施项与原因
+
+- **O09（任务级工具权限）**：需要项目级工具白名单、界面开关与权限矩阵，属于新功能而非缺陷修复，且会改变默认工具集合。当前保持既有 trusted-host 行为；方案中的“只读请求不注册 bash/edit/write”未实现，剩余风险与 1.2 节界定一致。实施前需确认新项目默认策略。
+- **O13 / O14 / O16（前端渲染、会话缓存、read 复制）**：方案要求“先有基线测量再定目标”。本环境未采集生产帧耗时、heap 与 alloc profile，因此未做状态结构重写；现有实现与测试全部保持通过。实施前应先在真实浏览器与 benchmark 下确认热点。
+- **O17（单连接数据库竞争与启动初始化）**：需要代表性 SQLCipher 数据集测等待与查询计划，未在本次环境构造。`ReconcileRunningTurns` 仍未接收统一启动 context 预算。
+- **O19（网络边界运行时校验）**：未新增类型 guard；网络数据仍依赖现有编译器严格检查与 API 层校验，坏响应风险保持原状。
+- **O20 未完成部分**：业务指标（聊天槽位、flush、工具耗时、数据库等待、shutdown 未完成数）未加入 `pkg/metrics.go`；访问日志仍由 Gin 默认 writer 输出。
+- **O21 未完成部分**：`AGENTS.md` 的数据库、安装位置与测试描述仍与实际代码存在差异，按方案约定需要单独确认运行方向后再更新；Docker/PostgreSQL 遗留段落未改动。
+
+### 11.3 实施期间的实测结果
+
+- 每个阶段提交前执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./...`，全部通过；`vet ./...` 无报告。
+- 前端阶段执行 `bun run test`（最终 92 pass / 0 fail）、`bun run lint`、`bun run build` 与两套 `tsc --strict`。
+- `make build` 未执行；`make install` 未执行。未运行真实模型、外部 MCP、生产数据库压力或 SIGTERM 实验。
+- `web/src/features/chat/useConversations.ts` 存在 4 条 oxlint `exhaustive-deps` 警告（缺失 memo 依赖与误报的“多余依赖”），测试全部通过；未通过禁用规则掩盖。
