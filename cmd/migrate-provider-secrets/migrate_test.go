@@ -333,6 +333,34 @@ func TestMigrateProviderSecretsRollsBackOnWriteFailure(t *testing.T) {
 	}
 }
 
+func TestMigrateProviderSecretsSkipsMissingLegacyColumns(t *testing.T) {
+	ctx, conn, _ := newTestDB(t, "sqlite3")
+	// 已迁移副本上旧 TLS 列可能已被删除，转换仍需可重复执行。
+	if _, err := conn.ExecContext(ctx, "ALTER TABLE kaguya_system_info DROP COLUMN tls_certificate_pem"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.ExecContext(ctx, "ALTER TABLE kaguya_system_info DROP COLUMN tls_private_key_pem"); err != nil {
+		t.Fatal(err)
+	}
+	target := targetCipher(t)
+	v2, err := target.Encrypt("sk-current-value")
+	if err != nil {
+		t.Fatal(err)
+	}
+	insertProvider(t, ctx, conn, "current", v2)
+	result, err := migrate(ctx, conn, "", target)
+	if err != nil {
+		t.Fatalf("migrate without legacy columns: %v", err)
+	}
+	if result.verified != 1 || result.reencrypted != 0 || result.encrypted != 0 {
+		t.Fatalf("unexpected stats: %+v", result)
+	}
+	plain, err := target.Decrypt(storedKey(t, ctx, conn, "current"))
+	if err != nil || plain != "sk-current-value" {
+		t.Fatalf("plaintext = %q err=%v", plain, err)
+	}
+}
+
 func TestMigrateProviderSecretsRejectsUnknownCiphertext(t *testing.T) {
 	ctx, conn, _ := newTestDB(t, "sqlite3")
 	insertProvider(t, ctx, conn, "future", "enc:v9:AAAA")

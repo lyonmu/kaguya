@@ -185,13 +185,41 @@ func migrate(ctx context.Context, conn *sql.DB, oldSecretKey string, target *sec
 		}
 	}
 	// 旧证书私钥不再用于派生加密密钥；在提交前清空，避免遗留根密钥材料。
-	if _, err := tx.ExecContext(ctx, "UPDATE "+systemInfoTable+" SET tls_certificate_pem = '', tls_private_key_pem = '' WHERE id = ?", systemInfoIDValue); err != nil {
+	// 已迁移或全新数据库可能已没有这些列，此时跳过。
+	columns, err := tableColumns(ctx, tx, systemInfoTable)
+	if err != nil {
 		return stats{}, err
+	}
+	if columns["tls_certificate_pem"] && columns["tls_private_key_pem"] {
+		if _, err := tx.ExecContext(ctx, "UPDATE "+systemInfoTable+" SET tls_certificate_pem = '', tls_private_key_pem = '' WHERE id = ?", systemInfoIDValue); err != nil {
+			return stats{}, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return stats{}, err
 	}
 	return result, nil
+}
+
+// tableColumns 返回表的列集合；表不存在时返回空集合。
+func tableColumns(ctx context.Context, tx *sql.Tx, table string) (map[string]bool, error) {
+	rows, err := tx.QueryContext(ctx, "PRAGMA table_info("+table+")")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var name, columnType string
+		var notNull, primaryKey int
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return nil, err
+		}
+		columns[name] = true
+	}
+	return columns, rows.Err()
 }
 
 // legacyCipherFromDB 复现 enc:v1: 的密钥来源：优先显式外部密钥，
