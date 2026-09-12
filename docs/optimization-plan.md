@@ -444,6 +444,7 @@ benchmark 需先存在，不能把“无 benchmark 的空运行成功”计作�
 | O11 | 完成 | MCP 连接时编译完整 schema，调用前本地校验；`Info` 返回独立 schema 副本 | `manager_test.go` 新增校验、schema 隔离、不支持 schema 拒绝用例 |
 | O12 | 完成 | 按服务 ID 的引用计数串行门替代全局 mutex，等待可取消；新建不再持锁 | `mcp_test.go` 隔离、取消与锁回收用例 |
 | O15 | 完成 | 刷新只重取首页与末尾页，分页请求固定并发；加载函数稳定引用 | `hooks.test.tsx` 30 页刷新请求数与并发上限用例（旧实现失败） |
+| O16 | 完成（文本 read 部分） | 文本读取改为流式扫描，只缓存 offset/limit 窗口，图片先嗅探文件头；trace 与 compaction 未改 | `TestReadStreamingTextBoundaries`；benchmark 显示 8MiB 文件读取分配从约 8.5MiB 降至约 160KiB |
 | O18 | 完成 | 144/288 WebP 衍生图 + `srcSet`，favicon 改 64px WebP，原图保留但不进构建 | 衍生图合计 48 KiB；`vite.config.test.ts` 增加预算与大图检查 |
 | O19 | 完成 | HTTP envelope 与 payload、SSE 帧/块/usage 增加小型运行时 guard；`get/post/put` 接收可选校验器，坏响应不再强转 | `src/api/http.test.ts`、`sse.test.ts` 新增 null/数组/错误类型/缺失 usage/额外字段用例；两套 `tsc --strict` 通过 |
 | O20 | 部分完成 | HTTP `ErrorLog` 接入 zap；`fmt.Print`/SSE 编码等必要输出保持；加密不可用日志修正 | `go vet`、全量测试 |
@@ -452,7 +453,7 @@ benchmark 需先存在，不能把“无 benchmark 的空运行成功”计作�
 ### 11.2 未实施项与原因
 
 - **O09（任务级工具权限）**：需要项目级工具白名单、界面开关与权限矩阵，属于新功能而非缺陷修复，且会改变默认工具集合。当前保持既有 trusted-host 行为；方案中的“只读请求不注册 bash/edit/write”未实现，剩余风险与 1.2 节界定一致。实施前需确认新项目默认策略。
-- **O13 / O14 / O16（前端渲染、会话缓存、read 复制）**：方案要求“先有基线测量再定目标”。本环境未采集生产帧耗时、heap 与 alloc profile，因此未做状态结构重写；现有实现与测试全部保持通过。实施前应先在真实浏览器与 benchmark 下确认热点。
+- **O13 / O14（前端渲染与会话缓存）**：方案要求“先有基线测量再定目标”。本环境未采集生产帧耗时与 heap profile，因此未做状态结构重写；现有实现与测试全部保持通过。实施前应先在真实浏览器与 profiler 下确认热点。O16 的 read 部分已完成，`chat_trace` 追加缓冲与 `compaction` token 估算仍未改动（需要 alloc profile 确认收益）。
 - **O17（单连接数据库竞争与启动初始化）**：需要代表性 SQLCipher 数据集测等待与查询计划，未在本次环境构造。`ReconcileRunningTurns` 仍未接收统一启动 context 预算。
 - **O20 未完成部分**：业务指标（聊天槽位、flush、工具耗时、数据库等待、shutdown 未完成数）未加入 `pkg/metrics.go`；访问日志仍由 Gin 默认 writer 输出。
 - **O21 未完成部分**：`AGENTS.md` 的数据库、安装位置与测试描述仍与实际代码存在差异，按方案约定需要单独确认运行方向后再更新；Docker/PostgreSQL 遗留段落未改动。
@@ -461,5 +462,6 @@ benchmark 需先存在，不能把“无 benchmark 的空运行成功”计作�
 
 - 每个阶段提交前执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./...`，全部通过；`vet ./...` 无报告。
 - 前端阶段执行 `bun run test`（最终 92 pass / 0 fail）、`bun run lint`、`bun run build` 与两套 `tsc --strict`。
-- `make build` 未执行；`make install` 未执行。未运行真实模型、外部 MCP、生产数据库压力或 SIGTERM 实验。
+- `make build` 已执行：前端构建、资源嵌入与 `target/kaguya` 后端二进制均成功；`make install` 未执行。未运行真实模型、外部 MCP、生产数据库压力或 SIGTERM 实验。
+- `git diff --check` 无输出；提交按阶段拆分，均为中文 Conventional Commit。
 - `web/src/features/chat/useConversations.ts` 存在 4 条 oxlint `exhaustive-deps` 警告（缺失 memo 依赖与误报的“多余依赖”），测试全部通过；未通过禁用规则掩盖。
