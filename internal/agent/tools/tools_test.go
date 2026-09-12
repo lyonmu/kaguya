@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/png"
 	"os"
@@ -531,5 +532,95 @@ func TestBashOutputQuotaStopsCommandAndKeepsTail(t *testing.T) {
 	}
 	if info.Size() == 0 {
 		t.Fatal("saved output is empty")
+	}
+}
+
+// 流式文本扫描必须保持既有的行数、末尾换行、CRLF、UTF-8 与超长行语义。
+func TestReadStreamingTextBoundaries(t *testing.T) {
+	s := setup(t)
+	write := func(name, content string) {
+		t.Helper()
+		requireOK(t, run(t, s.WriteTool(), WriteInput{Path: name, Content: content}))
+	}
+	// 空文件是一行空内容。
+	write("empty.txt", "")
+	empty := run(t, s.ReadTool(), ReadInput{Path: "empty.txt"})
+	requireOK(t, empty)
+	if empty.Content != "" {
+		t.Fatalf("empty file content=%q", empty.Content)
+	}
+	// 末尾换行后仍算一行；总行数包含末尾空行。
+	write("trailing.txt", "a\nb\n")
+	trailing := run(t, s.ReadTool(), ReadInput{Path: "trailing.txt"})
+	requireOK(t, trailing)
+	if !strings.Contains(trailing.Content, "a\nb") {
+		t.Fatalf("trailing content=%q", trailing.Content)
+	}
+	// CRLF 与 UTF-8 多字节字符跨块边界保持完整。
+	write("crlf.txt", "第一行\r\n第二行\r\n")
+	crlf := run(t, s.ReadTool(), ReadInput{Path: "crlf.txt"})
+	requireOK(t, crlf)
+	if !strings.Contains(crlf.Content, "第一行\r") || !strings.Contains(crlf.Content, "第二行") {
+		t.Fatalf("crlf content=%q", crlf.Content)
+	}
+	// 非法 UTF-8 与 NUL 字节按二进制拒绝。
+	requireOK(t, run(t, s.WriteTool(), WriteInput{Path: "invalid.bin", Content: "ok\n"}))
+	invalid := filepath.Join(s.cwd, "invalid.bin")
+	if err := os.WriteFile(invalid, []byte{'a', 0xff, 0xfe, '\n'}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !run(t, s.ReadTool(), ReadInput{Path: "invalid.bin"}).IsError {
+		t.Fatal("invalid UTF-8 accepted")
+	}
+	if err := os.WriteFile(invalid, []byte{'a', 0, 'b'}, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !run(t, s.ReadTool(), ReadInput{Path: "invalid.bin"}).IsError {
+		t.Fatal("NUL byte accepted")
+	}
+	// 超长单行只给出可操作提示，不回传内容。
+	long := strings.Repeat("x", MaxBytes+16)
+	write("long.txt", long+"\nshort\n")
+	oversized := run(t, s.ReadTool(), ReadInput{Path: "long.txt"})
+	if !oversized.IsError && !strings.Contains(oversized.Content, "50KB") {
+		t.Fatalf("oversized line=%+v", oversized)
+	}
+	// offset 越界报错并给出总行数。
+	off := 99
+	if !run(t, s.ReadTool(), ReadInput{Path: "trailing.txt", Offset: &off}).IsError {
+		t.Fatal("accepted offset after EOF")
+	}
+	// 取消后的读取立即返回错误。
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := s.ReadTool().Run(cancelled, fantasy.ToolCall{Input: `{"path":"trailing.txt"}`}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled read err=%v", err)
+	}
+}
+
+// 大文件的窗口读取不应把整个文件复制进内存；基准用于对比窗口大小的影响。
+func BenchmarkReadToolWindow(b *testing.B) {
+	for _, size := range []int{1 << 20, 8 << 20} {
+		content := strings.Repeat("0123456789abcdef\n", size/17)
+		cwd := b.TempDir()
+		path := filepath.Join(cwd, "big.txt")
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			b.Fatal(err)
+		}
+		set, err := newSet(cwd, "bench", b.TempDir(), time.Now(), zap.NewNop())
+		if err != nil {
+			b.Fatal(err)
+		}
+		tool := set.ReadTool()
+		b.Run(fmt.Sprintf("size=%dMiB", size>>20), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				response, err := tool.Run(context.Background(), fantasy.ToolCall{Input: `{"path":"big.txt","limit":100}`})
+				if err != nil || response.IsError {
+					b.Fatalf("read failed: %v %+v", err, response)
+				}
+			}
+		})
+		_ = set.Close()
 	}
 }
