@@ -464,4 +464,4 @@ benchmark 需先存在，不能把“无 benchmark 的空运行成功”计作�
 - 前端阶段执行 `bun run test`（最终 92 pass / 0 fail）、`bun run lint`、`bun run build` 与两套 `tsc --strict`。
 - `make build` 已执行：前端构建、资源嵌入与 `target/kaguya` 后端二进制均成功；`make install` 未执行。未运行真实模型、外部 MCP、生产数据库压力或 SIGTERM 实验。
 - `git diff --check` 无输出；提交按阶段拆分，均为中文 Conventional Commit。
-- `web/src/features/chat/useConversations.ts` 存在 4 条 oxlint `exhaustive-deps` 警告（缺失 memo 依赖与误报的“多余依赖”），测试全部通过；未通过禁用规则掩盖。
+- `web/src/features/chat/useConversations.ts` 存在 4 条 oxlint `exhaustive-deps` 警告：`fetchPage`/`loadPages` 未加入依赖数组（两者本身稳定），以及筛选状态被标为 load 的“多余依赖”（实际用于筛选变化时重建加载函数）。已尝试重构为 ref + 稳定回调但导致既有测试失败，故保留能通过全部行为测试的版本，未通过禁用规则掩盖。
