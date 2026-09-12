@@ -126,6 +126,7 @@ function RuntimeMessage() {
                   你 · {new Date(turn.started_at).toLocaleString()}
                 </div>
                 <div className="chat-user-text">{turn.user_content}</div>
+                <div className="chat-response-actions"><CopyButton label="复制提问" text={turn.user_content} /></div>
               </div>
             </article>}
             {role === "assistant" && <article className="chat-message">

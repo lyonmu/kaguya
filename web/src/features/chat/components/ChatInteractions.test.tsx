@@ -171,6 +171,19 @@ it('embeds selected project files inline and removes references when their token
   await waitFor(() => assert.equal(sends, 1))
 })
 
+it('copies the user question from its own message', async () => {
+  let copied = ''
+  const write = navigator.clipboard.writeText
+  navigator.clipboard.writeText = async text => { copied = text }
+  try {
+    const turn = { turn_index: 1, user_content: '帮我看看这条命令', model_id: 'm', model_name: 'model', api_protocol: 'openai', started_at: new Date().toISOString(), blocks: [], finish_reason: 'stop', duration_ms: 1, tool_calls: 0, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, cached_tokens: 0, reasoning_tokens: 0 } }
+    const view = render(<MessageList turns={[turn]} loading={false} streaming={false} page={1} totalPages={1} initialEnd onPageChange={async () => {}} />)
+    await act(async () => { fireEvent.click(view.getByLabelText('复制提问')) })
+    assert.equal(copied, '帮我看看这条命令')
+    assert.ok(view.getByText('已复制'))
+  } finally { navigator.clipboard.writeText = write }
+})
+
 it('offers continuation only on the last saved page and never while streaming', () => {
   const turn = { turn_index: 1, user_content: 'task', model_id: 'm', model_name: 'model', api_protocol: 'openai', started_at: new Date().toISOString(), blocks: [], finish_reason: 'step_limit', duration_ms: 1, tool_calls: 0, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, cached_tokens: 0, reasoning_tokens: 0 } }
   let continued = 0
