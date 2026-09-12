@@ -3,13 +3,9 @@ package pkg
 import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
-
-	// "github.com/lyonmu/kaguya/internal/global"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
-func NewGin(reg *prometheus.Registry, mode bool, trustedHosts ...string) (*gin.Engine, error) {
-
+func NewGin(mode bool, trustedHosts ...string) (*gin.Engine, error) {
 	if !mode {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -21,9 +17,5 @@ func NewGin(reg *prometheus.Registry, mode bool, trustedHosts ...string) (*gin.E
 		r.Use(gin.Logger())
 		pprof.Register(r)
 	}
-	// if err := RegisterMetrics(r, reg, fmt.Sprintf("%s/metrics", global.Cfg.RouterPrefix)); err != nil {
-	// 	return nil, err
-	// }
-
 	return r, nil
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestRequestSecurity(t *testing.T) {
-	r, err := NewGin(nil, false, "agent.example.com")
+	r, err := NewGin(false, "agent.example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestRequestSecurity(t *testing.T) {
 }
 
 func TestRequestBodyLimit(t *testing.T) {
-	r, _ := NewGin(nil, false)
+	r, _ := NewGin(false)
 	called := false
 	r.POST("/", func(c *gin.Context) {
 		if _, err := io.ReadAll(c.Request.Body); err != nil {

@@ -15,9 +15,6 @@ var (
 	v1api   = apiv1.ApiV1Group{}
 )
 
-type RouterGroup struct {
-}
-
 func InitRouter(e *gin.Engine) {
 
 	// 前端静态资源注册在 API 路由组之外，避免记录静态资源访问日志。

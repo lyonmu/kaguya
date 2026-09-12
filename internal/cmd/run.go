@@ -121,7 +121,7 @@ func Run() {
 
 	global.Metrics = pkg.NewPrometheusRegistry()
 	global.Logger.Info("start init register gin engine")
-	ginEngine, err := pkg.NewGin(global.Metrics, global.Cfg.Debug, global.Cfg.TrustedHosts...)
+	ginEngine, err := pkg.NewGin(global.Cfg.Debug, global.Cfg.TrustedHosts...)
 	if err != nil {
 		global.Logger.Error("failed to create gin engine", zap.Error(err))
 		os.Exit(1)
