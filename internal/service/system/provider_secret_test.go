@@ -15,7 +15,7 @@ import (
 // enableTestSecret 用固定外部密钥启用加密，测试结束后恢复未初始化状态。
 func enableTestSecret(t *testing.T) {
 	t.Helper()
-	if err := secret.Init(strings.Repeat("ab", 32), ""); err != nil {
+	if err := secret.Init(strings.Repeat("ab", 32), nil); err != nil {
 		t.Fatalf("init secret: %v", err)
 	}
 	t.Cleanup(secret.Reset)
@@ -122,44 +122,6 @@ func TestProviderUpdateWithoutAPIKeyKeepsStoredSecret(t *testing.T) {
 	}
 	if plain.APIKey != "sk-replaced-value" {
 		t.Fatalf("a provided api_key must replace the stored secret, got %q", plain.APIKey)
-	}
-}
-
-func TestPlaintextProviderKeysMigrateOnStartup(t *testing.T) {
-	ctx := setupSystemServiceTest(t)
-	svc := &SystemSvc{}
-
-	// 先以明文写入，模拟加密存储上线前的历史数据。
-	legacy, err := svc.ProviderCreate(ctx, providerSaveReq("legacy", "sk-legacy-plaintext"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if row, err := svcProviderRow(ctx, legacy.ID); err != nil || row != "sk-legacy-plaintext" {
-		t.Fatalf("expected plaintext before migration, got %q err=%v", row, err)
-	}
-
-	// 与真实启动一致：InitSecret 加载密钥并就地加密历史明文。
-	if err := svc.InitSecret(ctx, strings.Repeat("ab", 32)); err != nil {
-		t.Fatalf("init secret: %v", err)
-	}
-	t.Cleanup(secret.Reset)
-	row, err := svcProviderRow(ctx, legacy.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !secret.IsEncrypted(row) {
-		t.Fatalf("migration must encrypt the stored value, got %q", row)
-	}
-	// 迁移后仍能读出原值，且可重复执行。
-	plain, err := svc.ProviderAPIKey(ctx, legacy.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if plain.APIKey != "sk-legacy-plaintext" {
-		t.Fatalf("unexpected plaintext after migration: %q", plain.APIKey)
-	}
-	if err := svc.EncryptStoredProviderSecrets(ctx); err != nil {
-		t.Fatalf("migration must be idempotent: %v", err)
 	}
 }
 

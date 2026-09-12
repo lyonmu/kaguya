@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+// RequireSQLCipher 确认当前链接的是 SQLCipher 4 引擎，供离线迁移等直接打开数据库的路径复用。
+func RequireSQLCipher() error {
+	return requireSQLCipher()
+}
+
 func requireSQLCipher() error {
 	probe, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {

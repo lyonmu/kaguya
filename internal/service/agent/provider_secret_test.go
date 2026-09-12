@@ -34,7 +34,7 @@ func seedProvider(t *testing.T, ctx context.Context, client *ent.Client, name, a
 // 而数据库未同步。
 func rotateSecretKey(t *testing.T) {
 	t.Helper()
-	if err := secret.Init(strings.Repeat("cd", 32), ""); err != nil {
+	if err := secret.Init(strings.Repeat("cd", 32), nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -66,7 +66,7 @@ func runChat(ctx context.Context, t *testing.T, req *dtochat.ChatReq) chatFrames
 // 让 API 层提示重新填写，而不是笼统的“对话生成失败”。
 func TestChatReportsUndecryptableProviderSecret(t *testing.T) {
 	ctx, client := setupChatTest(t)
-	if err := secret.Init(strings.Repeat("ab", 32), ""); err != nil {
+	if err := secret.Init(strings.Repeat("ab", 32), nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(secret.Reset)
@@ -103,7 +103,7 @@ func TestChatReportsUndecryptableProviderSecret(t *testing.T) {
 // 模型其实已经配置，失败原因是凭据不可用。
 func TestTitleGenerationReportsUndecryptableProviderSecret(t *testing.T) {
 	ctx, client := setupChatTest(t)
-	if err := secret.Init(strings.Repeat("ab", 32), ""); err != nil {
+	if err := secret.Init(strings.Repeat("ab", 32), nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(secret.Reset)
@@ -130,7 +130,7 @@ func TestTitleGenerationReportsUndecryptableProviderSecret(t *testing.T) {
 // 该哨兵只覆盖“密文解不开”：未配置密钥与历史明文记录都不应被误判。
 func TestProviderSecretSentinelIsNotOverBroad(t *testing.T) {
 	ctx, client := setupChatTest(t)
-	if err := secret.Init(strings.Repeat("ab", 32), ""); err != nil {
+	if err := secret.Init(strings.Repeat("ab", 32), nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(secret.Reset)
@@ -154,7 +154,7 @@ func TestProviderSecretSentinelIsNotOverBroad(t *testing.T) {
 // providerAPIKey 是两条解密路径的共同入口，单独验证它返回哨兵。
 func TestProviderAPIKeyReturnsSentinelOnFailure(t *testing.T) {
 	ctx, client := setupChatTest(t)
-	if err := secret.Init(strings.Repeat("ab", 32), ""); err != nil {
+	if err := secret.Init(strings.Repeat("ab", 32), nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(secret.Reset)

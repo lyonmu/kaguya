@@ -3,21 +3,18 @@
 // 密钥来源按优先级选择：
 //
 //  1. 启动参数或环境变量 KAGUYA_SECRET_KEY（32 字节，十六进制或 Base64）；
-//  2. TLS 证书私钥经 HKDF-SHA256 派生。
+//  2. SQLCipher 主密钥经 HKDF-SHA256 域分离派生（salt=kaguya-provider-secret-v2，
+//     info=provider-api-key）。
 //
-// 两者的安全等级不同，部署时应优先使用外部密钥：
+// 第二种来源与数据库同源，只能防止逻辑导出直接暴露 API Key，无法抵御数据库
+// 文件泄露；需要独立根信任时配置外部密钥。
 //
-//   - 外部密钥保存在数据库之外，数据库文件、备份或导出泄露时密文仍不可读；
-//   - TLS 私钥与密文存放于同一个数据库，加密只提供格式混淆，无法抵御
-//     数据库文件泄露。此外证书轮换会改变派生密钥，此时必须重新加密
-//     （TLSUpdate 已处理），否则旧密文无法解密。
+// 密文带 enc:v2: 版本前缀。enc:v1:（旧证书派生密钥）与历史明文属于旧格式，
+// 由 cmd/migrate-provider-secrets 离线转换；运行时拒绝把旧格式当作明文再次加密，
+// 启动初始化会校验存量记录并要求先完成迁移。
 //
-// 未调用 Init 时 Encrypt 原样返回明文、Decrypt 直接返回输入，便于单元测试与
-// 未启用加密的调用路径。生产启动流程必然调用 Init。
-//
-// Cipher 是不可变对象：TLSUpdate 可以先用旧 Cipher 解密、再用新 Cipher 加密，
-// 在数据库事务成功提交后才把活动密钥切换为新对象，避免轮换中途失败留下
-// 新证书配旧密文的状态。
+// 未调用 Init 时 Encrypt 原样返回明文、Decrypt 放行历史明文，便于单元测试与
+// 未启用加密的调用路径；生产启动流程必然调用 Init。
 package secret
 
 import (
@@ -28,68 +25,86 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"strings"
 	"sync"
 )
 
-// prefix 标记密文。带版本号，便于将来更换算法时识别历史记录。
-const prefix = "enc:v1:"
+// CiphertextPrefixV2 标记当前版本的密文；带版本号便于识别历史记录。
+const CiphertextPrefixV2 = "enc:v2:"
 
 const (
 	keyLength  = 32 // AES-256
-	saltLabel  = "kaguya-secret-v1"
+	saltLabel  = "kaguya-provider-secret-v2"
 	infoLabel  = "provider-api-key"
 	maskRunes  = 4
 	maskSymbol = "••••"
 )
 
-// ErrNoKeyMaterial 表示既没有外部密钥，也没有可用于派生的证书私钥。
-var ErrNoKeyMaterial = errors.New("no encryption key material: set KAGUYA_SECRET_KEY or configure a TLS certificate")
+var (
+	// ErrNoKeyMaterial 表示既没有外部密钥，也没有 SQLCipher 主密钥可用于派生。
+	ErrNoKeyMaterial = errors.New("no encryption key material: set KAGUYA_SECRET_KEY or provide the SQLCipher database key")
+	// ErrLegacyFormat 表示取值属于旧版本格式，必须先执行离线迁移。
+	ErrLegacyFormat = errors.New("value uses a legacy provider secret format; run cmd/migrate-provider-secrets before starting")
+)
 
-// Cipher 是不可变的加密对象。构造成功即持有全部密钥材料，
-// 之后不依赖包级状态，可在轮换过程中与新 Cipher 并存。
+// Cipher 是不可变的加密对象。构造成功即持有全部密钥材料，不依赖包级状态。
 type Cipher struct {
-	key             []byte
-	fromCertificate bool
+	key []byte
 }
 
-func newCipher(key []byte, fromCertificate bool) *Cipher {
-	return &Cipher{key: key, fromCertificate: fromCertificate}
+// NewKeyCipher 用 32 字节原始密钥构造 Cipher，不修改包级活动密钥。
+func NewKeyCipher(key []byte) (*Cipher, error) {
+	if len(key) != keyLength {
+		return nil, fmt.Errorf("secret key must be %d bytes", keyLength)
+	}
+	copied := make([]byte, keyLength)
+	copy(copied, key)
+	return &Cipher{key: copied}, nil
 }
 
-// NewCipher 根据外部密钥或证书私钥构造 Cipher，不修改包级活动密钥。
-// explicitKey 为空时回退到 tlsPrivateKeyPEM 派生。
-func NewCipher(explicitKey, tlsPrivateKeyPEM string) (*Cipher, error) {
+// DeriveKeyFromSQLCipherKey 用固定域分离参数从 SQLCipher 主密钥派生 API Key 密钥。
+// 参数是版本契约：修改会令既有 enc:v2: 密文无法解开。
+func DeriveKeyFromSQLCipherKey(master []byte) ([]byte, error) {
+	if len(master) == 0 {
+		return nil, ErrNoKeyMaterial
+	}
+	derived, err := hkdf.Key(sha256.New, master, []byte(saltLabel), infoLabel, keyLength)
+	if err != nil {
+		return nil, fmt.Errorf("derive secret key from SQLCipher key: %w", err)
+	}
+	return derived, nil
+}
+
+// NewCipher 根据外部密钥或 SQLCipher 主密钥构造 Cipher，不修改包级活动密钥。
+// explicitKey 为空时回退到 sqlcipherKey 派生。
+func NewCipher(explicitKey string, sqlcipherKey []byte) (*Cipher, error) {
 	if material := strings.TrimSpace(explicitKey); material != "" {
 		parsed, err := parseExplicitKey(material)
 		if err != nil {
 			return nil, err
 		}
-		return newCipher(parsed, false), nil
+		return NewKeyCipher(parsed)
 	}
-	if strings.TrimSpace(tlsPrivateKeyPEM) == "" {
-		return nil, ErrNoKeyMaterial
-	}
-	derived, err := deriveFromCertificate(tlsPrivateKeyPEM)
+	derived, err := DeriveKeyFromSQLCipherKey(sqlcipherKey)
 	if err != nil {
 		return nil, err
 	}
-	return newCipher(derived, true), nil
+	return NewKeyCipher(derived)
 }
 
-// DerivedFromCertificate 报告该 Cipher 的密钥是否由证书私钥派生。证书轮换会改变这种密钥，
-// 调用方必须先重新加密已有密文。
-func (c *Cipher) DerivedFromCertificate() bool {
-	return c != nil && c.fromCertificate
-}
-
-// Encrypt 加密明文。空值原样返回；已带前缀的值不做二次加密。
+// Encrypt 加密明文。空值原样返回；已是当前格式的密文不做二次加密；
+// 旧格式密文明确报错，不把它当作明文再次加密。
 func (c *Cipher) Encrypt(plain string) (string, error) {
-	if plain == "" || IsEncrypted(plain) {
+	if plain == "" {
+		return "", nil
+	}
+	if IsEncrypted(plain) {
 		return plain, nil
+	}
+	if strings.HasPrefix(plain, "enc:") {
+		return "", ErrLegacyFormat
 	}
 	aead, err := c.aead()
 	if err != nil {
@@ -100,22 +115,26 @@ func (c *Cipher) Encrypt(plain string) (string, error) {
 		return "", fmt.Errorf("generate nonce: %w", err)
 	}
 	sealed := aead.Seal(nonce, nonce, []byte(plain), nil)
-	return prefix + base64.RawStdEncoding.EncodeToString(sealed), nil
+	return CiphertextPrefixV2 + base64.RawStdEncoding.EncodeToString(sealed), nil
 }
 
-// Decrypt 解密密文。历史明文记录（无前缀）原样返回，便于平滑迁移。
+// Decrypt 解密密文。历史明文原样返回，保证迁移完成前仍可读；旧版本密文明确
+// 报错，避免用当前密钥解出无意义结果。
 func (c *Cipher) Decrypt(value string) (string, error) {
-	if !IsEncrypted(value) {
-		return value, nil
+	if value == "" {
+		return "", nil
 	}
-	if c == nil {
-		return "", errors.New("encrypted value requires an initialized secret key")
+	if !IsEncrypted(value) {
+		if strings.HasPrefix(value, "enc:") {
+			return "", ErrLegacyFormat
+		}
+		return value, nil
 	}
 	aead, err := c.aead()
 	if err != nil {
 		return "", err
 	}
-	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(value, prefix))
+	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(value, CiphertextPrefixV2))
 	if err != nil {
 		return "", fmt.Errorf("decode ciphertext: %w", err)
 	}
@@ -124,8 +143,8 @@ func (c *Cipher) Decrypt(value string) (string, error) {
 	}
 	plain, err := aead.Open(nil, raw[:aead.NonceSize()], raw[aead.NonceSize():], nil)
 	if err != nil {
-		// 证书轮换或更换外部密钥后，既有密文无法解开；调用方应提示重新填写。
-		return "", errors.New("cannot decrypt value with the current secret key; re-enter the API key after a TLS certificate rotation")
+		// 密钥材料不匹配或密文损坏；调用方应提示重新填写。
+		return "", errors.New("cannot decrypt value with the current secret key")
 	}
 	return string(plain), nil
 }
@@ -142,73 +161,45 @@ func (c *Cipher) aead() (cipher.AEAD, error) {
 }
 
 var (
-	// activeMu 只保护 active 指针本身。读取活动 Cipher 不进入协调锁，
-	// 因此 Swap 期间不会阻塞正在进行的凭据操作。
+	// activeMu 只保护 active 指针本身。
 	activeMu sync.RWMutex
 	active   *Cipher
-
-	// coordMu 协调“读数据库 → 解密/加密 → 写数据库”的完整短操作。
-	// 普通凭据操作共享访问，TLS 轮换独占访问。
-	coordMu sync.RWMutex
 )
 
-func setActive(c *Cipher) {
-	activeMu.Lock()
-	active = c
-	activeMu.Unlock()
-}
-
-// current 返回当前活动 Cipher；未初始化时返回 nil。
-func current() *Cipher {
-	activeMu.RLock()
-	defer activeMu.RUnlock()
-	return active
-}
-
-// Current 返回当前活动 Cipher。调用方在使用它与数据库交互期间
-// 应持有 RLockCredentials，避免与 TLS 轮换交错。
-func Current() *Cipher { return current() }
-
-// Init 加载活动加密密钥，必须在使用 Encrypt/Decrypt 前调用。
-// 构造失败时不修改已有密钥，避免一次错误的显式密钥清空可用状态。
-func Init(explicitKey, tlsPrivateKeyPEM string) error {
-	c, err := NewCipher(explicitKey, tlsPrivateKeyPEM)
+// Init 按密钥材料构造并发布活动 Cipher，必须在使用 Encrypt/Decrypt 前调用。
+func Init(explicitKey string, sqlcipherKey []byte) error {
+	c, err := NewCipher(explicitKey, sqlcipherKey)
 	if err != nil {
 		return err
 	}
-	setActive(c)
+	return Activate(c)
+}
+
+// Activate 发布已构造好的活动 Cipher。调用方应在发布前确认存量密文可用它解开，
+// 构造或校验失败时不得调用，避免用错误密钥替换可用状态。
+func Activate(c *Cipher) error {
+	if c == nil {
+		return ErrNoKeyMaterial
+	}
+	activeMu.Lock()
+	active = c
+	activeMu.Unlock()
 	return nil
 }
 
 // Reset 清除当前密钥，仅用于测试与降级路径。
-func Reset() { setActive(nil) }
-
-// Publish 把已构造好的 Cipher 发布为活动密钥。用于 TLS 轮换：
-// 事务提交后直接把候选 Cipher 切为活动状态，不再重新解析密钥材料。
-func Publish(c *Cipher) { setActive(c) }
+func Reset() {
+	activeMu.Lock()
+	active = nil
+	activeMu.Unlock()
+}
 
 // Enabled 报告当前是否具备可用密钥。
 func Enabled() bool {
-	c := current()
-	return c != nil && len(c.key) > 0
+	activeMu.RLock()
+	defer activeMu.RUnlock()
+	return active != nil && len(active.key) > 0
 }
-
-// DerivedFromCertificate 报告活动密钥是否由证书私钥派生。证书轮换会改变这种密钥，
-// 调用方必须先重新加密已有密文。
-func DerivedFromCertificate() bool { return current().DerivedFromCertificate() }
-
-// LockCredentials 阻止新的凭据读写，直到 UnlockCredentials。
-// TLS 轮换在“读取密文 → 用新密钥重写 → 提交事务”期间独占使用。
-func LockCredentials() { coordMu.Lock() }
-
-// UnlockCredentials 释放凭据协调锁。
-func UnlockCredentials() { coordMu.Unlock() }
-
-// RLockCredentials 声明当前操作会读取凭据密文并与轮换互斥。
-func RLockCredentials() { coordMu.RLock() }
-
-// RUnlockCredentials 释放凭据共享锁。
-func RUnlockCredentials() { coordMu.RUnlock() }
 
 func parseExplicitKey(material string) ([]byte, error) {
 	if decoded, err := hex.DecodeString(material); err == nil && len(decoded) == keyLength {
@@ -222,46 +213,36 @@ func parseExplicitKey(material string) ([]byte, error) {
 	return nil, fmt.Errorf("secret key must be %d bytes encoded as hex or base64", keyLength)
 }
 
-// deriveFromCertificate 从 PKCS#8 私钥的 DER 派生对称密钥。
-// 派生值只依赖私钥本身，证书链或有效期变化不会影响结果。
-func deriveFromCertificate(privateKeyPEM string) ([]byte, error) {
-	block, _ := pem.Decode([]byte(privateKeyPEM))
-	if block == nil {
-		return nil, errors.New("TLS private key is not valid PEM")
-	}
-	derived, err := hkdf.Key(sha256.New, block.Bytes, []byte(saltLabel), infoLabel, keyLength)
-	if err != nil {
-		return nil, fmt.Errorf("derive secret key from TLS certificate: %w", err)
-	}
-	return derived, nil
-}
-
-// IsEncrypted 判断取值是否为本包产生的密文。
-func IsEncrypted(value string) bool { return strings.HasPrefix(value, prefix) }
+// IsEncrypted 判断取值是否为当前版本密文。
+func IsEncrypted(value string) bool { return strings.HasPrefix(value, CiphertextPrefixV2) }
 
 // Encrypt 用活动密钥加密。未初始化密钥时返回明文（静态加密未启用），
 // 便于未启用加密的调用路径与单元测试。
 func Encrypt(plain string) (string, error) {
-	c := current()
+	activeMu.RLock()
+	c := active
+	activeMu.RUnlock()
 	if c == nil {
 		return plain, nil
 	}
 	return c.Encrypt(plain)
 }
 
-// Decrypt 用活动密钥解密。未初始化密钥时密文返回错误、历史明文原样返回。
+// Decrypt 用活动密钥解密。未初始化密钥时密文报错、历史明文原样返回。
 func Decrypt(value string) (string, error) {
-	if !IsEncrypted(value) {
-		return value, nil
-	}
-	c := current()
+	activeMu.RLock()
+	c := active
+	activeMu.RUnlock()
 	if c == nil {
+		if value == "" || !strings.HasPrefix(value, "enc:") {
+			return value, nil
+		}
 		return "", errors.New("encrypted value requires an initialized secret key")
 	}
 	return c.Decrypt(value)
 }
 
-// MaskUnavailable 表示已配置密钥但当前密钥无法解密（例如 TLS 证书已轮换）。
+// MaskUnavailable 表示已配置密钥但当前密钥无法解密（密钥材料不匹配或密文损坏）。
 const MaskUnavailable = "••••••••"
 
 // Mask 生成用于列表与详情展示的掩码，保留前四后四位便于人工辨识。

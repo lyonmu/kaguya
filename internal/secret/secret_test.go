@@ -1,36 +1,42 @@
 package secret
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
+	"errors"
 	"strings"
 	"testing"
-	"time"
 )
 
-func testPrivateKeyPEM(t *testing.T) string {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+var testMasterKey = func() []byte {
+	key := make([]byte, 32)
+	for i := range key {
+		key[i] = byte(i)
+	}
+	return key
+}()
+
+// v2 派生参数是版本契约：修改 salt 或 info 会让全部既有密文无法解开。
+func TestDeriveKeyFromSQLCipherKeyVector(t *testing.T) {
+	derived, err := DeriveKeyFromSQLCipherKey(testMasterKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	der, err := x509.MarshalPKCS8PrivateKey(key)
-	if err != nil {
-		t.Fatal(err)
+	const want = "4fffbdb22d53e78d4de9ad9811ba3691f646e3d521b1fa1ff89acbb1572b30e0"
+	if hex.EncodeToString(derived) != want {
+		t.Fatalf("derived key = %x, want %s", derived, want)
 	}
-	return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
+	if _, err := DeriveKeyFromSQLCipherKey(nil); !errors.Is(err, ErrNoKeyMaterial) {
+		t.Fatalf("missing master key must fail, got %v", err)
+	}
 }
 
-func TestEncryptRoundTripWithCertificate(t *testing.T) {
+func TestEncryptRoundTrip(t *testing.T) {
 	Reset()
 	defer Reset()
-	if err := Init("", testPrivateKeyPEM(t)); err != nil {
-		t.Fatalf("init from certificate: %v", err)
+	if err := Init("", testMasterKey); err != nil {
+		t.Fatalf("init from SQLCipher key: %v", err)
 	}
 	if !Enabled() {
 		t.Fatal("secret key should be enabled")
@@ -39,8 +45,8 @@ func TestEncryptRoundTripWithCertificate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encrypt: %v", err)
 	}
-	if !IsEncrypted(cipherText) {
-		t.Fatalf("ciphertext must carry the version prefix: %q", cipherText)
+	if !strings.HasPrefix(cipherText, CiphertextPrefixV2) {
+		t.Fatalf("ciphertext must carry the v2 prefix: %q", cipherText)
 	}
 	if strings.Contains(cipherText, "sk-live") {
 		t.Fatalf("ciphertext must not contain the plaintext: %q", cipherText)
@@ -57,7 +63,7 @@ func TestEncryptRoundTripWithCertificate(t *testing.T) {
 func TestEncryptProducesDistinctCiphertexts(t *testing.T) {
 	Reset()
 	defer Reset()
-	if err := Init("", testPrivateKeyPEM(t)); err != nil {
+	if err := Init("", testMasterKey); err != nil {
 		t.Fatal(err)
 	}
 	first, err := Encrypt("same-value")
@@ -83,7 +89,7 @@ func TestExplicitKeyAcceptsHexAndBase64(t *testing.T) {
 		"base64": base64.StdEncoding.EncodeToString(raw),
 	} {
 		Reset()
-		if err := Init(material, ""); err != nil {
+		if err := Init(material, nil); err != nil {
 			t.Fatalf("%s key: %v", name, err)
 		}
 		if !Enabled() {
@@ -91,57 +97,99 @@ func TestExplicitKeyAcceptsHexAndBase64(t *testing.T) {
 		}
 	}
 	Reset()
-	if err := Init("too-short", ""); err == nil {
+	if err := Init("too-short", nil); err == nil {
 		t.Fatal("invalid key material must be rejected")
 	}
 }
 
-func TestExternalKeyDoesNotDependOnCertificate(t *testing.T) {
+// 外部密钥优先于 SQLCipher 派生密钥，且不依赖数据库密钥。
+func TestExplicitKeyOverridesDatabaseKey(t *testing.T) {
 	raw := make([]byte, keyLength)
 	if _, err := rand.Read(raw); err != nil {
 		t.Fatal(err)
 	}
 	Reset()
 	defer Reset()
-	if err := Init(hex.EncodeToString(raw), testPrivateKeyPEM(t)); err != nil {
+	if err := Init(hex.EncodeToString(raw), testMasterKey); err != nil {
 		t.Fatal(err)
 	}
 	cipherText, err := Encrypt("stable")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 轮换证书后，外部密钥仍应解开既有密文。
-	if err := Init(hex.EncodeToString(raw), testPrivateKeyPEM(t)); err != nil {
+	// 换一个数据库主密钥，外部密钥仍应解开既有密文。
+	other := make([]byte, keyLength)
+	if _, err := rand.Read(other); err != nil {
+		t.Fatal(err)
+	}
+	if err := Init(hex.EncodeToString(raw), other); err != nil {
 		t.Fatal(err)
 	}
 	plain, err := Decrypt(cipherText)
 	if err != nil {
-		t.Fatalf("external key must survive certificate rotation: %v", err)
+		t.Fatalf("external key must survive a database key change: %v", err)
 	}
 	if plain != "stable" {
 		t.Fatalf("unexpected plaintext: %q", plain)
 	}
 }
 
-func TestCertificateRotationBreaksDerivedKey(t *testing.T) {
+func TestSQLCipherDerivedKeyFollowsMasterKey(t *testing.T) {
 	Reset()
 	defer Reset()
-	if err := Init("", testPrivateKeyPEM(t)); err != nil {
+	if err := Init("", testMasterKey); err != nil {
 		t.Fatal(err)
 	}
-	cipherText, err := Encrypt("legacy")
+	cipherText, err := Encrypt("derived")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Init("", testPrivateKeyPEM(t)); err != nil {
+	other := make([]byte, keyLength)
+	if _, err := rand.Read(other); err != nil {
+		t.Fatal(err)
+	}
+	if err := Init("", other); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Decrypt(cipherText); err == nil {
-		t.Fatal("a rotated certificate must not silently decrypt old ciphertext")
+		t.Fatal("a different database key must not silently decrypt old ciphertext")
 	}
 }
 
-func TestUninitializedPassesThroughPlaintext(t *testing.T) {
+// 旧格式必须明确报错：加密端不能把 enc:v1: 字符串当作明文二次加密。
+func TestLegacyFormatsRejected(t *testing.T) {
+	Reset()
+	defer Reset()
+	if err := Init("", testMasterKey); err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range []string{"enc:v1:AAAA", "enc:v9:AAAA"} {
+		if IsEncrypted(value) {
+			t.Fatalf("%q must not be treated as current ciphertext", value)
+		}
+		if _, err := Encrypt(value); !errors.Is(err, ErrLegacyFormat) {
+			t.Fatalf("encrypting %q must fail with ErrLegacyFormat, got %v", value, err)
+		}
+		if _, err := Decrypt(value); !errors.Is(err, ErrLegacyFormat) {
+			t.Fatalf("decrypting %q must fail with ErrLegacyFormat, got %v", value, err)
+		}
+	}
+}
+
+// 历史明文在迁移完成前必须保持可读，避免升级瞬间让既有提供商不可用。
+func TestDecryptHistoricalPlaintext(t *testing.T) {
+	Reset()
+	defer Reset()
+	if err := Init("", testMasterKey); err != nil {
+		t.Fatal(err)
+	}
+	plain, err := Decrypt("historical-plaintext")
+	if err != nil || plain != "historical-plaintext" {
+		t.Fatalf("plaintext = %q err=%v", plain, err)
+	}
+}
+
+func TestUninitializedBehavior(t *testing.T) {
 	Reset()
 	value, err := Encrypt("plain")
 	if err != nil {
@@ -165,12 +213,16 @@ func TestUninitializedPassesThroughPlaintext(t *testing.T) {
 func TestEmptyValueStaysEmpty(t *testing.T) {
 	Reset()
 	defer Reset()
-	if err := Init("", testPrivateKeyPEM(t)); err != nil {
+	if err := Init("", testMasterKey); err != nil {
 		t.Fatal(err)
 	}
 	value, err := Encrypt("")
 	if err != nil || value != "" {
 		t.Fatalf("empty value must stay empty: %q %v", value, err)
+	}
+	plain, err := Decrypt("")
+	if err != nil || plain != "" {
+		t.Fatalf("empty value must decrypt to empty: %q %v", plain, err)
 	}
 }
 
@@ -187,22 +239,24 @@ func TestMask(t *testing.T) {
 	}
 }
 
-// Cipher 必须可独立构造：轮换时允许旧 Cipher 解密、新 Cipher 加密并存，
-// 且构造失败不修改包级状态。
+// Cipher 必须可独立构造：迁移与测试允许旧 Cipher 解密、新 Cipher 加密并存。
 func TestCipherIndependentOfActiveState(t *testing.T) {
 	Reset()
 	defer Reset()
-	oldCert, newCert := testPrivateKeyPEM(t), testPrivateKeyPEM(t)
-	oldCipher, err := NewCipher("", oldCert)
+	oldKey, newKey := make([]byte, keyLength), make([]byte, keyLength)
+	if _, err := rand.Read(oldKey); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rand.Read(newKey); err != nil {
+		t.Fatal(err)
+	}
+	oldCipher, err := NewKeyCipher(oldKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	newCipher, err := NewCipher("", newCert)
+	newCipher, err := NewKeyCipher(newKey)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if !oldCipher.DerivedFromCertificate() {
-		t.Fatal("certificate cipher must report derived key")
 	}
 	cipherText, err := oldCipher.Encrypt("sk-independent")
 	if err != nil {
@@ -218,76 +272,32 @@ func TestCipherIndependentOfActiveState(t *testing.T) {
 	if _, err := newCipher.Decrypt(cipherText); err == nil {
 		t.Fatal("new cipher must not decrypt ciphers of the old key")
 	}
-	// 显式密钥优先于证书派生，且不标记为证书派生。
-	external, err := NewCipher(strings.Repeat("ab", 32), newCert)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if external.DerivedFromCertificate() {
-		t.Fatal("explicit key must not be reported as certificate-derived")
+	if _, err := NewKeyCipher([]byte("short")); err == nil {
+		t.Fatal("wrong key length must be rejected")
 	}
 }
 
-// Init 失败不得清空已有活动密钥，成功时才会替换。
-func TestInitFailureKeepsActiveKey(t *testing.T) {
+// 初始化失败不得清空已有活动密钥，成功时才会替换。
+func TestActivateFailureKeepsActiveKey(t *testing.T) {
 	Reset()
 	defer Reset()
-	if err := Init("", testPrivateKeyPEM(t)); err != nil {
+	if err := Init("", testMasterKey); err != nil {
 		t.Fatal(err)
 	}
 	cipherText, err := Encrypt("sk-still-readable")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := Init("not-a-valid-key", ""); err == nil {
+	if _, err := NewCipher("not-a-valid-key", nil); err == nil {
 		t.Fatal("invalid explicit key must fail")
 	}
+	if err := Activate(nil); err == nil {
+		t.Fatal("activating nil must fail")
+	}
 	if !Enabled() {
-		t.Fatal("failed Init cleared the active key")
+		t.Fatal("failed initialization cleared the active key")
 	}
 	if plain, err := Decrypt(cipherText); err != nil || plain != "sk-still-readable" {
-		t.Fatalf("active key lost after failed Init: %q %v", plain, err)
+		t.Fatalf("active key lost after failed initialization: %q %v", plain, err)
 	}
-}
-
-// 凭据协调锁只用于串行化读写与轮换；活动 Cipher 的读取不进入该锁。
-func TestCredentialLockSerializes(t *testing.T) {
-	Reset()
-	defer Reset()
-	if err := Init("", testPrivateKeyPEM(t)); err != nil {
-		t.Fatal(err)
-	}
-	acquired := make(chan struct{})
-	release := make(chan struct{})
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		LockCredentials()
-		defer UnlockCredentials()
-		// 轮换持有独占锁期间仍可读取活动密钥。
-		if !Enabled() {
-			t.Error("active cipher must stay readable under the exclusive lock")
-		}
-		close(acquired)
-		<-release
-	}()
-	<-acquired
-	blocked := make(chan struct{})
-	go func() {
-		RLockCredentials()
-		defer RUnlockCredentials()
-		close(blocked)
-	}()
-	select {
-	case <-blocked:
-		t.Fatal("reader acquired the credential lock during rotation")
-	case <-time.After(50 * time.Millisecond):
-	}
-	close(release)
-	select {
-	case <-blocked:
-	case <-time.After(time.Second):
-		t.Fatal("reader did not acquire the credential lock after rotation")
-	}
-	<-done
 }

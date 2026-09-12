@@ -120,6 +120,20 @@ func (c *DatabaseConfig) ValidateSQLiteKey() error {
 	return err
 }
 
+// SQLCipherKeyBytes 返回已验证的 32 字节数据库密钥，供需要派生应用密钥的启动路径使用。
+// 密钥不写入日志、DSN 或普通配置。
+func (c *DatabaseConfig) SQLCipherKeyBytes() ([]byte, error) {
+	encoded, err := c.sqliteKey()
+	if err != nil {
+		return nil, err
+	}
+	key, err := hex.DecodeString(encoded)
+	if err != nil {
+		return nil, errors.New("SQLCipher key file contains invalid hexadecimal encoding")
+	}
+	return key, nil
+}
+
 // SQLiteKeyPath 解析配置的密钥文件路径，不读取密钥。
 func (c *DatabaseConfig) SQLiteKeyPath() (string, error) {
 	keyConfig := DatabaseConfig{Path: c.KeyFile}

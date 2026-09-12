@@ -41,7 +41,7 @@ func TestProviderSecretResponsesDisableCaching(t *testing.T) {
 	if err := initialize.Run(ctx, client); err != nil {
 		t.Fatal(err)
 	}
-	if err := secret.Init(strings.Repeat("ab", 32), ""); err != nil {
+	if err := secret.Init(strings.Repeat("ab", 32), nil); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(secret.Reset)

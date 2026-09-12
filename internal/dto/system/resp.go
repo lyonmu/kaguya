@@ -33,8 +33,8 @@ func (r *SystemProviderResp) LoadDb(e *ent.KaguyaProviderInfo) {
 	r.ProviderName = e.ProviderName
 	r.ProviderType = e.ProviderType
 	r.APIProtocol = e.APIProtocol
-	// 掩码只保留首尾各四位便于人工辨识，无法反推明文；解密失败（如证书已轮换）
-	// 退回统一占位，不阻断列表。
+	// 掩码只保留首尾各四位便于人工辨识，无法反推明文；密钥材料不匹配或
+	// 密文损坏时退回统一占位，不阻断列表。
 	if plain, err := secret.Decrypt(e.APIKey); err == nil {
 		r.APIKey = secret.Mask(plain)
 	} else {

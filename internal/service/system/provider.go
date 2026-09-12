@@ -28,9 +28,6 @@ func providerQueryWithModels(client *ent.Client) *ent.KaguyaProviderInfoQuery {
 
 // ProviderPage 分页查询提供商及其模型。
 func (s *SystemSvc) ProviderPage(ctx context.Context, req *dtosystem.SystemProviderPageReq) (*dtosystem.SystemProviderListResp, error) {
-	// 列表需要解密后的掩码，与 TLS 轮换互斥，避免读到重写中的密文。
-	secret.RLockCredentials()
-	defer secret.RUnlockCredentials()
 	query := providerQueryWithModels(db.EntClient)
 	if req.ProviderName != "" {
 		query.Where(kaguyaproviderinfo.ProviderNameContains(req.ProviderName))
@@ -64,8 +61,6 @@ func (s *SystemSvc) ProviderPage(ctx context.Context, req *dtosystem.SystemProvi
 
 // ProviderDetail 查询提供商详情及其模型。
 func (s *SystemSvc) ProviderDetail(ctx context.Context, id string) (*dtosystem.SystemProviderResp, error) {
-	secret.RLockCredentials()
-	defer secret.RUnlockCredentials()
 	row, err := providerQueryWithModels(db.EntClient).Where(kaguyaproviderinfo.IDEQ(id)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -82,9 +77,6 @@ func (s *SystemSvc) ProviderDetail(ctx context.Context, id string) (*dtosystem.S
 
 // ProviderCreate 创建提供商。API Key 加密后入库，响应只返回掩码。
 func (s *SystemSvc) ProviderCreate(ctx context.Context, req *dtosystem.SystemProviderSaveReq) (*dtosystem.SystemProviderResp, error) {
-	// 加密与入库必须与 TLS 轮换互斥，否则可能用即将失效的密钥写入新密文。
-	secret.RLockCredentials()
-	defer secret.RUnlockCredentials()
 	kind := req.ProviderType
 	if kind == "" {
 		kind = consts.ProviderTypeNormal
@@ -117,8 +109,6 @@ func (s *SystemSvc) ProviderCreate(ctx context.Context, req *dtosystem.SystemPro
 
 // ProviderUpdate 修改提供商。请求中 api_key 为空表示保留原密钥，不回传也不覆盖。
 func (s *SystemSvc) ProviderUpdate(ctx context.Context, id string, req *dtosystem.SystemProviderSaveReq) (*dtosystem.SystemProviderResp, error) {
-	secret.RLockCredentials()
-	defer secret.RUnlockCredentials()
 	kind := req.ProviderType
 	if kind == "" {
 		kind = consts.ProviderTypeNormal
@@ -160,8 +150,6 @@ func (s *SystemSvc) ProviderUpdate(ctx context.Context, id string, req *dtosyste
 // ProviderAPIKey 解密并返回单个提供商的 API Key 明文，仅供前端显式查看时调用，
 // 不进入列表响应。
 func (s *SystemSvc) ProviderAPIKey(ctx context.Context, id string) (*dtosystem.SystemProviderAPIKeyResp, error) {
-	secret.RLockCredentials()
-	defer secret.RUnlockCredentials()
 	row, err := providerQuery(db.EntClient).Where(kaguyaproviderinfo.IDEQ(id)).Only(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

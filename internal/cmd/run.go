@@ -114,15 +114,19 @@ func Run() {
 		global.Logger.Error("prepare TLS configuration failed", zap.Error(tlsErr))
 		os.Exit(1)
 	}
-	// API Key 静态加密在读取提供商配置前就绪；InitSecret 失败时不更换活动密钥，
-	// 已有密文仍可读，但新的密钥写入会在定位到加密失败后拒绝。
+	// API Key 静态加密必须在读取提供商配置前就绪；初始化失败（旧格式未迁移、
+	// 密钥材料不匹配）直接中止启动，避免用不可用密钥继续处理请求。
+	dbKey, keyErr := global.Cfg.DB.SQLCipherKeyBytes()
+	if keyErr != nil {
+		global.Logger.Error("read SQLCipher key for provider secret encryption failed", zap.Error(keyErr))
+		os.Exit(1)
+	}
 	secretCtx, cancelSecret := context.WithTimeout(context.Background(), 30*time.Second)
-	secretErr := (&servicesystem.SystemSvc{}).InitSecret(secretCtx, global.Cfg.SecretKey)
+	secretErr := (&servicesystem.SystemSvc{}).InitSecret(secretCtx, global.Cfg.SecretKey, dbKey)
 	cancelSecret()
 	if secretErr != nil {
-		global.Logger.Warn("provider API key encryption is unavailable; existing keys stay readable but new writes will fail until key material is fixed", zap.Error(secretErr))
-	} else if !global.Cfg.SecretKeySet() {
-		global.Logger.Warn("provider API keys use a key derived from the TLS certificate; set KAGUYA_SECRET_KEY to protect them independently of the database")
+		global.Logger.Error("initialize provider API key encryption failed", zap.Error(secretErr))
+		os.Exit(1)
 	}
 	if global.Cfg.PrepareTLS {
 		info, err := (&servicesystem.SystemSvc{}).Info(context.Background())
