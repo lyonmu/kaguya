@@ -359,8 +359,8 @@ describe('stop and delayed confirmation races', () => {
     let releaseStop!: () => void
     const stopResponse = new Promise<Response>(resolve => { releaseStop = () => resolve(response(null)) })
     globalThis.fetch = (async (url, init) => {
-      const path = String(url)
-      if (path.endsWith('/sse')) {
+      const parsed = new URL(String(url), 'http://localhost')
+      if (parsed.pathname.endsWith('/sse')) {
         const signal = init!.signal as AbortSignal
         return new Response(new ReadableStream({ start(controller) {
           let finished = false
@@ -374,7 +374,8 @@ describe('stop and delayed confirmation races', () => {
           signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')))
         } }), { headers: { 'Content-Type': 'text/event-stream' } })
       }
-      if (path.endsWith('/stop')) return stopResponse
+      if (parsed.pathname.endsWith('/stop')) return stopResponse
+      if (parsed.pathname.endsWith('/turns')) return response({ items: [], page: 1, total: 0, total_pages: 1, page_size: 5 })
       return response({ ...detail, id: '123', title: '已有标题', turn_count: 1 })
     }) as typeof fetch
 

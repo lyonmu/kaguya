@@ -445,6 +445,7 @@ benchmark 需先存在，不能把“无 benchmark 的空运行成功”计作�
 | O12 | 完成 | 按服务 ID 的引用计数串行门替代全局 mutex，等待可取消；新建不再持锁 | `mcp_test.go` 隔离、取消与锁回收用例 |
 | O15 | 完成 | 刷新只重取首页与末尾页，分页请求固定并发；加载函数稳定引用 | `hooks.test.tsx` 30 页刷新请求数与并发上限用例（旧实现失败） |
 | O18 | 完成 | 144/288 WebP 衍生图 + `srcSet`，favicon 改 64px WebP，原图保留但不进构建 | 衍生图合计 48 KiB；`vite.config.test.ts` 增加预算与大图检查 |
+| O19 | 完成 | HTTP envelope 与 payload、SSE 帧/块/usage 增加小型运行时 guard；`get/post/put` 接收可选校验器，坏响应不再强转 | `src/api/http.test.ts`、`sse.test.ts` 新增 null/数组/错误类型/缺失 usage/额外字段用例；两套 `tsc --strict` 通过 |
 | O20 | 部分完成 | HTTP `ErrorLog` 接入 zap；`fmt.Print`/SSE 编码等必要输出保持；加密不可用日志修正 | `go vet`、全量测试 |
 | O21 | 部分完成 | README 中英文同步 TLS 轮换原子性、输出配额与跨日期边界；源码注释同步 | `git diff --check`、双语对照 |
 
@@ -453,7 +454,6 @@ benchmark 需先存在，不能把“无 benchmark 的空运行成功”计作�
 - **O09（任务级工具权限）**：需要项目级工具白名单、界面开关与权限矩阵，属于新功能而非缺陷修复，且会改变默认工具集合。当前保持既有 trusted-host 行为；方案中的“只读请求不注册 bash/edit/write”未实现，剩余风险与 1.2 节界定一致。实施前需确认新项目默认策略。
 - **O13 / O14 / O16（前端渲染、会话缓存、read 复制）**：方案要求“先有基线测量再定目标”。本环境未采集生产帧耗时、heap 与 alloc profile，因此未做状态结构重写；现有实现与测试全部保持通过。实施前应先在真实浏览器与 benchmark 下确认热点。
 - **O17（单连接数据库竞争与启动初始化）**：需要代表性 SQLCipher 数据集测等待与查询计划，未在本次环境构造。`ReconcileRunningTurns` 仍未接收统一启动 context 预算。
-- **O19（网络边界运行时校验）**：未新增类型 guard；网络数据仍依赖现有编译器严格检查与 API 层校验，坏响应风险保持原状。
 - **O20 未完成部分**：业务指标（聊天槽位、flush、工具耗时、数据库等待、shutdown 未完成数）未加入 `pkg/metrics.go`；访问日志仍由 Gin 默认 writer 输出。
 - **O21 未完成部分**：`AGENTS.md` 的数据库、安装位置与测试描述仍与实际代码存在差异，按方案约定需要单独确认运行方向后再更新；Docker/PostgreSQL 遗留段落未改动。
 

@@ -48,3 +48,27 @@ describe('SSE transport', () => {
     assert.equal(cancelled, true)
   })
 })
+
+describe('SSE runtime validation', () => {
+  const envelope = (data: unknown) => `data: ${JSON.stringify({ code: 100000, data })}\n\n`
+  it('rejects wrong types and keeps accepting valid extra fields', async () => {
+    // 非字符串 delta 内容必须拒绝，而不是进入 reducer。
+    await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '1', flag: 'delta', content: 42 } })), () => {}), /格式不正确/)
+    // 缺失 chat 或未知 flag 同样拒绝。
+    await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '1', flag: 'unknown' } })), () => {}), /格式不正确/)
+    await assert.rejects(consumeSSE(stream(envelope({ result: 1 })), () => {}), /格式不正确/)
+    // usage 字段出现时必须是数字。
+    await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '1', flag: 'done' }, usage: { total_tokens: 'x' } })), () => {}), /格式不正确/)
+    // 合法额外字段与可选字段继续可用（done 帧结束流）。
+    const received: ChatFrame[] = []
+    const valid = `data: ${JSON.stringify({ code: 100000, data: { chat: { id: '1', flag: 'delta', content: 'ok' }, usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 }, extra: { future: true } }, message: 'ok', extra: 1 })}\n\n`
+    await consumeSSE(stream(valid + envelope({ chat: { id: '1', flag: 'done' }, usage: { total_tokens: 3 } })), value => received.push(value))
+    assert.equal(received.length, 2)
+    assert.equal(received[0].chat.content, 'ok')
+  })
+  it('rejects an error frame without a chat id only when the field is missing', async () => {
+    await assert.rejects(consumeSSE(stream(envelope({ chat: { flag: 'error' } })), () => {}), /格式不正确/)
+    // 会话尚未建立时后端允许空 id。
+    await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '', flag: 'error', content: '模型不可用' } })), () => {}), /模型不可用/)
+  })
+})

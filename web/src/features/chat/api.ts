@@ -1,5 +1,6 @@
 import { ApiRequestError, buildUrl, del, get, post, put } from '../../api/http'
 import type { ApiResponse } from '../../api/http'
+import { blockGuard, conversationContextGuard, conversationGuard, conversationPageGuard, conversationTitleGuard, projectFilesGuard, turnPageGuard } from './guards'
 import { consumeSSE } from './sse'
 import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage, Block } from './types'
 
@@ -8,25 +9,25 @@ export const HISTORY_PAGE_SIZE = 5
 const PATH = '/v1/chat/conversation'
 
 export function fetchConversations(keyword: string, favorite: boolean, page: number, signal?: AbortSignal, projectId?: string) {
-  return get<ConversationPage>(`${PATH}/page`, { keyword, favorite: favorite || undefined, is_project: !!projectId, project_id: projectId || undefined, page, page_size: 20 }, signal)
+  return get<ConversationPage>(`${PATH}/page`, { keyword, favorite: favorite || undefined, is_project: !!projectId, project_id: projectId || undefined, page, page_size: 20 }, signal, conversationPageGuard)
 }
 export function fetchConversation(id: string, signal?: AbortSignal) {
-  return get<Conversation>(`${PATH}/${encodeURIComponent(id)}`, undefined, signal)
+  return get<Conversation>(`${PATH}/${encodeURIComponent(id)}`, undefined, signal, conversationGuard)
 }
 export function fetchConversationContext(id: string, signal?: AbortSignal) {
-  return get<ConversationContext>(`${PATH}/${encodeURIComponent(id)}/context`, undefined, signal)
+  return get<ConversationContext>(`${PATH}/${encodeURIComponent(id)}/context`, undefined, signal, conversationContextGuard)
 }
 export function generateConversationTitle(id: string, signal?: AbortSignal) {
-  return post<ConversationTitle>(`${PATH}/${encodeURIComponent(id)}/title/wait`, undefined, signal)
+  return post<ConversationTitle>(`${PATH}/${encodeURIComponent(id)}/title/wait`, undefined, signal, conversationTitleGuard)
 }
 export function fetchTurns(id: string, before = 0, signal?: AbortSignal) {
-  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { before, limit: HISTORY_PAGE_SIZE, compact: true }, signal)
+  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { before, limit: HISTORY_PAGE_SIZE, compact: true }, signal, turnPageGuard)
 }
 export function fetchTurnPage(id: string, page: number, signal?: AbortSignal) {
-  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: HISTORY_PAGE_SIZE, compact: true }, signal)
+  return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: HISTORY_PAGE_SIZE, compact: true }, signal, turnPageGuard)
 }
 export function updateConversation(id: string, payload: { title?: string; favorite?: boolean }) {
-  return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload)
+  return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload, conversationGuard)
 }
 // stopConversation 标记用户主动停止该会话的当前轮次，供服务端区分 canceled 与断联；
 // 取消本身仍通过断开 SSE 完成。
@@ -54,9 +55,9 @@ export async function streamChat(id: string, messages: string, signal: AbortSign
 }
 
 export function searchProjectFiles(projectId: string, query: string, signal?: AbortSignal) {
-  return get<{ files: string[]; truncated: boolean }>(`/v1/project/${encodeURIComponent(projectId)}/files`, { query }, signal)
+  return get<{ files: string[]; truncated: boolean }>(`/v1/project/${encodeURIComponent(projectId)}/files`, { query }, signal, projectFilesGuard)
 }
 
 export function fetchBlock(id: string, turn: number, sequence: number, signal?: AbortSignal) {
-  return get<Block>(`${PATH}/${encodeURIComponent(id)}/turns/${turn}/blocks/${sequence}`, undefined, signal)
+  return get<Block>(`${PATH}/${encodeURIComponent(id)}/turns/${turn}/blocks/${sequence}`, undefined, signal, blockGuard)
 }
