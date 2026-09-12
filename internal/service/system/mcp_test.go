@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/db"
@@ -129,5 +130,39 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	}
 	if _, err := svc.MCPCreate(ctx, req); err != nil {
 		t.Fatalf("recreate deleted name: %v", err)
+	}
+}
+
+// 不同服务的并发门互相独立：一个服务的长时间操作不能阻塞另一个服务；
+// 同一服务的等待者可以被 context 取消，取消后不产生副作用。
+func TestMCPMutationGateIsolationAndCancellation(t *testing.T) {
+	var gate mcpMutationGate
+	gate.locks = map[string]*mcpServiceLock{}
+
+	releaseSlow, err := gate.acquire(context.Background(), "slow")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 另一个服务可以立即获取，不受慢服务持有影响。
+	other, err := gate.acquire(context.Background(), "other")
+	if err != nil {
+		t.Fatalf("other service blocked by slow holder: %v", err)
+	}
+	other()
+
+	// 同一服务的等待者在请求取消时立即返回。
+	waitCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if _, err := gate.acquire(waitCtx, "slow"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("same-service waiter err=%v", err)
+	}
+	releaseSlow()
+
+	// 引用计数归零后不残留锁对象。
+	gate.mu.Lock()
+	remaining := len(gate.locks)
+	gate.mu.Unlock()
+	if remaining != 0 {
+		t.Fatalf("lock map leaked %d entries", remaining)
 	}
 }

@@ -21,9 +21,49 @@ var (
 	ErrMCPDuplicate = errors.New("MCP 服务名称已存在")
 	ErrMCPInvalid   = errors.New("MCP 配置无效")
 	ErrMCPConnect   = errors.New("MCP 连接或工具发现失败，请检查服务配置")
-	// 串行化数据库修改和运行时发布，避免并发启停、编辑、删除产生状态倒置。
-	mcpMutation sync.Mutex
 )
+
+// mcpMutationGate 按服务 ID 串行化“准备 → 保存 → 发布”，避免单个故障服务的
+// 连接准备阻塞其他 MCP 的启停；等待可被请求 context 取消。
+type mcpMutationGate struct {
+	mu    sync.Mutex
+	locks map[string]*mcpServiceLock
+}
+
+type mcpServiceLock struct {
+	gate chan struct{}
+	refs int
+}
+
+func (g *mcpMutationGate) acquire(ctx context.Context, id string) (func(), error) {
+	g.mu.Lock()
+	lock := g.locks[id]
+	if lock == nil {
+		lock = &mcpServiceLock{gate: make(chan struct{}, 1)}
+		g.locks[id] = lock
+	}
+	lock.refs++
+	g.mu.Unlock()
+	drop := func() {
+		g.mu.Lock()
+		lock.refs--
+		if lock.refs == 0 {
+			delete(g.locks, id)
+		}
+		g.mu.Unlock()
+	}
+	for {
+		select {
+		case lock.gate <- struct{}{}:
+			return func() { <-lock.gate; drop() }, nil
+		case <-ctx.Done():
+			drop()
+			return nil, ctx.Err()
+		}
+	}
+}
+
+var mcpMutations = mcpMutationGate{locks: map[string]*mcpServiceLock{}}
 
 func mcpConfig(row *ent.KaguyaMCPServer) agentmcp.Config {
 	return agentmcp.Config{Name: row.Name, Transport: string(row.Transport), Command: row.Command, Args: row.Args, Env: row.Env, WorkingDirectory: row.WorkingDirectory, URL: row.URL, Headers: row.Headers, TimeoutSeconds: row.TimeoutSeconds}
@@ -78,8 +118,7 @@ func (s *SystemSvc) MCPCreate(ctx context.Context, req *dtosystem.SystemMCPSaveR
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrMCPInvalid, err)
 	}
-	mcpMutation.Lock()
-	defer mcpMutation.Unlock()
+	// 新建服务尚未发布连接，名称唯一性由数据库约束保障，无需全局锁。
 	row, err := db.EntClient.KaguyaMCPServer.Create().SetName(req.Name).SetTransport(kaguyamcpserver.Transport(req.Transport)).SetCommand(req.Command).SetArgs(req.Args).SetEnv(req.Env).SetWorkingDirectory(req.WorkingDirectory).SetURL(req.URL).SetHeaders(req.Headers).SetTimeoutSeconds(req.TimeoutSeconds).Save(ctx)
 	if ent.IsConstraintError(err) {
 		return nil, ErrMCPDuplicate
@@ -93,8 +132,11 @@ func (s *SystemSvc) MCPUpdate(ctx context.Context, id string, req *dtosystem.Sys
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrMCPInvalid, err)
 	}
-	mcpMutation.Lock()
-	defer mcpMutation.Unlock()
+	release, err := mcpMutations.acquire(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	old, err := mcpFind(ctx, id)
 	if err != nil {
 		return nil, err
@@ -120,8 +162,11 @@ func (s *SystemSvc) MCPUpdate(ctx context.Context, id string, req *dtosystem.Sys
 	return mcpResponse(row, true), nil
 }
 func (s *SystemSvc) MCPSetEnabled(ctx context.Context, id string, enabled bool) (*dtosystem.SystemMCPResp, error) {
-	mcpMutation.Lock()
-	defer mcpMutation.Unlock()
+	release, err := mcpMutations.acquire(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	old, err := mcpFind(ctx, id)
 	if err != nil {
 		return nil, err
@@ -148,13 +193,16 @@ func (s *SystemSvc) MCPSetEnabled(ctx context.Context, id string, enabled bool) 
 	return mcpResponse(row, true), nil
 }
 func (s *SystemSvc) MCPDelete(ctx context.Context, id string) error {
-	mcpMutation.Lock()
-	defer mcpMutation.Unlock()
+	release, err := mcpMutations.acquire(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer release()
 	if _, err := mcpFind(ctx, id); err != nil {
 		return err
 	}
 	// 和项目其他配置保持软删除一致；清除秘密，释放名称以便重建。
-	_, err := db.EntClient.KaguyaMCPServer.UpdateOneID(id).SetDeletedAt(time.Now()).SetEnabled(false).SetName("deleted-" + id).SetEnv(map[string]string{}).SetHeaders(map[string]string{}).SetArgs([]string{}).SetCommand("").SetURL("").Save(ctx)
+	_, err = db.EntClient.KaguyaMCPServer.UpdateOneID(id).SetDeletedAt(time.Now()).SetEnabled(false).SetName("deleted-" + id).SetEnv(map[string]string{}).SetHeaders(map[string]string{}).SetArgs([]string{}).SetCommand("").SetURL("").Save(ctx)
 	if err != nil {
 		return err
 	}
@@ -174,8 +222,11 @@ func (s *SystemSvc) RestoreMCP(ctx context.Context) error {
 		}
 		// 每个服务独立持锁，允许用户在启动恢复过程中停用或删除其他配置。
 		err := func() error {
-			mcpMutation.Lock()
-			defer mcpMutation.Unlock()
+			release, err := mcpMutations.acquire(ctx, id)
+			if err != nil {
+				return err
+			}
+			defer release()
 			row, err := mcpFind(ctx, id)
 			if errors.Is(err, ErrMCPNotFound) {
 				return nil
