@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+	"github.com/kaptinlin/jsonschema"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -203,10 +204,20 @@ func (m *Manager) Tools() []fantasy.AgentTool {
 		if c.ctx.Err() != nil {
 			continue
 		}
-		for _, t := range c.tools {
-			info, _ := toolInfo(id, t)
-			result = append(result, &agentTool{connection: c, remoteName: t.Name, info: info})
+		result = append(result, buildTools(id, c)...)
+	}
+	return result
+}
+
+// buildTools 为一条连接构造全部工具适配器，schema 无法本地校验时跳过该工具。
+func buildTools(id string, c *Connection) []fantasy.AgentTool {
+	result := make([]fantasy.AgentTool, 0, len(c.tools))
+	for _, t := range c.tools {
+		tool, err := newAgentTool(id, c, t)
+		if err != nil {
+			continue
 		}
+		result = append(result, tool)
 	}
 	return result
 }
@@ -255,6 +266,8 @@ func toolInfo(id string, tool *sdk.Tool) (fantasy.ToolInfo, error) {
 		return fantasy.ToolInfo{}, fmt.Errorf("MCP 工具参数必须为 object schema")
 	}
 	// Fantasy 只支持顶层 properties/required；拒绝无法保真转换的根约束。
+	// additionalProperties/min/maxProperties 在 SDK 生成的闭集 schema 中很常见，
+	// 已声明字段仍会完整保留，因此不拒绝；仅限制模型可见的字段范围。
 	for _, key := range []string{"$ref", "$defs", "definitions", "allOf", "anyOf", "oneOf", "not", "if", "then", "else", "patternProperties", "dependentSchemas", "dependentRequired"} {
 		if _, ok := schema[key]; ok {
 			return fantasy.ToolInfo{}, fmt.Errorf("MCP 工具 schema 包含不支持的根关键字 %s", key)
@@ -285,16 +298,66 @@ func toolInfo(id string, tool *sdk.Tool) (fantasy.ToolInfo, error) {
 	return fantasy.ToolInfo{Name: fmt.Sprintf("mcp_%s_%x", name, hash[:12]), Description: tool.Description, Parameters: properties, Required: required}, nil
 }
 
+// newAgentTool 构造可调用工具，并编译完整的本地输入校验器。
+// 校验只使用远端声明的真实约束，不自行猜测参数；校验失败不触达远端。
+func newAgentTool(id string, connection *Connection, tool *sdk.Tool) (*agentTool, error) {
+	info, err := toolInfo(id, tool)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(tool.InputSchema)
+	if err != nil {
+		return nil, fmt.Errorf("encode MCP tool schema: %w", err)
+	}
+	validator, err := jsonschema.NewCompiler().Compile(raw)
+	if err != nil {
+		return nil, fmt.Errorf("compile MCP tool schema: %w", err)
+	}
+	return &agentTool{connection: connection, remoteName: tool.Name, info: info, definition: raw, validator: validator}, nil
+}
+
 type agentTool struct {
 	connection *Connection
 	remoteName string
 	info       fantasy.ToolInfo
 	options    fantasy.ProviderOptions
+	definition []byte
+	validator  *jsonschema.Schema
 }
 
-func (t *agentTool) Info() fantasy.ToolInfo                             { return t.info }
+// Info 返回独立的 schema 副本：Provider 可能原地规范化嵌套 schema，
+// 不能把同一棵可变树交给后续请求复用。
+func (t *agentTool) Info() fantasy.ToolInfo {
+	info := t.info
+	var definition map[string]any
+	if err := json.Unmarshal(t.definition, &definition); err == nil {
+		if properties, ok := definition["properties"].(map[string]any); ok {
+			info.Parameters = properties
+		}
+	}
+	return info
+}
+
 func (t *agentTool) ProviderOptions() fantasy.ProviderOptions           { return t.options }
 func (t *agentTool) SetProviderOptions(options fantasy.ProviderOptions) { t.options = options }
+
+// validateInput 按远端声明的 schema 本地校验参数，返回用户可读的工具错误。
+func (t *agentTool) validateInput(args map[string]any) string {
+	if t.validator == nil {
+		return ""
+	}
+	result := t.validator.Validate(args)
+	if result.IsValid() {
+		return ""
+	}
+	details := make([]string, 0)
+	for path, message := range result.DetailedErrors() {
+		details = append(details, path+": "+message)
+	}
+	sort.Strings(details)
+	return "invalid parameters for " + t.remoteName + ": " + strings.Join(details, "; ") + ". Correct these fields using the tool schema before retrying; no remote call was made."
+}
+
 func (t *agentTool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
 	c := t.connection
 	c.mu.Lock()
@@ -308,6 +371,9 @@ func (t *agentTool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.Too
 	var args map[string]any
 	if err := json.Unmarshal([]byte(call.Input), &args); err != nil || args == nil {
 		return fantasy.NewTextErrorResponse("MCP 工具参数必须为 JSON 对象"), nil
+	}
+	if message := t.validateInput(args); message != "" {
+		return fantasy.NewTextErrorResponse(message), nil
 	}
 	callCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()

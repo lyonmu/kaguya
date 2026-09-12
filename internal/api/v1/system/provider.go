@@ -17,6 +17,8 @@ import (
 // @Success 200 {object} dtocode.Response{data=dtosystem.SystemProviderListResp}
 // @Router /v1/system/provider/page [get]
 func (b *SystemApiV1Group) SystemProviderPage(c *gin.Context) {
+	// 列表携带掩码化的 API Key，响应不得被浏览器或代理缓存。
+	c.Header("Cache-Control", "no-store")
 	var req dtosystem.SystemProviderPageReq
 	if err := c.ShouldBindQuery(&req); err != nil {
 		global.Logger.Sugar().Warnf("bind provider page request failed: %v", err)
@@ -38,6 +40,7 @@ func (b *SystemApiV1Group) SystemProviderPage(c *gin.Context) {
 // @Success 200 {object} dtocode.Response{data=dtosystem.SystemProviderResp}
 // @Router /v1/system/provider/{id} [get]
 func (b *SystemApiV1Group) SystemProviderDetail(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	var req dtosystem.SystemIDReq
 	if err := c.ShouldBindUri(&req); err != nil {
 		dtocode.RequestParameterError.Failure(c)
@@ -62,6 +65,8 @@ func (b *SystemApiV1Group) SystemProviderDetail(c *gin.Context) {
 // @Success 200 {object} dtocode.Response{data=dtosystem.SystemProviderAPIKeyResp}
 // @Router /v1/system/provider/{id}/api-key [get]
 func (b *SystemApiV1Group) SystemProviderAPIKey(c *gin.Context) {
+	// 明文密钥响应不得被任何层缓存。
+	c.Header("Cache-Control", "no-store")
 	var req dtosystem.SystemIDReq
 	if err := c.ShouldBindUri(&req); err != nil {
 		dtocode.RequestParameterError.Failure(c)
@@ -89,6 +94,7 @@ func (b *SystemApiV1Group) SystemProviderAPIKey(c *gin.Context) {
 // @Success 200 {object} dtocode.Response{data=dtosystem.SystemProviderResp}
 // @Router /v1/system/provider [post]
 func (b *SystemApiV1Group) SystemProviderCreate(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	var req dtosystem.SystemProviderSaveReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		global.Logger.Sugar().Warnf("bind provider create request failed: %v", err)
@@ -115,6 +121,7 @@ func (b *SystemApiV1Group) SystemProviderCreate(c *gin.Context) {
 // @Success 200 {object} dtocode.Response{data=dtosystem.SystemProviderResp}
 // @Router /v1/system/provider/{id} [put]
 func (b *SystemApiV1Group) SystemProviderUpdate(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	var uri dtosystem.SystemIDReq
 	var req dtosystem.SystemProviderSaveReq
 	if err := c.ShouldBindUri(&uri); err != nil {

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -205,5 +206,102 @@ func TestTimeoutAndFailedConnect(t *testing.T) {
 	if c, err := Prepare(ctx, config); err == nil {
 		c.Close()
 		t.Fatal("canceled prepare succeeded")
+	}
+}
+
+// 本地执行校验必须使用远端声明的真实约束：缺必填、类型错误、未知字段、
+// 数量约束都应在触达远端前失败，合法输入才能转发。
+func TestAgentToolValidatesInputLocally(t *testing.T) {
+	tool, err := newAgentTool("srv", &Connection{}, &sdk.Tool{Name: "strict.tool", InputSchema: map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"name": map[string]any{"type": "string", "minLength": 2, "maxLength": 8},
+			"tags": map[string]any{"type": "array", "minItems": 1, "items": map[string]any{"type": "string"}},
+		},
+		"required":             []any{"name"},
+		"additionalProperties": false,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range []string{
+		`{}`,
+		`{"name":"a"}`,
+		`{"name":123}`,
+		`{"name":"ok","extra":1}`,
+		`{"name":"ok","tags":[]}`,
+	} {
+		var args map[string]any
+		if err := json.Unmarshal([]byte(invalid), &args); err != nil {
+			t.Fatal(err)
+		}
+		if message := tool.validateInput(args); message == "" {
+			t.Fatalf("invalid input accepted: %s", invalid)
+		}
+	}
+	for _, valid := range []string{
+		`{"name":"ok"}`,
+		`{"name":"ok","tags":["a"]}`,
+	} {
+		var args map[string]any
+		if err := json.Unmarshal([]byte(valid), &args); err != nil {
+			t.Fatal(err)
+		}
+		if message := tool.validateInput(args); message != "" {
+			t.Fatalf("valid input rejected: %s -> %s", valid, message)
+		}
+	}
+	// 声明 additionalProperties:false 时未知字段必须在本地被拒绝。
+	var extension map[string]any
+	if err := json.Unmarshal([]byte(`{"name":"ok","unknown_extension":1}`), &extension); err != nil {
+		t.Fatal(err)
+	}
+	if message := tool.validateInput(extension); message == "" {
+		t.Fatal("strict schema accepted unknown field")
+	}
+	// 宽松 schema（未声明 additionalProperties）允许扩展字段。
+	relaxed, err := newAgentTool("srv", &Connection{}, &sdk.Tool{Name: "relaxed", InputSchema: map[string]any{
+		"type": "object", "properties": map[string]any{"name": map[string]any{"type": "string"}}, "required": []any{"name"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if message := relaxed.validateInput(extension); message != "" {
+		t.Fatalf("relaxed schema rejected extension: %s", message)
+	}
+}
+
+// Info 每次返回独立的 schema 树，Provider 规范化嵌套 schema 不得污染后续请求。
+func TestAgentToolInfoReturnsFreshSchema(t *testing.T) {
+	tool, err := newAgentTool("srv", &Connection{}, &sdk.Tool{Name: "nested", InputSchema: map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"filter": map[string]any{"type": "object", "properties": map[string]any{"key": map[string]any{"type": "string"}}},
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := tool.Info()
+	nested := first.Parameters["filter"].(map[string]any)
+	nested["type"] = "mutated"
+	nested["properties"].(map[string]any)["key"].(map[string]any)["type"] = "integer"
+	second := tool.Info()
+	clean := second.Parameters["filter"].(map[string]any)
+	if clean["type"] != "object" || clean["properties"].(map[string]any)["key"].(map[string]any)["type"] != "string" {
+		t.Fatalf("Info leaked mutable schema: %+v", clean)
+	}
+}
+
+// 无法保真转换的根关键字仍必须明确拒绝，而不是静默放宽。
+func TestAgentToolRejectsUnsupportedSchema(t *testing.T) {
+	for _, schema := range []map[string]any{
+		{"type": "object", "$ref": "#/$defs/X"},
+		{"type": "object", "anyOf": []any{map[string]any{"type": "object"}}},
+		{"type": "object", "patternProperties": map[string]any{"^x": map[string]any{"type": "string"}}},
+	} {
+		if _, err := newAgentTool("srv", &Connection{}, &sdk.Tool{Name: "bad", InputSchema: schema}); err == nil {
+			t.Fatalf("unsupported schema accepted: %+v", schema)
+		}
 	}
 }
