@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/lyonmu/kaguya/internal/config"
-	"github.com/lyonmu/kaguya/internal/consts"
 )
 
 func keyInitializationConfig(t *testing.T) (config.DatabaseConfig, string) {
@@ -19,7 +18,7 @@ func keyInitializationConfig(t *testing.T) (config.DatabaseConfig, string) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
-	return config.DatabaseConfig{Kind: consts.SQLite, Path: "~/.kaguya/kaguya.db"}, filepath.Join(home, ".kaguya", "kaguya.key")
+	return config.DatabaseConfig{Path: "~/.kaguya/kaguya.db"}, filepath.Join(home, ".kaguya", "kaguya.key")
 }
 
 func TestSQLCipherKeyFirstStartAndReuse(t *testing.T) {
@@ -163,18 +162,5 @@ func TestSQLCipherKeyConcurrentInitialization(t *testing.T) {
 	base.KeyFile = path
 	if err := base.ValidateSQLiteKey(); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestSQLCipherKeySkipsOtherBackends(t *testing.T) {
-	cfg, path := keyInitializationConfig(t)
-	for _, kind := range []consts.DBKind{consts.MySQL, consts.PostgreSQL, consts.Postgres} {
-		cfg.Kind = kind
-		if err := SQLCipherKey(&cfg); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatal("created SQLite key for another backend")
 	}
 }

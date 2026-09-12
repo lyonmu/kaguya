@@ -34,15 +34,6 @@ const (
 	IsFalse   Status = 2
 )
 
-type DBKind string
-
-const (
-	MySQL      DBKind = "mysql"
-	SQLite     DBKind = "sqlite"
-	PostgreSQL DBKind = "postgresql"
-	Postgres   DBKind = "postgres"
-)
-
 // ProviderProtocol 定义模型服务提供方的 API 协议类型
 type ProviderProtocol string
 

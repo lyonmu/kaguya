@@ -68,7 +68,7 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 
 var errCaptured = errors.New("captured SQL execution")
 
-// 捕获真实 ent 生成的 SQL，不依赖 PostgreSQL/MySQL 实例或额外 mock 依赖。
+// 捕获真实 ent 生成的 SQL，不依赖真实数据库实例或额外 mock 依赖。
 type captureDriver struct{ kind, statement string }
 
 func (d *captureDriver) Dialect() string { return d.kind }
@@ -85,25 +85,15 @@ func (d *captureDriver) Query(_ context.Context, query string, _ any, _ any) err
 	return errCaptured
 }
 
-func TestInfoInitializationSQLDialects(t *testing.T) {
-	for _, kind := range []string{dialect.Postgres, dialect.SQLite, dialect.MySQL} {
-		t.Run(kind, func(t *testing.T) {
-			driver := &captureDriver{kind: kind}
-			client := ent.NewClient(ent.Driver(driver))
-			defer client.Close()
-			if err := Run(context.Background(), client); !errors.Is(err, errCaptured) {
-				t.Fatalf("initialization must propagate SQL failure: %v", err)
-			}
-			want := "ON CONFLICT (`id`) DO UPDATE SET"
-			if kind == dialect.Postgres {
-				want = `ON CONFLICT ("id") DO UPDATE SET`
-			}
-			if kind == dialect.MySQL {
-				want = "ON DUPLICATE KEY UPDATE"
-			}
-			if !strings.Contains(driver.statement, want) {
-				t.Fatalf("missing explicit conflict target for %s: %s", kind, driver.statement)
-			}
-		})
+func TestInfoInitializationSQLiteConflictTarget(t *testing.T) {
+	driver := &captureDriver{kind: dialect.SQLite}
+	client := ent.NewClient(ent.Driver(driver))
+	defer client.Close()
+	if err := Run(context.Background(), client); !errors.Is(err, errCaptured) {
+		t.Fatalf("initialization must propagate SQL failure: %v", err)
+	}
+	want := "ON CONFLICT (`id`) DO UPDATE SET"
+	if !strings.Contains(driver.statement, want) {
+		t.Fatalf("missing explicit conflict target for %s: %s", dialect.SQLite, driver.statement)
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
@@ -120,17 +119,8 @@ func usageDays(ctx context.Context, query *ent.KaguyaChatTurnQuery) ([]dtosystem
 	days := make([]dtosystem.TokenUsageDay, 0)
 	err := query.Modify(func(s *sql.Selector) {
 		column := s.C(kaguyachatturn.FieldFinishedAt)
-		date := "DATE(" + column + ")"
-		switch s.Dialect() {
-		case dialect.SQLite:
-			// modernc 保存 Go 时间字符串（含时区名称），SQLite DATE 无法解析该格式。
-			date = "SUBSTR(" + column + ", 1, 10)"
-		case dialect.MySQL:
-			// 返回字符串，避免 parseTime 将 DATE 扫描为 RFC3339 而无法匹配自然日。
-			date = "DATE_FORMAT(" + column + ", '%Y-%m-%d')"
-		case dialect.Postgres:
-			date = "TO_CHAR(" + column + ", 'YYYY-MM-DD')"
-		}
+		// 历史 SQLite 时间字段保存 Go 时间字符串（含时区名称），SQLite DATE 无法解析该格式。
+		date := "SUBSTR(" + column + ", 1, 10)"
 		s.Select(sql.As(date, "date"), sql.As(sql.Sum(s.C(kaguyachatturn.FieldTotalTokens)), "total_tokens"), sql.As(sql.Count("DISTINCT "+s.C(kaguyachatturn.FieldConversationID)), "conversations")).GroupBy(date).OrderBy(date)
 	}).Scan(ctx, &days)
 	if err != nil {

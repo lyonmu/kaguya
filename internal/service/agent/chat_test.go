@@ -36,7 +36,7 @@ func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
 	t.Cleanup(cancel)
 	// 测试库是 shared-cache 的内存 SQLite：表级锁不会等待 busy handler，而是
 	// 直接返回 SQLITE_LOCKED。限制单连接串行写入，避免标题任务与聊天事务
-	// 并发写同一张表时的随机失败；生产 PostgreSQL 不受影响。
+	// 并发写同一张表时的随机失败。
 	conn, err := sql.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=on&_busy_timeout=5000", t.Name()))
 	if err != nil {
 		t.Fatal(err)

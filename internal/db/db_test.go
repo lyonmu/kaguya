@@ -47,7 +47,7 @@ func TestInitSQLiteWALAndPersistence(t *testing.T) {
 	if err := cfg.EnsureSQLiteDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	client, err := db.InitSQLite(&cfg, false)
+	client, err := db.InitSQLite(&cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestInitSQLiteWALAndPersistence(t *testing.T) {
 	if err := client.Close(); err != nil {
 		t.Fatal(err)
 	}
-	client, err = db.InitSQLite(&cfg, true)
+	client, err = db.InitSQLite(&cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +136,7 @@ func TestDebugDoesNotLogDatabaseSecrets(t *testing.T) {
 	if err := cfg.EnsureSQLiteDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	client, err := db.InitSQLite(&cfg, true)
+	client, err := db.InitSQLite(&cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestInitSQLiteWrongOrMissingKey(t *testing.T) {
 	if err := cfg.EnsureSQLiteDatabase(); err != nil {
 		t.Fatal(err)
 	}
-	client, err := db.InitSQLite(&cfg, false)
+	client, err := db.InitSQLite(&cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestInitSQLiteWrongOrMissingKey(t *testing.T) {
 	}
 	for _, path := range []string{wrongFile, "", filepath.Join(t.TempDir(), "missing")} {
 		cfg.KeyFile = path
-		client, err := db.InitSQLite(&cfg, true)
+		client, err := db.InitSQLite(&cfg)
 		if err == nil {
 			_ = client.Close()
 			t.Fatal("invalid key accepted")
@@ -188,7 +188,7 @@ func TestInitSQLiteWrongOrMissingKey(t *testing.T) {
 		}
 	}
 	cfg.KeyFile = originalKey
-	client, err = db.InitSQLite(&cfg, false)
+	client, err = db.InitSQLite(&cfg)
 	if err != nil {
 		t.Fatal("original key no longer opens database")
 	}
@@ -215,7 +215,7 @@ func TestInitSQLiteRejectsPlaintext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client, err := db.InitSQLite(&cfg, false)
+	client, err := db.InitSQLite(&cfg)
 	if err == nil {
 		_ = client.Close()
 		t.Fatal("plaintext database accepted")
@@ -229,7 +229,7 @@ func TestInitSQLiteRejectsPlaintext(t *testing.T) {
 func TestInitSQLiteInvalidPath(t *testing.T) {
 	cfg := encryptedConfig(t)
 	cfg.Path = t.TempDir()
-	if client, err := db.InitSQLite(&cfg, false); err == nil {
+	if client, err := db.InitSQLite(&cfg); err == nil {
 		_ = client.Close()
 		t.Fatal("expected error for a directory")
 	}

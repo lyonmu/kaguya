@@ -14,7 +14,6 @@ import (
 	pkgid "github.com/lyonmu/gopkg/id"
 	"github.com/lyonmu/kaguya/internal/api/v1/chat"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
-	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
@@ -76,47 +75,16 @@ func Run() {
 	global.Id = gen
 
 	global.Logger.Info("start init database connection")
-	switch global.Cfg.DB.Kind {
-	// 遗留数据库启动分支暂时禁用，保留实现以便后续恢复。
-	/*
-		case consts.MySQL:
-			if err := global.Cfg.DB.EnsureMySQLDatabase(); err != nil {
-				global.Logger.Sugar().Errorf("ensure mysql database failederr is %s", err)
-				os.Exit(1)
-			}
-			entcli, initErr := db.InitMySQL(&global.Cfg.DB, global.Cfg.Debug)
-			if initErr != nil {
-				global.Logger.Sugar().Errorf("init mysql conn failed ,err is %s", initErr)
-				os.Exit(1)
-			}
-			db.EntClient = entcli
-		case consts.PostgreSQL, consts.Postgres:
-			if err := global.Cfg.DB.EnsurePostgreSQLDatabase(); err != nil {
-				global.Logger.Sugar().Errorf("ensure postgresql database failed, err is %s", err)
-				os.Exit(1)
-			}
-			entcli, initErr := db.InitPostgreSQL(&global.Cfg.DB, global.Cfg.Debug)
-			if initErr != nil {
-				global.Logger.Sugar().Errorf("init postgresql conn failed, err is %s", initErr)
-				os.Exit(1)
-			}
-			db.EntClient = entcli
-	*/
-	case consts.SQLite:
-		if err := global.Cfg.DB.EnsureSQLiteDatabase(); err != nil {
-			global.Logger.Sugar().Errorf("ensure sqlite database failederr is %s", err)
-			os.Exit(1)
-		}
-		entcli, initErr := db.InitSQLite(&global.Cfg.DB, global.Cfg.Debug)
-		if initErr != nil {
-			global.Logger.Sugar().Errorf("init sqlite conn failed ,err is %s", initErr)
-			os.Exit(1)
-		}
-		db.EntClient = entcli
-	default:
-		global.Logger.Sugar().Errorf("database kind %q is disabled; use sqlite", global.Cfg.DB.Kind)
+	if err := global.Cfg.DB.EnsureSQLiteDatabase(); err != nil {
+		global.Logger.Sugar().Errorf("ensure sqlite database failed, err is %s", err)
 		os.Exit(1)
 	}
+	entcli, dbErr := db.InitSQLite(&global.Cfg.DB)
+	if dbErr != nil {
+		global.Logger.Sugar().Errorf("init sqlite conn failed, err is %s", dbErr)
+		os.Exit(1)
+	}
+	db.EntClient = entcli
 	defer db.EntClient.Close()
 
 	global.Logger.Info("start init application data")

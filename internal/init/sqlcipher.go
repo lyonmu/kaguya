@@ -9,15 +9,11 @@ import (
 	"path/filepath"
 
 	"github.com/lyonmu/kaguya/internal/config"
-	"github.com/lyonmu/kaguya/internal/consts"
 )
 
 // SQLCipherKey 在打开数据库前检查密钥，仅为全新部署生成默认密钥。
 // 自定义密钥路径必须已存在；已有数据库（包括空文件、WAL）缺失密钥时拒绝生成。
 func SQLCipherKey(cfg *config.DatabaseConfig) error {
-	if cfg.Kind != consts.SQLite {
-		return nil
-	}
 	if cfg.KeyFile != "" {
 		return cfg.ValidateSQLiteKey()
 	}
