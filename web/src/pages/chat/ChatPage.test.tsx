@@ -192,10 +192,13 @@ it('uses the supplied images for conversation avatars and the welcome logo', () 
   const props = { loading: false, streaming: false, page: 1, totalPages: 1, initialEnd: false, onPageChange: async () => {} }
   const view = render(<MessageList {...props} turns={[]} />)
   const welcomeSource = view.getByAltText('Kaguya').getAttribute('src')
-  assert.ok(welcomeSource?.endsWith('/assets/kaguya.png'))
+  assert.ok(welcomeSource?.endsWith('/assets/kaguya-144.webp'))
+  const welcomeSrcSet = view.getByAltText('Kaguya').getAttribute('srcset')
+  assert.ok(welcomeSrcSet?.includes('kaguya-288.webp 2x'))
   view.rerender(<MessageList {...props} turns={[{ turn_index: 1, user_content: '你好', model_name: '', model_id: '', api_protocol: '', started_at: new Date().toISOString(), duration_ms: 0, tool_calls: 0, blocks: [] }]} />)
   assert.equal(view.getByAltText('Kaguya 头像').getAttribute('src'), welcomeSource)
-  assert.ok(view.getByAltText('用户头像').getAttribute('src')?.endsWith('/assets/lyonmu.png'))
+  assert.ok(view.getByAltText('用户头像').getAttribute('src')?.endsWith('/assets/lyonmu-144.webp'))
+  assert.equal(view.getByAltText('用户头像').getAttribute('width'), '28')
 })
 
 it('shows one dash per message page and synchronizes the selected page', () => {

@@ -1,4 +1,4 @@
-.PHONY: build backend frontend install clean test docker default native
+.PHONY: build backend frontend install clean test docker default native avatars
 
 default: build
 
@@ -56,3 +56,9 @@ test: native
 .PHONY: clean
 clean:
 	rm -rf target
+# 头像衍生图：从 images/ 原图生成 1x/2x 的 WebP，供前端 avatars.ts 引用。
+# 需要 cwebp（brew install webp）；原图保留，不进入构建产物。
+.PHONY: avatars
+avatars:
+	cd web/src/assets && cwebp -quiet -q 82 -resize 144 144 kaguya.png -o kaguya-144.webp && cwebp -quiet -q 80 -resize 288 288 kaguya.png -o kaguya-288.webp && cwebp -quiet -q 82 -resize 144 144 lyonmu.png -o lyonmu-144.webp && cwebp -quiet -q 80 -resize 288 288 lyonmu.png -o lyonmu-288.webp
+	cd web/src/assets && cwebp -quiet -q 85 -resize 64 64 kaguya.png -o ../../public/kaguya-favicon.webp

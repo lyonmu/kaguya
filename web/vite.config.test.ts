@@ -80,3 +80,27 @@ it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () =>
     }
   }
 })
+
+it('keeps avatar derivatives within the image budget', async () => {
+  const { readdir, stat } = await import('node:fs/promises')
+  const assets = fileURLToPath(new URL('./src/assets', import.meta.url))
+  const files = (await readdir(assets)).filter(name => /^(kaguya|lyonmu)-\d+\.webp$/.test(name))
+  assert.equal(files.length, 4, `expected 4 avatar derivatives, got ${files.join(', ')}`)
+  const total = (await Promise.all(files.map(async name => (await stat(`${assets}/${name}`)).size)))
+    .reduce((sum, size) => sum + size, 0)
+  // 衍生图合计目标 ≤200KiB；原图保留但不进入构建。
+  assert.ok(total <= 200 * 1024, `avatar derivatives total ${total} bytes exceed 200KiB`)
+
+  // 构建产物不得包含头像原图：favicon 与首屏都使用压缩衍生图。
+  const { build } = await import('vite')
+  const result = await build({
+    root: fileURLToPath(new URL('.', import.meta.url)),
+    configFile: fileURLToPath(new URL('./vite.config.ts', import.meta.url)),
+    logLevel: 'silent',
+    build: { write: false },
+  })
+  const outputs = Array.isArray(result) ? result : [result]
+  const bigImages = outputs.flatMap(output => 'output' in output ? output.output : [])
+    .filter(item => item.type === 'asset' && /\.(png|jpe?g)$/.test(item.fileName) && item.source.length > 100 * 1024)
+  assert.deepEqual(bigImages.map(item => item.fileName), [], 'large raster assets must not enter the bundle')
+})

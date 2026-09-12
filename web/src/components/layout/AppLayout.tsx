@@ -11,7 +11,7 @@ import { Breadcrumb, Button, Drawer, Layout, Menu } from 'antd'
 import { BottomActions } from './BottomActions'
 import { BottomActionsContext } from './bottomActionsContext'
 import type { ColorMode } from '../../app/colorMode'
-import kaguyaIcon from '../../assets/kaguya.png'
+import { kaguyaAvatar } from '../../assets/avatars'
 
 const { Content, Header, Sider } = Layout
 
@@ -46,7 +46,7 @@ export function AppLayout({
       toggleCollapsed: () => setActionsCollapsed(value => !value),
       onChat: () => onPageChange('chat'), onSettings: () => onPageChange('ai-providers'),
       onToggleColorMode,
-      avatar: <img alt="Kaguya" className="h-6 w-6 rounded-md object-cover" src={kaguyaIcon} />,
+      avatar: <img alt="Kaguya" className="h-6 w-6 rounded-md object-cover" decoding="async" height={24} src={kaguyaAvatar.src} srcSet={kaguyaAvatar.srcSet} width={24} />,
     }}>
     <Layout className="h-svh w-full overflow-hidden bg-k-canvas">
 

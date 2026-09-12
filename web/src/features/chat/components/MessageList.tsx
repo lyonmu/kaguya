@@ -5,8 +5,7 @@ import { Markdown, CopyButton } from "./Markdown";
 import { ActivityBlock } from "./ActivityBlock";
 import { isCanceledStatus, isCompleteStatus, isFailedStatus, isInterruptedStatus, isRunningStatus } from "../status";
 import type { Block, Turn } from "../types";
-import kaguyaAvatar from "../../../assets/kaguya.png";
-import userAvatar from "../../../assets/lyonmu.png";
+import { kaguyaAvatar, userAvatar } from "../../../assets/avatars";
 
 export function ContentBlock({ block, streaming = false, conversationId, turnIndex }: { block: Block; streaming?: boolean; conversationId?: string; turnIndex?: number }) {
  return block.type === 'text' ? <Markdown text={block.text ?? ''} streaming={streaming && block.phase !== 'block_end'} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
@@ -65,7 +64,7 @@ export function MessageList({
       {!loading && !turns.length && (
         <div className="chat-welcome">
           <div className="chat-welcome-logo">
-            <img src={kaguyaAvatar} alt="Kaguya" />
+            <img alt="Kaguya" decoding="async" height={56} src={kaguyaAvatar.src} srcSet={kaguyaAvatar.srcSet} width={56} />
           </div>
           <h1>今天有什么需要我帮忙的吗？</h1>
           <p>告诉 Kaguya 你在想什么，我会和你一起找到答案。</p>
@@ -125,7 +124,7 @@ function RuntimeMessage() {
           <MessagePrimitive.Root className="chat-message-wrap" data-role={role}>
             {role === "user" && <article className="chat-message">
               <div className="chat-avatar">
-                <img src={userAvatar} alt="用户头像" />
+                <img alt="用户头像" decoding="async" height={28} src={userAvatar.src} srcSet={userAvatar.srcSet} width={28} />
               </div>
               <div className="chat-message-body">
                 <div className="chat-message-name">
@@ -137,7 +136,7 @@ function RuntimeMessage() {
             </article>}
             {role === "assistant" && <article className="chat-message">
               <div className="chat-avatar ai">
-                <img src={kaguyaAvatar} alt="Kaguya 头像" />
+                <img alt="Kaguya 头像" decoding="async" height={28} src={kaguyaAvatar.src} srcSet={kaguyaAvatar.srcSet} width={28} />
               </div>
               <div className="chat-message-body">
                 <div className="chat-message-name">
