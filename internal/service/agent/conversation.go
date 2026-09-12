@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"charm.land/fantasy"
@@ -26,22 +25,6 @@ var (
 	ErrConversationBusy     = errors.New("conversation is running or has changed")
 	ErrConversationUpdate   = errors.New("invalid conversation update")
 )
-
-// 同一进程跨 SSE/WS 连接也不能同时生成同一会话；数据库版本条件再防多实例覆盖。
-var activeConversations = struct {
-	sync.Mutex
-	ids map[string]bool
-}{ids: make(map[string]bool)}
-
-func acquireConversation(id string) (func(), error) {
-	activeConversations.Lock()
-	defer activeConversations.Unlock()
-	if activeConversations.ids[id] {
-		return nil, ErrConversationBusy
-	}
-	activeConversations.ids[id] = true
-	return func() { activeConversations.Lock(); delete(activeConversations.ids, id); activeConversations.Unlock() }, nil
-}
 
 // loadConversation 读取可续聊的模型上下文与已完成轮数；会话不存在时返回空历史与 0。
 func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64, error) {
@@ -65,31 +48,45 @@ func loadConversationRow(ctx context.Context, id string) (*ent.KaguyaConversatio
 	if row.DeletedAt != nil {
 		return nil, nil, ErrConversationNotFound
 	}
-	query := db.EntClient.KaguyaChatTurn.Query().
-		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(row.TurnCount))
 	// 压缩快照就是完整的续聊上下文，最后一次快照之前的原始消息不再参与拼接；
 	// compaction_count>0 与快照由同一 compactor 产生（见 compaction.snapshot），
 	// 用它定位最新快照，避免读取快照前的轮次和大字段 messages。
-	latest, err := query.Clone().Where(kaguyachatturn.CompactionCountGT(0)).
+	anchor := int64(0)
+	latest, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted), kaguyachatturn.CompactionCountGT(0)).
 		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).Select(kaguyachatturn.FieldTurnIndex).First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
 		return nil, nil, err
 	}
 	if err == nil {
-		query.Where(kaguyachatturn.TurnIndexGTE(latest.TurnIndex))
+		anchor = latest.TurnIndex
 	}
-	turns, err := query.
-		Select(kaguyachatturn.FieldMessages, kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldTurnIndex).
+	turns, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexGTE(anchor)).
+		Select(kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldStatus, kaguyachatturn.FieldUserContent,
+			kaguyachatturn.FieldMessages, kaguyachatturn.FieldContextMessages).
 		Order(kaguyachatturn.ByTurnIndex()).All(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 	messages := make([]fantasy.Message, 0)
 	for _, turn := range turns {
-		if turn.ContextMessages != nil {
-			messages = append([]fantasy.Message{}, turn.ContextMessages...)
-		} else {
-			messages = append(messages, turn.Messages...)
+		if turn.Status == kaguyachatturn.StatusCompleted {
+			if turn.ContextMessages != nil {
+				// 完整快照整体替换之前的历史。
+				messages = append([]fantasy.Message{}, turn.ContextMessages...)
+			} else {
+				messages = append(messages, turn.Messages...)
+			}
+			continue
+		}
+		// 未完成轮次不进入完整历史，但用户提问一律保留（对齐 pi：user 消息始终在上下文中，
+		// 只有 stopReason 为 error/aborted 的不完整助手消息会在发送前被过滤）：
+		// 下一轮能看到上一轮的要求，避免“继续”失去指代；
+		// 半截助手内容与未闭合的工具调用绝不拼接。
+		// 若要改成只恢复异常中断的提问，在此处排除 canceled 状态即可。
+		if turn.Status != kaguyachatturn.StatusRunning {
+			messages = append(messages, fantasy.NewUserMessage(turn.UserContent))
 		}
 	}
 	return row, messages, nil
@@ -110,12 +107,77 @@ func createConversation(ctx context.Context, target *chatTarget, id, projectID s
 	return err
 }
 
+// turnStart 是创建进行中占位行的输入。
+type turnStart struct {
+	ConversationID string
+	UserContent    string
+	ProviderID, ProviderName, ModelID, ModelName, APIProtocol string
+	StartedAt      time.Time
+}
+
+// beginTurn 在正文开始生成前写入 running 占位行；中断的轮次同样占用 turn_index，
+// 因此续聊历史只读取 completed 状态。
+func beginTurn(ctx context.Context, start turnStart) (*ent.KaguyaChatTurn, error) {
+	next := int64(1)
+	last, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(start.ConversationID)).
+		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).Select(kaguyachatturn.FieldTurnIndex).First(ctx)
+	if err == nil {
+		next = last.TurnIndex + 1
+	} else if !ent.IsNotFound(err) {
+		return nil, err
+	}
+	return db.EntClient.KaguyaChatTurn.Create().
+		SetConversationID(start.ConversationID).SetTurnIndex(next).SetStatus(kaguyachatturn.StatusRunning).
+		SetUserContent(start.UserContent).
+		SetProviderID(start.ProviderID).SetProviderName(start.ProviderName).
+		SetModelID(start.ModelID).SetModelName(start.ModelName).SetAPIProtocol(start.APIProtocol).
+		SetStartedAt(start.StartedAt).SetFinishedAt(start.StartedAt).
+		SetDurationMs(0).SetToolCalls(0).SetFinishReason("").
+		SetInputTokens(0).SetOutputTokens(0).SetTotalTokens(0).SetCachedTokens(0).SetReasoningTokens(0).
+		SetMessages([]fantasy.Message{}).Save(ctx)
+}
+
+// markTurnEnd 在生成失败或取消后把占位行标为终态并保留已产生的内容。
+// 生成 context 此时可能已被取消，因此使用独立的后台 context。
+func markTurnEnd(turnID string, status kaguyachatturn.Status, finishedAt time.Time) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	row, err := db.EntClient.KaguyaChatTurn.Get(ctx, turnID)
+	if err != nil {
+		return err
+	}
+	duration := max(finishedAt.Sub(row.StartedAt).Milliseconds(), 0)
+	_, err = db.EntClient.KaguyaChatTurn.UpdateOneID(turnID).
+		SetStatus(status).SetFinishedAt(finishedAt.UTC()).SetDurationMs(duration).Save(ctx)
+	return err
+}
+
+// ReconcileRunningTurns 在进程启动时把遗留的 running 轮次标记为 interrupted。
+// 单实例部署下没有其它进程能继续它们，不清理会让历史永久停留在“正在生成”。
+func ReconcileRunningTurns(ctx context.Context) error {
+	rows, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.StatusEQ(kaguyachatturn.StatusRunning)).
+		Select(kaguyachatturn.FieldID).All(ctx)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	for _, row := range rows {
+		if err := markTurnEnd(row.ID, kaguyachatturn.StatusInterrupted, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type completedTurn struct {
 	AgentInstructions                                         *string
 	ContextMessages                                           []fantasy.Message
 	CompactionCount                                           int
 	ProjectID                                                 string
 	ConversationID                                            string
+	TurnID                                                    string // 进行中占位行的 ID；为空时按旧路径创建新行
 	Version                                                   int64
 	UserContent                                               string
 	ProviderID, ProviderName, ModelID, ModelName, APIProtocol string
@@ -192,6 +254,7 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	createTurn := client.KaguyaChatTurn.Create().SetConversationID(turn.ConversationID).SetTurnIndex(turn.Version + 1).
 		SetUserContent(turn.UserContent).SetProviderID(turn.ProviderID).SetProviderName(turn.ProviderName).
 		SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetAPIProtocol(turn.APIProtocol).
+		SetStatus(kaguyachatturn.StatusCompleted).
 		SetStartedAt(turn.StartedAt.UTC()).SetFinishedAt(turn.FinishedAt.UTC()).SetDurationMs(duration).SetToolCalls(toolCalls).
 		SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
 		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
@@ -201,9 +264,33 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	if turn.ContextMessages != nil {
 		createTurn.SetContextMessages(turn.ContextMessages)
 	}
-	row, err := createTurn.SetMessages(turn.Messages).Save(ctx)
-	if err != nil {
-		return err
+	turnID := turn.TurnID
+	if turnID == "" {
+		row, err := createTurn.SetMessages(turn.Messages).Save(ctx)
+		if err != nil {
+			return err
+		}
+		turnID = row.ID
+	} else {
+		// 进行中的占位行：补全结束信息并整体替换中间刷入的块。
+		update := client.KaguyaChatTurn.UpdateOneID(turnID).Where(kaguyachatturn.ConversationIDEQ(turn.ConversationID)).
+			SetUserContent(turn.UserContent).SetProviderID(turn.ProviderID).SetProviderName(turn.ProviderName).
+			SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetAPIProtocol(turn.APIProtocol).
+			SetStatus(kaguyachatturn.StatusCompleted).
+			SetStartedAt(turn.StartedAt.UTC()).SetFinishedAt(turn.FinishedAt.UTC()).SetDurationMs(duration).SetToolCalls(toolCalls).
+			SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
+			SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
+			SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
+			SetCompactionCount(turn.CompactionCount).SetMessages(turn.Messages).ClearContextMessages()
+		if turn.ContextMessages != nil {
+			update.SetContextMessages(turn.ContextMessages)
+		}
+		if _, err := update.Save(ctx); err != nil {
+			return err
+		}
+		if _, err := client.KaguyaChatBlock.Delete().Where(kaguyachatblock.TurnIDEQ(turnID)).Exec(ctx); err != nil {
+			return err
+		}
 	}
 	// block 单独逐条 INSERT 会长时间占用 SQLite 唯一连接；按批合并写入，
 	// 保持同一事务的原子性，同时避免单条语句变量数过大。
@@ -212,7 +299,7 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 		end := min(start+blockBatchSize, len(turn.Blocks))
 		builders := make([]*ent.KaguyaChatBlockCreate, 0, end-start)
 		for _, b := range turn.Blocks[start:end] {
-			create := client.KaguyaChatBlock.Create().SetTurnID(row.ID).SetSequence(b.Sequence).SetType(kaguyachatblock.Type(b.Type)).
+			create := client.KaguyaChatBlock.Create().SetTurnID(turnID).SetSequence(b.Sequence).SetType(kaguyachatblock.Type(b.Type)).
 				SetText(b.Text).SetToolCallID(b.ToolCallID).SetToolName(b.ToolName).SetInput(b.Input).
 				SetProviderExecuted(b.ProviderExecuted).SetIsError(b.IsError).SetErrorMessage(b.ErrorMessage).
 				SetStartedAt(b.StartedAt).SetFinishedAt(b.FinishedAt).SetStartOrder(b.StartOrder).SetEndOrder(b.EndOrder)
@@ -295,7 +382,7 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 	if req.Title != nil && (strings.TrimSpace(*req.Title) == "" || len([]rune(*req.Title)) > 200) {
 		return nil, ErrConversationUpdate
 	}
-	release, err := acquireConversation(id)
+	_, release, err := acquireConversation(id)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +405,7 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 	return &resp, nil
 }
 func (s *AgentSvc) ConversationDelete(ctx context.Context, id string) error {
-	release, err := acquireConversation(id)
+	_, release, err := acquireConversation(id)
 	if err != nil {
 		return err
 	}
@@ -333,12 +420,16 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 	if req.Limit < 1 || req.Limit > 100 || req.Page < 0 || req.Before < 0 || (req.Page > 0 && req.Before > 0) {
 		return nil, ErrConversationUpdate
 	}
-	conv, err := s.ConversationDetail(ctx, id)
+	if _, err := s.ConversationDetail(ctx, id); err != nil {
+		return nil, err
+	}
+	// 展示层包含进行中/中断的轮次，让用户能看到已产生的内容；续聊上下文与用量只信任 completed。
+	q := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.ConversationIDEQ(id))
+	total, err := q.Clone().Count(ctx)
 	if err != nil {
 		return nil, err
 	}
-	q := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(conv.TurnCount))
-	totalPages := int((conv.TurnCount + int64(req.Limit) - 1) / int64(req.Limit))
+	totalPages := int((int64(total) + int64(req.Limit) - 1) / int64(req.Limit))
 	page := req.Page
 	if page > 0 {
 		page = min(page, max(totalPages, 1))
@@ -364,7 +455,7 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 		return nil, err
 	}
 	resp := &dtochat.TurnListResp{Items: make([]dtochat.StoredTurn, 0), HasMore: len(rows) > req.Limit,
-		Total: conv.TurnCount, Page: page, PageSize: req.Limit, TotalPages: totalPages}
+		Total: int64(total), Page: page, PageSize: req.Limit, TotalPages: totalPages}
 	if resp.HasMore {
 		rows = rows[:req.Limit]
 	}
@@ -410,7 +501,7 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 		row := rows[i]
 		turn := dtochat.StoredTurn{TurnIndex: row.TurnIndex, UserContent: row.UserContent, ProviderName: row.ProviderName,
 			ModelID: row.ModelID, ModelName: row.ModelName, APIProtocol: row.APIProtocol, StartedAt: row.StartedAt, FinishedAt: row.FinishedAt,
-			DurationMS: row.DurationMs, ToolCalls: row.ToolCalls, FinishReason: row.FinishReason,
+			DurationMS: row.DurationMs, ToolCalls: row.ToolCalls, FinishReason: row.FinishReason, Status: string(row.Status),
 			Usage:  dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)},
 			Blocks: make([]dtochat.StoredBlock, 0, len(blocksByTurn[row.ID]))}
 		for _, b := range blocksByTurn[row.ID] {
@@ -420,7 +511,9 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 			}
 			if req.Compact && b.Type != kaguyachatblock.TypeText {
 				block.DetailsDeferred = true
-				block.HasOutput = b.Type == kaguyachatblock.TypeToolCall && b.EndOrder > 0
+				// 只有真正产生了结果（结束顺序推进）的工具块才可展开；
+				// 进行中/中断的工具调用结束顺序与开始相同，避免无结果时请求详情。
+				block.HasOutput = b.Type == kaguyachatblock.TypeToolCall && b.EndOrder > b.StartOrder
 			}
 			turn.Blocks = append(turn.Blocks, block)
 		}

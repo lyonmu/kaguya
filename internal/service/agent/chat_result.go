@@ -45,12 +45,13 @@ func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 	return saveCompletedTurn(ctx, completedTurn{
 		AgentInstructions: &exec.prompt.instructions,
 		ConversationID:    exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
+		TurnID:      exec.turnID,
 		UserContent: exec.userContent,
 		ProviderID:  target.provider.ID, ProviderName: target.provider.ProviderName,
 		ModelID: target.model.ModelID, ModelName: target.model.ModelName,
 		APIProtocol: string(target.provider.APIProtocol),
 		StartedAt:   o.startedAt, FinishedAt: o.finishedAt, FinishReason: o.finishReason,
-		Usage: o.usage, Messages: o.conversationMessages(exec.prompt.requestPrompt), Blocks: o.trace.blocks,
+		Usage: o.usage, Messages: o.conversationMessages(exec.prompt.requestPrompt), Blocks: o.trace.result(),
 		ContextMessages: o.compactor.snapshot(o.result), CompactionCount: o.compactor.count,
 		ContextTokens: completedResultContextTokens(o.result, o.paused), ContextWindow: target.model.TokenContextWindow,
 	})

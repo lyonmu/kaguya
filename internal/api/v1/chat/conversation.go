@@ -200,6 +200,23 @@ func (b *ChatApiV1Group) ConversationUpdate(c *gin.Context) {
 	dtocode.SystemSuccess.Success(resp, c)
 }
 
+// ConversationStop
+// @Tags Chat
+// @Summary 标记用户主动停止
+// @Description 记录指定会话当前轮次是用户主动停止，使落库状态区分为 canceled 而不是断联的 interrupted。没有运行轮次时为幂等空操作；取消本身仍由客户端断开流式连接完成。
+// @Param id path string true "会话雪花 ID"
+// @Success 200 {object} dtocode.Response
+// @Router /v1/chat/conversation/{id}/stop [post]
+func (b *ChatApiV1Group) ConversationStop(c *gin.Context) {
+	var uri dtochat.ConversationIDReq
+	if err := c.ShouldBindUri(&uri); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	agentvc.StopConversation(uri.ID)
+	dtocode.SystemSuccess.Success(nil, c)
+}
+
 // ConversationDelete
 // @Tags Chat History
 // @Summary 软删除会话（删除后不可查询或续聊）

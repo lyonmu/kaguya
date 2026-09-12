@@ -1,4 +1,5 @@
 import type { ThreadMessageLike } from '@assistant-ui/react'
+import { isFailedStatus, isIncompleteStatus, isRunningStatus } from './status'
 import type { Turn } from './types'
 
 export function toAssistantMessages(turns: Turn[]): ThreadMessageLike[] {
@@ -7,10 +8,13 @@ export function toAssistantMessages(turns: Turn[]): ThreadMessageLike[] {
     {
       id: `assistant-${turn.turn_index}`, role: 'assistant' as const,
       content: turn.blocks.filter(block => block.type === 'text').map(block => ({ type: 'text' as const, text: block.text ?? '' })),
-      status: turn.status === 'streaming' ? { type: 'running' as const } : turn.status === 'error' || turn.status === 'stopped' ? { type: 'incomplete' as const, reason: turn.status === 'error' ? 'error' as const : 'cancelled' as const } : { type: 'complete' as const, reason: 'stop' as const },
+      status: isRunningStatus(turn.status)
+        ? { type: 'running' as const }
+        : isIncompleteStatus(turn.status)
+          ? { type: 'incomplete' as const, reason: isFailedStatus(turn.status) ? 'error' as const : 'cancelled' as const }
+          : { type: 'complete' as const, reason: 'stop' as const },
       // Preserve the complete ordered trace, including partial tool JSON and media results.
       metadata: { custom: { turn } },
     },
   ])
 }
-

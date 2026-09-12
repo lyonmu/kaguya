@@ -31,6 +31,7 @@ type chatTarget struct {
 }
 
 // chatExecution 是一次轮次的不可变输入：目标配置、会话身份与已组装的提示词。
+// trace/turnID 指向已创建的 running 占位行，供增量落库与提交使用。
 type chatExecution struct {
 	target             *chatTarget
 	conversationID     string
@@ -39,6 +40,8 @@ type chatExecution struct {
 	prompt             *chatPrompt
 	requestedProjectID string
 	userContent        string
+	trace              *turnTrace
+	turnID             string
 }
 
 // resolveChatTarget 读取系统配置并解析本次对话的模型与提供商。
@@ -176,7 +179,10 @@ func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatRe
 	}
 	call.PrepareStep = compactor.prepare
 
-	trace := newTurnTrace()
+	trace := exec.trace
+	if trace == nil {
+		trace = newTurnTrace()
+	}
 	trace.wrap(&call)
 	call.Prompt = exec.prompt.requestPrompt
 	call.Messages = exec.history

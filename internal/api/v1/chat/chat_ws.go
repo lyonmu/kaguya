@@ -41,6 +41,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 		wg         sync.WaitGroup
 		busy       bool
 		turnCancel context.CancelFunc
+		turnConvID string
 	)
 
 	send := make(chan *dtocode.Response)
@@ -110,6 +111,7 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 			mu.Lock()
 			busy = true
 			turnCancel = cancel
+			turnConvID = req.ID
 			mu.Unlock()
 
 			dataChan := make(chan *dtochat.ChatResp)
@@ -133,6 +135,13 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 				}()
 
 				for v := range dataChan {
+					if v.Chat.ID != "" {
+						mu.Lock()
+						if turnConvID == "" {
+							turnConvID = v.Chat.ID
+						}
+						mu.Unlock()
+					}
 					resp, _ := mapFrame(v)
 
 					select {
@@ -146,8 +155,14 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 		case dtochat.WSFlagCancel:
 			mu.Lock()
 			canceled := busy && turnCancel != nil
+			id := turnConvID
 			if canceled {
+				// 先标记用户主动停止，再取消上下文，落库才能区分 canceled 与断联。
+				if id != "" {
+					agentvc.StopConversation(id)
+				}
 				turnCancel()
+				turnConvID = ""
 			}
 			mu.Unlock()
 			if canceled {

@@ -231,6 +231,32 @@
                 }
             }
         },
+        "/v1/chat/conversation/{id}/stop": {
+            "post": {
+                "description": "记录指定会话当前轮次是用户主动停止，使落库状态区分为 canceled 而不是断联的 interrupted。没有运行轮次时为幂等空操作；取消本身仍由客户端断开流式连接完成。",
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "标记用户主动停止",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/chat/conversation/{id}/title/wait": {
             "get": {
                 "description": "兼容等待接口，不启动生成任务；无任务时直接返回当前标题。仅等待当前进程的任务，最多30秒。新客户端应使用 POST 接口生成标题。不存在或已删除会话返回会话不存在。",
@@ -2258,6 +2284,10 @@
                     "type": "string"
                 },
                 "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "running/completed/interrupted/failed；只有 completed 是完整上下文",
                     "type": "string"
                 },
                 "tool_calls": {

@@ -86,6 +86,7 @@ var (
 		{Name: "model_id", Type: field.TypeString},
 		{Name: "model_name", Type: field.TypeString},
 		{Name: "api_protocol", Type: field.TypeString},
+		{Name: "status", Type: field.TypeEnum, Comment: "running 生成中；completed 完整提交；interrupted 断联/超时；canceled 用户主动停止；failed 生成失败；旧记录默认 completed", Enums: []string{"running", "completed", "interrupted", "canceled", "failed"}, Default: "completed"},
 		{Name: "started_at", Type: field.TypeTime},
 		{Name: "finished_at", Type: field.TypeTime},
 		{Name: "duration_ms", Type: field.TypeInt64},
@@ -112,7 +113,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_chat_turn_kaguya_conversation_turns",
-				Columns:    []*schema.Column{KaguyaChatTurnColumns[26]},
+				Columns:    []*schema.Column{KaguyaChatTurnColumns[27]},
 				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -141,12 +142,12 @@ var (
 			{
 				Name:    "kaguyachatturn_conversation_id_turn_index",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaChatTurnColumns[26], KaguyaChatTurnColumns[4]},
+				Columns: []*schema.Column{KaguyaChatTurnColumns[27], KaguyaChatTurnColumns[4]},
 			},
 			{
 				Name:    "kaguyachatturn_finished_at",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaChatTurnColumns[12]},
+				Columns: []*schema.Column{KaguyaChatTurnColumns[13]},
 			},
 		},
 	}

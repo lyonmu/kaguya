@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -16,6 +17,42 @@ const (
 
 // ErrChatConcurrencyLimited 表示同时进行的聊天轮次已达上限。
 var ErrChatConcurrencyLimited = errors.New("too many concurrent chat turns")
+
+// conversationLease 是一次进行中轮次的租约。userStop 记录用户主动停止，
+// 用于在取消时区分“正常停止”（canceled）与断联/超时（interrupted）。
+type conversationLease struct{ userStop atomic.Bool }
+
+// 同一进程跨 SSE/WS 连接也不能同时生成同一会话；数据库版本条件再防多实例覆盖。
+var activeConversations = struct {
+	sync.Mutex
+	leases map[string]*conversationLease
+}{leases: make(map[string]*conversationLease)}
+
+func acquireConversation(id string) (*conversationLease, func(), error) {
+	activeConversations.Lock()
+	defer activeConversations.Unlock()
+	if activeConversations.leases[id] != nil {
+		return nil, nil, ErrConversationBusy
+	}
+	lease := &conversationLease{}
+	activeConversations.leases[id] = lease
+	return lease, func() {
+		activeConversations.Lock()
+		delete(activeConversations.leases, id)
+		activeConversations.Unlock()
+	}, nil
+}
+
+// StopConversation 记录用户主动停止本轮生成；没有运行轮次时是幂等空操作。
+// 取消本身仍由连接上下文完成，这里只标记取消原因。
+func (s *AgentSvc) StopConversation(id string) {
+	activeConversations.Lock()
+	lease := activeConversations.leases[id]
+	activeConversations.Unlock()
+	if lease != nil {
+		lease.userStop.Store(true)
+	}
+}
 
 var (
 	chatSlots  = make(chan struct{}, maxConcurrentChats)

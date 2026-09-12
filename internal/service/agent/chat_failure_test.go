@@ -11,13 +11,16 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"charm.land/fantasy"
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 )
 
-func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
+// 失败或取消的轮次保留已产生的正文，但绝不进入续聊上下文、用量统计或完整轮次。
+func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 	for _, mode := range []string{"error", "disconnect", "cancel", "length", "storage"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, client := setupChatTest(t)
@@ -31,7 +34,6 @@ func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			beforeJSON, _ := json.Marshal(before)
 			if mode == "storage" {
 				client.KaguyaChatBlock.Use(func(ent.Mutator) ent.Mutator {
 					return ent.MutateFunc(func(context.Context, ent.Mutation) (ent.Value, error) { return nil, errors.New("storage failure") })
@@ -85,10 +87,12 @@ func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
 						fail++
 					}
 					if mode == "cancel" && frame.Chat.Block != nil && frame.Chat.Block.Text != "" {
+						// 断联/停止：取消请求上下文，服务端应停止生成并保留已推送内容。
 						cancel()
 					}
 				}
 				cancel()
+				// 取消时连接已断开，错误帧不再投递；其余失败路径必须上报错误。
 				if done != 0 || (mode != "cancel" && fail != 1) {
 					t.Fatalf("done=%d failure=%d", done, fail)
 				}
@@ -96,30 +100,62 @@ func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
 			if requests.Load() != 2 {
 				t.Fatalf("requests=%d", requests.Load())
 			}
+			// 续聊上下文只读取完整提交的轮次，但会拼回未完成轮次的用户提问；
+			// 半截助手内容不能进入上下文。
 			after, version, err := loadConversation(ctx, "123")
 			if err != nil {
 				t.Fatal(err)
 			}
 			afterJSON, _ := json.Marshal(after)
-			if version != 1 || string(afterJSON) != string(beforeJSON) {
-				t.Fatal("incomplete request changed context")
+			want := append(append([]fantasy.Message{}, before...), fantasy.NewUserMessage("must not save"))
+			wantJSON, _ := json.Marshal(want)
+			if version != 1 || string(afterJSON) != string(wantJSON) {
+				t.Fatalf("incomplete request context=%s want=%s", afterJSON, wantJSON)
 			}
-			// 失败的新会话保留在列表中（尚无轮次），已有会话的上下文不受影响。
+			detail, err := (&AgentSvc{}).ConversationDetail(ctx, "123")
+			if err != nil || detail.Usage.TotalTokens != 35 || detail.TurnCount != 1 {
+				t.Fatalf("usage changed: %+v %v", detail, err)
+			}
+			// 失败的新会话保留在列表中，且没有完整轮次。
 			if n, err := client.KaguyaConversation.Query().Count(ctx); err != nil || n != 2 {
 				t.Fatalf("conversations=%d %v", n, err)
 			}
 			if n, err := client.KaguyaConversation.Query().Where(kaguyaconversation.TurnCountEQ(0)).Count(ctx); err != nil || n != 1 {
 				t.Fatalf("empty conversations=%d %v", n, err)
 			}
-			if n, err := client.KaguyaChatTurn.Query().Count(ctx); err != nil || n != 1 {
-				t.Fatalf("turns=%d %v", n, err)
+			// 中断轮次可展示：状态正确，且有部分内容时可回放。
+			failed, err := client.KaguyaChatTurn.Query().Where(
+				kaguyachatturn.ConversationIDEQ("123"), kaguyachatturn.StatusNEQ(kaguyachatturn.StatusCompleted)).Only(ctx)
+			if err != nil {
+				t.Fatal(err)
 			}
-			if n, err := client.KaguyaChatBlock.Query().Count(ctx); err != nil || n != 3 {
-				t.Fatalf("blocks=%d %v", n, err)
+			wantStatus := kaguyachatturn.StatusFailed
+			if mode == "cancel" {
+				wantStatus = kaguyachatturn.StatusInterrupted
 			}
-			detail, err := (&AgentSvc{}).ConversationDetail(ctx, "123")
-			if err != nil || detail.Usage.TotalTokens != 35 {
-				t.Fatalf("usage changed: %+v %v", detail, err)
+			if failed.Status != wantStatus {
+				t.Fatalf("status=%s want=%s", failed.Status, wantStatus)
+			}
+			blocks, err := failed.QueryBlocks().All(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if mode == "error" {
+				if len(blocks) != 0 {
+					t.Fatalf("provider error before content wrote blocks: %+v", blocks)
+				}
+			} else if mode != "storage" {
+				if len(blocks) == 0 || blocks[0].Text != "partial" {
+					t.Fatalf("partial content lost: %+v", blocks)
+				}
+			}
+			// 展示接口把中断轮次作为历史返回，正文可读。
+			page, err := (&AgentSvc{}).ConversationTurns(ctx, "123", &dtochat.TurnPageReq{Limit: 5, Compact: true})
+			if err != nil || len(page.Items) != 2 || page.Items[1].Status != string(wantStatus) {
+				t.Fatalf("turn page=%+v %v", page, err)
+			}
+			if mode != "error" && mode != "storage" && (len(page.Items[1].Blocks) == 0 || page.Items[1].Blocks[0].Text != "partial") {
+				t.Fatalf("history lost partial content: %+v", page.Items[1])
 			}
 		})
 	}

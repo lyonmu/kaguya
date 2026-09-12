@@ -7,6 +7,7 @@ import (
 
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/global"
 )
 
@@ -66,12 +67,25 @@ func doneFrame(exec chatExecution, outcome *chatOutcome) *dtochat.ChatResp {
 	}
 }
 
-// Chat 执行一次流式对话。整体分为四步，任一步失败都不落库：
+// flushTurn 在生成异常结束时把内存中的增量补写一次，减少断联内容与数据库之间的差距。
+func flushTurn(recorder *turnRecorder) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := recorder.flush(ctx); err != nil {
+		global.Logger.Sugar().Warnf("flush interrupted turn failed: turn_id=%s err=%v", recorder.turnID, err)
+	}
+}
+
+// Chat 执行一次流式对话。整体分为四步：
 //
 //	1. 解析目标模型与提供商；
 //	2. 建立会话身份（互斥 + 并发上限）并读取历史；
-//	3. 组装工作区、提示词与 Agent；
-//	4. 流式生成，成功后在同一事务写入轮次并下发 done。
+//	3. 组装工作区、提示词与 Agent，写入 running 占位行并启动增量落库；
+//	4. 流式生成；连接中断/停止时保留已推送内容并标 interrupted，
+//	   成功后把占位行更新为 completed 再下发 done。
+//
+// SSE 连接就是本轮的生命周期：断联只意味着停止本轮，不表示后台续跑。
+// 切换会话不会关闭流式连接，因此各会话的轮次继续执行到完成。
 func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, req *dtochat.ChatReq) {
 	defer beginWork()()
 	defer close(dataChan)
@@ -89,7 +103,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		pushChatError(ctx, dataChan, "", err)
 		return
 	}
-	release, err := acquireConversation(convID)
+	lease, release, err := acquireConversation(convID)
 	if err != nil {
 		pushChatError(ctx, dataChan, convID, err)
 		return
@@ -144,28 +158,70 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		pushChatError(ctx, dataChan, "", err)
 		return
 	}
-	exec := chatExecution{
-		target: target, conversationID: convID, version: version, history: history, prompt: prompt,
-		requestedProjectID: req.ProjectID, userContent: req.Messages,
-	}
 
-	agent, err := buildChatAgent(exec)
+	agent, err := buildChatAgent(chatExecution{target: target, conversationID: convID, prompt: prompt})
 	if err != nil {
 		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
 		pushChatError(ctx, dataChan, "", err)
 		return
 	}
+
+	// 生成前写入 running 占位行，并按节流增量落库；断联时保留到那一刻的模型输出与工具记录。
+	trace := newTurnTrace()
+	startedAt := time.Now()
+	turnRow, err := beginTurn(ctx, turnStart{
+		ConversationID: convID, UserContent: req.Messages, StartedAt: startedAt,
+		ProviderID: target.provider.ID, ProviderName: target.provider.ProviderName,
+		ModelID: target.model.ModelID, ModelName: target.model.ModelName, APIProtocol: string(target.provider.APIProtocol),
+	})
+	if err != nil {
+		global.Logger.Sugar().Errorf("begin turn failed: id=%s err=%v", convID, err)
+		pushChatError(ctx, dataChan, convID, err)
+		return
+	}
+	recorder := startTurnRecorder(turnRow.ID, trace)
+
+	exec := chatExecution{
+		target: target, conversationID: convID, version: version, history: history, prompt: prompt,
+		requestedProjectID: req.ProjectID, userContent: req.Messages,
+		trace: trace, turnID: turnRow.ID,
+	}
 	if !send(ctx, dataChan, startFrame(exec)) {
+		recorder.stop()
+		flushTurn(recorder)
+		status := kaguyachatturn.StatusInterrupted
+		if lease.userStop.Load() {
+			status = kaguyachatturn.StatusCanceled
+		}
+		_ = markTurnEnd(exec.turnID, status, time.Now())
 		return
 	}
 
 	outcome, err := s.streamChat(ctx, dataChan, agent, exec)
+	recorder.stop()
 	if err != nil {
+		// 用户主动停止标 canceled，断联/超时标 interrupted，其余生成错误标 failed；
+		// 三种都保留已经推送给前端的部分内容。
+		status := kaguyachatturn.StatusFailed
+		switch {
+		case lease.userStop.Load():
+			status = kaguyachatturn.StatusCanceled
+		case ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+			status = kaguyachatturn.StatusInterrupted
+		}
+		flushTurn(recorder)
+		if markErr := markTurnEnd(exec.turnID, status, time.Now()); markErr != nil {
+			global.Logger.Sugar().Errorf("mark turn end failed: turn_id=%s err=%v", exec.turnID, markErr)
+		}
 		global.Logger.Sugar().Errorf("stream chat failed, err is %+v", err)
 		pushChatError(ctx, dataChan, convID, err)
 		return
 	}
 	if err := outcome.persist(ctx, exec); err != nil {
+		flushTurn(recorder)
+		if markErr := markTurnEnd(exec.turnID, kaguyachatturn.StatusFailed, time.Now()); markErr != nil {
+			global.Logger.Sugar().Errorf("mark turn end failed: turn_id=%s err=%v", exec.turnID, markErr)
+		}
 		global.Logger.Sugar().Errorf("persist completed conversation failed: id=%s err=%v", convID, err)
 		pushChatError(ctx, dataChan, convID, err)
 		return

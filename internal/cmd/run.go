@@ -120,6 +120,10 @@ func Run() {
 	global.Logger.Info("start init application data")
 	initCtx, cancelInit := context.WithTimeout(context.Background(), 30*time.Second)
 	initErr := initialize.Run(initCtx, db.EntClient)
+	if initErr == nil {
+		// 上次进程崩溃/强杀会留下 running 占位轮次：本实例启动时不接管它们。
+		initErr = serviceagent.ReconcileRunningTurns(initCtx)
+	}
 	cancelInit()
 	if initErr != nil {
 		global.Logger.Error("initialize application data failed", zap.Error(initErr))

@@ -10,7 +10,7 @@ import (
 	"entgo.io/ent/schema/index"
 )
 
-// KaguyaChatTurn 一次完整成功的问答；失败/取消轮次不写入。
+// KaguyaChatTurn 一次问答；状态区分进行中、已提交与中断/失败的轮次。
 type KaguyaChatTurn struct{ ent.Schema }
 
 func (KaguyaChatTurn) Fields() []ent.Field {
@@ -20,6 +20,8 @@ func (KaguyaChatTurn) Fields() []ent.Field {
 		field.Text("user_content").SchemaType(map[string]string{dialect.MySQL: "longtext"}),
 		field.String("provider_id"), field.String("provider_name"),
 		field.String("model_id"), field.String("model_name"), field.String("api_protocol"),
+		field.Enum("status").Values("running", "completed", "interrupted", "canceled", "failed").Default("completed").
+			Comment("running 生成中；completed 完整提交；interrupted 断联/超时；canceled 用户主动停止；failed 生成失败；旧记录默认 completed"),
 		field.Time("started_at"), field.Time("finished_at"),
 		field.Int64("duration_ms").NonNegative(), field.Int64("tool_calls").NonNegative(),
 		field.String("finish_reason"),

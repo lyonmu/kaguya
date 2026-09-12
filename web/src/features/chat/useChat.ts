@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchConversation, fetchTurnPage, streamChat, HISTORY_PAGE_SIZE } from './api'
+import { fetchConversation, fetchTurnPage, stopConversation, streamChat, HISTORY_PAGE_SIZE } from './api'
 import { applyFrame } from './reducer'
 import { syncCompletedConversation, syncStartedConversation } from './completion'
+import { isPersistedStatus, isRunningStatus } from './status'
 import type { Conversation, ConversationTitle, Turn } from './types'
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : '请求失败，请重试'
@@ -45,6 +46,24 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     if (current && current.turn_count > detail.turn_count) return
     session.conversation = current?.title && current.title !== '新对话' && detail.title === '新对话' ? { ...detail, title: current.title } : detail
     notify()
+  }
+
+  // 断网/休眠后服务端可能稍晚才察觉断开：延迟确认一次，避免历史停留在“生成中”。
+  const confirmRunningTurn = async (session: Session, index: number) => {
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    if (!mounted.current) return
+    try {
+      const history = await fetchTurnPage(session.id, 1000000)
+      const persisted = history.items?.find(item => item.turn_index === index)
+      if (persisted && !isRunningStatus(persisted.status)) {
+        session.turns = history.items ?? []
+        session.page = history.page
+        session.totalPages = history.total_pages
+        notify()
+      }
+    } catch {
+      // 网络仍不可用：保留本地状态，用户可手动重新加载历史。
+    }
   }
 
   useEffect(() => {
@@ -91,6 +110,9 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       session.page = history.page
       session.totalPages = history.total_pages
       session.initialEnd = true
+      // 断联轮次在服务端被标记后可能短暂显示为 running，短延迟后确认终态。
+      const running = session.turns.find(item => isRunningStatus(item.status))
+      if (running) void confirmRunningTurn(session, running.turn_index)
     } catch (error) {
       if (!controller.signal.aborted) session.error = errorText(error)
     } finally {
@@ -137,19 +159,22 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     let turn: Turn | undefined
     notify()
     try {
-      if (session.id && session.page < session.totalPages) {
+      // 发送前先同步最后一页：服务端已持久化的中断/取消轮次也占用轮次索引，
+      // 本地临时失败轮次被丢弃后必须重新对齐，避免新轮次索引与服务端不一致。
+      if (session.id) {
         session.loading = true
         notify()
-        const history = await fetchTurnPage(session.id, session.totalPages, controller.signal)
+        const history = await fetchTurnPage(session.id, session.totalPages || 1000000, controller.signal)
         controller.signal.throwIfAborted()
         session.turns = history.items ?? []
         session.page = history.page
+        session.totalPages = history.total_pages
         session.initialEnd = true
         if (selected.current === session) setViewKey(value => value + 1)
       }
       session.loading = false
       // Failed/cancelled turns are not part of persisted history or the next turn index.
-      session.turns = session.turns.filter(item => !item.status || item.status === 'done')
+      session.turns = session.turns.filter(item => isPersistedStatus(item.status))
       turn = {
         turn_index: Math.max(session.conversation?.turn_count ?? 0, session.turns.at(-1)?.turn_index ?? 0) + 1,
         user_content: text.trim(), model_name: '', model_id: '', api_protocol: '',
@@ -187,7 +212,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         notify()
       }, modelId, session.projectId, files)
     } catch (error) {
-      const message = controller.signal.aborted ? '已停止生成；本轮可能未保存，可重新加载历史确认' : errorText(error)
+      const message = controller.signal.aborted ? '已停止生成；已产生的内容会保留在历史中' : errorText(error)
       if (turn) session.turns = [...session.turns.slice(0, -1), { ...turn, status: controller.signal.aborted ? 'stopped' : 'error', error: message }]
       else session.error = message
     } finally {
@@ -229,6 +254,17 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     select, goToPage, send,
     forget: () => { const item = selected.current; if (!item.streaming) { item.completion?.abort(); item.title?.abort(); sessions.current.delete(item.key) } },
     cancelTitleWait: () => { selected.current.completion?.abort(); selected.current.title?.abort() },
-    stop: () => selected.current.stream?.abort(),
+    stop: () => {
+      const item = selected.current
+      if (item.id) {
+        // 先让服务端记录用户主动停止，再断开连接：落库才能区分 canceled 与断联。
+        // 网络不可用时最多等 800ms，停止按钮仍要即时生效。
+        const notifyStop = stopConversation(item.id).catch(() => {})
+        const timer = new Promise(resolve => setTimeout(resolve, 800))
+        void Promise.race([notifyStop, timer]).finally(() => item.stream?.abort())
+      } else {
+        item.stream?.abort()
+      }
+    },
   }
 }

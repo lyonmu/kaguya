@@ -207,7 +207,9 @@ describe('chat refresh stability', () => {
 describe('independent conversation streams', () => {
   it('keeps interleaved streams isolated before IDs arrive and cancels only the selected one', async () => {
     const streams: Array<{ emit: (id: string, flag: string, text?: string) => void; signal: AbortSignal }> = []
+    const requested: string[] = []
     globalThis.fetch = (async (url, init) => {
+      requested.push(String(url))
       if (!String(url).endsWith('/sse')) return response({ ...detail, id: String(url).split('/').at(-1) })
       const signal = init!.signal as AbortSignal
       return new Response(new ReadableStream({ start(controller) {
@@ -244,6 +246,7 @@ describe('independent conversation streams', () => {
     await act(async () => { result.current.stop(); await first })
     assert.equal(streams[0].signal.aborted, true)
     assert.equal(streams[1].signal.aborted, false)
+    assert.ok(requested.some(item => item.endsWith('/111/stop')))
     assert.equal(result.current.turns[0].status, 'stopped')
     await act(async () => { streams[1].emit('222', 'done'); await second })
     assert.equal(result.current.id, '111')
@@ -275,7 +278,52 @@ describe('independent conversation streams', () => {
   })
 })
 
-it('keeps drafts and model choices per conversation and reuses the saved turn index after failure', async () => {
+  it('keeps interrupted turns when continuing and places the next turn after them', async () => {
+    const interrupted = { turn_index: 2, user_content: '中断', blocks: [{ type: 'text', text: 'partial' }], started_at: new Date().toISOString(), status: 'interrupted' }
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost')
+      if (path.pathname.endsWith('/turns')) return response({ items: [{ ...turn, turn_index: 1 }, interrupted], page: 1, total: 2, total_pages: 1, page_size: 5 })
+      if (path.pathname.endsWith('/sse')) {
+        return new Response(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: '123', flag: 'done' }, usage: { total_tokens: 1 } } })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+      return response({ ...detail, turn_count: 2 })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    assert.deepEqual(result.current.turns.map(item => item.turn_index), [1, 2])
+    await act(async () => { await result.current.send('下一轮') })
+    assert.equal(result.current.turns.length, 3)
+    assert.equal(result.current.turns[1].status, 'interrupted')
+    assert.equal(result.current.turns[2].turn_index, 3)
+    assert.equal(result.current.turns[2].status, 'done')
+  })
+
+  it('refreshes the last page before sending so persisted canceled turns keep the index aligned', async () => {
+    const canceled = { turn_index: 2, user_content: '取消的提问', blocks: [{ type: 'text', text: 'partial' }], started_at: new Date().toISOString(), status: 'canceled' }
+    let turnPages = 0
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost')
+      if (path.pathname.endsWith('/turns')) {
+        turnPages++
+        return response(turnPages === 1
+          ? { items: [{ ...turn, turn_index: 1 }], page: 1, total: 1, total_pages: 1, page_size: 5 }
+          : { items: [{ ...turn, turn_index: 1 }, canceled], page: 1, total: 2, total_pages: 1, page_size: 5 })
+      }
+      if (path.pathname.endsWith('/sse')) {
+        return new Response(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: '123', flag: 'done' }, usage: { total_tokens: 1 } } })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+      return response({ ...detail, turn_count: 1 })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    assert.deepEqual(result.current.turns.map(item => item.turn_index), [1])
+    await act(async () => { await result.current.send('下一轮') })
+    assert.deepEqual(result.current.turns.map(item => item.turn_index), [1, 2, 3])
+    assert.equal(result.current.turns[1].status, 'canceled')
+    assert.equal(result.current.turns[2].status, 'done')
+  })
+
+  it('keeps drafts and model choices per conversation and reuses the saved turn index after failure', async () => {
   let fail = true
   globalThis.fetch = (async url => {
     if (!String(url).endsWith('/sse')) return response(detail)

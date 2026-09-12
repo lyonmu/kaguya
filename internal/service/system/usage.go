@@ -57,7 +57,7 @@ func (s *SystemSvc) TokenUsage(ctx context.Context, req *dtosystem.TokenUsageReq
 		return nil, err
 	}
 	resp := &dtosystem.TokenUsageResp{Start: start.Format(time.DateOnly), End: end.Add(-time.Second).Format(time.DateOnly)}
-	query := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.FinishedAtGTE(start), kaguyachatturn.FinishedAtLT(end))
+	query := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted), kaguyachatturn.FinishedAtGTE(start), kaguyachatturn.FinishedAtLT(end))
 	// 汇总卡片：日峰值需要按 UTC 自然日聚合后取最大，会话数在整段时间段内去重。
 	days, err := usageDays(ctx, query.Clone())
 	if err != nil {
@@ -88,6 +88,7 @@ func (s *SystemSvc) TokenUsage(ctx context.Context, req *dtosystem.TokenUsageReq
 	activityStart, activityEnd := usageWindow(now)
 	resp.ActivityStart, resp.ActivityEnd = activityStart.Format(time.DateOnly), activityEnd.Format(time.DateOnly)
 	activityDays, err := usageDays(ctx, db.EntClient.KaguyaChatTurn.Query().Where(
+		kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted),
 		kaguyachatturn.FinishedAtGTE(activityStart), kaguyachatturn.FinishedAtLT(activityEnd.Add(time.Second))))
 	if err != nil {
 		return nil, err
@@ -104,8 +105,8 @@ func (s *SystemSvc) TokenUsage(ctx context.Context, req *dtosystem.TokenUsageReq
 		day.Date = key
 		resp.Days = append(resp.Days, day)
 	}
-	// Token 构成固定统计全部历史（从开始记录到现在），不随请求时间段变化。
-	all := db.EntClient.KaguyaChatTurn.Query()
+	// Token 构成固定统计全部历史（从开始记录到现在），不随请求时间段变化；只含完整提交的轮次。
+	all := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted))
 	resp.Models, err = usageComposition(ctx, all.Clone(), true)
 	if err != nil {
 		return nil, err

@@ -15,6 +15,7 @@ import (
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 )
 
 func testCompletedTurn(id string, version int64) completedTurn {
@@ -141,7 +142,7 @@ func TestConversationTransactionRollback(t *testing.T) {
 
 func TestConversationConcurrentGuard(t *testing.T) {
 	_, _ = setupChatTest(t)
-	release, err := acquireConversation("123")
+	_, release, err := acquireConversation("123")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +150,7 @@ func TestConversationConcurrentGuard(t *testing.T) {
 	done := make(chan error, 20)
 	for i := 0; i < 20; i++ {
 		go func() {
-			unlock, err := acquireConversation("123")
+			_, unlock, err := acquireConversation("123")
 			if unlock != nil {
 				unlock()
 			}
@@ -161,11 +162,78 @@ func TestConversationConcurrentGuard(t *testing.T) {
 			t.Fatalf("concurrent acquire: %v", err)
 		}
 	}
-	unlock, err := acquireConversation("other")
+	_, unlock, err := acquireConversation("other")
 	if err != nil {
 		t.Fatal(err)
 	}
 	unlock()
+}
+
+// 未完成轮次不进入完整历史，但其用户提问会按轮次顺序拼回下一轮上下文，
+// 半截助手内容与工具记录不参与拼接。
+func TestLoadConversationCarriesIncompleteUserMessages(t *testing.T) {
+	ctx, _ := setupChatTest(t)
+	at := time.Now()
+	start := func(user string) turnStart {
+		return turnStart{ConversationID: "c", UserContent: user, StartedAt: at, ProviderID: "p", ProviderName: "p", ModelID: "m", ModelName: "m", APIProtocol: "openai-chat"}
+	}
+	first, err := beginTurn(ctx, start("第一轮"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := testCompletedTurn("c", 0)
+	done.TurnID = first.ID
+	done.UserContent = "第一轮"
+	done.Messages = []fantasy.Message{fantasy.NewUserMessage("第一轮"), {Role: fantasy.MessageRoleAssistant, Content: []fantasy.MessagePart{fantasy.TextPart{Text: "回答一"}}}}
+	if err := saveCompletedTurn(ctx, done); err != nil {
+		t.Fatal(err)
+	}
+	interrupted, err := beginTurn(ctx, start("意外中断的提问"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := markTurnEnd(interrupted.ID, kaguyachatturn.StatusInterrupted, at); err != nil {
+		t.Fatal(err)
+	}
+	canceled, err := beginTurn(ctx, start("用户取消的提问"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := markTurnEnd(canceled.ID, kaguyachatturn.StatusCanceled, at); err != nil {
+		t.Fatal(err)
+	}
+	second, err := beginTurn(ctx, start("第二轮"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := testCompletedTurn("c", 1)
+	next.TurnID = second.ID
+	next.UserContent = "第二轮"
+	next.Messages = []fantasy.Message{fantasy.NewUserMessage("第二轮"), {Role: fantasy.MessageRoleAssistant, Content: []fantasy.MessagePart{fantasy.TextPart{Text: "回答二"}}}}
+	if err := saveCompletedTurn(ctx, next); err != nil {
+		t.Fatal(err)
+	}
+	// 进行中的轮次不进入上下文。
+	if _, err := beginTurn(ctx, start("仍在生成")); err != nil {
+		t.Fatal(err)
+	}
+
+	messages, version, err := loadConversation(ctx, "c")
+	if err != nil || version != 2 {
+		t.Fatalf("version=%d err=%v", version, err)
+	}
+	var texts []string
+	for _, message := range messages {
+		for _, part := range message.Content {
+			if textPart, ok := part.(fantasy.TextPart); ok {
+				texts = append(texts, textPart.Text)
+			}
+		}
+	}
+	want := []string{"第一轮", "回答一", "意外中断的提问", "用户取消的提问", "第二轮", "回答二"}
+	if !reflect.DeepEqual(texts, want) {
+		t.Fatalf("history texts=%q want=%q", texts, want)
+	}
 }
 
 func TestConversationContextRoundTrip(t *testing.T) {

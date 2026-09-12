@@ -89,6 +89,7 @@ type StoredTurn struct {
 	DurationMS   int64         `json:"duration_ms"`
 	ToolCalls    int64         `json:"tool_calls"`
 	FinishReason string        `json:"finish_reason"`
+	Status       string        `json:"status"` // running/completed/interrupted/failed；只有 completed 是完整上下文
 	Usage        Usage         `json:"usage"`
 	Blocks       []StoredBlock `json:"blocks"`
 }

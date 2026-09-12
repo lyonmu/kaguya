@@ -43,6 +43,8 @@ type KaguyaChatTurn struct {
 	ModelName string `json:"model_name,omitempty"`
 	// APIProtocol holds the value of the "api_protocol" field.
 	APIProtocol string `json:"api_protocol,omitempty"`
+	// running 生成中；completed 完整提交；interrupted 断联/超时；canceled 用户主动停止；failed 生成失败；旧记录默认 completed
+	Status kaguyachatturn.Status `json:"status,omitempty"`
 	// StartedAt holds the value of the "started_at" field.
 	StartedAt time.Time `json:"started_at,omitempty"`
 	// FinishedAt holds the value of the "finished_at" field.
@@ -119,7 +121,7 @@ func (*KaguyaChatTurn) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow, kaguyachatturn.FieldCompactionCount:
 			values[i] = new(sql.NullInt64)
-		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldFinishReason:
+		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldStatus, kaguyachatturn.FieldFinishReason:
 			values[i] = new(sql.NullString)
 		case kaguyachatturn.FieldCreatedAt, kaguyachatturn.FieldUpdatedAt, kaguyachatturn.FieldDeletedAt, kaguyachatturn.FieldStartedAt, kaguyachatturn.FieldFinishedAt:
 			values[i] = new(sql.NullTime)
@@ -210,6 +212,12 @@ func (_m *KaguyaChatTurn) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field api_protocol", values[i])
 			} else if value.Valid {
 				_m.APIProtocol = value.String
+			}
+		case kaguyachatturn.FieldStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field status", values[i])
+			} else if value.Valid {
+				_m.Status = kaguyachatturn.Status(value.String)
 			}
 		case kaguyachatturn.FieldStartedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -386,6 +394,9 @@ func (_m *KaguyaChatTurn) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("api_protocol=")
 	builder.WriteString(_m.APIProtocol)
+	builder.WriteString(", ")
+	builder.WriteString("status=")
+	builder.WriteString(fmt.Sprintf("%v", _m.Status))
 	builder.WriteString(", ")
 	builder.WriteString("started_at=")
 	builder.WriteString(_m.StartedAt.Format(time.ANSIC))

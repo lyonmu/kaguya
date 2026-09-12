@@ -88,6 +88,8 @@ export interface Conversation {
   usage: Usage
 }
 
+export type TurnStatus = 'streaming' | 'done' | 'error' | 'stopped' | 'running' | 'completed' | 'interrupted' | 'canceled' | 'failed'
+
 export interface Turn {
   turn_index: number
   user_content: string
@@ -102,7 +104,7 @@ export interface Turn {
   finish_reason?: string
   usage?: Usage
   blocks: Block[]
-  status?: 'streaming' | 'done' | 'error' | 'stopped'
+  status?: TurnStatus
   error?: string
 }
 

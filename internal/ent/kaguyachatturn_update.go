@@ -178,6 +178,20 @@ func (_u *KaguyaChatTurnUpdate) SetNillableAPIProtocol(v *string) *KaguyaChatTur
 	return _u
 }
 
+// SetStatus sets the "status" field.
+func (_u *KaguyaChatTurnUpdate) SetStatus(v kaguyachatturn.Status) *KaguyaChatTurnUpdate {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableStatus(v *kaguyachatturn.Status) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetStatus(*v)
+	}
+	return _u
+}
+
 // SetStartedAt sets the "started_at" field.
 func (_u *KaguyaChatTurnUpdate) SetStartedAt(v time.Time) *KaguyaChatTurnUpdate {
 	_u.mutation.SetStartedAt(v)
@@ -572,6 +586,11 @@ func (_u *KaguyaChatTurnUpdate) check() error {
 			return &ValidationError{Name: "turn_index", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.turn_index": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Status(); ok {
+		if err := kaguyachatturn.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DurationMs(); ok {
 		if err := kaguyachatturn.DurationMsValidator(v); err != nil {
 			return &ValidationError{Name: "duration_ms", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.duration_ms": %w`, err)}
@@ -678,6 +697,9 @@ func (_u *KaguyaChatTurnUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.APIProtocol(); ok {
 		_spec.SetField(kaguyachatturn.FieldAPIProtocol, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(kaguyachatturn.FieldStatus, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(kaguyachatturn.FieldStartedAt, field.TypeTime, value)
@@ -1007,6 +1029,20 @@ func (_u *KaguyaChatTurnUpdateOne) SetAPIProtocol(v string) *KaguyaChatTurnUpdat
 func (_u *KaguyaChatTurnUpdateOne) SetNillableAPIProtocol(v *string) *KaguyaChatTurnUpdateOne {
 	if v != nil {
 		_u.SetAPIProtocol(*v)
+	}
+	return _u
+}
+
+// SetStatus sets the "status" field.
+func (_u *KaguyaChatTurnUpdateOne) SetStatus(v kaguyachatturn.Status) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetStatus(v)
+	return _u
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableStatus(v *kaguyachatturn.Status) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetStatus(*v)
 	}
 	return _u
 }
@@ -1418,6 +1454,11 @@ func (_u *KaguyaChatTurnUpdateOne) check() error {
 			return &ValidationError{Name: "turn_index", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.turn_index": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.Status(); ok {
+		if err := kaguyachatturn.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.DurationMs(); ok {
 		if err := kaguyachatturn.DurationMsValidator(v); err != nil {
 			return &ValidationError{Name: "duration_ms", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.duration_ms": %w`, err)}
@@ -1541,6 +1582,9 @@ func (_u *KaguyaChatTurnUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaCh
 	}
 	if value, ok := _u.mutation.APIProtocol(); ok {
 		_spec.SetField(kaguyachatturn.FieldAPIProtocol, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.Status(); ok {
+		_spec.SetField(kaguyachatturn.FieldStatus, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(kaguyachatturn.FieldStartedAt, field.TypeTime, value)

@@ -3,6 +3,7 @@
 package kaguyachatturn
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent"
@@ -37,6 +38,8 @@ const (
 	FieldModelName = "model_name"
 	// FieldAPIProtocol holds the string denoting the api_protocol field in the database.
 	FieldAPIProtocol = "api_protocol"
+	// FieldStatus holds the string denoting the status field in the database.
+	FieldStatus = "status"
 	// FieldStartedAt holds the string denoting the started_at field in the database.
 	FieldStartedAt = "started_at"
 	// FieldFinishedAt holds the string denoting the finished_at field in the database.
@@ -103,6 +106,7 @@ var Columns = []string{
 	FieldModelID,
 	FieldModelName,
 	FieldAPIProtocol,
+	FieldStatus,
 	FieldStartedAt,
 	FieldFinishedAt,
 	FieldDurationMs,
@@ -177,6 +181,35 @@ var (
 	IDValidator func(string) error
 )
 
+// Status defines the type for the "status" enum field.
+type Status string
+
+// StatusCompleted is the default value of the Status enum.
+const DefaultStatus = StatusCompleted
+
+// Status values.
+const (
+	StatusRunning     Status = "running"
+	StatusCompleted   Status = "completed"
+	StatusInterrupted Status = "interrupted"
+	StatusCanceled    Status = "canceled"
+	StatusFailed      Status = "failed"
+)
+
+func (s Status) String() string {
+	return string(s)
+}
+
+// StatusValidator is a validator for the "status" field enum values. It is called by the builders before save.
+func StatusValidator(s Status) error {
+	switch s {
+	case StatusRunning, StatusCompleted, StatusInterrupted, StatusCanceled, StatusFailed:
+		return nil
+	default:
+		return fmt.Errorf("kaguyachatturn: invalid enum value for status field: %q", s)
+	}
+}
+
 // OrderOption defines the ordering options for the KaguyaChatTurn queries.
 type OrderOption func(*sql.Selector)
 
@@ -238,6 +271,11 @@ func ByModelName(opts ...sql.OrderTermOption) OrderOption {
 // ByAPIProtocol orders the results by the api_protocol field.
 func ByAPIProtocol(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAPIProtocol, opts...).ToFunc()
+}
+
+// ByStatus orders the results by the status field.
+func ByStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStatus, opts...).ToFunc()
 }
 
 // ByStartedAt orders the results by the started_at field.

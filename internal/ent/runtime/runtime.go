@@ -162,45 +162,45 @@ func init() {
 	// kaguyachatturn.TurnIndexValidator is a validator for the "turn_index" field. It is called by the builders before save.
 	kaguyachatturn.TurnIndexValidator = kaguyachatturnDescTurnIndex.Validators[0].(func(int64) error)
 	// kaguyachatturnDescDurationMs is the schema descriptor for duration_ms field.
-	kaguyachatturnDescDurationMs := kaguyachatturnFields[10].Descriptor()
+	kaguyachatturnDescDurationMs := kaguyachatturnFields[11].Descriptor()
 	// kaguyachatturn.DurationMsValidator is a validator for the "duration_ms" field. It is called by the builders before save.
 	kaguyachatturn.DurationMsValidator = kaguyachatturnDescDurationMs.Validators[0].(func(int64) error)
 	// kaguyachatturnDescToolCalls is the schema descriptor for tool_calls field.
-	kaguyachatturnDescToolCalls := kaguyachatturnFields[11].Descriptor()
+	kaguyachatturnDescToolCalls := kaguyachatturnFields[12].Descriptor()
 	// kaguyachatturn.ToolCallsValidator is a validator for the "tool_calls" field. It is called by the builders before save.
 	kaguyachatturn.ToolCallsValidator = kaguyachatturnDescToolCalls.Validators[0].(func(int64) error)
 	// kaguyachatturnDescInputTokens is the schema descriptor for input_tokens field.
-	kaguyachatturnDescInputTokens := kaguyachatturnFields[13].Descriptor()
+	kaguyachatturnDescInputTokens := kaguyachatturnFields[14].Descriptor()
 	// kaguyachatturn.InputTokensValidator is a validator for the "input_tokens" field. It is called by the builders before save.
 	kaguyachatturn.InputTokensValidator = kaguyachatturnDescInputTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescOutputTokens is the schema descriptor for output_tokens field.
-	kaguyachatturnDescOutputTokens := kaguyachatturnFields[14].Descriptor()
+	kaguyachatturnDescOutputTokens := kaguyachatturnFields[15].Descriptor()
 	// kaguyachatturn.OutputTokensValidator is a validator for the "output_tokens" field. It is called by the builders before save.
 	kaguyachatturn.OutputTokensValidator = kaguyachatturnDescOutputTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescTotalTokens is the schema descriptor for total_tokens field.
-	kaguyachatturnDescTotalTokens := kaguyachatturnFields[15].Descriptor()
+	kaguyachatturnDescTotalTokens := kaguyachatturnFields[16].Descriptor()
 	// kaguyachatturn.TotalTokensValidator is a validator for the "total_tokens" field. It is called by the builders before save.
 	kaguyachatturn.TotalTokensValidator = kaguyachatturnDescTotalTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescCachedTokens is the schema descriptor for cached_tokens field.
-	kaguyachatturnDescCachedTokens := kaguyachatturnFields[16].Descriptor()
+	kaguyachatturnDescCachedTokens := kaguyachatturnFields[17].Descriptor()
 	// kaguyachatturn.CachedTokensValidator is a validator for the "cached_tokens" field. It is called by the builders before save.
 	kaguyachatturn.CachedTokensValidator = kaguyachatturnDescCachedTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescReasoningTokens is the schema descriptor for reasoning_tokens field.
-	kaguyachatturnDescReasoningTokens := kaguyachatturnFields[17].Descriptor()
+	kaguyachatturnDescReasoningTokens := kaguyachatturnFields[18].Descriptor()
 	// kaguyachatturn.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
 	kaguyachatturn.ReasoningTokensValidator = kaguyachatturnDescReasoningTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescContextTokens is the schema descriptor for context_tokens field.
-	kaguyachatturnDescContextTokens := kaguyachatturnFields[18].Descriptor()
+	kaguyachatturnDescContextTokens := kaguyachatturnFields[19].Descriptor()
 	// kaguyachatturn.ContextTokensValidator is a validator for the "context_tokens" field. It is called by the builders before save.
 	kaguyachatturn.ContextTokensValidator = kaguyachatturnDescContextTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescContextWindow is the schema descriptor for context_window field.
-	kaguyachatturnDescContextWindow := kaguyachatturnFields[19].Descriptor()
+	kaguyachatturnDescContextWindow := kaguyachatturnFields[20].Descriptor()
 	// kaguyachatturn.DefaultContextWindow holds the default value on creation for the context_window field.
 	kaguyachatturn.DefaultContextWindow = kaguyachatturnDescContextWindow.Default.(int)
 	// kaguyachatturn.ContextWindowValidator is a validator for the "context_window" field. It is called by the builders before save.
 	kaguyachatturn.ContextWindowValidator = kaguyachatturnDescContextWindow.Validators[0].(func(int) error)
 	// kaguyachatturnDescCompactionCount is the schema descriptor for compaction_count field.
-	kaguyachatturnDescCompactionCount := kaguyachatturnFields[21].Descriptor()
+	kaguyachatturnDescCompactionCount := kaguyachatturnFields[22].Descriptor()
 	// kaguyachatturn.DefaultCompactionCount holds the default value on creation for the compaction_count field.
 	kaguyachatturn.DefaultCompactionCount = kaguyachatturnDescCompactionCount.Default.(int)
 	// kaguyachatturn.CompactionCountValidator is a validator for the "compaction_count" field. It is called by the builders before save.

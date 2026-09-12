@@ -28,6 +28,11 @@ export function fetchTurnPage(id: string, page: number, signal?: AbortSignal) {
 export function updateConversation(id: string, payload: { title?: string; favorite?: boolean }) {
   return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload)
 }
+// stopConversation 标记用户主动停止该会话的当前轮次，供服务端区分 canceled 与断联；
+// 取消本身仍通过断开 SSE 完成。
+export function stopConversation(id: string) {
+  return post<null>(`${PATH}/${encodeURIComponent(id)}/stop`)
+}
 export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }

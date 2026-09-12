@@ -20,6 +20,7 @@ func (r *ChatRouter) InitChatRouter(group *gin.RouterGroup, apiGroup apiv1.ApiV1
 		chatRouter.GET("conversation/:id/context", apiGroup.ConversationContext)
 		chatRouter.GET("conversation/:id/title/wait", apiGroup.ConversationTitleWait)
 		chatRouter.POST("conversation/:id/title/wait", apiGroup.ConversationTitleGenerate)
+		chatRouter.POST("conversation/:id/stop", apiGroup.ConversationStop)
 		chatRouter.PUT("conversation/:id", apiGroup.ConversationUpdate)
 		chatRouter.DELETE("conversation/:id", apiGroup.ConversationDelete)
 	}

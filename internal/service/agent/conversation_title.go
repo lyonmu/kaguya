@@ -90,9 +90,10 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 	done := conversationTitles.pending[id]
 	conversationTitles.Unlock()
 	if done == nil {
-		// 从已保存首轮恢复可见问答，不读取私有模型上下文。
+		// 从已保存首轮恢复可见问答，不读取私有模型上下文；中断/进行中的轮次不能作为标题依据。
 		turn, err := db.EntClient.KaguyaChatTurn.Query().Where(
 			kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexEQ(1),
+			kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted),
 		).Select(kaguyachatturn.FieldUserContent).
 			WithBlocks(func(q *ent.KaguyaChatBlockQuery) {
 				q.Where(kaguyachatblock.TypeEQ(kaguyachatblock.TypeText)).Order(kaguyachatblock.BySequence())

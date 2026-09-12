@@ -60,7 +60,8 @@ func contextResponse(turn *ent.KaguyaChatTurn, configuredPercent ...int) *dtocha
 // ConversationContext 使用最新完成轮次的实际上下文占用和模型窗口，不累计计费用量。
 func (s *AgentSvc) ConversationContext(ctx context.Context, id string) (*dtochat.ConversationContextResp, error) {
 	turn, err := db.EntClient.KaguyaChatTurn.Query().
-		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.HasConversationWith(kaguyaconversation.DeletedAtIsNil())).
+		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted),
+			kaguyachatturn.HasConversationWith(kaguyaconversation.DeletedAtIsNil())).
 		Select(kaguyachatturn.FieldConversationID, kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow).
 		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).First(ctx)
 	if ent.IsNotFound(err) {

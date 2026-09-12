@@ -1525,6 +1525,7 @@ type KaguyaChatTurnMutation struct {
 	model_id               *string
 	model_name             *string
 	api_protocol           *string
+	status                 *kaguyachatturn.Status
 	started_at             *time.Time
 	finished_at            *time.Time
 	duration_ms            *int64
@@ -2094,6 +2095,42 @@ func (m *KaguyaChatTurnMutation) OldAPIProtocol(ctx context.Context) (v string, 
 // ResetAPIProtocol resets all changes to the "api_protocol" field.
 func (m *KaguyaChatTurnMutation) ResetAPIProtocol() {
 	m.api_protocol = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *KaguyaChatTurnMutation) SetStatus(k kaguyachatturn.Status) {
+	m.status = &k
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *KaguyaChatTurnMutation) Status() (r kaguyachatturn.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldStatus(ctx context.Context) (v kaguyachatturn.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *KaguyaChatTurnMutation) ResetStatus() {
+	m.status = nil
 }
 
 // SetStartedAt sets the "started_at" field.
@@ -3009,7 +3046,7 @@ func (m *KaguyaChatTurnMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaChatTurnMutation) Fields() []string {
-	fields := make([]string, 0, 26)
+	fields := make([]string, 0, 27)
 	if m.created_at != nil {
 		fields = append(fields, kaguyachatturn.FieldCreatedAt)
 	}
@@ -3042,6 +3079,9 @@ func (m *KaguyaChatTurnMutation) Fields() []string {
 	}
 	if m.api_protocol != nil {
 		fields = append(fields, kaguyachatturn.FieldAPIProtocol)
+	}
+	if m.status != nil {
+		fields = append(fields, kaguyachatturn.FieldStatus)
 	}
 	if m.started_at != nil {
 		fields = append(fields, kaguyachatturn.FieldStartedAt)
@@ -3118,6 +3158,8 @@ func (m *KaguyaChatTurnMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelName()
 	case kaguyachatturn.FieldAPIProtocol:
 		return m.APIProtocol()
+	case kaguyachatturn.FieldStatus:
+		return m.Status()
 	case kaguyachatturn.FieldStartedAt:
 		return m.StartedAt()
 	case kaguyachatturn.FieldFinishedAt:
@@ -3179,6 +3221,8 @@ func (m *KaguyaChatTurnMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldModelName(ctx)
 	case kaguyachatturn.FieldAPIProtocol:
 		return m.OldAPIProtocol(ctx)
+	case kaguyachatturn.FieldStatus:
+		return m.OldStatus(ctx)
 	case kaguyachatturn.FieldStartedAt:
 		return m.OldStartedAt(ctx)
 	case kaguyachatturn.FieldFinishedAt:
@@ -3294,6 +3338,13 @@ func (m *KaguyaChatTurnMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAPIProtocol(v)
+		return nil
+	case kaguyachatturn.FieldStatus:
+		v, ok := value.(kaguyachatturn.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
 		return nil
 	case kaguyachatturn.FieldStartedAt:
 		v, ok := value.(time.Time)
@@ -3637,6 +3688,9 @@ func (m *KaguyaChatTurnMutation) ResetField(name string) error {
 		return nil
 	case kaguyachatturn.FieldAPIProtocol:
 		m.ResetAPIProtocol()
+		return nil
+	case kaguyachatturn.FieldStatus:
+		m.ResetStatus()
 		return nil
 	case kaguyachatturn.FieldStartedAt:
 		m.ResetStartedAt()

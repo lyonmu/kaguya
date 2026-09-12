@@ -3,6 +3,7 @@ import { Alert, Spin } from "antd";
 import { MessagePrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import { Markdown, CopyButton } from "./Markdown";
 import { ActivityBlock } from "./ActivityBlock";
+import { isCanceledStatus, isCompleteStatus, isFailedStatus, isInterruptedStatus, isRunningStatus } from "../status";
 import type { Block, Turn } from "../types";
 import kaguyaAvatar from "../../../assets/kaguya.png";
 import userAvatar from "../../../assets/lyonmu.png";
@@ -115,6 +116,11 @@ function RuntimeMessage() {
   const context = useContext(ContinueContext)
   const onContinue = isLast ? context.onContinue : undefined
   const streaming = context.streaming
+  const running = isRunningStatus(turn.status)
+  const interrupted = isInterruptedStatus(turn.status)
+  const canceled = isCanceledStatus(turn.status)
+  const failed = isFailedStatus(turn.status)
+  const incompleteMessage = turn.error || (interrupted ? '本轮生成已中断，已保留已产生的内容。' : canceled ? '本轮已取消，已保留已产生的内容。' : failed ? '本轮生成失败，已保留已产生的内容。' : '')
   return (
           <MessagePrimitive.Root className="chat-message-wrap" data-role={role}>
             {role === "user" && <article className="chat-message">
@@ -138,23 +144,23 @@ function RuntimeMessage() {
                   Kaguya {turn.model_name && `· ${turn.model_name}`}
                 </div>
                 {turn.blocks.map((block, index) => (
-                  <ContentBlock key={block.sequence ?? index} block={block} streaming={turn.status === "streaming"} conversationId={context.conversationId} turnIndex={turn.turn_index} />
+                  <ContentBlock key={block.sequence ?? index} block={block} streaming={running} conversationId={context.conversationId} turnIndex={turn.turn_index} />
                 ))}
-                {turn.status === "streaming" && (
+                {running && (
                   <div className="chat-muted" role="status">
                     <Spin size="small" /> 正在生成…
                   </div>
                 )}
-                {turn.error && (
+                {incompleteMessage && (
                   <Alert
-                    type={turn.status === "stopped" ? "warning" : "error"}
-                    title={turn.error}
+                    type={interrupted || canceled ? "warning" : "error"}
+                    title={incompleteMessage}
                     showIcon
                   />
                 )}
                 {turn.finish_reason === 'step_limit' && <div className="chat-paused" role="status"><span>达到本轮步数上限，执行进度已保存。</span>{onContinue && <button type="button" onClick={onContinue} disabled={streaming}>继续执行 →</button>}</div>}
-                {turn.status !== 'streaming' && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} /></div>}
-                {turn.usage && (
+                {!running && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} /></div>}
+                {isCompleteStatus(turn.status) && turn.usage && (
                   <div className="chat-turn-meta">
                     {turn.usage.total_tokens.toLocaleString()} tokens ·{" "}
                     {(turn.duration_ms / 1000).toFixed(1)} s · {turn.tool_calls}{" "}

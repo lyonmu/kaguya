@@ -116,6 +116,20 @@ func (_c *KaguyaChatTurnCreate) SetAPIProtocol(v string) *KaguyaChatTurnCreate {
 	return _c
 }
 
+// SetStatus sets the "status" field.
+func (_c *KaguyaChatTurnCreate) SetStatus(v kaguyachatturn.Status) *KaguyaChatTurnCreate {
+	_c.mutation.SetStatus(v)
+	return _c
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableStatus(v *kaguyachatturn.Status) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetStatus(*v)
+	}
+	return _c
+}
+
 // SetStartedAt sets the "started_at" field.
 func (_c *KaguyaChatTurnCreate) SetStartedAt(v time.Time) *KaguyaChatTurnCreate {
 	_c.mutation.SetStartedAt(v)
@@ -315,6 +329,10 @@ func (_c *KaguyaChatTurnCreate) defaults() error {
 		v := kaguyachatturn.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.Status(); !ok {
+		v := kaguyachatturn.DefaultStatus
+		_c.mutation.SetStatus(v)
+	}
 	if _, ok := _c.mutation.ContextWindow(); !ok {
 		v := kaguyachatturn.DefaultContextWindow
 		_c.mutation.SetContextWindow(v)
@@ -374,6 +392,14 @@ func (_c *KaguyaChatTurnCreate) check() error {
 	}
 	if _, ok := _c.mutation.APIProtocol(); !ok {
 		return &ValidationError{Name: "api_protocol", err: errors.New(`ent: missing required field "KaguyaChatTurn.api_protocol"`)}
+	}
+	if _, ok := _c.mutation.Status(); !ok {
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "KaguyaChatTurn.status"`)}
+	}
+	if v, ok := _c.mutation.Status(); ok {
+		if err := kaguyachatturn.StatusValidator(v); err != nil {
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.status": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.StartedAt(); !ok {
 		return &ValidationError{Name: "started_at", err: errors.New(`ent: missing required field "KaguyaChatTurn.started_at"`)}
@@ -547,6 +573,10 @@ func (_c *KaguyaChatTurnCreate) createSpec() (*KaguyaChatTurn, *sqlgraph.CreateS
 	if value, ok := _c.mutation.APIProtocol(); ok {
 		_spec.SetField(kaguyachatturn.FieldAPIProtocol, field.TypeString, value)
 		_node.APIProtocol = value
+	}
+	if value, ok := _c.mutation.Status(); ok {
+		_spec.SetField(kaguyachatturn.FieldStatus, field.TypeEnum, value)
+		_node.Status = value
 	}
 	if value, ok := _c.mutation.StartedAt(); ok {
 		_spec.SetField(kaguyachatturn.FieldStartedAt, field.TypeTime, value)
@@ -822,6 +852,18 @@ func (u *KaguyaChatTurnUpsert) SetAPIProtocol(v string) *KaguyaChatTurnUpsert {
 // UpdateAPIProtocol sets the "api_protocol" field to the value that was provided on create.
 func (u *KaguyaChatTurnUpsert) UpdateAPIProtocol() *KaguyaChatTurnUpsert {
 	u.SetExcluded(kaguyachatturn.FieldAPIProtocol)
+	return u
+}
+
+// SetStatus sets the "status" field.
+func (u *KaguyaChatTurnUpsert) SetStatus(v kaguyachatturn.Status) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldStatus, v)
+	return u
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateStatus() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldStatus)
 	return u
 }
 
@@ -1279,6 +1321,20 @@ func (u *KaguyaChatTurnUpsertOne) SetAPIProtocol(v string) *KaguyaChatTurnUpsert
 func (u *KaguyaChatTurnUpsertOne) UpdateAPIProtocol() *KaguyaChatTurnUpsertOne {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateAPIProtocol()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *KaguyaChatTurnUpsertOne) SetStatus(v kaguyachatturn.Status) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateStatus() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateStatus()
 	})
 }
 
@@ -1945,6 +2001,20 @@ func (u *KaguyaChatTurnUpsertBulk) SetAPIProtocol(v string) *KaguyaChatTurnUpser
 func (u *KaguyaChatTurnUpsertBulk) UpdateAPIProtocol() *KaguyaChatTurnUpsertBulk {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateAPIProtocol()
+	})
+}
+
+// SetStatus sets the "status" field.
+func (u *KaguyaChatTurnUpsertBulk) SetStatus(v kaguyachatturn.Status) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetStatus(v)
+	})
+}
+
+// UpdateStatus sets the "status" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateStatus() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateStatus()
 	})
 }
 
