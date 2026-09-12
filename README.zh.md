@@ -19,7 +19,7 @@
 
 | 模块 | 可以做什么 |
 | --- | --- |
-| 流式对话 | 通过 SSE 接收回答，查看 Markdown 与提供商返回的思考内容，停止生成，为请求选择模型；同时提供 WebSocket API。 |
+| 流式对话 | 通过 SSE 接收回答，查看 Markdown 与提供商返回的思考内容，停止生成，为请求选择模型。 |
 | 并行对话 | 生成时可新建或切换对话；各会话独立接收结果和停止生成，切到系统页面也继续执行。同一会话一次只执行一轮。 |
 | 对话管理 | 继续已保存的对话，按标题前缀搜索，重命名和删除对话，按项目组织对话，分页浏览历史并查看轮次摘要。 |
 | 代码预览 | 项目会话可从顶部菜单打开代码浏览器：文件树带 Git 变更标记，查看文件内容，并对比相对 HEAD 的未提交差异。 |
@@ -65,14 +65,29 @@
 
 ### API Key 存储
 
-API Key 以 AES-256-GCM 加密后存入数据库，并带 `enc:v1:` 版本前缀，便于将来更换算法时识别历史记录。列表与详情接口只返回掩码（如 `sk-l••••7890`），完整明文需要显式调用 `GET /v1/system/provider/{id}/api-key`，前端仅在点击“查看”时请求。编辑提供商时 `api_key` 留空表示保留已存储的密钥，不会被掩码覆盖。
+API Key 以 AES-256-GCM 加密后存入数据库，并带 `enc:v2:` 版本前缀，便于将来更换算法时识别历史记录。列表与详情接口只返回掩码（如 `sk-l••••7890`），完整明文需要显式调用 `GET /v1/system/provider/{id}/api-key`，前端仅在点击“查看”时请求。编辑提供商时 `api_key` 留空表示保留已存储的密钥，不会被掩码覆盖。
 
 加密密钥按以下优先级选取：
 
 1. 启动参数或环境变量，例如 `KAGUYA_SECRET_KEY=<32 字节 hex 或 base64>`；
-2. 未提供时从 TLS 证书私钥经 HKDF-SHA256 派生。
+2. 未提供时由 SQLCipher 主密钥经 HKDF-SHA256 域分离派生（`salt=kaguya-provider-secret-v2`，`info=provider-api-key`）。
 
-两者的防护范围不同：**外部密钥保存在数据库之外**，数据库文件、备份或导出泄露时密文仍不可读；**证书派生密钥与密文同在数据库中**，只能防止明文直接出现在库文件和导出结果里，不能抵御整库窃取。轮换 TLS 证书会改变派生密钥，此时 `TLSUpdate` 会先构造新密钥，再在**单个数据库事务**内保存新证书并用新密钥重写全部已存储的 API Key，事务提交成功后才切换内存中的活动密钥；任一步失败都会整体回滚，保持旧证书与旧密文可用，不会出现新证书配旧密文。重写与提供商凭据的读写、聊天解密互斥，避免轮换与并发写入交错。升级既有安装时，首次启动会在事务内把历史明文记录就地转为密文，该操作可重复执行；无效的显式密钥不会清空已经可用的活动密钥。若证书由外部工具替换而数据库未同步，需重新填写 API Key：提供商管理接口返回 `106006`，对话与标题接口返回 `102010`。
+**外部密钥保存在数据库之外**，数据库文件、备份或导出泄露时密文仍不可读；**数据库派生密钥与 SQLCipher 同根**，可以避免逻辑导出直接暴露 API Key，但无法抵御数据库文件与密钥文件被同时窃取。需要独立根信任时应配置外部密钥。
+
+启动时会先校验全部非空 API Key：必须使用 `enc:v2:` 且能用当前密钥解开，否则拒绝启动。旧版本记录（`enc:v1:`，由 TLS 证书私钥派生）与历史明文必须**离线**转换，程序运行时不再就地重写：
+
+```sh
+# 在主二进制旁构建一次性迁移工具。
+CGO_ENABLED=1 bash scripts/go-sqlcipher.sh build -o ./target/migrate-provider-secrets ./cmd/migrate-provider-secrets
+
+# 在数据库副本上执行，不要直接操作正在使用的文件。
+./target/migrate-provider-secrets --db.path=/srv/kaguya/copy.db --db.key-file=/secure/kaguya.key \
+  [--old-secret-key=<原外部密钥>] [--new-secret-key=<目标外部密钥>]
+```
+
+旧 `enc:v1:` 记录使用外部密钥时须提供 `--old-secret-key`；否则工具读取数据库中保存的旧 TLS 私钥。目标密钥未指定时使用 SQLCipher 派生密钥。工具会转换 v1 与明文记录、校验已有 v2 记录、清空旧 TLS 列，并在单个事务内提交；任一步失败都会回滚且不改变文件，重复执行结果一致。需要回滚时请保留可恢复快照与旧二进制。
+
+无法解密（密钥材料不匹配或密文损坏）时，掩码显示为 `••••••••`；提供商管理接口返回 `106006`，对话与标题接口返回 `102010`。
 
 ### MCP 管理
 
@@ -134,20 +149,17 @@ CGO_ENABLED=1 make build
 
 | 参数 | 环境变量 | 默认值 |
 | --- | --- | --- |
-| `--db.kind` | `DB_KIND` | `sqlite`（当前唯一启用的启动后端） |
 | `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
 | `--db.key-file` | `DB_KEY_FILE` | 未设置时初始化／使用 `~/.kaguya/kaguya.key`；显式路径必须已存在 |
 | `--host` | — | `127.0.0.1` |
-| `--prepare-tls` | — | `false` |
-| `--renew-tls` | — | `false` |
-| `--secret-key` | `KAGUYA_SECRET_KEY` | 空；为空时从 TLS 证书私钥派生 API Key 加密密钥 |
+| `--secret-key` | `KAGUYA_SECRET_KEY` | 空；为空时由 SQLCipher 主密钥派生 API Key 加密密钥 |
 | `--trusted-host` | — | 空；额外信任的精确域名 |
 | `--port` | — | `9024` |
 | `--router-prefix` | — | `/kaguya/api` |
 
 服务默认绑定 `127.0.0.1:9024`，仅允许本机连接。需要远程访问时，显式运行 `./target/kaguya --host=0.0.0.0`；IPv6 本机访问可使用 `--host=::1`。`--host` 只接受 IP 地址，空值或无效地址会被拒绝。
 
-HTTP 和 WebSocket 拒绝跨域浏览器请求。默认仅接受 `localhost` 和 IP 地址作为请求 Host，以防 DNS 重绑定；通过自有域名的认证反向代理访问时，添加 `--trusted-host=agent.example.com`，代理须保留原始 Host、Origin 和 Sec-Fetch-Site，不要将任意外部 Host 重写为可信本机地址。Vite 开发代理已保留匹配的 Host/Origin。此校验不替代登录或网络访问控制。HTTP 请求体上限为 1 MiB；请求头读取上限 10 秒、请求读取上限 30 秒，SSE 回答不设短写入超时。
+HTTP 拒绝跨域浏览器请求。默认仅接受 `localhost` 和 IP 地址作为请求 Host，以防 DNS 重绑定；通过自有域名的认证反向代理访问时，添加 `--trusted-host=agent.example.com`，代理须保留原始 Host、Origin 和 Sec-Fetch-Site，不要将任意外部 Host 重写为可信本机地址。Vite 开发代理已保留匹配的 Host/Origin。此校验不替代登录或网络访问控制。HTTP 请求体上限为 1 MiB；请求头读取上限 10 秒、请求读取上限 30 秒，SSE 回答不设短写入超时。应用本身只提供明文 HTTP：由网关终止 TLS，把公开域名加入 `--trusted-host`，对 SSE 关闭响应缓冲，认证与访问控制留在网关。
 
 ```sh
 ./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
@@ -157,128 +169,38 @@ DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
 
 父目录自动创建，相对路径基于工作目录解析，不支持 `~user` 展开。主程序**不加载 `config.yml`**；提供商、模型与提示词通过控制台配置并保存到 SQLite。
 
-**SQLCipher 运行策略：** 保留 `sqlite` 配置值和 Ent dialect，实际引擎是 SQLCipher 4，不是明文 SQLite。应用在打开业务数据库前验证 `cipher_version`，迁移前读取 schema 校验密钥。每个物理连接在打开数据库时应用密钥，早于 WAL 等 PRAGMA。启动时启用并检查 WAL，每个连接设置 5 秒锁等待超时及 `synchronous=FULL`。应用连接池限制为一个连接，串行处理进程内数据库操作。SQLite 仍只允许一个写事务，适合个人／单实例服务；数据库应放在本地文件系统，不要使用共享网络文件系统。数据库旁可能生成 `kaguya.db-wal` 和 `kaguya.db-shm`。已有 MySQL/PostgreSQL 数据不会自动迁移；修改路径会创建或打开另一份数据库。
+**SQLCipher 运行策略：** 保留 `sqlite` 配置值和 Ent dialect，实际引擎是 SQLCipher 4，不是明文 SQLite。应用在打开业务数据库前验证 `cipher_version`，迁移前读取 schema 校验密钥。每个物理连接在打开数据库时应用密钥，早于 WAL 等 PRAGMA。启动时启用并检查 WAL，每个连接设置 5 秒锁等待超时及 `synchronous=FULL`。应用连接池限制为一个连接，串行处理进程内数据库操作。SQLite 仍只允许一个写事务，适合个人／单实例服务；数据库应放在本地文件系统，不要使用共享网络文件系统。数据库旁可能生成 `kaguya.db-wal` 和 `kaguya.db-shm`。运行时数据库固定为 SQLCipher；修改路径会创建或打开另一份数据库。
 
-**TLS 1.3 与证书：** 数据库迁移及基础配置初始化后，程序读取 `kaguya_system_info` 中的证书和私钥，再启动 HTTPS。首次缺失时生成独立的 ECDSA P-256 自签名证书，有效期一年，包含 `localhost`、`127.0.0.1`、`::1`，以及明确配置的监听 IP 和可信域名。仅支持 TLS 1.3，不开放明文 HTTP 或降级入口。证书和私钥保存在 SQLCipher 加密数据库；查询只返回公钥证书、指纹、适用地址和到期时间，不返回私钥。
+**密钥管理：** 密钥必须是普通文件，内容为恰好 64 个十六进制字符（32 字节密码学随机数据），末尾可带 LF／CRLF。Unix 下拒绝组用户／其他用户可访问的密钥文件，请使用 `chmod 600`。它是 AES-256 原始密钥，**不是口令**。程序没有内置／默认秘密，也不会回退到未加密存储。启动日志之后、初始化数据库之前，由 `internal/init/sqlcipher.go` 检查密钥：未设置 `--db.key-file`／`DB_KEY_FILE`，且默认密钥及配置的数据库文件均不存在时，Go 生成 32 字节随机数据，写入私有临时文件并同步后原子发布，不覆盖已有文件。已有密钥校验后复用；密钥缺失但数据库文件（包括空文件）、WAL、SHM 或回滚日志已存在时，明确报错并要求恢复原密钥。显式指定的密钥路径必须已存在，即使指定的是默认位置。无效密钥不会被替换；错误密钥或明文数据库会打开失败，不自动转换。密钥内容不作为 CLI 参数、序列化配置或应用日志字段；内部 DSN 含密钥，禁止记录。`modernc.org/sqlite` 仅作为加密测试的独立明文引擎保留，应用不再使用它。
 
-系统配置中的 **HTTPS / TLS 1.3** 可下载公钥证书、重新自签或导入匹配的 PEM 证书链与私钥；保存后必须重启，现有连接不热切换。保存与 API Key 重加密是一个原子操作，中途失败会保留原证书与原密文。证书域名不会自动加入 Host 白名单，域名访问仍需 `--trusted-host`。自签证书不会自动获得浏览器信任，需在访问设备上核对 SHA-256 指纹并导入信任。不要关闭证书验证。首次准备证书、导出公钥且保持服务关闭可运行：
-
-```sh
-./target/kaguya --prepare-tls --log.console-enabled=false > ~/.kaguya/kaguya.crt
-openssl x509 -in ~/.kaguya/kaguya.crt -noout -fingerprint -sha256
-```
-
-此命令使用与正常启动相同的数据库参数，只初始化并退出，不启动监听或 MCP。已有证书会复用；到期、损坏或不匹配时启动明确失败，不自动更换身份。需要离线恢复时显式加 `--renew-tls` 重新自签，之后重新分发并信任公钥证书。备份数据库时也保留其中的 TLS 身份；TLS 私钥与 SQLCipher 密钥是两种不同的密钥。
-
-macOS 若出现 `remote error: tls: unknown certificate`，通常是访问客户端拒绝了自签名证书。核对导出文件的指纹后，可将它加入当前用户登录钥匙串的 SSL 信任：
-
-```bash
-security add-trusted-cert -r trustRoot -p ssl -k "$HOME/Library/Keychains/login.keychain-db" "$HOME/.kaguya/kaguya.crt"
-security verify-cert -c "$HOME/.kaguya/kaguya.crt" -p ssl -s localhost
-```
-
-随后重新打开浏览器连接。其他设备须分别配置证书信任；更换服务端证书后也需更新信任和开发代理使用的证书文件。
-
-**密钥管理：** 密钥必须是普通文件，内容为恰好 64 个十六进制字符（32 字节密码学随机数据），末尾可带 LF／CRLF。Unix 下拒绝组用户／其他用户可访问的密钥文件，请使用 `chmod 600`。它是 AES-256 原始密钥，**不是口令或 TLS 证书**。程序没有内置／默认秘密，也不会回退到未加密存储。启动日志之后、初始化数据库之前，由 `internal/init/sqlcipher.go` 检查密钥：未设置 `--db.key-file`／`DB_KEY_FILE`，且默认密钥及配置的数据库文件均不存在时，Go 生成 32 字节随机数据，写入私有临时文件并同步后原子发布，不覆盖已有文件。已有密钥校验后复用；密钥缺失但数据库文件（包括空文件）、WAL、SHM 或回滚日志已存在时，明确报错并要求恢复原密钥。显式指定的密钥路径必须已存在，即使指定的是默认位置。无效密钥不会被替换；错误密钥或明文数据库会打开失败，不自动转换。密钥内容不作为 CLI 参数、序列化配置或应用日志字段；内部 DSN 含密钥，禁止记录。`modernc.org/sqlite` 仅作为加密测试的独立明文引擎保留，应用不再使用它。
-
-**已有数据库：** 给明文 SQLite 配置密钥并不能直接加密旧文件。先停止并备份旧部署，再通过 SQLCipher 的带密钥 `ATTACH` 和 `sqlcipher_export()` 显式迁移到**新文件**，参考[官方转换说明](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868)。切换 `--db.path` 前，核对 schema、业务数据、时间字段和使用目标密钥重新打开的结果。MySQL/PostgreSQL 数据迁移需另行处理。本次不实现明文自动迁移、密钥轮换或旧版 SQLCipher 格式转换。
+**已有数据库：** 给明文 SQLite 配置密钥并不能直接加密旧文件。先停止并备份旧部署，再通过 SQLCipher 的带密钥 `ATTACH` 和 `sqlcipher_export()` 显式迁移到**新文件**，参考[官方转换说明](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868)。切换 `--db.path` 前，核对 schema、业务数据、时间字段和使用目标密钥重新打开的结果。提供商 API Key 记录是另一项独立能力：运行时只读取当前 `enc:v2:` 格式，旧记录必须先离线转换（见 **API Key 存储**）。本次不实现明文数据库自动加密与密钥轮换。
 
 **备份与升级：** 最简单的备份方式是先停止服务，将数据库及仍存在的 WAL/SHM 文件作为整体复制；写入期间不能只复制主数据库，也不要手动删除 WAL。密钥必须**单独、安全地备份**，丢失后无法恢复数据。在线导出应使用支持 SQLCipher 的工具，并为目标数据库显式设置密钥；不要假定普通 SQLite 备份或 `VACUUM INTO` 会生成加密备份。升级前备份数据和密钥、停止服务、替换二进制，再以相同运行用户、路径和密钥重启。前台日志由配置的 logger 输出；后台运行和启停管理交给服务管理器。
 
-**安全边界：** SQLCipher 加密数据库页及 WAL 中的页内容，不加密所有文件系统元数据、日志、工具输出或进程内存数据。密钥与数据库放在同一磁盘相邻位置，不能防止两者一起被窃取；有需要时采用独立挂载的秘密文件、操作系统秘密配置和磁盘加密。运行中的 Agent Bash 工具具有服务用户权限，可能访问密钥；数据库加密不是工具沙箱。TLS 证书保护网络传输，不保护本地密钥；由证书私钥派生的 API Key 加密密钥与密文同库，同样不能抵御整库窃取。远程访问控制台时，请使用带访问控制的 HTTPS 反向代理；应用本身没有内置登录。调试模式也不记录含参数的数据库 SQL，避免提示词、API Key 和 MCP 凭据泄露到日志。
+**安全边界：** SQLCipher 加密数据库页及 WAL 中的页内容，不加密所有文件系统元数据、日志、工具输出或进程内存数据。密钥与数据库放在同一磁盘相邻位置，不能防止两者一起被窃取；有需要时采用独立挂载的秘密文件、操作系统秘密配置和磁盘加密。运行中的 Agent Bash 工具具有服务用户权限，可能访问密钥；数据库加密不是工具沙箱。入站传输安全由 TLS 网关负责，不保护本地密钥；由 SQLCipher 密钥派生的 API Key 加密密钥与数据库同根，同样不能抵御两者一起被窃取。远程访问控制台时，请使用带访问控制的 HTTPS 反向代理；应用本身没有内置登录。调试模式也不记录含参数的数据库 SQL，避免提示词、API Key 和 MCP 凭据泄露到日志。
 
-打开 [https://localhost:9024](https://localhost:9024)，添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
+打开 [http://127.0.0.1:9024](http://127.0.0.1:9024)，添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
 
 知识库与语义检索可通过自行配置的外部 MCP 工具提供，不要求本地 pgvector 服务。应用不内置知识库、长期记忆、Embedding 或 FTS5 搜索。
 
-### 遗留 Docker/PostgreSQL 参考（已禁用）
+### 容器部署（未验证）
 
-以下仅记录**此前的部署方式**，不是当前二进制支持的启动方式。MySQL/PostgreSQL 启动分支已注释，驱动／辅助代码及现有 [Dockerfile](Dockerfile)、[docker-compose.yml](docker-compose.yml) 原样保留；其中 PostgreSQL 启动参数现在会明确报错。新安装请不要执行这些命令；恢复该部署前需要先重新启用并验证对应后端。不要删除已有 `pgvector` 数据。
+仓库中的 [Dockerfile](Dockerfile) 与 [docker-compose.yml](docker-compose.yml) 描述单服务 SQLCipher 部署；该方案在当前开发环境中**未实际构建或运行**，推荐方式仍是原生二进制。
 
-<details>
-<summary>历史部署说明</summary>
+镜像用 Bun 构建前端，用带 SQLCipher 工具链的 Go 构建后端，运行层为带 Bash（Agent 工具需要）和 CA 证书的 Alpine。Compose 只发布 `127.0.0.1:9024`，数据库保存在 `./kaguya-data`。
 
-### 1. 准备环境
-
-文档统一采用 **PostgreSQL + pgvector** 作为唯一数据库方案。当前对话、配置和用量记录存储在 PostgreSQL 中；知识库、长期记忆、Embedding 和向量检索属于后续扩展方向，部署 pgvector 镜像不会自动启用这些应用功能。
-
-需要 **Docker**、**Docker Compose** 和 **Git**。Go 与 Bun 由镜像构建阶段提供，部署时无需在宿主机安装。
-
-仓库中的 [docker-compose.yml](docker-compose.yml) 使用 **host 网络**：Kaguya 通过 `127.0.0.1:5432` 连接 PostgreSQL，界面监听 `9024` 端口。请使用支持 host 网络的 Docker 环境，并确保这些宿主机端口可用。该模式下服务直接使用宿主机端口，而不依赖 `ports` 映射。
+首次启动前必须先准备密钥；挂载源不存在时 Docker 会自动创建目录：
 
 ```sh
-git clone https://github.com/lyonmu/kaguya.git
-cd kaguya
-```
-
-启动前，检查 Compose 文件中的数据库密码和数据目录。示例数据库凭据需与下文说明的应用连接参数保持一致。
-
-### 2. 构建镜像并启动服务
-
-```sh
+mkdir -p kaguya-data
+openssl rand -hex 32 > kaguya-key
+chmod 600 kaguya-key
 docker build -t kaguya:latest .
 docker compose up -d
-docker compose ps
 docker compose logs --tail=100 kaguya-svc
 ```
 
-[Dockerfile](Dockerfile) 使用 Bun 构建前端、Go 1.27 构建后端，再将内嵌 Web 控制台、二进制和 CA 证书打包进 BusyBox 运行镜像。Compose 引用本地的 `kaguya:latest` 镜像，因此需要先构建镜像再启动服务。
-
-| 服务 | 镜像 | 职责 |
-| --- | --- | --- |
-| `kaguya-svc` | `kaguya:latest` | Web 控制台与 API，端口为 `9024` |
-| `pgvector-svc` | `pgvector/pgvector:pg18-trixie` | 带 pgvector 的 PostgreSQL，端口为 `5432` |
-
-PostgreSQL 数据通过 Compose 的绑定挂载 `${PWD}/pgvector:/var/lib/postgresql` 持久化。请在仓库根目录运行 Compose，保持路径一致。应用会在需要时创建 `kaguya` 数据库，并在启动时迁移 schema；配置的数据库账号需要具备相应权限。
-
-### 3. 配置首次对话
-
-在部署宿主机上打开 [https://localhost:9024](https://localhost:9024)。远程访问需要显式设置 `--host=0.0.0.0`。首次聊天前：
-
-1. 进入 **AI 提供商**，填写协议、完整请求 URL 和 API Key，新增提供商。
-2. 使用提供商的上游模型标识，添加至少一个模型。
-3. 进入 **系统配置**，选择默认对话模型，按需选择后台任务模型，然后保存。
-4. 返回 **对话管理** 发送消息。也可以直接在输入框选择模型，而不设置全局默认模型。
-
-### 4. 容器配置
-
-启动配置通过容器命令参数传入。主程序 **不加载 `config.yml`**；提供商与提示词通过控制台配置。
-
-下表描述当前 Docker 镜像使用的参数值，不是直接运行裸二进制时的默认值：
-
-| 参数 | Docker 部署值 | 用途 |
-| --- | --- | --- |
-| `--port` | `9024` | HTTP 端口 |
-| `--router-prefix` | `/kaguya/api` | API 路由前缀 |
-| `--db.kind` | `postgresql` | 连接 pgvector 数据库所用的 PostgreSQL 驱动 |
-| `--db.host` | `127.0.0.1` | host 网络下的数据库地址 |
-| `--db.port` | `5432` | PostgreSQL 端口 |
-| `--db.user` | `pgvector` | 数据库账号 |
-| `--db.password` | `pgvector-123` | 示例密码，请替换为实际部署密码 |
-| `--db.db_name` | `kaguya` | 应用数据库 |
-
-修改这些值时，在 Compose 文件的 `kaguya-svc` 中设置 `command`。它会替换 Dockerfile 的 `CMD`，因此需要包含所需的完整应用参数，尤其是 `--db.kind=postgresql` 与数据库连接信息。通过 `docker run --rm kaguya:latest --help` 查看更多选项。
-
-首次初始化数据库时，保持数据库服务的 `POSTGRES_USER`、`POSTGRES_PASSWORD` 与应用的 `--db.user`、`--db.password` 一致。Compose 中的 `POSTGRES_DB=postgres` 指定初始数据库，Kaguya 使用独立的 `kaguya` 数据库。修改初始化环境变量不会更新已有数据目录中的数据库凭据。
-
-### 5. 日志、更新与停止
-
-```sh
-docker compose logs -f --tail=100 kaguya-svc pgvector-svc
-docker compose stop
-docker compose up -d
-```
-
-更新源码后，重新构建并重建应用容器：
-
-```sh
-docker build -t kaguya:latest .
-docker compose up -d --no-deps kaguya-svc
-```
-
-`docker compose down` 移除容器，但保留绑定挂载的 PostgreSQL 数据。重新部署时请保留 `pgvector` 数据目录，并在升级前备份数据库。
-
-</details>
+容器启动参数：`--host=0.0.0.0 --port=9024 --router-prefix=/kaguya/api --db.path=/data/kaguya.db --db.key-file=/run/secrets/kaguya.key`。修改路径时通过 Compose `command` 覆盖完整参数列表。升级前把 `kaguya-data` 与 `kaguya-key` 作为整体备份；`docker compose down` 会保留两者。不要把端口直接暴露到公网，远程访问请在前面部署 TLS 网关。
 
 ## 架构
 
@@ -331,7 +253,7 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 
 **权限警告：工作目录不是沙箱。** bash 以服务进程权限运行，可访问该用户能够访问的主机资源；文件工具的路径限制不约束 shell 命令。仅对可信用户开放服务，建议通过低权限用户或容器限制权限，不要将可执行工具的 API 直接暴露到公网。文件修改和命令副作用立即生效，即使对话失败、取消或历史未保存也不会回滚。日志记录工具名、调用 ID、项目/对话与耗时，不记录原始命令或文件内容。
 
-编码 Agent 按原生主机服务使用和验证：运行 `make install` 安装二进制，再使用默认 SQLite 数据库或显式指定 `--db.path` 启动服务。本机需要安装 Bash；启用可选搜索工具时还需 `rg` 和 `fd`，缺失时明确报错，不自动下载。项目所需的 Git、Go、Bun 等命令也应安装在主机，并出现在服务进程的 `PATH` 中；系统服务的环境可能与交互式终端不同。本次工具集不以 Docker 运行为目标，未调整已有 Docker 配置。
+编码 Agent 按原生主机服务使用和验证：运行 `make install` 安装二进制，再使用默认 SQLCipher 数据库或显式指定 `--db.path` 启动服务。本机需要安装 Bash；启用可选搜索工具时还需 `rg` 和 `fd`，缺失时明确报错，不自动下载。项目所需的 Git、Go、Bun 等命令也应安装在主机，并出现在服务进程的 `PATH` 中；系统服务的环境可能与交互式终端不同。本工具集以主机原生运行为验证目标；容器镜像只是提供了 Bash，未经实际验证。
 
 ## API
 
@@ -340,7 +262,6 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 | 端点 | 用途 |
 | --- | --- |
 | `POST /kaguya/api/v1/chat/sse` | SSE 流式对话 |
-| `GET /kaguya/api/v1/chat/ws` | WebSocket 对话 |
 | `POST /kaguya/api/v1/chat/conversation/:id/stop` | 标记该会话当前轮次为用户主动停止（`canceled`）；没有运行轮次时为幂等空操作 |
 | `GET /kaguya/api/v1/chat/conversation/page` | 分页查询对话列表 |
 | `GET /kaguya/api/v1/chat/conversation/:id/turns` | 查询对话轮次 |
@@ -366,22 +287,22 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 | `/kaguya/api/swagger/index.html` | Swagger UI |
 | `/kaguya/api/metrics` | Prometheus 指标 |
 
-对话响应包含 `is_project` 标记，由 `project_id` 是否为空派生，无需数据库回填。列表默认仅返回普通对话；`is_project=true` 仅查询项目对话，`project_id` 可指定项目（单独传入时兼容按项目查询），不能与 `is_project=false` 同时使用。筛选在数据库分页和计数前执行。SSE/WS 新对话通过 `project_id` 指定项目，续聊保留原有归属。
+对话响应包含 `is_project` 标记，由 `project_id` 是否为空派生，无需数据库回填。列表默认仅返回普通对话；`is_project=true` 仅查询项目对话，`project_id` 可指定项目（单独传入时兼容按项目查询），不能与 `is_project=false` 同时使用。筛选在数据库分页和计数前执行。SSE 新对话通过 `project_id` 指定项目，续聊保留原有归属。
 
 配置默认模型后，可以这样开启对话：
 
 ```sh
-curl --cacert ~/.kaguya/kaguya.crt -N https://localhost:9024/kaguya/api/v1/chat/sse \
+curl -N http://127.0.0.1:9024/kaguya/api/v1/chat/sse \
   -H 'Content-Type: application/json' \
   -H 'Accept: text/event-stream' \
-  -d '{"flag":"chat","messages":"Hello, Kaguya"}'
+  -d '{"messages":"Hello, Kaguya"}'
 ```
 
 在后续请求体中复用返回的会话 `id`，即可继续该会话的历史。显式选择模型时，传入值为本地模型记录 ID 的 `model_id`。流式帧使用 `start`、`delta`、`done` 和 `error`，完整轮次保存成功后才会发送 `done`。当前接口契约可查阅 [路由定义](internal/router/v1/) 与 [聊天 DTO](internal/dto/chat/)。
 
 业务 JSON 接口共用同一响应信封：HTTP 200，`{"code": ..., "message": ..., "data": ...}`；`100000` 表示成功，其他码携带用户可读的 `message`。码段按域划分（`102xxx` 聊天、`103xxx` 模型、`104xxx` 系统配置、`105xxx` MCP、`106xxx` 提供商、`107xxx` 项目）。浏览器层拒绝（不可信 Host、超大请求体）仍返回普通 HTTP 403/413。
 
-单实例下：SQLCipher 通过单连接串行写入，进程限制同时进行的对话轮次（16）与后台标题任务（2），超出的轮次快速失败并返回 `102009`，被跳过的标题会在下一轮成功后重试。续聊从最近一次压缩快照开始读取，长会话只读快照及之后的轮次；未完成轮次的用户提问会按顺序拼回，用于下一轮指代。流式连接就是本轮的生命周期：断网、刷新或超时标记为 `interrupted`，用户主动停止（前端先调用 `stop` 接口再断开）标记为 `canceled`，两者都保留已推送内容；进程崩溃/强杀时保留按节流已写入的部分，下次启动把遗留的 `running` 轮次标记为 `interrupted`。切换会话不关闭各会话自己的连接，轮次继续执行。提供商请求带 2 分钟响应头超时与 5 分钟流空闲超时，挂起的流会被取消并按可重试错误上报；WebSocket 帧与 SSE 写入带单帧写截止时间，停止读取的客户端不会长期占据轮次。
+单实例下：SQLCipher 通过单连接串行写入，进程限制同时进行的对话轮次（16）与后台标题任务（2），超出的轮次快速失败并返回 `102009`，被跳过的标题会在下一轮成功后重试。续聊从最近一次压缩快照开始读取，长会话只读快照及之后的轮次；未完成轮次的用户提问会按顺序拼回，用于下一轮指代。流式连接就是本轮的生命周期：断网、刷新或超时标记为 `interrupted`，用户主动停止（前端先调用 `stop` 接口再断开）标记为 `canceled`，两者都保留已推送内容；进程崩溃/强杀时保留按节流已写入的部分，下次启动把遗留的 `running` 轮次标记为 `interrupted`。切换会话不关闭各会话自己的连接，轮次继续执行。提供商请求带 2 分钟响应头超时与 5 分钟流空闲超时，挂起的流会被取消并按可重试错误上报；SSE 写入带单帧写截止时间，停止读取的客户端不会长期占据轮次。
 
 ## 开发
 
@@ -396,10 +317,10 @@ bun install --frozen-lockfile
 bun run test               # 前端测试
 bun run lint               # oxlint
 bun run build              # TypeScript 检查与 Vite 生产构建
-bun run dev # 默认信任 ~/.kaguya/kaguya.crt
+bun run dev # 将 API 代理到本机 HTTP 服务
 ```
 
-开发前端时，保持原生应用运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `https://localhost:9024`，默认读取 `~/.kaguya/kaguya.crt` 信任本机公钥证书，可用 `KAGUYA_CA_CERT` 指定其他位置，保留证书验证。文件缺失时明确报错，请先运行上述 `--prepare-tls` 命令导出；生产构建不需要此文件。Vite 页面只用于本机开发；正常使用请打开后端内嵌的 HTTPS 页面。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置。修改后端后，执行 `make build` 并重启二进制。
+开发前端时，保持原生应用运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `http://127.0.0.1:9024`，并保留浏览器匹配的 Host/Origin。生产构建不需要任何证书文件。Vite 页面只用于本机开发；正常使用请打开后端内嵌的 HTTP 页面，远程访问在前面部署 TLS 网关。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置。修改后端后，执行 `make build` 并重启二进制。
 
 修改 Ent schema 后，在仓库根目录执行 `go generate ./internal/ent`，保持生成的 Ent 代码与 schema 同步。
 

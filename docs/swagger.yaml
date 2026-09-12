@@ -32,11 +32,33 @@ definitions:
         description: 兼容字段：仅正文增量，与 block.text 二选一消费
         type: string
       flag:
-        $ref: '#/definitions/chat.WSFlag'
+        $ref: '#/definitions/chat.ChatFlag'
       id:
         description: 会话雪花 ID；后续请求沿用此 ID 恢复上下文
         type: string
     type: object
+  chat.ChatFlag:
+    enum:
+    - start
+    - delta
+    - done
+    - error
+    type: string
+    x-enum-comments:
+      ChatFlagDelta: 下行：增量内容帧
+      ChatFlagDone: 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
+      ChatFlagError: 下行：出错或被取消
+      ChatFlagStart: 下行：本轮首帧（会话 ID + 模型信息）
+    x-enum-descriptions:
+    - 下行：本轮首帧（会话 ID + 模型信息）
+    - 下行：增量内容帧
+    - 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
+    - 下行：出错或被取消
+    x-enum-varnames:
+    - ChatFlagStart
+    - ChatFlagDelta
+    - ChatFlagDone
+    - ChatFlagError
   chat.ChatReq:
     properties:
       files:
@@ -44,8 +66,6 @@ definitions:
           type: string
         maxItems: 8
         type: array
-      flag:
-        $ref: '#/definitions/chat.WSFlag'
       id:
         description: 会话ID，空值表示开启新对话
         type: string
@@ -59,7 +79,6 @@ definitions:
         maxLength: 64
         type: string
     required:
-    - flag
     - messages
     type: object
   chat.ChatResp:
@@ -334,36 +353,6 @@ definitions:
         description: 总 Token 数
         type: integer
     type: object
-  chat.WSFlag:
-    enum:
-    - chat
-    - cancel
-    - start
-    - delta
-    - done
-    - error
-    type: string
-    x-enum-comments:
-      WSFlagCancel: 上行：取消当前生成
-      WSFlagChat: 上行：发起一轮对话
-      WSFlagDelta: 下行：增量内容帧
-      WSFlagDone: 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
-      WSFlagError: 下行：出错或被取消
-      WSFlagStart: 下行：本轮首帧（会话 ID + 模型信息）
-    x-enum-descriptions:
-    - 上行：发起一轮对话
-    - 上行：取消当前生成
-    - 下行：本轮首帧（会话 ID + 模型信息）
-    - 下行：增量内容帧
-    - 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
-    - 下行：出错或被取消
-    x-enum-varnames:
-    - WSFlagChat
-    - WSFlagCancel
-    - WSFlagStart
-    - WSFlagDelta
-    - WSFlagDone
-    - WSFlagError
   code.Response:
     properties:
       code:
@@ -611,8 +600,6 @@ definitions:
       task_model_id:
         maxLength: 64
         type: string
-      tls:
-        $ref: '#/definitions/system.TLSInfoResp'
       user_agent:
         maxLength: 512
         type: string
@@ -957,35 +944,6 @@ definitions:
     - api_protocol
     - base_url
     - provider_name
-    type: object
-  system.TLSInfoResp:
-    properties:
-      certificate_pem:
-        type: string
-      fingerprint:
-        type: string
-      hosts:
-        items:
-          type: string
-        type: array
-      not_after:
-        type: string
-    type: object
-  system.TLSSaveReq:
-    properties:
-      certificate_pem:
-        maxLength: 131072
-        type: string
-      generate:
-        type: boolean
-      hosts:
-        items:
-          type: string
-        maxItems: 32
-        type: array
-      private_key_pem:
-        maxLength: 32768
-        type: string
     type: object
   system.TokenUsageComposition:
     properties:
@@ -1374,31 +1332,6 @@ paths:
       summary: ChatSSE
       tags:
       - Chat
-  /v1/chat/ws:
-    get:
-      description: WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID，project_id 仅新对话使用，files
-        为项目内文件引用（最多 8 个，仅 SSE 同等的首轮引用行为）；下行 chat.flag=start/delta/done/error。delta
-        携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的
-        block_end 不重复内容，唯一的整轮 done 仅携带 Usage
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: WS 帧，每帧为一个 dtocode.Response
-          schema:
-            allOf:
-            - $ref: '#/definitions/code.Response'
-            - properties:
-                code:
-                  type: number
-                data:
-                  $ref: '#/definitions/chat.ChatResp'
-                message:
-                  type: string
-              type: object
-      summary: ChatWS
-      tags:
-      - Chat
   /v1/project:
     post:
       description: 名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 107003
@@ -1693,30 +1626,6 @@ paths:
                   $ref: '#/definitions/system.SystemInfoResp'
               type: object
       summary: 保存全局系统配置
-      tags:
-      - System Info
-  /v1/system/info/tls:
-    put:
-      description: generate=true 生成新的自签名证书；否则导入完整 PEM 证书与私钥。只返回公钥证书，不返回私钥。服务器仅支持 TLS
-        1.3。
-      parameters:
-      - description: TLS 配置
-        in: body
-        name: data
-        required: true
-        schema:
-          $ref: '#/definitions/system.TLSSaveReq'
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/code.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/system.TLSInfoResp'
-              type: object
-      summary: 替换 TLS 证书，重启后生效
       tags:
       - System Info
   /v1/system/mcp:
@@ -2205,5 +2114,5 @@ paths:
       tags:
       - System
 schemes:
-- https
+- http
 swagger: "2.0"

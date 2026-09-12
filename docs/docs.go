@@ -500,44 +500,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/chat/ws": {
-            "get": {
-                "description": "WebSocket 流式对话：上行 flag=chat/cancel，id 沿用会话雪花 ID，project_id 仅新对话使用，files 为项目内文件引用（最多 8 个，仅 SSE 同等的首轮引用行为）；下行 chat.flag=start/delta/done/error。delta 携带 block（text/reasoning/tool_call/tool_result），phase=start/delta/block_end；正文与思考的 block_end 不重复内容，唯一的整轮 done 仅携带 Usage",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Chat"
-                ],
-                "summary": "ChatWS",
-                "responses": {
-                    "200": {
-                        "description": "WS 帧，每帧为一个 dtocode.Response",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/code.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "code": {
-                                            "type": "number"
-                                        },
-                                        "data": {
-                                            "$ref": "#/definitions/chat.ChatResp"
-                                        },
-                                        "message": {
-                                            "type": "string"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
         "/v1/project": {
             "post": {
                 "description": "名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 107003",
@@ -1035,46 +997,6 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/system.SystemInfoResp"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/system/info/tls": {
-            "put": {
-                "description": "generate=true 生成新的自签名证书；否则导入完整 PEM 证书与私钥。只返回公钥证书，不返回私钥。服务器仅支持 TLS 1.3。",
-                "tags": [
-                    "System Info"
-                ],
-                "summary": "替换 TLS 证书，重启后生效",
-                "parameters": [
-                    {
-                        "description": "TLS 配置",
-                        "name": "data",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/system.TLSSaveReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/code.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/system.TLSInfoResp"
                                         }
                                     }
                                 }
@@ -1944,7 +1866,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "flag": {
-                    "$ref": "#/definitions/chat.WSFlag"
+                    "$ref": "#/definitions/chat.ChatFlag"
                 },
                 "id": {
                     "description": "会话雪花 ID；后续请求沿用此 ID 恢复上下文",
@@ -1952,10 +1874,36 @@ const docTemplate = `{
                 }
             }
         },
+        "chat.ChatFlag": {
+            "type": "string",
+            "enum": [
+                "start",
+                "delta",
+                "done",
+                "error"
+            ],
+            "x-enum-comments": {
+                "ChatFlagDelta": "下行：增量内容帧",
+                "ChatFlagDone": "下行：唯一的本轮结束帧，仅携带 Usage，不重复内容",
+                "ChatFlagError": "下行：出错或被取消",
+                "ChatFlagStart": "下行：本轮首帧（会话 ID + 模型信息）"
+            },
+            "x-enum-descriptions": [
+                "下行：本轮首帧（会话 ID + 模型信息）",
+                "下行：增量内容帧",
+                "下行：唯一的本轮结束帧，仅携带 Usage，不重复内容",
+                "下行：出错或被取消"
+            ],
+            "x-enum-varnames": [
+                "ChatFlagStart",
+                "ChatFlagDelta",
+                "ChatFlagDone",
+                "ChatFlagError"
+            ]
+        },
         "chat.ChatReq": {
             "type": "object",
             "required": [
-                "flag",
                 "messages"
             ],
             "properties": {
@@ -1965,9 +1913,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "flag": {
-                    "$ref": "#/definitions/chat.WSFlag"
                 },
                 "id": {
                     "description": "会话ID，空值表示开启新对话",
@@ -2396,41 +2341,6 @@ const docTemplate = `{
                 }
             }
         },
-        "chat.WSFlag": {
-            "type": "string",
-            "enum": [
-                "chat",
-                "cancel",
-                "start",
-                "delta",
-                "done",
-                "error"
-            ],
-            "x-enum-comments": {
-                "WSFlagCancel": "上行：取消当前生成",
-                "WSFlagChat": "上行：发起一轮对话",
-                "WSFlagDelta": "下行：增量内容帧",
-                "WSFlagDone": "下行：唯一的本轮结束帧，仅携带 Usage，不重复内容",
-                "WSFlagError": "下行：出错或被取消",
-                "WSFlagStart": "下行：本轮首帧（会话 ID + 模型信息）"
-            },
-            "x-enum-descriptions": [
-                "上行：发起一轮对话",
-                "上行：取消当前生成",
-                "下行：本轮首帧（会话 ID + 模型信息）",
-                "下行：增量内容帧",
-                "下行：唯一的本轮结束帧，仅携带 Usage，不重复内容",
-                "下行：出错或被取消"
-            ],
-            "x-enum-varnames": [
-                "WSFlagChat",
-                "WSFlagCancel",
-                "WSFlagStart",
-                "WSFlagDelta",
-                "WSFlagDone",
-                "WSFlagError"
-            ]
-        },
         "code.Response": {
             "type": "object",
             "properties": {
@@ -2794,9 +2704,6 @@ const docTemplate = `{
                 "task_model_id": {
                     "type": "string",
                     "maxLength": 64
-                },
-                "tls": {
-                    "$ref": "#/definitions/system.TLSInfoResp"
                 },
                 "user_agent": {
                     "type": "string",
@@ -3312,49 +3219,6 @@ const docTemplate = `{
                 }
             }
         },
-        "system.TLSInfoResp": {
-            "type": "object",
-            "properties": {
-                "certificate_pem": {
-                    "type": "string"
-                },
-                "fingerprint": {
-                    "type": "string"
-                },
-                "hosts": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "not_after": {
-                    "type": "string"
-                }
-            }
-        },
-        "system.TLSSaveReq": {
-            "type": "object",
-            "properties": {
-                "certificate_pem": {
-                    "type": "string",
-                    "maxLength": 131072
-                },
-                "generate": {
-                    "type": "boolean"
-                },
-                "hosts": {
-                    "type": "array",
-                    "maxItems": 32,
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "private_key_pem": {
-                    "type": "string",
-                    "maxLength": 32768
-                }
-            }
-        },
         "system.TokenUsageComposition": {
             "type": "object",
             "properties": {
@@ -3475,7 +3339,7 @@ var SwaggerInfo = &swag.Spec{
 	Version:          "v0.0.1",
 	Host:             "localhost:9024",
 	BasePath:         "/kaguya/api",
-	Schemes:          []string{"https"},
+	Schemes:          []string{"http"},
 	Title:            "kaguya Swagger API接口文档",
 	Description:      "kaguya 后端",
 	InfoInstanceName: "swagger",

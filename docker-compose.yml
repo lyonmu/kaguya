@@ -4,36 +4,16 @@ services:
     container_name: kaguya-svc
     hostname: kaguya-svc
     restart: unless-stopped
+    # Only the host loopback is published; expose the service through a TLS gateway instead.
     ports:
-      - "9024:9024"
-    network_mode: host
+      - "127.0.0.1:9024:9024"
     healthcheck:
       test: ["CMD-SHELL", "pidof kaguya"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 10s
-    depends_on:
-      pgvector-svc:
-        condition: service_healthy
-
-  pgvector-svc:
-    image: pgvector/pgvector:pg18-trixie
-    container_name: pgvector-svc
-    hostname: pgvector-svc
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: pgvector
-      POSTGRES_PASSWORD: pgvector-123
-      POSTGRES_DB: postgres
-    ports:
-      - "5432:5432"
-    network_mode: host
-    healthcheck:
-      test: ["CMD-SHELL", "pidof postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     volumes:
-      - ${PWD}/pgvector:/var/lib/postgresql
+      - ./kaguya-data:/data
+      # Prepare this file before the first start; Docker would otherwise create a directory.
+      - ./kaguya-key:/run/secrets/kaguya.key:ro

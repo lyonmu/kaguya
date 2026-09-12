@@ -19,7 +19,7 @@ The project is intended for learning, personal use, and exploring Agent runtime 
 
 | Area | What you can do |
 | --- | --- |
-| Streaming chat | Receive responses over SSE, view Markdown and provider-reported reasoning, stop generation, and choose a model for a request. A WebSocket API is also available. |
+| Streaming chat | Receive responses over POST SSE, view Markdown and provider-reported reasoning, stop generation, and choose a model for a request. |
 | Concurrent conversations | Create or switch conversations while generating; each stream receives results and cancels independently, including while visiting system pages. Each conversation runs one turn at a time. |
 | Conversation management | Continue saved conversations, search by title prefix, rename, and delete conversations; organize conversations by project, browse paginated history and review turn summaries. |
 | Code preview | Project conversations can open a code browser from the header menu: a file tree with Git badges, file contents, and unified or split diffs against the uncommitted HEAD state. |
@@ -65,14 +65,29 @@ Each model has a display name and an upstream model identifier, plus metadata su
 
 ### API key storage
 
-API keys are stored with AES-256-GCM and an `enc:v1:` version prefix so that historical records stay identifiable if the algorithm changes. List and detail endpoints return only a mask (for example `sk-l••••7890`); the full plaintext requires an explicit `GET /v1/system/provider/{id}/api-key`, which the console calls only when you click **view**. When editing a provider, an empty `api_key` keeps the stored secret instead of overwriting it with the mask.
+API keys are stored with AES-256-GCM and an `enc:v2:` version prefix so that historical records stay identifiable if the algorithm changes. List and detail endpoints return only a mask (for example `sk-l••••7890`); the full plaintext requires an explicit `GET /v1/system/provider/{id}/api-key`, which the console calls only when you click **view**. When editing a provider, an empty `api_key` keeps the stored secret instead of overwriting it with the mask.
 
 The encryption key is selected in this order:
 
 1. A startup flag or environment variable, for example `KAGUYA_SECRET_KEY=<32 bytes as hex or base64>`;
-2. Otherwise, a key derived from the TLS certificate private key with HKDF-SHA256.
+2. Otherwise, a key derived from the SQLCipher database key with HKDF-SHA256 (domain-separated with `salt=kaguya-provider-secret-v2`, `info=provider-api-key`).
 
-The two differ in what they protect. An **external key lives outside the database**, so ciphertext stays unreadable if the database file, a backup, or an export leaks. A **certificate-derived key lives in the same database as the ciphertext**: it keeps plaintext out of the database file and exports but cannot withstand a full database theft. Rotating the TLS certificate changes the derived key. `TLSUpdate` builds the new key first, then stores the new certificate and re-encrypts every stored API key in a **single database transaction**, publishing the new in-memory key only after the commit. Any failure rolls the whole operation back, keeping the old certificate and old ciphertext readable instead of leaving a new certificate beside stale ciphertext. Rewrites are mutually exclusive with provider credential reads/writes and chat decryption. If a certificate is replaced outside the application while the database is not updated, re-enter the API key: provider administration returns `106006`, and chat or title endpoints return `102010`. Upgrading an existing installation encrypts historical plaintext records in place within one transaction on first startup; the migration is idempotent, and an invalid explicit key never clears an already usable active key.
+An **external key lives outside the database**, so ciphertext stays unreadable if the database file, a backup, or an export leaks. A **database-derived key shares its root with SQLCipher**: it keeps API keys out of logical exports, but cannot withstand theft of the database file together with its key file. Configure an external key when you need an independent root of trust.
+
+Startup validates every stored non-empty API key before publishing the active key: it must use `enc:v2:` and decrypt with the configured key, otherwise the service refuses to start. Records from older versions (`enc:v1:`, derived from a TLS certificate private key) and historical plaintext are converted **offline**, never rewritten at startup:
+
+```sh
+# Build the one-off tool next to the main binary.
+CGO_ENABLED=1 bash scripts/go-sqlcipher.sh build -o ./target/migrate-provider-secrets ./cmd/migrate-provider-secrets
+
+# Run it on a copy of the database, not on the live file.
+./target/migrate-provider-secrets --db.path=/srv/kaguya/copy.db --db.key-file=/secure/kaguya.key \
+  [--old-secret-key=<former external key>] [--new-secret-key=<target external key>]
+```
+
+Provide `--old-secret-key` when the old `enc:v1:` records used an external key; otherwise the tool reads the legacy TLS private key stored in the database. The target key defaults to the SQLCipher-derived key. The tool converts v1 and plaintext records, verifies existing v2 records, clears the legacy TLS columns, and commits everything in one transaction; any failure rolls back and leaves the file unchanged, and repeated runs are idempotent. Keep a restorable snapshot and the old binary if you need to roll back.
+
+Masked responses fall back to `••••••••` when a record cannot be decrypted (wrong key material or damaged ciphertext); provider administration returns `106006`, and chat or title endpoints return `102010`.
 
 ### MCP management
 
@@ -134,20 +149,17 @@ Writable data is **not** stored in `go:embed`: after checking or initializing th
 
 | Argument | Environment | Default |
 | --- | --- | --- |
-| `--db.kind` | `DB_KIND` | `sqlite` (the only enabled startup backend) |
 | `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
 | `--db.key-file` | `DB_KEY_FILE` | Unset: initialize/use `~/.kaguya/kaguya.key`; explicit paths must already exist |
 | `--host` | — | `127.0.0.1` |
-| `--prepare-tls` | — | `false` |
-| `--renew-tls` | — | `false` |
-| `--secret-key` | `KAGUYA_SECRET_KEY` | Empty; when empty the API key encryption key is derived from the TLS certificate private key |
+| `--secret-key` | `KAGUYA_SECRET_KEY` | Empty; when empty the API key encryption key is derived from the SQLCipher database key |
 | `--trusted-host` | — | Empty; additional exact trusted hostname |
 | `--port` | — | `9024` |
 | `--router-prefix` | — | `/kaguya/api` |
 
 The server binds to `127.0.0.1:9024` by default, allowing connections only from the local machine. To allow remote access explicitly, run `./target/kaguya --host=0.0.0.0`; use `--host=::1` for IPv6 loopback. `--host` accepts an IP address and rejects empty or invalid values.
 
-HTTP and WebSocket reject cross-origin browser requests. Request Host values default to `localhost` and IP literals to prevent DNS rebinding. For an authenticated reverse proxy on your own domain, add `--trusted-host=agent.example.com` and preserve the original Host, Origin and Sec-Fetch-Site; do not rewrite arbitrary external Host values to a trusted local address. The Vite development proxy preserves matching Host/Origin values. These checks do not replace authentication or network access control. HTTP bodies are limited to 1 MiB, with a 10-second header read timeout and 30-second request read timeout; SSE answers have no short write timeout.
+HTTP rejects cross-origin browser requests. Request Host values default to `localhost` and IP literals to prevent DNS rebinding. For an authenticated reverse proxy on your own domain, add `--trusted-host=agent.example.com` and preserve the original Host, Origin and Sec-Fetch-Site; do not rewrite arbitrary external Host values to a trusted local address. The Vite development proxy preserves matching Host/Origin values. These checks do not replace authentication or network access control. HTTP bodies are limited to 1 MiB, with a 10-second header read timeout and 30-second request read timeout; SSE answers have no short write timeout. The application itself serves plain HTTP: terminate TLS at a gateway, add the public hostname to `--trusted-host`, disable response buffering for SSE, and keep authentication and access control at the gateway.
 
 ```sh
 ./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
@@ -157,128 +169,38 @@ DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
 
 Parent directories are created automatically. Relative paths resolve from the working directory; `~user` expansion is not supported. The main program **does not load `config.yml`**. Provider/model settings and prompts are configured in the console and stored in SQLite.
 
-**SQLCipher operation:** the `sqlite` configuration value and Ent dialect remain unchanged; the engine is SQLCipher 4, not plaintext SQLite. The application verifies `cipher_version` before opening the business database and reads its schema before migration. Each physical connection receives the key during database opening, before WAL PRAGMAs. WAL is enabled and checked at startup; each connection uses a 5-second busy timeout and `synchronous=FULL`. The application pool allows one connection to serialize in-process database work. SQLite still permits only one writer, so use this deployment for a personal/single-instance service, with the database on a local filesystem, not a shared network filesystem. WAL can create `kaguya.db-wal` and `kaguya.db-shm` beside the database. Existing MySQL/PostgreSQL data is not migrated automatically; changing the path creates or opens a separate database.
+**SQLCipher operation:** the `sqlite` configuration value and Ent dialect remain unchanged; the engine is SQLCipher 4, not plaintext SQLite. The application verifies `cipher_version` before opening the business database and reads its schema before migration. Each physical connection receives the key during database opening, before WAL PRAGMAs. WAL is enabled and checked at startup; each connection uses a 5-second busy timeout and `synchronous=FULL`. The application pool allows one connection to serialize in-process database work. SQLite still permits only one writer, so use this deployment for a personal/single-instance service, with the database on a local filesystem, not a shared network filesystem. WAL can create `kaguya.db-wal` and `kaguya.db-shm` beside the database. The runtime database is always SQLCipher; changing the path creates or opens a separate database.
 
-**TLS 1.3 and certificates:** After database migration and initialization, the application reads the certificate and private key from `kaguya_system_info`, then starts HTTPS. A missing initial pair creates a unique ECDSA P-256 self-signed certificate valid for one year, covering `localhost`, `127.0.0.1`, `::1`, and explicitly configured listener IPs and trusted hostnames. Only TLS 1.3 is accepted; no plaintext HTTP or downgrade listener is provided. Certificates and private keys are stored in the SQLCipher-encrypted database. Queries return only the public certificate, fingerprint, names and expiration, never the private key.
+**Key management:** the key file must be a regular file containing exactly 64 hexadecimal characters (32 cryptographically random bytes), optionally followed by LF/CRLF. Unix group/other permissions are rejected; use `chmod 600`. It is a raw AES-256 key, **not a password**. There is no embedded/default secret or unencrypted fallback. Immediately after the startup log, `internal/init/sqlcipher.go` checks the key before database initialization. If `--db.key-file`/`DB_KEY_FILE` is unset and both the default key and configured database files are absent, Go generates 32 random bytes, writes a private temporary file, syncs it, and atomically publishes the key without overwriting an existing file. Existing keys are validated and reused. A missing key with any existing database file (even empty), WAL, SHM, or rollback journal is an error: restore the original key. Explicitly supplied key paths must exist, even if they name the default location. Invalid existing keys are never replaced; wrong keys and plaintext databases fail to open without automatic conversion. Key contents are not CLI arguments, serialized configuration, or application log fields. The DSN contains the key internally and must never be logged. `modernc.org/sqlite` is retained only as an independent plaintext engine in encryption tests, not used by the application.
 
-System configuration → **HTTPS / TLS 1.3** supports downloading the public certificate, generating a replacement, or importing a matching PEM certificate chain and key. Saving requires a restart; existing connections do not switch identities live. Saving and API-key re-encryption form one atomic operation: a mid-way failure keeps the previous certificate and ciphertext. Certificate names do not automatically enter the Host allowlist; domain access still requires `--trusted-host`. Self-signed certificates are not automatically trusted by browsers: verify the SHA-256 fingerprint and import trust on each accessing device. Do not disable certificate verification. To prepare and export the public certificate while keeping services stopped:
-
-```sh
-./target/kaguya --prepare-tls --log.console-enabled=false > ~/.kaguya/kaguya.crt
-openssl x509 -in ~/.kaguya/kaguya.crt -noout -fingerprint -sha256
-```
-
-This command accepts the same database arguments as normal startup, initializes and exits without listeners or MCP. Existing certificates are reused; expired, damaged or mismatched pairs fail startup instead of silently changing identity. For offline recovery, explicitly add `--renew-tls`, then redistribute and trust the new public certificate. Database backups preserve the TLS identity; the TLS private key and SQLCipher key serve different purposes.
-
-On macOS, `remote error: tls: unknown certificate` usually means the accessing client rejected the self-signed certificate. After checking the exported fingerprint, add it to SSL trust in the current user’s login keychain:
-
-```bash
-security add-trusted-cert -r trustRoot -p ssl -k "$HOME/Library/Keychains/login.keychain-db" "$HOME/.kaguya/kaguya.crt"
-security verify-cert -c "$HOME/.kaguya/kaguya.crt" -p ssl -s localhost
-```
-
-Then reopen the browser connection. Other devices need their own certificate trust configuration; replacing the server certificate also requires updating trust and the certificate file used by the development proxy.
-
-**Key management:** the key file must be a regular file containing exactly 64 hexadecimal characters (32 cryptographically random bytes), optionally followed by LF/CRLF. Unix group/other permissions are rejected; use `chmod 600`. It is a raw AES-256 key, **not a password or TLS certificate**. There is no embedded/default secret or unencrypted fallback. Immediately after the startup log, `internal/init/sqlcipher.go` checks the key before database initialization. If `--db.key-file`/`DB_KEY_FILE` is unset and both the default key and configured database files are absent, Go generates 32 random bytes, writes a private temporary file, syncs it, and atomically publishes the key without overwriting an existing file. Existing keys are validated and reused. A missing key with any existing database file (even empty), WAL, SHM, or rollback journal is an error: restore the original key. Explicitly supplied key paths must exist, even if they name the default location. Invalid existing keys are never replaced; wrong keys and plaintext databases fail to open without automatic conversion. Key contents are not CLI arguments, serialized configuration, or application log fields. The DSN contains the key internally and must never be logged. `modernc.org/sqlite` is retained only as an independent plaintext engine in encryption tests, not used by the application.
-
-**Existing databases:** a plaintext SQLite file cannot be encrypted merely by supplying a key. Stop and back up the old deployment, then perform an explicit migration to a **new file** using SQLCipher's keyed `ATTACH` and `sqlcipher_export()`; see the [official conversion guide](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868). Verify schema, application data, timestamps, and reopening with the intended key before switching `--db.path`. MySQL/PostgreSQL migration is separate. No automatic plaintext migration, key rotation, or legacy SQLCipher format conversion is implemented.
+**Existing databases:** a plaintext SQLite file cannot be encrypted merely by supplying a key. Stop and back up the old deployment, then perform an explicit migration to a **new file** using SQLCipher's keyed `ATTACH` and `sqlcipher_export()`; see the [official conversion guide](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868). Verify schema, application data, timestamps, and reopening with the intended key before switching `--db.path`. Provider API Key records are a separate concern: only the current `enc:v2:` format is readable at runtime, and legacy records must be converted offline first (see **API key storage**). Automatic plaintext database encryption and key rotation are not implemented.
 
 **Backups and updates:** the simplest backup is to stop the service and copy the database together with any remaining WAL/SHM files as one set; never copy only the main database while writes are active or delete WAL files manually. Back up the key **separately and securely**: losing it makes the data unrecoverable. For live exports use SQLCipher-aware tooling with an explicitly keyed encrypted destination; do not assume generic SQLite backup or `VACUUM INTO` produces an encrypted backup. Before upgrading, back up the data/key, stop the service, replace the binary, and restart with the same service user, path, and key. Foreground logs go to the configured logger; use your service manager for background operation and lifecycle management.
 
-**Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. TLS certificates protect network transport, not the local key; an API key encryption key derived from the certificate private key shares the database with the ciphertext and likewise cannot withstand theft of the whole database. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login. Debug mode also omits database SQL argument logging to keep prompts, API keys and MCP credentials out of logs.
+**Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. Inbound transport security belongs to the TLS gateway, not the local key; an API key encryption key derived from the SQLCipher key shares its root with the database and likewise cannot withstand theft of both files. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login. Debug mode also omits database SQL argument logging to keep prompts, API keys and MCP credentials out of logs.
 
-Open [https://localhost:9024](https://localhost:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
+Open [http://127.0.0.1:9024](http://127.0.0.1:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
 
 Knowledge bases and semantic retrieval can be supplied through externally configured MCP tools, without a local pgvector service. The application does not include a built-in knowledge base, long-term memory, embeddings, or FTS5 search.
 
-### Legacy Docker/PostgreSQL reference (disabled)
+### Container deployment (unverified)
 
-The following instructions describe the **previous deployment only**, not a supported startup path for the current binary. MySQL/PostgreSQL startup branches are commented out; driver/helper code and the existing [Dockerfile](Dockerfile) / [docker-compose.yml](docker-compose.yml) are retained unchanged. Their PostgreSQL arguments now fail explicitly. Do not run these commands for a new installation; restoring this deployment requires re-enabling and validating the backend first. Do not delete existing `pgvector` data.
+The checked-in [Dockerfile](Dockerfile) and [docker-compose.yml](docker-compose.yml) describe a single SQLCipher service; this setup has **not** been built or run in the current development environment, and the native binary remains the recommended deployment.
 
-<details>
-<summary>Historical deployment instructions</summary>
+The image builds the frontend with Bun and the backend with Go plus the SQLCipher toolchain, then runs the binary on Alpine with Bash (for the agent tools) and CA certificates. Compose publishes only `127.0.0.1:9024` and keeps the database in `./kaguya-data`.
 
-### 1. Prepare the environment
-
-The documented deployment uses **PostgreSQL with pgvector** as its single database stack. Current conversations, settings, and usage records are stored in PostgreSQL. Knowledge bases, long-term memory, embeddings, and vector retrieval are planned extensions; deploying the pgvector image does not enable these application features automatically.
-
-Requirements: **Docker**, **Docker Compose**, and **Git**. Go and Bun are provided by the image build stages and are not needed on the host for deployment.
-
-The checked-in [docker-compose.yml](docker-compose.yml) uses **host networking**: Kaguya connects to PostgreSQL at `127.0.0.1:5432`, and the UI listens on port `9024`. Use a Docker environment with host networking support and keep these host ports available. In this mode, the services use host ports directly rather than relying on the `ports` mappings.
+Prepare the key **before** the first start; Docker creates a directory if the mount source does not exist:
 
 ```sh
-git clone https://github.com/lyonmu/kaguya.git
-cd kaguya
-```
-
-Before starting, review the database password and data directory in the Compose file. Its example database credentials must match the application connection arguments described below.
-
-### 2. Build the image and start the services
-
-```sh
+mkdir -p kaguya-data
+openssl rand -hex 32 > kaguya-key
+chmod 600 kaguya-key
 docker build -t kaguya:latest .
 docker compose up -d
-docker compose ps
 docker compose logs --tail=100 kaguya-svc
 ```
 
-The [Dockerfile](Dockerfile) builds the frontend with Bun and the backend with Go 1.27, then packages the embedded web console, binary, and CA certificates in a BusyBox runtime. Compose references the local `kaguya:latest` image, so build it before starting the services.
-
-| Service | Image | Role |
-| --- | --- | --- |
-| `kaguya-svc` | `kaguya:latest` | Web console and API on port `9024` |
-| `pgvector-svc` | `pgvector/pgvector:pg18-trixie` | PostgreSQL with pgvector on port `5432` |
-
-PostgreSQL data is persisted through the Compose bind mount `${PWD}/pgvector:/var/lib/postgresql`. Run Compose from the repository root to keep this path consistent. The application creates the `kaguya` database if needed and migrates its schema at startup; the configured database account must have the corresponding permissions.
-
-### 3. Configure the first conversation
-
-Open [https://localhost:9024](https://localhost:9024) on the deployment host. Remote access requires explicitly setting `--host=0.0.0.0`. Before the first chat:
-
-1. Open **AI providers**, add a provider with its protocol, full request URL, and API key.
-2. Add at least one model with the provider's upstream model identifier.
-3. Open **System configuration**, select a default chat model, optionally select a background-task model, and save.
-4. Return to **Conversations** and send a message. You can also choose a model in the composer instead of setting a global default.
-
-### 4. Container configuration
-
-Startup configuration is passed as container command arguments. The main application **does not load `config.yml`**; configure providers and prompts through the console.
-
-The following values describe the current Docker image arguments, not the defaults of a bare binary:
-
-| Argument | Docker deployment value | Purpose |
-| --- | --- | --- |
-| `--port` | `9024` | HTTP port |
-| `--router-prefix` | `/kaguya/api` | API route prefix |
-| `--db.kind` | `postgresql` | PostgreSQL connection driver for the pgvector database |
-| `--db.host` | `127.0.0.1` | Database host with host networking |
-| `--db.port` | `5432` | PostgreSQL port |
-| `--db.user` | `pgvector` | Database account |
-| `--db.password` | `pgvector-123` | Example password; replace for your deployment |
-| `--db.db_name` | `kaguya` | Application database |
-
-To change these values, configure `kaguya-svc` in the Compose file with a `command` override. It replaces the Dockerfile's `CMD`, so include the full application arguments you need, especially `--db.kind=postgresql` and the database connection details. For additional options, run `docker run --rm kaguya:latest --help`.
-
-For a fresh database, keep the database service's `POSTGRES_USER` and `POSTGRES_PASSWORD` aligned with the application's `--db.user` and `--db.password`. The Compose value `POSTGRES_DB=postgres` is the initial database; Kaguya uses its own `kaguya` database. Changing initialization environment variables does not update credentials in an already initialized data directory.
-
-### 5. Logs, updates, and shutdown
-
-```sh
-docker compose logs -f --tail=100 kaguya-svc pgvector-svc
-docker compose stop
-docker compose up -d
-```
-
-After updating the source, rebuild and recreate the application container:
-
-```sh
-docker build -t kaguya:latest .
-docker compose up -d --no-deps kaguya-svc
-```
-
-`docker compose down` removes the containers and retains the bind-mounted PostgreSQL data. Keep the `pgvector` data directory across redeployments and back up the database before upgrades.
-
-</details>
+Container arguments: `--host=0.0.0.0 --port=9024 --router-prefix=/kaguya/api --db.path=/data/kaguya.db --db.key-file=/run/secrets/kaguya.key`. Override the Compose `command` with the full argument list when changing paths. Back up `kaguya-data` and `kaguya-key` together before upgrades; `docker compose down` keeps both. Do not expose the published port directly; put a TLS gateway in front for remote access.
 
 ## Architecture
 
@@ -331,7 +253,7 @@ Server adaptations: file operations use `os.Root` to stay within the workspace; 
 
 **Permissions warning: a working directory is not a sandbox.** Bash runs with the server process's permissions and can access resources available to that user; file-tool path restrictions do not constrain shell commands. Restrict the service to trusted users, use a low-privilege account or container, and do not expose executable-tool APIs directly to the public Internet. File changes and command side effects take effect immediately and are not rolled back when a conversation fails, is cancelled, or is not persisted. Logs record tool names, call IDs, project/conversation IDs, and duration, not raw commands or file contents.
 
-The coding Agent is intended and validated as a native host service: install the binary with `make install`, then start it with the default SQLite database or an explicit `--db.path`. Install Bash locally; optional search tools also need `rg` and `fd`. Missing commands produce explicit errors without automatic downloads. Project commands such as Git, Go, and Bun must be installed on the host and available in the service process's `PATH`, which may differ from an interactive terminal. This toolset does not target Docker execution; existing Docker configuration is unchanged.
+The coding Agent is intended and validated as a native host service: install the binary with `make install`, then start it with the default SQLCipher database or an explicit `--db.path`. Install Bash locally; optional search tools also need `rg` and `fd`. Missing commands produce explicit errors without automatic downloads. Project commands such as Git, Go, and Bun must be installed on the host and available in the service process's `PATH`, which may differ from an interactive terminal. The native host remains the validated target; the container image only adds Bash for these tools and is not verified.
 
 ## API
 
@@ -340,7 +262,6 @@ With the default route prefix, useful endpoints are:
 | Endpoint | Purpose |
 | --- | --- |
 | `POST /kaguya/api/v1/chat/sse` | SSE streaming chat |
-| `GET /kaguya/api/v1/chat/ws` | WebSocket chat |
 | `POST /kaguya/api/v1/chat/conversation/:id/stop` | Mark the current turn as explicitly stopped by the user (`canceled`); idempotent when nothing is running |
 | `GET /kaguya/api/v1/chat/conversation/page` | Paginated conversation list |
 | `GET /kaguya/api/v1/chat/conversation/:id/turns` | Conversation turns |
@@ -366,19 +287,19 @@ With the default route prefix, useful endpoints are:
 | `/kaguya/api/swagger/index.html` | Swagger UI |
 | `/kaguya/api/metrics` | Prometheus metrics |
 
-Conversation responses include `is_project`, derived from whether `project_id` is null, so no database backfill is needed. Lists default to ordinary conversations only; `is_project=true` selects project conversations and `project_id` scopes a specific project (passing it alone retains project filtering). Combining `project_id` with `is_project=false` is invalid. Filtering happens before database pagination and counting. New SSE/WS chats accept `project_id`; saved conversations retain their stored association.
+Conversation responses include `is_project`, derived from whether `project_id` is null, so no database backfill is needed. Lists default to ordinary conversations only; `is_project=true` selects project conversations and `project_id` scopes a specific project (passing it alone retains project filtering). Combining `project_id` with `is_project=false` is invalid. Filtering happens before database pagination and counting. New SSE chats accept `project_id`; saved conversations retain their stored association.
 
 Business JSON endpoints share one envelope: HTTP 200 with `{"code": ..., "message": ..., "data": ...}`; `100000` means success and any other code carries a user-readable `message`. Codes are grouped by domain (`102xxx` chat, `103xxx` models, `104xxx` system settings, `105xxx` MCP, `106xxx` providers, `107xxx` projects). Browser-level rejections (untrusted host, oversized body) still use plain HTTP 403/413.
 
-Single-instance limits: SQLCipher serializes writes through one connection, and the process bounds simultaneous turns (`16`) and background title tasks (`2`). A turn beyond the limit fails fast with code `102009`; a skipped title retries after the next successful turn. A conversation resumes from its last compaction snapshot, so long histories read only the snapshot and later turns; user questions of unfinished turns are spliced back in turn order for referential continuity. The streaming connection is the turn's lifetime: a network drop, refresh, or timeout is recorded as `interrupted`, while an explicit stop (the client calls the `stop` endpoint before disconnecting) is recorded as `canceled`; both keep what was already pushed. On a crash or kill the throttled writes preserve the last flushed content, and the next startup marks leftover `running` turns as `interrupted`. Switching conversations does not close each conversation's connection, so its turn keeps running. Provider requests have a two-minute response-header timeout and a five-minute stream idle timeout, and stalled streams are cancelled as retryable errors. WebSocket frames and SSE writes use per-frame write deadlines, so a client that stops reading cannot pin a turn open.
+Single-instance limits: SQLCipher serializes writes through one connection, and the process bounds simultaneous turns (`16`) and background title tasks (`2`). A turn beyond the limit fails fast with code `102009`; a skipped title retries after the next successful turn. A conversation resumes from its last compaction snapshot, so long histories read only the snapshot and later turns; user questions of unfinished turns are spliced back in turn order for referential continuity. The streaming connection is the turn's lifetime: a network drop, refresh, or timeout is recorded as `interrupted`, while an explicit stop (the client calls the `stop` endpoint before disconnecting) is recorded as `canceled`; both keep what was already pushed. On a crash or kill the throttled writes preserve the last flushed content, and the next startup marks leftover `running` turns as `interrupted`. Switching conversations does not close each conversation's connection, so its turn keeps running. Provider requests have a two-minute response-header timeout and a five-minute stream idle timeout, and stalled streams are cancelled as retryable errors. SSE writes use per-frame write deadlines, so a client that stops reading cannot pin a turn open.
 
 After configuring a default model, start a conversation with:
 
 ```sh
-curl --cacert ~/.kaguya/kaguya.crt -N https://localhost:9024/kaguya/api/v1/chat/sse \
+curl -N http://127.0.0.1:9024/kaguya/api/v1/chat/sse \
   -H 'Content-Type: application/json' \
   -H 'Accept: text/event-stream' \
-  -d '{"flag":"chat","messages":"Hello, Kaguya"}'
+  -d '{"messages":"Hello, Kaguya"}'
 ```
 
 Reuse the returned conversation `id` in subsequent request bodies to continue its history. To select a model explicitly, pass `model_id` with the local model record ID. Stream frames use `start`, `delta`, `done`, and `error`; `done` is emitted only after the completed turn has been saved. See the [route definitions](internal/router/v1/) and [chat DTOs](internal/dto/chat/) for the current API contract.
@@ -396,10 +317,10 @@ bun install --frozen-lockfile
 bun run test               # Frontend tests
 bun run lint               # oxlint
 bun run build              # TypeScript checks and Vite production build
-bun run dev # Trust ~/.kaguya/kaguya.crt by default
+bun run dev # Proxy the API to the local HTTP service
 ```
 
-For frontend development, keep the native application running on port `9024`; Vite proxies `/kaguya/api` to `https://localhost:9024`, trusting `~/.kaguya/kaguya.crt` by default, with `KAGUYA_CA_CERT` available to override the path, while keeping verification enabled. A missing file gives an explicit error: export it first using the `--prepare-tls` command above. Production builds do not require this file. The Vite page is for local development only; use the embedded HTTPS console for normal operation. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned. Run `make build` and restart the binary after backend changes.
+For frontend development, keep the native application running on port `9024`; Vite proxies `/kaguya/api` to `http://127.0.0.1:9024` and preserves the browser's matching Host/Origin headers. Production builds do not require any certificate file. The Vite page is for local development only; use the embedded HTTP console for normal operation, or put a TLS gateway in front for remote access. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned. Run `make build` and restart the binary after backend changes.
 
 After changing Ent schemas, run `go generate ./internal/ent` from the repository root. Keep generated Ent code in sync with the schemas.
 
