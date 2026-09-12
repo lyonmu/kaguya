@@ -9,7 +9,8 @@
 .token-usage-page .ant-card-head-title small { font-size: 11px; font-weight: 400; color: var(--k-text-muted); margin-left: 12px; }
 .token-usage-chart-scroll { overflow-x: auto; }
 .token-usage-activity { min-width: 800px; }
-.token-usage-composition { min-width: 600px; }
+/* 构成图类目最多 10 项，保留较宽的最小宽度以保持标签可读，超出时横向滚动。 */
+.token-usage-composition { min-width: 720px; }
 .token-usage-loading { display: grid; place-items: center; min-height: 240px; }
 @media (max-width: 900px) { .token-usage-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .token-usage-summary > div:nth-child(3) { border-left: 0; padding-left: 0; } }
 @media (max-width: 600px) { .token-usage-page { padding: 16px; gap: 16px; } .token-usage-page .ant-card-head { padding: 12px; } .token-usage-page .ant-card-head-wrapper { flex-wrap: wrap; gap: 12px; } .token-usage-page .ant-card-head-title small { display: block; margin: 4px 0 0; } .token-usage-page .ant-card-body { padding: 16px; } }

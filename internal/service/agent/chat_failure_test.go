@@ -14,6 +14,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 )
 
 func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
@@ -103,8 +104,12 @@ func TestChatIncompleteTurnDoesNotPersist(t *testing.T) {
 			if version != 1 || string(afterJSON) != string(beforeJSON) {
 				t.Fatal("incomplete request changed context")
 			}
-			if n, err := client.KaguyaConversation.Query().Count(ctx); err != nil || n != 1 {
+			// 失败的新会话保留在列表中（尚无轮次），已有会话的上下文不受影响。
+			if n, err := client.KaguyaConversation.Query().Count(ctx); err != nil || n != 2 {
 				t.Fatalf("conversations=%d %v", n, err)
+			}
+			if n, err := client.KaguyaConversation.Query().Where(kaguyaconversation.TurnCountEQ(0)).Count(ctx); err != nil || n != 1 {
+				t.Fatalf("empty conversations=%d %v", n, err)
 			}
 			if n, err := client.KaguyaChatTurn.Query().Count(ctx); err != nil || n != 1 {
 				t.Fatalf("turns=%d %v", n, err)
@@ -148,10 +153,12 @@ func TestChatRetriesTransientStreamOverload(t *testing.T) {
 	ch := make(chan *dtochat.ChatResp)
 	go (&AgentSvc{}).Chat(ctx, ch, &dtochat.ChatReq{Messages: "retry overload"})
 	var done, failures int
+	var failure error
 	var text strings.Builder
 	for frame := range ch {
 		if frame.Err != nil {
 			failures++
+			failure = frame.Err
 		}
 		if frame.Chat.Flag == dtochat.WSFlagDone {
 			done++
@@ -161,6 +168,6 @@ func TestChatRetriesTransientStreamOverload(t *testing.T) {
 		}
 	}
 	if requests.Load() != 2 || done != 1 || failures != 0 || text.String() != "recovered" {
-		t.Fatalf("requests=%d done=%d failures=%d text=%q", requests.Load(), done, failures, text.String())
+		t.Fatalf("requests=%d done=%d failures=%d text=%q err=%v", requests.Load(), done, failures, text.String(), failure)
 	}
 }

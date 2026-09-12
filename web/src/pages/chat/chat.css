@@ -14,7 +14,7 @@
 .project-group-name.selected { color: var(--k-primary); }
 .project-group-header > .ant-btn { opacity: 0; }
 .project-group-header:hover > .ant-btn, .project-group-header:focus-within > .ant-btn { opacity: 1; }
-.project-conversation { display: block; width: 100%; padding: 12px 12px 12px 44px; margin: 3px 0; border: 0; border-radius: 14px; text-align: left; background: transparent; color: var(--k-text); font: inherit; font-size: 14px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-conversation { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 12px 12px 44px; margin: 3px 0; border: 0; border-radius: 14px; text-align: left; background: transparent; color: var(--k-text); font: inherit; font-size: 14px; cursor: pointer; }
 .project-conversation:hover { background: var(--k-elevated); }
 .project-conversation.active { background: var(--k-selected); }
 .project-conversation:disabled, .project-group-name:disabled { cursor: not-allowed; }
@@ -28,7 +28,11 @@
 .chat-session:hover { background: var(--k-elevated); }
 .chat-session.active { background: var(--k-selected); border-color: var(--k-border); }
 .chat-session:disabled { cursor: not-allowed; }
-.chat-session-title { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.chat-session-title { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+/* 会话前置图标：带底色的小标识，标题过长时只截断文本。 */
+.session-icon { flex-shrink: 0; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; background: var(--k-elevated); color: var(--k-text-muted); font-size: 11px; }
+.chat-session.active .session-icon, .project-conversation.active .session-icon { background: var(--k-surface); color: var(--k-primary); }
+.chat-session-text, .project-conversation-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-session-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 10px; color: var(--k-text-muted); margin-top: 7px; }
 .chat-session-meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-session-meta time { flex-shrink: 0; }

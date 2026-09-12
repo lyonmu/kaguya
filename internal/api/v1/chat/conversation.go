@@ -35,8 +35,8 @@ func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
 
 // ConversationPage
 // @Tags Chat History
-// @Summary 会话列表（仅已完成会话）
-// @Description 按最近完整轮次时间倒序；支持标题前缀搜索、收藏筛选。默认仅普通对话；is_project=true 仅项目对话，project_id 可指定项目，不能与 is_project=false 同时使用。响应 is_project 根据当前项目归属生成。新建会话仍使用 SSE/WS 空 id 请求，首次成功后才出现在列表中。
+// @Summary 会话列表（含进行中与空会话）
+// @Description 按最近完整轮次时间倒序；支持标题前缀搜索、收藏筛选。默认仅普通对话；is_project=true 仅项目对话，project_id 可指定项目，不能与 is_project=false 同时使用。响应 is_project 根据当前项目归属生成。新建会话在首轮正文开始生成前即创建并出现在列表中，失败或取消的轮次保留空会话，可手动删除。
 // @Param data query dtochat.ConversationPageReq true "分页/筛选"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationListResp}
 // @Router /v1/chat/conversation/page [get]
@@ -102,7 +102,7 @@ func (b *ChatApiV1Group) ConversationTitleWait(c *gin.Context) {
 // ConversationTitleGenerate
 // @Tags Chat History
 // @Summary 默认标题生成或重试，并等待已保存标题
-// @Description 每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007，提供商的 API Key 无法解密返回 102010。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。
+// @Description 每轮成功结束且标题仍为“新对话”时调用一次。新会话创建后已立即并行启动同一任务（只用用户提问，不等回答），模型返回后直接条件写入标题；此处按需补生成或重试，使用全局任务模型根据已保存首轮问答生成标题。未配置任务模型返回 102007，提供商的 API Key 无法解密返回 102010。已有任务（含提前启动的）则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试。
 // @Param id path string true "会话雪花 ID"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationTitleResp}
 // @Router /v1/chat/conversation/{id}/title/wait [post]

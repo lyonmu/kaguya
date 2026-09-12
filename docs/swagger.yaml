@@ -172,7 +172,7 @@ definitions:
       project_id:
         type: string
       title:
-        description: AI 标题最多20字符；每轮 done 后仍为“新对话”时，由前端 POST title/wait 使用全局任务模型生成或重试
+        description: AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试
         type: string
       tool_calls:
         type: integer
@@ -1016,33 +1016,50 @@ definitions:
     type: object
   system.TokenUsageResp:
     properties:
+      activity_end:
+        description: 活动日历终点，固定为今天 UTC 自然日
+        type: string
+      activity_start:
+        description: 活动日历起点，固定为一年零一天前的 UTC 自然日
+        type: string
       conversations:
+        description: 请求时间段内活跃会话（去重）
         type: integer
       days:
+        description: 最近一年每日活动（UTC 自然日，已补零），不随请求时间段变化
         items:
           $ref: '#/definitions/system.TokenUsageDay'
         type: array
       end:
+        description: 请求时间段终点（UTC 自然日）
         type: string
       models:
+        description: 全部历史按模型聚合，用量倒序最多 10 项
         items:
           $ref: '#/definitions/system.TokenUsageComposition'
         type: array
       peak_conversations:
+        description: 请求时间段内单日会话峰值
         type: integer
       peak_conversations_date:
+        description: 单日会话峰值所在 UTC 自然日
         type: string
       peak_tokens:
+        description: 请求时间段内单日 Token 峰值
         type: integer
       peak_tokens_date:
+        description: 单日 Token 峰值所在 UTC 自然日
         type: string
       providers:
+        description: 全部历史按厂商聚合，用量倒序最多 10 项
         items:
           $ref: '#/definitions/system.TokenUsageComposition'
         type: array
       start:
+        description: 请求时间段起点（UTC 自然日）
         type: string
       total_tokens:
+        description: 请求时间段内累计 Token
         type: integer
     type: object
 host: localhost:9024
@@ -1166,8 +1183,8 @@ paths:
       tags:
       - Chat History
     post:
-      description: 每轮成功结束且标题仍为“新对话”时调用一次。使用全局任务模型根据已保存首轮问答生成标题，未配置任务模型返回 102007，提供商的
-        API Key 无法解密返回 102010。已有任务则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试；聊天主流程不自动生成标题。
+      description: 每轮成功结束且标题仍为“新对话”时调用一次。新会话创建后已立即并行启动同一任务（只用用户提问，不等回答），模型返回后直接条件写入标题；此处按需补生成或重试，使用全局任务模型根据已保存首轮问答生成标题。未配置任务模型返回
+        102007，提供商的 API Key 无法解密返回 102010。已有任务（含提前启动的）则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试。
       parameters:
       - description: 会话雪花 ID
         in: path
@@ -1265,8 +1282,7 @@ paths:
   /v1/chat/conversation/page:
     get:
       description: 按最近完整轮次时间倒序；支持标题前缀搜索、收藏筛选。默认仅普通对话；is_project=true 仅项目对话，project_id
-        可指定项目，不能与 is_project=false 同时使用。响应 is_project 根据当前项目归属生成。新建会话仍使用 SSE/WS 空
-        id 请求，首次成功后才出现在列表中。
+        可指定项目，不能与 is_project=false 同时使用。响应 is_project 根据当前项目归属生成。新建会话在首轮正文开始生成前即创建并出现在列表中，失败或取消的轮次保留空会话，可手动删除。
       parameters:
       - in: query
         name: favorite
@@ -1304,7 +1320,7 @@ paths:
                 data:
                   $ref: '#/definitions/chat.ConversationListResp'
               type: object
-      summary: 会话列表（仅已完成会话）
+      summary: 会话列表（含进行中与空会话）
       tags:
       - Chat History
   /v1/chat/sse:
@@ -2136,8 +2152,10 @@ paths:
       - System Provider
   /v1/system/usage:
     get:
-      description: start_time/end_time 使用秒级 Unix 时间戳，首尾秒包含，精确按秒筛选并按 UTC 自然日聚合；0 或省略使用默认值（结束为今天
-        UTC 日末，开始为结束日向前一年加一天的日初），最多跨366个 UTC 自然日。不接受日期字符串、负数、毫秒时间戳或反向范围。统计完整聊天轮次（含已删除会话）。会话去重计数；每日活动补零；模型/厂商按用量倒序最多6项。输出已扣除思考，输入含缓存写入。未包含标题任务及失败/取消调用。
+      description: start_time/end_time 使用秒级 Unix 时间戳，首尾秒包含，精确按秒筛选；0 或省略使用默认值（结束为今天
+        UTC 日末，开始为结束日向前一年加一天的日初），最多跨366个 UTC 自然日。不接受日期字符串、负数、毫秒时间戳或反向范围。时间段只影响汇总：total_tokens、conversations、peak_tokens、peak_conversations
+        按请求时间段统计。days 固定为最近一年（起点为今天 UTC 自然日向前一年再加一天，含首尾共365或366个自然日）并按 UTC 自然日补零，activity_start/activity_end
+        给出该固定窗口的自然日边界，均不随时间段变化；models/providers 固定统计全部历史（含时间段之外的记录），按用量倒序最多10项。仅统计完整聊天轮次（含已删除会话）；会话去重计数；输出已扣除思考，输入含缓存写入。未包含标题任务及失败/取消调用。
       parameters:
       - description: 结束时间（Unix 秒，包含整个结束秒），0 或省略表示今天 UTC 日末
         example: 1735948799

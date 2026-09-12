@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"entgo.io/ent/dialect"
 	"github.com/gin-gonic/gin"
@@ -55,8 +56,14 @@ func TestTokenUsageAPI(t *testing.T) {
 		if response.Code != tc.code {
 			t.Fatalf("%s: %s", tc.query, w.Body.String())
 		}
-		if tc.code == dtocode.SystemSuccess.Code && (len(response.Data.Days) != 3 || w.Header().Get("Cache-Control") != "no-store") {
+		if tc.code == dtocode.SystemSuccess.Code && (len(response.Data.Days) != usageActivityDays() || w.Header().Get("Cache-Control") != "no-store") {
 			t.Fatalf("bad response: %s", w.Body.String())
 		}
 	}
+}
+
+// usageActivityDays 复现固定的“最近一年”活动窗口天数：起点为今天 UTC 日初向前一年加一天，终点为今天，含首尾 365 或 366 天。
+func usageActivityDays() int {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	return int(today.Sub(today.AddDate(-1, 0, 1))/(24*time.Hour)) + 1
 }

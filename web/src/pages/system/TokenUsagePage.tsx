@@ -3,12 +3,14 @@ import { Alert, Button, Card, DatePicker, Empty, Segmented, Spin, Statistic, the
 import dayjs from 'dayjs'
 import type { EChartsCoreOption } from 'echarts/core'
 import { fetchTokenUsage, type TokenUsage } from '../../features/usage/api'
-import { aggregateActivity, type ActivityMode } from '../../features/usage/activity'
+import { aggregateActivity, activityPieces, type ActivityMode } from '../../features/usage/activity'
 import { UsageChart } from '../../features/usage/UsageChart'
 import { usageDateRange } from '../../features/usage/range'
 import './token-usage.css'
 
 const compact = (value: number) => new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+// 热力图分档颜色：由浅到深，最低档也保持不透明，确保有使用的日期不会看起来像空白。
+const activityColors = ['#c6ddff', '#82b8ff', '#448cef', '#245aca']
 
 export function TokenUsagePage() {
   const { token } = theme.useToken()
@@ -36,17 +38,19 @@ export function TokenUsagePage() {
   const activity = useMemo<EChartsCoreOption>(() => {
     if (!data) return {}
     const values = aggregateActivity(data.days, mode)
+    // 分位数分档：值差异极大时低用量日期仍保留可见颜色，并与空白日期区分。
+    const pieces = activityPieces(values.map(([, value]) => value), activityColors, compact)
     const base = {
       animation: false, aria: { enabled: true }, textStyle: { color: token.colorTextSecondary },
       tooltip: { trigger: 'item', renderMode: 'richText', backgroundColor: token.colorBgElevated, textStyle: { color: token.colorText },
         formatter: (params: { data: (string | number)[] }) => {
           const [key, value] = mode === 'daily' ? params.data : [values[Number(params.data[0])]?.[0], params.data[2]]
-          return `${key}${mode === 'weekly' ? ' 当周（范围内）' : ''}\nToken：${Number(value).toLocaleString()}`
+          return `${key}${mode === 'weekly' ? ' 当周' : ''}\nToken：${Number(value).toLocaleString()}`
         } },
-      visualMap: { min: 0, max: Math.max(...values.map(([, value]) => value), 1), calculable: false, orient: 'horizontal', left: 'center', bottom: 0, text: ['多', '少'], textStyle: { color: token.colorTextSecondary }, inRange: { color: [token.colorFillSecondary, '#c6ddff', '#82b8ff', '#448cef', '#245aca'] } },
+      visualMap: { type: 'piecewise', pieces, orient: 'horizontal', left: 'center', bottom: 0, itemWidth: 14, itemHeight: 10, textStyle: { color: token.colorTextSecondary } },
     }
     return mode === 'daily' ? { ...base,
-      calendar: { range: [data.start, data.end], top: 35, left: 42, right: 16, bottom: 60, cellSize: ['auto', 22], splitLine: { show: false }, yearLabel: { show: false }, dayLabel: { firstDay: 1, nameMap: ['日', '一', '二', '三', '四', '五', '六'], color: token.colorTextSecondary }, monthLabel: { nameMap: 'cn', color: token.colorTextSecondary }, itemStyle: { borderWidth: 3, borderColor: token.colorBgContainer } },
+      calendar: { range: [data.activity_start, data.activity_end], top: 35, left: 42, right: 16, bottom: 60, cellSize: ['auto', 22], splitLine: { show: false }, yearLabel: { show: false }, dayLabel: { firstDay: 1, nameMap: ['日', '一', '二', '三', '四', '五', '六'], color: token.colorTextSecondary }, monthLabel: { nameMap: 'cn', color: token.colorTextSecondary }, itemStyle: { borderWidth: 3, borderColor: token.colorBgContainer } },
       series: [{ type: 'heatmap', coordinateSystem: 'calendar', data: values }],
     } : { ...base,
       grid: { top: 45, left: 25, right: 25, bottom: 100 },
@@ -69,9 +73,9 @@ export function TokenUsagePage() {
     }
   }, [data, dimension, token])
   const stats = data ? [
-    ['累计 Token 数', data.total_tokens, '所选范围内全部模型累计使用量'],
+    ['累计 Token 数', data.total_tokens, '所选时间段内全部模型累计使用量'],
     ['日峰值 Token 数', data.peak_tokens, data.peak_tokens_date || '暂无活动'],
-    ['总会话次数', data.conversations, '所选范围内活跃会话（去重）'],
+    ['总会话次数', data.conversations, '所选时间段内活跃会话（去重）'],
     ['日峰值会话次数', data.peak_conversations, data.peak_conversations_date || '暂无活动'],
   ] as const : []
   return <div className="token-usage-page">
@@ -81,12 +85,12 @@ export function TokenUsagePage() {
     {error && <Alert type="error" showIcon title={error} action={<Button onClick={() => setRevision(value => value + 1)}>重试</Button>} />}
     {loading && <div className="token-usage-loading"><Spin /></div>}
     {data && <>
-      <Card><div className="token-usage-summary">{stats.map(([title, value, note]) => <div key={title}><Statistic title={title} value={value} formatter={() => compact(value)} /><p>{note}</p></div>)}</div></Card>
-      <Card title={<div>Token 活动 <small>UTC · {data.start} — {data.end}</small></div>} extra={<Segmented value={mode} options={[{ label: '每日', value: 'daily' }, { label: '每周', value: 'weekly' }, { label: '每月', value: 'monthly' }]} onChange={value => setMode(value as ActivityMode)} />}>
+      <Card><div className="token-usage-summary">{stats.map(([title, value, note]) => <div key={title}><Statistic title={title} value={value} formatter={() => <span title={value.toLocaleString()}>{compact(value)}</span>} /><p>{note}</p></div>)}</div></Card>
+      <Card title={<div>Token 活动 <small>UTC · 最近一年 {data.activity_start} — {data.activity_end}</small></div>} extra={<Segmented value={mode} options={[{ label: '每日', value: 'daily' }, { label: '每周', value: 'weekly' }, { label: '每月', value: 'monthly' }]} onChange={value => setMode(value as ActivityMode)} />}>
         <div className="token-usage-chart-scroll"><div className="token-usage-activity"><UsageChart option={activity} height={240} label="Token 活动热力图" /></div></div>
       </Card>
-      <Card title={<div>Token 构成 <small>用量最高的 6 项</small></div>} extra={<Segmented value={dimension} options={[{ label: '按模型', value: 'model' }, { label: '按厂商', value: 'provider' }]} onChange={setDimension} />}>
-        {(dimension === 'model' ? data.models : data.providers).length ? <div className="token-usage-chart-scroll"><div className="token-usage-composition"><UsageChart option={composition} height={360} label="Token 构成堆叠柱状图" /></div></div> : <Empty description="所选时间范围暂无用量" />}
+      <Card title={<div>Token 构成 <small>全部历史 · 用量最高的 10 项</small></div>} extra={<Segmented value={dimension} options={[{ label: '按模型', value: 'model' }, { label: '按厂商', value: 'provider' }]} onChange={setDimension} />}>
+        {(dimension === 'model' ? data.models : data.providers).length ? <div className="token-usage-chart-scroll"><div className="token-usage-composition"><UsageChart option={composition} height={360} label="Token 构成堆叠柱状图" /></div></div> : <Empty description="暂无用量记录" />}
         <p className="token-usage-note">输入含缓存写入，输出不含思考；四类 Token 不重复计数。仅统计成功保存的聊天轮次（含已删除会话），不含标题任务及失败、取消的调用。</p>
       </Card>
     </>}

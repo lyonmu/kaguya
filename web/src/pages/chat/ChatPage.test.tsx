@@ -264,7 +264,8 @@ it('runs two conversations through assistant-ui and retains them across system n
   assert.equal(streams[1].signal.aborted, false)
   fireEvent.click(view.getByRole('button', { name: '已完成的测试 查看结果' }))
   assert.ok(view.getByText('first answer'))
-  fireEvent.click(view.getByRole('button', { name: '◌ second task 正在运行' }))
+  // 首轮 start 后立即读取会话详情，本地列表改用持久化标题。
+  fireEvent.click(await view.findByRole('button', { name: '◌ 已完成的测试 正在运行' }))
   fireEvent.click(view.getByRole('button', { name: 'stop 停止' }))
   await waitFor(() => assert.equal(streams[1].signal.aborted, true))
   assert.equal(streams[0].signal.aborted, false)

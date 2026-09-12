@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Segmented, Spin } from 'antd'
-import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MessageOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { deleteConversation, updateConversation } from '../../features/chat/api'
 import { useConversations } from '../../features/chat/useConversations'
 import { useWorkspaceChat } from '../../features/chat/chatContext'
@@ -120,8 +120,8 @@ export function ChatPage() {
       {sessions.loading && !sessions.items.length && <div className="chat-center"><Spin size="small" /></div>}
       {!sessions.loading && !sessions.error && !conversationItems.length && <p className="chat-center chat-muted">暂无对话</p>}
     </div>
-    <VirtualList key={`${sessions.keyword}:${project?.id}:${view}`} className="chat-session-list" items={conversationItems} itemKey={item => item.id} estimate={76} onEnd={sessions.loadMore} reveal={target && { key: visibleTarget!.id, request: target }} renderItem={item => <button className={`chat-session ${(chat.id || chat.sessionKey) === item.id ? 'active' : ''}`} key={item.id} disabled={saving} onClick={() => select(item.id)}><span className="chat-session-title">{item.title}</span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span>{item.last_message_at && <time>{new Date(item.last_message_at).toLocaleDateString()}</time>}</span></button>} /></>}
-    {local.length > 0 && <div className="chat-local-sessions" aria-label="本地会话"><h3>进行中与最近会话</h3>{local.map(item => <button key={item.key} className={`chat-session ${item.key === chat.sessionKey ? 'active' : ''}`} disabled={saving} onClick={() => selectLocal(item)}><span className="chat-session-title">{item.streaming ? '◌ ' : ''}{item.title}</span><span className="chat-session-meta">{item.streaming ? '正在运行' : item.draft ? '草稿' : '查看结果'}{item.projectId ? ' · 项目' : ''}</span></button>)}</div>}
+    <VirtualList key={`${sessions.keyword}:${project?.id}:${view}`} className="chat-session-list" items={conversationItems} itemKey={item => item.id} estimate={76} onEnd={sessions.loadMore} reveal={target && { key: visibleTarget!.id, request: target }} renderItem={item => <button className={`chat-session ${(chat.id || chat.sessionKey) === item.id ? 'active' : ''}`} key={item.id} disabled={saving} onClick={() => select(item.id)}><span className="chat-session-title"><MessageOutlined className="session-icon" aria-hidden="true" /><span className="chat-session-text">{item.title}</span></span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span>{item.last_message_at && <time>{new Date(item.last_message_at).toLocaleDateString()}</time>}</span></button>} /></>}
+    {local.length > 0 && <div className="chat-local-sessions" aria-label="本地会话"><h3>进行中与最近会话</h3>{local.map(item => <button key={item.key} className={`chat-session ${item.key === chat.sessionKey ? 'active' : ''}`} disabled={saving} onClick={() => selectLocal(item)}><span className="chat-session-title"><MessageOutlined className="session-icon" aria-hidden="true" /><span className="chat-session-text">{item.streaming ? '◌ ' : ''}{item.title}</span></span><span className="chat-session-meta">{item.streaming ? '正在运行' : item.draft ? '草稿' : '查看结果'}{item.projectId ? ' · 项目' : ''}</span></button>)}</div>}
     <div className="chat-sidebar-footer"><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>
   </div>
   return <div className="chat-workspace">

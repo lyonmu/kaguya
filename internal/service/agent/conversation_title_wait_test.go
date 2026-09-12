@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/lyonmu/kaguya/internal/ent"
 )
 
 func TestConversationTitleWaitWithoutTask(t *testing.T) {
@@ -21,6 +23,19 @@ func TestConversationTitleWaitWithoutTask(t *testing.T) {
 	}
 	if _, err := (&AgentSvc{}).ConversationTitleWait(ctx, "missing"); !errors.Is(err, ErrConversationNotFound) {
 		t.Fatalf("missing conversation: %v", err)
+	}
+}
+
+// 首轮仍在生成且没有进行中的标题任务时，生成接口保留默认标题而不报错。
+func TestConversationTitleGenerateWithoutSavedTurn(t *testing.T) {
+	ctx, _ := setupChatTest(t)
+	target := &chatTarget{model: &ent.KaguyaModelsInfo{ModelID: "test", ModelName: "test"}}
+	if err := createConversation(ctx, target, "123", "", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := (&AgentSvc{}).ConversationTitleGenerate(ctx, "123")
+	if err != nil || resp.ID != "123" || resp.Title != defaultConversationTitle {
+		t.Fatalf("in-flight first turn: %+v, %v", resp, err)
 	}
 }
 

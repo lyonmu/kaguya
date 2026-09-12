@@ -43,17 +43,27 @@ func acquireConversation(id string) (func(), error) {
 	return func() { activeConversations.Lock(); delete(activeConversations.ids, id); activeConversations.Unlock() }, nil
 }
 
-// 未完成的新会话不会有数据库行，可用首次返回的 ID 重试；软删除会话不可恢复。
+// loadConversation 读取可续聊的模型上下文与已完成轮数；会话不存在时返回空历史与 0。
 func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64, error) {
+	row, messages, err := loadConversationRow(ctx, id)
+	if err != nil || row == nil {
+		return messages, 0, err
+	}
+	return messages, row.TurnCount, nil
+}
+
+// loadConversationRow 读取会话行及其可续聊的模型上下文。
+// 会话行不存在时返回 nil，调用方据此开启新会话；软删除会话不可恢复。
+func loadConversationRow(ctx context.Context, id string) (*ent.KaguyaConversation, []fantasy.Message, error) {
 	row, err := db.EntClient.KaguyaConversation.Get(ctx, id)
 	if ent.IsNotFound(err) {
-		return nil, 0, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	if row.DeletedAt != nil {
-		return nil, 0, ErrConversationNotFound
+		return nil, nil, ErrConversationNotFound
 	}
 	query := db.EntClient.KaguyaChatTurn.Query().
 		Where(kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexLTE(row.TurnCount))
@@ -63,7 +73,7 @@ func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64,
 	latest, err := query.Clone().Where(kaguyachatturn.CompactionCountGT(0)).
 		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).Select(kaguyachatturn.FieldTurnIndex).First(ctx)
 	if err != nil && !ent.IsNotFound(err) {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	if err == nil {
 		query.Where(kaguyachatturn.TurnIndexGTE(latest.TurnIndex))
@@ -72,7 +82,7 @@ func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64,
 		Select(kaguyachatturn.FieldMessages, kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldTurnIndex).
 		Order(kaguyachatturn.ByTurnIndex()).All(ctx)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	messages := make([]fantasy.Message, 0)
 	for _, turn := range turns {
@@ -82,7 +92,22 @@ func loadConversation(ctx context.Context, id string) ([]fantasy.Message, int64,
 			messages = append(messages, turn.Messages...)
 		}
 	}
-	return messages, row.TurnCount, nil
+	return row, messages, nil
+}
+
+// createConversation 在首轮正文开始生成前写入会话行，让新会话无需等待轮次完成
+// 就出现在列表中；失败或取消的轮次会留下空会话，由用户自行删除，重试沿用同一 ID。
+func createConversation(ctx context.Context, target *chatTarget, id, projectID string, startedAt time.Time) error {
+	create := db.EntClient.KaguyaConversation.Create().SetID(id).SetTitle(defaultConversationTitle).
+		SetModelID(target.model.ModelID).SetModelName(target.model.ModelName).SetLastMessageAt(startedAt)
+	if projectID != "" {
+		if err := projectsvc.Lock(ctx, db.EntClient, projectID); err != nil {
+			return err
+		}
+		create.SetProjectID(projectID)
+	}
+	_, err := create.Save(ctx)
+	return err
 }
 
 type completedTurn struct {
@@ -114,17 +139,28 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	defer tx.Rollback()
 	client := tx.Client()
 	if turn.Version == 0 {
-		create := client.KaguyaConversation.Create().SetID(turn.ConversationID).SetTitle(defaultConversationTitle).
-			SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetLastMessageAt(turn.FinishedAt)
-		if turn.ProjectID != "" {
-			if err := projectsvc.Lock(ctx, client, turn.ProjectID); err != nil {
-				return err
-			}
-			create.SetProjectID(turn.ProjectID)
-		}
-		_, err = create.Save(ctx)
+		// 首轮开始时会话行已由 createConversation 写入；这里只保留兜底创建，
+		// 兼容直接写入轮次的路径（如测试），已有行时跳过。
+		exists, err := client.KaguyaConversation.Query().Where(kaguyaconversation.IDEQ(turn.ConversationID)).Exist(ctx)
 		if err != nil {
 			return err
+		}
+		if !exists {
+			create := client.KaguyaConversation.Create().SetID(turn.ConversationID).SetTitle(defaultConversationTitle).
+				SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetLastMessageAt(turn.FinishedAt)
+			if turn.ProjectID != "" {
+				if err := projectsvc.Lock(ctx, client, turn.ProjectID); err != nil {
+					return err
+				}
+				create.SetProjectID(turn.ProjectID)
+			}
+			if _, err := create.Save(ctx); err != nil {
+				// 多实例并发创建同一会话时，后到者按会话繁忙处理。
+				if ent.IsConstraintError(err) {
+					return ErrConversationBusy
+				}
+				return err
+			}
 		}
 	}
 	var toolCalls int64

@@ -12,7 +12,7 @@ import (
 // SystemTokenUsage
 // @Tags System
 // @Summary Token 用量分析
-// @Description start_time/end_time 使用秒级 Unix 时间戳，首尾秒包含，精确按秒筛选并按 UTC 自然日聚合；0 或省略使用默认值（结束为今天 UTC 日末，开始为结束日向前一年加一天的日初），最多跨366个 UTC 自然日。不接受日期字符串、负数、毫秒时间戳或反向范围。统计完整聊天轮次（含已删除会话）。会话去重计数；每日活动补零；模型/厂商按用量倒序最多6项。输出已扣除思考，输入含缓存写入。未包含标题任务及失败/取消调用。
+// @Description start_time/end_time 使用秒级 Unix 时间戳，首尾秒包含，精确按秒筛选；0 或省略使用默认值（结束为今天 UTC 日末，开始为结束日向前一年加一天的日初），最多跨366个 UTC 自然日。不接受日期字符串、负数、毫秒时间戳或反向范围。时间段只影响汇总：total_tokens、conversations、peak_tokens、peak_conversations 按请求时间段统计。days 固定为最近一年（起点为今天 UTC 自然日向前一年再加一天，含首尾共365或366个自然日）并按 UTC 自然日补零，activity_start/activity_end 给出该固定窗口的自然日边界，均不随时间段变化；models/providers 固定统计全部历史（含时间段之外的记录），按用量倒序最多10项。仅统计完整聊天轮次（含已删除会话）；会话去重计数；输出已扣除思考，输入含缓存写入。未包含标题任务及失败/取消调用。
 // @Param data query dtosystem.TokenUsageReq true "秒级 Unix 时间戳范围（首尾秒包含）"
 // @Success 200 {object} dtocode.Response{data=dtosystem.TokenUsageResp}
 // @Router /v1/system/usage [get]

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Alert, Button, Dropdown, Spin } from 'antd'
-import { FolderOpenOutlined, MoreOutlined } from '@ant-design/icons'
+import { FolderOpenOutlined, MessageOutlined, MoreOutlined } from '@ant-design/icons'
 import { useConversations } from '../chat/useConversations'
 import type { Project } from './api'
 import type { ConversationTarget } from '../chat/types'
@@ -33,7 +33,7 @@ export function ProjectGroup({ project, activeId, selected, disabled, version, o
     </div>
     {sessions.error && <Alert type="error" title={sessions.error} action={<Button onClick={refresh}>重试</Button>} />}
     {sessions.loading && !sessions.items.length && <Spin size="small" />}
-    <div className="project-conversations">{items.map(item => <button key={item.id} className={`project-conversation ${item.id === activeId ? 'active' : ''}`} disabled={disabled} onClick={() => onConversationSelect(item.id)} title={item.title}>{item.title}</button>)}
+    <div className="project-conversations">{items.map(item => <button key={item.id} className={`project-conversation ${item.id === activeId ? 'active' : ''}`} disabled={disabled} onClick={() => onConversationSelect(item.id)} title={item.title}><MessageOutlined className="session-icon" aria-hidden="true" /><span className="project-conversation-text">{item.title}</span></button>)}
       {sessions.items.length < sessions.total && <Button type="text" loading={sessions.loading} onClick={sessions.loadMore}>加载更多对话</Button>}
     </div>
   </section>

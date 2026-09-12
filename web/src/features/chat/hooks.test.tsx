@@ -152,6 +152,35 @@ describe('chat refresh stability', () => {
     assert.deepEqual(result.current.turns, [])
   })
 
+  it('refreshes the list and patches the title as soon as the first start frame arrives', async () => {
+    let titleRequests = 0
+    let releaseTitle!: (value: Response) => void
+    globalThis.fetch = (async url => {
+      const path = String(url)
+      if (path.endsWith('/sse')) {
+        return new Response(new ReadableStream({ start(controller) {
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: 'new-conv', flag: 'start' } } })}\n\n`))
+          controller.close()
+        } }), { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+      if (path.endsWith('/title/wait')) {
+        titleRequests++
+        return new Promise<Response>(resolve => { releaseTitle = resolve })
+      }
+      return response({ id: 'new-conv', title: '新对话', turn_count: 0 })
+    }) as typeof fetch
+    let refreshes = 0
+    const titles: string[] = []
+    const { result } = renderHook(() => useChat(async () => { refreshes++ }, title => titles.push(title.title)))
+    await act(async () => { await result.current.send('新会话') })
+    assert.equal(result.current.error, '')
+    await waitFor(() => assert.equal(refreshes, 1))
+    await waitFor(() => assert.equal(titleRequests, 1))
+    await act(async () => { releaseTitle(response({ id: 'new-conv', title: '自动标题' })); await new Promise(resolve => setTimeout(resolve, 0)) })
+    assert.deepEqual(titles, ['自动标题'])
+    assert.equal(result.current.conversation?.title, '自动标题')
+  })
+
   it('quiet refresh and title patch retain the list without loading or empty frames', async () => {
     let release!: (value: Response) => void
     let delayed = false

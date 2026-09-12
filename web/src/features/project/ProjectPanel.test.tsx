@@ -44,11 +44,12 @@ it('shows multiple project folders with nested conversations and active highligh
   }) as typeof fetch
   const view = render(<App><ProjectPanel disabled={false} activeId="c1" selected={projects[0]} onSelect={() => {}} onConversationSelect={(project, id) => { selected = `${project.id}:${id}` }} /></App>)
   await waitFor(() => assert.ok(view.getByText('重构优化并删除 galleries')))
-  const active = view.getByText('完善中英文项目文档')
+  // 会话行现在带前置图标，标题文本单独成行，高亮类在按钮上。
+  const active = view.getByRole('button', { name: '完善中英文项目文档' })
   assert.ok(active.classList.contains('active'))
   assert.ok(view.getByRole('region', { name: '项目 kaguya' }).contains(active))
-  assert.ok(view.getByRole('region', { name: '项目 blog' }).contains(view.getByText('增加文章标题和标签')))
-  fireEvent.click(view.getByText('增加文章标题和标签'))
+  assert.ok(view.getByRole('region', { name: '项目 blog' }).contains(view.getByRole('button', { name: '增加文章标题和标签' })))
+  fireEvent.click(view.getByRole('button', { name: '增加文章标题和标签' }))
   assert.equal(selected, 'p2:c2')
   assert.equal(view.queryByText('/root/kaguya'), null)
 })

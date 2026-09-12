@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, type RefObject } from 'react'
 import type { useChat } from './useChat'
 import type { ConversationTitle } from './types'
 
+// onCompleted 在首轮 start 帧与每轮 done 后触发，用于刷新会话列表与项目树。
 export type Callbacks = { onCompleted: () => Promise<void>; onTitleUpdated: (title: ConversationTitle) => void }
 export const ChatContext = createContext<{ chat: ReturnType<typeof useChat>; callbacks: RefObject<Callbacks | undefined> } | undefined>(undefined)
 

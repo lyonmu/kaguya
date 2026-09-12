@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchConversation, fetchTurnPage, streamChat, HISTORY_PAGE_SIZE } from './api'
 import { applyFrame } from './reducer'
-import { syncCompletedConversation } from './completion'
+import { syncCompletedConversation, syncStartedConversation } from './completion'
 import type { Conversation, ConversationTitle, Turn } from './types'
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : '请求失败，请重试'
@@ -19,6 +19,7 @@ interface Session {
   stream?: AbortController
   request?: AbortController
   completion?: AbortController
+  title?: AbortController
   projectId?: string
   draft: string
   references: string[]
@@ -38,6 +39,13 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
   const callbacks = useRef({ onCompleted, onTitleUpdated })
   callbacks.current = { onCompleted, onTitleUpdated }
   const notify = () => { if (mounted.current) render(value => value + 1) }
+  // 会话详情的唯一更新入口：不倒退轮次数，也不让后到的默认标题覆盖已生成标题。
+  const applyDetail = (session: Session, detail: Conversation) => {
+    const current = session.conversation
+    if (current && current.turn_count > detail.turn_count) return
+    session.conversation = current?.title && current.title !== '新对话' && detail.title === '新对话' ? { ...detail, title: current.title } : detail
+    notify()
+  }
 
   useEffect(() => {
     mounted.current = true
@@ -48,6 +56,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         session.request?.abort()
         session.stream?.abort()
         session.completion?.abort()
+        session.title?.abort()
       })
     }
   }, [])
@@ -154,6 +163,24 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       await streamChat(session.id, text.trim(), controller.signal, frame => {
         if (controller.signal.aborted) return
         if (frame.chat.id) session.id = frame.chat.id
+        if (frame.chat.flag === 'start' && !session.conversation) {
+          // 后端在首轮正文开始生成前已创建会话并启动标题任务：立即刷新列表，
+          // 同时异步等待标题更新，不必等整轮完成。后端任务失败时保留“新对话”。
+          void callbacks.current.onCompleted()
+          const titleController = new AbortController()
+          session.title?.abort()
+          session.title = titleController
+          void syncStartedConversation(session.id, titleController.signal, {
+            onDetail: detail => applyDetail(session, detail),
+            onTitle: title => {
+              if (session.conversation) session.conversation = { ...session.conversation, title: title.title }
+              callbacks.current.onTitleUpdated(title)
+              notify()
+            },
+          }).catch(() => {
+            // 标题是辅助信息；done 后的 syncCompletedConversation 会再兜底一次。
+          }).finally(() => { if (session.title === titleController) session.title = undefined })
+        }
         turn = applyFrame(turn!, frame)
         session.turns = [...session.turns.slice(0, -1), turn]
         completed = frame.chat.flag === 'done'
@@ -173,13 +200,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         const completion = new AbortController()
         session.completion = completion
         void syncCompletedConversation(session.id, completion.signal, {
-          onDetail: detail => {
-            const current = session.conversation
-            if (!current || current.turn_count <= detail.turn_count) {
-              session.conversation = current?.title && current.title !== '新对话' && detail.title === '新对话' ? { ...detail, title: current.title } : detail
-              notify()
-            }
-          },
+          onDetail: detail => applyDetail(session, detail),
           onCompleted: () => callbacks.current.onCompleted(),
           onTitle: title => {
             if (session.conversation) session.conversation = { ...session.conversation, title: title.title }
@@ -206,8 +227,8 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     // Unsaved and failed new conversations must remain reachable, even before the start frame.
     localSessions: [...sessions.current.values()].filter(item => item.turns.length > 0 || item.draft.trim() || item.references.length).map(item => ({ key: item.key, id: item.id, title: item.conversation?.title || item.turns[0]?.user_content || item.draft || item.references[0], streaming: item.streaming, draft: !item.turns.length, projectId: item.projectId })),
     select, goToPage, send,
-    forget: () => { const item = selected.current; if (!item.streaming) { item.completion?.abort(); sessions.current.delete(item.key) } },
-    cancelTitleWait: () => selected.current.completion?.abort(),
+    forget: () => { const item = selected.current; if (!item.streaming) { item.completion?.abort(); item.title?.abort(); sessions.current.delete(item.key) } },
+    cancelTitleWait: () => { selected.current.completion?.abort(); selected.current.title?.abort() },
     stop: () => selected.current.stream?.abort(),
   }
 }

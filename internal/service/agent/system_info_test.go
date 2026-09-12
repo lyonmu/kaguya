@@ -21,12 +21,14 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 	type upstreamRequest struct {
 		Agent    string
 		Model    string
+		Stream   bool
 		Messages []struct {
 			Role    string `json:"role"`
 			Content string `json:"content"`
 		} `json:"messages"`
 	}
 	requests := make(chan upstreamRequest, 4)
+	titles := make(chan upstreamRequest, 4)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Model    string `json:"model"`
@@ -39,7 +41,12 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
-		requests <- upstreamRequest{Agent: r.Header.Get("User-Agent"), Model: body.Model, Messages: body.Messages}
+		req := upstreamRequest{Agent: r.Header.Get("User-Agent"), Model: body.Model, Stream: body.Stream, Messages: body.Messages}
+		if body.Stream {
+			requests <- req
+		} else {
+			titles <- req
+		}
 		if body.Stream {
 			w.Header().Set("Content-Type", "text/event-stream")
 			fmt.Fprint(w, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"answer\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
@@ -136,7 +143,7 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 		select {
-		case req := <-requests:
+		case req := <-titles:
 			if req.Agent != config.UserAgent || req.Model != wantModel {
 				t.Fatalf("title request=%+v", req)
 			}

@@ -21,16 +21,21 @@ type TokenUsageComposition struct {
 	CachedTokens    int64  `json:"cached_tokens"`
 	TotalTokens     int64  `json:"total_tokens"`
 }
+
+// TokenUsageResp 的 Start/End、TotalTokens、Conversations、Peak* 只统计请求时间段；
+// ActivityStart/ActivityEnd、Days 固定为最近一年；Models/Providers 固定统计全部历史。
 type TokenUsageResp struct {
-	Start                 string                  `json:"start"`
-	End                   string                  `json:"end"`
-	TotalTokens           int64                   `json:"total_tokens"`
-	Conversations         int64                   `json:"conversations"`
-	PeakTokens            int64                   `json:"peak_tokens"`
-	PeakTokensDate        string                  `json:"peak_tokens_date"`
-	PeakConversations     int64                   `json:"peak_conversations"`
-	PeakConversationsDate string                  `json:"peak_conversations_date"`
-	Days                  []TokenUsageDay         `json:"days"`
-	Models                []TokenUsageComposition `json:"models"`
-	Providers             []TokenUsageComposition `json:"providers"`
+	Start                 string                  `json:"start"`                   // 请求时间段起点（UTC 自然日）
+	End                   string                  `json:"end"`                     // 请求时间段终点（UTC 自然日）
+	ActivityStart         string                  `json:"activity_start"`          // 活动日历起点，固定为一年零一天前的 UTC 自然日
+	ActivityEnd           string                  `json:"activity_end"`            // 活动日历终点，固定为今天 UTC 自然日
+	TotalTokens           int64                   `json:"total_tokens"`            // 请求时间段内累计 Token
+	Conversations         int64                   `json:"conversations"`           // 请求时间段内活跃会话（去重）
+	PeakTokens            int64                   `json:"peak_tokens"`             // 请求时间段内单日 Token 峰值
+	PeakTokensDate        string                  `json:"peak_tokens_date"`        // 单日 Token 峰值所在 UTC 自然日
+	PeakConversations     int64                   `json:"peak_conversations"`      // 请求时间段内单日会话峰值
+	PeakConversationsDate string                  `json:"peak_conversations_date"` // 单日会话峰值所在 UTC 自然日
+	Days                  []TokenUsageDay         `json:"days"`                    // 最近一年每日活动（UTC 自然日，已补零），不随请求时间段变化
+	Models                []TokenUsageComposition `json:"models"`                  // 全部历史按模型聚合，用量倒序最多 10 项
+	Providers             []TokenUsageComposition `json:"providers"`               // 全部历史按厂商聚合，用量倒序最多 10 项
 }

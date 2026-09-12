@@ -101,14 +101,24 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	}
 	defer releaseSlot(chatSlots)
 
-	history, version, err := loadConversation(ctx, convID)
+	row, history, err := loadConversationRow(ctx, convID)
 	if err != nil {
 		global.Logger.Sugar().Errorf("load conversation failed: %v", err)
 		pushChatError(ctx, dataChan, convID, err)
 		return
 	}
-	// 续聊的工作区来自数据库中的项目归属，不接受请求覆盖。
-	toolset, err := s.projectTools(ctx, convID, req.ProjectID, version)
+	version := int64(0)
+	// 续聊的工作区来自数据库中的项目归属，不接受请求覆盖；
+	// 首次失败后留下但尚无轮次的会话同样以数据库记录为准。
+	projectID := req.ProjectID
+	if row != nil {
+		version = row.TurnCount
+		projectID = ""
+		if row.ProjectID != nil {
+			projectID = *row.ProjectID
+		}
+	}
+	toolset, err := s.projectTools(ctx, convID, projectID, version)
 	if err != nil {
 		global.Logger.Sugar().Warnf("prepare project tools failed: conversation_id=%s err=%v", convID, err)
 		pushChatError(ctx, dataChan, convID, err)
@@ -116,6 +126,17 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	}
 	if toolset != nil {
 		defer closeToolset(toolset)
+	}
+
+	// 首轮在正文开始生成前立即落库，新会话无需等待完成就出现在列表中；
+	// 标题只用用户提问并发生成并异步更新，失败或取消的轮次留下空会话。
+	if row == nil {
+		if err := createConversation(ctx, target, convID, projectID, time.Now()); err != nil {
+			global.Logger.Sugar().Errorf("create conversation failed: id=%s err=%v", convID, err)
+			pushChatError(ctx, dataChan, convID, err)
+			return
+		}
+		startEarlyTitleTask(ctx, convID, req.Messages)
 	}
 
 	prompt, err := prepareChatPrompt(ctx, target, toolset, convID, req)

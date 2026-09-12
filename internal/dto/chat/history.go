@@ -40,7 +40,7 @@ type ConversationResp struct {
 	IsProject     bool      `json:"is_project"` // 根据 project_id 是否为空派生，不单独存储
 	ProjectID     *string   `json:"project_id"`
 	ID            string    `json:"id"`
-	Title         string    `json:"title"` // AI 标题最多20字符；每轮 done 后仍为“新对话”时，由前端 POST title/wait 使用全局任务模型生成或重试
+	Title         string    `json:"title"` // AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试
 	Favorite      bool      `json:"favorite"`
 	TurnCount     int64     `json:"turn_count"`
 	ModelID       string    `json:"model_id"`
