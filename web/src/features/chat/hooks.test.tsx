@@ -2,7 +2,7 @@
 import { after, afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Window } from 'happy-dom'
-import { useChat } from './useChat'
+import { setConfirmRunningTurnDelay, useChat } from './useChat'
 import { useConversations } from './useConversations'
 
 const dom = new Window({ url: 'http://localhost' })
@@ -346,4 +346,115 @@ describe('independent conversation streams', () => {
   assert.equal(result.current.turns.length, 1)
   assert.equal(result.current.turns[0].turn_index, 1)
   assert.equal(result.current.turns[0].user_content, 'retry')
+})
+
+describe('stop and delayed confirmation races', () => {
+  // 停止通知延迟到达时，只能中止点击瞬间的那一轮，不能取消用户随后开始的新轮次。
+  it('stops only the turn captured at click time', async () => {
+    // 停止请求挂在网络上：800ms 兜底先 abort 第一轮，随后第二轮开始，最后停止请求才返回；
+    // 实现若在 finally 读取可变的 session.stream 就会误杀第二轮。
+    const encoder = new TextEncoder()
+    const frame = (flag: string) => encoder.encode(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: '123', flag }, usage: { total_tokens: 0 } } })}\n\n`)
+    const streams: Array<{ signal: AbortSignal; finish: () => void }> = []
+    let releaseStop!: () => void
+    const stopResponse = new Promise<Response>(resolve => { releaseStop = () => resolve(response(null)) })
+    globalThis.fetch = (async (url, init) => {
+      const path = String(url)
+      if (path.endsWith('/sse')) {
+        const signal = init!.signal as AbortSignal
+        return new Response(new ReadableStream({ start(controller) {
+          let finished = false
+          streams.push({ signal, finish() {
+            if (finished) return
+            finished = true
+            try { controller.enqueue(frame('done')) } catch { /* aborted */ }
+            queueMicrotask(() => { try { controller.close() } catch { /* closed */ } })
+          } })
+          controller.enqueue(frame('start'))
+          signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')))
+        } }), { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+      if (path.endsWith('/stop')) return stopResponse
+      return response({ ...detail, id: '123', title: '已有标题', turn_count: 1 })
+    }) as typeof fetch
+
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    let first!: Promise<void>
+    act(() => { first = result.current.send('第一轮') })
+    await waitFor(() => assert.equal(result.current.id, '123'))
+    const firstStream = streams[0]
+    assert.ok(firstStream)
+
+    act(() => { result.current.stop() })
+    // 停止请求未返回：800ms 兜底 abort 第一轮。
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 900)) })
+    assert.equal(firstStream.signal.aborted, true)
+
+    // 第一轮结束（断联路径）后开始第二轮。
+    firstStream.finish()
+    await act(async () => { await first })
+    let second!: Promise<void>
+    act(() => { second = result.current.send('第二轮') })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    const secondStream = streams[1]
+    assert.ok(secondStream)
+    assert.notEqual(firstStream.signal, secondStream.signal)
+
+    // 旧停止响应到达：不能 abort 第二轮。
+    await act(async () => { releaseStop(); await new Promise(resolve => setTimeout(resolve, 20)) })
+    assert.equal(secondStream.signal.aborted, false)
+
+    // 收尾。
+    secondStream.finish()
+    await act(async () => { await second })
+  })
+
+  // 等待确认期间发生的新操作必须使旧确认失效，不能整体覆盖新的轮次列表。
+  it('ignores a delayed reconciliation after a new turn starts', async () => {
+    setConfirmRunningTurnDelay(10)
+    after(() => { setConfirmRunningTurnDelay(3000) })
+    const encoder = new TextEncoder()
+    const frame = (flag: string) => encoder.encode(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: '123', flag }, usage: { total_tokens: 0 } } })}\n\n`)
+    const running = { ...turn, status: 'running' }
+    const stale = { ...turn, status: 'interrupted', user_content: '旧确认结果' }
+
+    let delayConfirm = false
+    let confirmRequests = 0
+    let releaseConfirm!: (value: Response) => void
+    globalThis.fetch = (async (url, init) => {
+      const parsed = new URL(String(url), 'http://localhost')
+      if (parsed.pathname.endsWith('/sse')) {
+        const signal = init!.signal as AbortSignal
+        return new Response(new ReadableStream({ start(controller) {
+          controller.enqueue(frame('done'))
+          queueMicrotask(() => controller.close())
+          signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')))
+        } }), { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+      if (parsed.pathname.endsWith('/turns')) {
+        if (delayConfirm) {
+          delayConfirm = false
+          confirmRequests++
+          return new Promise<Response>(resolve => { releaseConfirm = resolve })
+        }
+        return response({ items: [{ ...running }], page: 1, total: 1, total_pages: 1, page_size: 5 })
+      }
+      return response({ ...detail, turn_count: 1 })
+    }) as typeof fetch
+
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    // 首轮完成后才开始延迟确认的请求。
+    delayConfirm = true
+    await waitFor(() => assert.equal(confirmRequests, 1))
+
+    // 确认在途时用户发送新一轮：发送会提升操作版本。
+    await act(async () => { await result.current.send('新一轮') })
+    assert.ok(result.current.turns.some(item => item.user_content === '新一轮'))
+
+    // 迟到的确认响应必须被丢弃，不能整体覆盖发送后的列表。
+    await act(async () => { releaseConfirm(response({ items: [stale], page: 1, total: 1, total_pages: 1, page_size: 5 })); await new Promise(resolve => setTimeout(resolve, 20)) })
+    assert.ok(result.current.turns.some(item => item.user_content === '新一轮'))
+    assert.ok(!result.current.turns.some(item => item.user_content === '旧确认结果'))
+  })
 })

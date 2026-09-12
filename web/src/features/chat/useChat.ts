@@ -6,6 +6,12 @@ import { isPersistedStatus, isRunningStatus } from './status'
 import type { Conversation, ConversationTitle, Turn } from './types'
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : '请求失败，请重试'
+// confirmRunningTurnDelay 是断网/休眠后确认终态的延迟；测试可缩短以避免真实等待。
+let confirmRunningTurnDelay = 3000
+
+// setConfirmRunningTurnDelay 仅用于测试覆盖确认延迟。
+export const setConfirmRunningTurnDelay = (value: number) => { confirmRunningTurnDelay = value }
+
 interface Session {
   key: string
   id: string
@@ -21,13 +27,17 @@ interface Session {
   request?: AbortController
   completion?: AbortController
   title?: AbortController
+  confirm?: AbortController
+  // opVersion 标识会话当前的持久化操作（发送/切页/重载/删除）；延迟确认只在
+  // 版本未变化且会话仍注册时应用，避免覆盖更新的轮次或分页。
+  opVersion: number
   projectId?: string
   draft: string
   references: string[]
   modelId: string
 }
 let nextKey = 0
-const createSession = (id = ''): Session => ({ key: `session-${++nextKey}`, id, draft: '', references: [], modelId: '', turns: [], page: 1, totalPages: 0, initialEnd: true, loading: false, streaming: false, error: '' })
+const createSession = (id = ''): Session => ({ key: `session-${++nextKey}`, id, draft: '', references: [], modelId: '', turns: [], page: 1, totalPages: 0, initialEnd: true, loading: false, streaming: false, error: '', opVersion: 0 })
 
 // Each stream owns its session object. Navigation only changes which object is displayed.
 export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title: ConversationTitle) => void) {
@@ -50,19 +60,28 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
 
   // 断网/休眠后服务端可能稍晚才察觉断开：延迟确认一次，避免历史停留在“生成中”。
   const confirmRunningTurn = async (session: Session, index: number) => {
-    await new Promise(resolve => setTimeout(resolve, 3000))
-    if (!mounted.current) return
+    session.confirm?.abort()
+    const controller = new AbortController()
+    session.confirm = controller
+    const version = session.opVersion
     try {
-      const history = await fetchTurnPage(session.id, 1000000)
+      await new Promise(resolve => setTimeout(resolve, confirmRunningTurnDelay))
+      if (!mounted.current || controller.signal.aborted) return
+      const history = await fetchTurnPage(session.id, 1, controller.signal)
+      // 等待期间用户可能发送新轮次、切页、重载或删除会话：旧响应不得整体覆盖
+      // 当前状态，只在会话仍注册、版本未变化且有新 stream 时丢弃。
+      if (!mounted.current || controller.signal.aborted) return
+      if (!sessions.current.has(session.key) || session.streaming || session.opVersion !== version) return
       const persisted = history.items?.find(item => item.turn_index === index)
       if (persisted && !isRunningStatus(persisted.status)) {
-        session.turns = history.items ?? []
-        session.page = history.page
-        session.totalPages = history.total_pages
+        // 只替换被确认的这一轮终态；分页、草稿与其它轮次保持当前状态。
+        session.turns = session.turns.map(item => item.turn_index === index ? persisted : item)
         notify()
       }
     } catch {
       // 网络仍不可用：保留本地状态，用户可手动重新加载历史。
+    } finally {
+      if (session.confirm === controller) session.confirm = undefined
     }
   }
 
@@ -76,6 +95,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         session.stream?.abort()
         session.completion?.abort()
         session.title?.abort()
+        session.confirm?.abort()
       })
     }
   }, [])
@@ -97,6 +117,9 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     if (session.streaming || (session !== previous && session.turns.length > 0)) { notify(); return }
     session.error = ''
     if (!session.id) { notify(); return }
+    // 重载会使等待中的延迟确认失效，避免旧响应覆盖刚拉取的历史。
+    session.opVersion++
+    session.confirm?.abort()
     const controller = new AbortController()
     session.request = controller
     session.loading = true
@@ -112,8 +135,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       session.initialEnd = true
       // 断联轮次在服务端被标记后可能短暂显示为 running，短延迟后确认终态。
       const running = session.turns.find(item => isRunningStatus(item.status))
-      if (running) void confirmRunningTurn(session, running.turn_index)
-    } catch (error) {
+      if (running) void confirmRunningTurn(session, running.turn_index)    } catch (error) {
       if (!controller.signal.aborted) session.error = errorText(error)
     } finally {
       if (session.request === controller) { session.request = undefined; session.loading = false }
@@ -124,6 +146,9 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
   const goToPage = async (page: number, fromEnd = false) => {
     const session = selected.current
     if (session.streaming || session.request || !session.id || page === session.page || page < 1 || page > session.totalPages) return
+    // 新的用户操作使已排定的延迟确认失效，避免旧响应覆盖刚拉取的分页。
+    session.opVersion++
+    session.confirm?.abort()
     const controller = new AbortController()
     session.request = controller
     session.loading = true
@@ -148,6 +173,9 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
   const send = async (text: string, modelId?: string, projectId?: string) => {
     const session = selected.current
     if (!text.trim() || session.stream || session.request) return
+    // 发送会使等待中的延迟确认失效，避免其响应覆盖新轮次。
+    session.opVersion++
+    session.confirm?.abort()
     const files = [...session.references]
     session.references = []
     const controller = new AbortController()
@@ -173,7 +201,8 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         if (selected.current === session) setViewKey(value => value + 1)
       }
       session.loading = false
-      // Failed/cancelled turns are not part of persisted history or the next turn index.
+      // 失败/取消轮次也持久化并占用轮次索引，但不进入模型上下文；
+      // 这里只保留已终态或进行中的轮次，丢弃本地临时失败项。
       session.turns = session.turns.filter(item => isPersistedStatus(item.status))
       turn = {
         turn_index: Math.max(session.conversation?.turn_count ?? 0, session.turns.at(-1)?.turn_index ?? 0) + 1,
@@ -252,18 +281,34 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     // Unsaved and failed new conversations must remain reachable, even before the start frame.
     localSessions: [...sessions.current.values()].filter(item => item.turns.length > 0 || item.draft.trim() || item.references.length).map(item => ({ key: item.key, id: item.id, title: item.conversation?.title || item.turns[0]?.user_content || item.draft || item.references[0], streaming: item.streaming, draft: !item.turns.length, projectId: item.projectId })),
     select, goToPage, send,
-    forget: () => { const item = selected.current; if (!item.streaming) { item.completion?.abort(); item.title?.abort(); sessions.current.delete(item.key) } },
+    forget: () => {
+      const item = selected.current
+      if (item.streaming) return
+      item.opVersion++
+      item.confirm?.abort()
+      item.completion?.abort()
+      item.title?.abort()
+      sessions.current.delete(item.key)
+    },
     cancelTitleWait: () => { selected.current.completion?.abort(); selected.current.title?.abort() },
     stop: () => {
       const item = selected.current
+      // 点击时立即捕获本轮 controller 与身份；等待停止通知期间用户可能已开始下一轮，
+      // finally 里不得读取可变的 session.stream，否则会 abort 新轮次。
+      const stream = item.stream
+      const stoppedSession = item
+      if (!stream || stream.signal.aborted) return
       if (item.id) {
         // 先让服务端记录用户主动停止，再断开连接：落库才能区分 canceled 与断联。
         // 网络不可用时最多等 800ms，停止按钮仍要即时生效。
         const notifyStop = stopConversation(item.id).catch(() => {})
         const timer = new Promise(resolve => setTimeout(resolve, 800))
-        void Promise.race([notifyStop, timer]).finally(() => item.stream?.abort())
+        void Promise.race([notifyStop, timer]).finally(() => {
+          // 只中止捕获到的本轮连接；新一轮有自己的 controller。
+          if (stoppedSession.stream === stream) stream.abort()
+        })
       } else {
-        item.stream?.abort()
+        stream.abort()
       }
     },
   }
