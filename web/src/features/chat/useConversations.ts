@@ -16,6 +16,37 @@ export function useConversations(projectId?: string) {
   const titleUpdates = useRef(new Map<string, string>())
   const refresh = useCallback(() => setVersion(value => value + 1), [])
 
+  // 同一筛选条件的页请求必须复用同一个信号与函数，刷新不得放大成大量并发请求。
+  const fetchPage = useCallback((value: number, signal: AbortSignal) =>
+    fetchConversations(keyword, favorite, value, signal, projectId), [keyword, favorite, projectId])
+
+  // 刷新只并发拉取有限页：第一页给出最新列表与总数，再补上用户已看到的末尾页；
+  // 中间页保持原数据，避免 30 页触发 30 个并发请求。
+  const REFRESH_HEAD_PAGES = 2
+  const REFRESH_TAIL_PAGES = 2
+  const REFRESH_CONCURRENCY = 4
+  const loadPages = useCallback(async (signal: AbortSignal) => {
+    const loaded = page.current
+    // 刷新只重取第一页与用户已看到的末尾页；中间页保留，翻页时自然更新。
+    const pages = loaded <= REFRESH_HEAD_PAGES
+      ? Array.from({ length: loaded }, (_, index) => index + 1)
+      : [...Array.from({ length: REFRESH_HEAD_PAGES }, (_, index) => index + 1), ...Array.from({ length: Math.min(REFRESH_TAIL_PAGES, loaded - REFRESH_HEAD_PAGES) }, (_, index) => loaded - REFRESH_TAIL_PAGES + index + 1)]
+    const results: Array<Awaited<ReturnType<typeof fetchPage>> | undefined> = new Array(pages.length)
+    let cursor = 0
+    const worker = async () => {
+      while (!signal.aborted) {
+        const index = cursor++
+        if (index >= pages.length) return
+        results[index] = await fetchPage(pages[index], signal)
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(REFRESH_CONCURRENCY, pages.length) }, worker))
+    if (signal.aborted) return []
+    const first = results.find(result => result !== undefined)
+    if (first) setTotal(first.total)
+    return results.flatMap(result => result?.items ?? [])
+  }, [fetchPage])
+
   const load = useCallback(async (foreground: boolean, append = false) => {
     if (append && busy.current) return
     busy.current = true
@@ -28,14 +59,13 @@ export function useConversations(projectId?: string) {
     if (foreground) setLoading(true)
     setError('')
     try {
-      const nextPage = append ? page.current + 1 : page.current
-      const results = await Promise.all((append ? [nextPage] : Array.from({ length: nextPage }, (_, index) => index + 1))
-        .map(value => fetchConversations(keyword, favorite, value, controller.signal, projectId)))
+      const loaded = append
+        ? (await fetchPage(page.current + 1, controller.signal))?.items ?? []
+        : await loadPages(controller.signal)
       if (controller.signal.aborted) return
-      const loaded = results.flatMap(result => result.items ?? []).map(item => patches.has(item.id) ? { ...item, title: patches.get(item.id)! } : item)
-      setItems(current => [...new Map((append ? [...current, ...loaded] : loaded).map(item => [item.id, item])).values()])
-      page.current = nextPage
-      setTotal(results[0].total)
+      const patched = loaded.map(item => patches.has(item.id) ? { ...item, title: patches.get(item.id)! } : item)
+      setItems(current => [...new Map((append ? [...current, ...patched] : patched).map(item => [item.id, item])).values()])
+      if (append) page.current += 1
     } catch (error) {
       if (!controller.signal.aborted) setError(error instanceof Error ? error.message : '加载会话失败')
     } finally {

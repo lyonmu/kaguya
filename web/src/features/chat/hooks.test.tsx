@@ -458,3 +458,43 @@ describe('stop and delayed confirmation races', () => {
     assert.ok(!result.current.turns.some(item => item.user_content === '旧确认结果'))
   })
 })
+
+describe('conversation list refresh cost', () => {
+  // 刷新不能按已加载页数放大请求：30 页后的刷新必须限制总请求数与并发。
+  it('bounds request count and concurrency when refreshing many loaded pages', async () => {
+    const requested: number[] = []
+    let inFlight = 0
+    let peak = 0
+    globalThis.fetch = (async url => {
+      const page = Number(new URL(String(url), 'http://localhost').searchParams.get('page'))
+      requested.push(page)
+      inFlight++
+      peak = Math.max(peak, inFlight)
+      await new Promise(resolve => setTimeout(resolve, 5))
+      inFlight--
+      const item = { ...detail, id: `conv-${page}`, turn_count: 1 }
+      return response({ items: [item], total: 600, page, page_size: 20 })
+    }) as typeof fetch
+
+    const { result } = renderHook(() => useConversations())
+    await waitFor(() => assert.equal(result.current.items.length, 1))
+    // 模拟用户连续加载到第 30 页；等待每一页真正落地。
+    for (let page = 2; page <= 30; page++) {
+      await act(async () => { result.current.loadMore() })
+      await waitFor(() => assert.equal(result.current.items.length, page))
+    }
+
+    const before = requested.length
+    await act(async () => { result.current.refresh() })
+    await waitFor(() => assert.ok(requested.length > before))
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)) })
+    const refreshRequests = requested.slice(before)
+    assert.ok(refreshRequests.length <= 4, `refresh issued ${refreshRequests.length} requests`)
+    assert.ok(peak <= 4, `peak concurrency ${peak}`)
+    // 第一页与末尾页都在刷新范围内，保证最新列表与用户位置都更新。
+    assert.ok(refreshRequests.includes(1))
+    assert.ok(refreshRequests.includes(30))
+    assert.equal(result.current.items[0].id, 'conv-1')
+    assert.equal(result.current.items.at(-1)?.id, 'conv-30')
+  })
+})
