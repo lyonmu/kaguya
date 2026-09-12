@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	pkgid "github.com/lyonmu/gopkg/id"
+	"github.com/lyonmu/kaguya/internal/api/v1/chat"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
@@ -164,12 +166,15 @@ func Run() {
 		fmt.Print(info.TLS.CertificatePEM)
 		return
 	}
-	mcpCtx, cancelMCP := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// serviceCtx 随 SIGTERM/中断取消，传播到 HTTP 请求与 SSE 流；
+	// 关停时也要主动关闭已 hijack 的 WebSocket 连接。
+	serviceCtx, cancelService := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancelService()
 	restoreDone := make(chan struct{})
-	defer func() { cancelMCP(); <-restoreDone; agentmcp.Default.Close() }()
+	defer func() { cancelService(); <-restoreDone; agentmcp.Default.Close() }()
 	go func() {
 		defer close(restoreDone)
-		if err := (&servicesystem.SystemSvc{}).RestoreMCP(mcpCtx); err != nil && mcpCtx.Err() == nil {
+		if err := (&servicesystem.SystemSvc{}).RestoreMCP(serviceCtx); err != nil && serviceCtx.Err() == nil {
 			global.Logger.Error("restore MCP configuration failed")
 		}
 	}()
@@ -194,7 +199,8 @@ func Run() {
 	global.Logger.Sugar().Infof("kaguya is listening on https://%s (TLS 1.3 only)", address)
 	server := &http.Server{
 		Addr: address, Handler: ginEngine,
-		TLSConfig:         tlsConfig,
+		BaseContext: func(net.Listener) context.Context { return serviceCtx },
+		TLSConfig:   tlsConfig, ErrorLog: zap.NewStdLog(global.Logger),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       60 * time.Second,
@@ -204,19 +210,23 @@ func Run() {
 	serverDone := make(chan error, 1)
 	go func() { serverDone <- server.ListenAndServeTLS("", "") }()
 	select {
-	case <-mcpCtx.Done():
-		<-restoreDone
-		agentmcp.Default.Close()
+	case <-serviceCtx.Done():
+		// 关停顺序：先停止接纳新任务并取消连接与后台任务，等待终态落库，
+		// 最后关闭工作区资源和数据库，避免数据库关闭后仍有写入。
+		cancelService()
+		chat.CloseAllChatWS()
 		serviceagent.Shutdown()
-		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelShutdown()
 		if err := server.Shutdown(shutdownCtx); err != nil {
+			global.Logger.Warn("graceful HTTP shutdown timed out", zap.Error(err))
 			_ = server.Close()
 		}
-		// 等待进行中的轮次落库/退出，避免数据库关闭后继续写入。
-		waitCtx, cancelWait := context.WithTimeout(context.Background(), 5*time.Second)
+		// 最终落库预算覆盖 recorder 的单次 15 秒 flush 与终态标记。
+		waitCtx, cancelWait := context.WithTimeout(context.Background(), 25*time.Second)
 		if err := serviceagent.WaitActive(waitCtx); err != nil {
-			global.Logger.Warn("timed out waiting for active chat turns", zap.Error(err))
+			global.Logger.Warn("timed out waiting for active chat turns",
+				zap.Error(err), zap.Int64("pending", serviceagent.PendingWork()))
 		}
 		cancelWait()
 	case err := <-serverDone:

@@ -157,8 +157,15 @@ func resolveTitleConfig(ctx context.Context, client *ent.Client, conversationID 
 // client/logger/config 均在启动时捕获，不在后台重新读取可变全局状态。
 func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentruntime.ProviderConfig, question, answer string) <-chan conversationTitleResult {
 	result := make(chan conversationTitleResult, 1)
+	// 关停中不再启动新的后台任务。
+	finishWork, ok := startWork()
+	if !ok {
+		close(result)
+		return result
+	}
 	// 标题任务满员时直接跳过：下一轮成功结束后客户端会再次请求，不排队等待。
 	if !tryAcquire(titleSlots) {
+		finishWork()
 		close(result)
 		return result
 	}
@@ -167,6 +174,7 @@ func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentrun
 	if conversationTitles.pending[cfg.ConversationID] != nil {
 		conversationTitles.Unlock()
 		releaseSlot(titleSlots)
+		finishWork()
 		close(result)
 		return result
 	}
@@ -175,7 +183,7 @@ func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentrun
 	go func() {
 		defer close(result)
 		defer releaseSlot(titleSlots)
-		defer beginWork()()
+		defer finishWork()
 		defer func() {
 			conversationTitles.Lock()
 			if conversationTitles.pending[cfg.ConversationID] == done {

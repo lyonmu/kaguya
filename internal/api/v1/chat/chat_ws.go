@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/global"
@@ -17,6 +18,46 @@ import (
 // chatWSWriteTimeout 限制单帧写出时长，客户端长时间不读取时断开连接，
 // 避免写 goroutine 与生成轮次永久阻塞。
 const chatWSWriteTimeout = 30 * time.Second
+
+// chatWSRegistry 登记已建立的 WebSocket 连接。HTTP Server.Shutdown 不会关闭
+// 已 hijack 的连接，所以关停时必须由应用主动取消并关闭它们。
+var chatWSRegistry = struct {
+	sync.Mutex
+	stopping bool
+	conns    map[*websocket.Conn]struct{}
+}{conns: make(map[*websocket.Conn]struct{})}
+
+// acquireChatWS 登记一条连接；服务已进入关停流程时拒绝新连接。
+func acquireChatWS(conn *websocket.Conn) bool {
+	chatWSRegistry.Lock()
+	defer chatWSRegistry.Unlock()
+	if chatWSRegistry.stopping {
+		return false
+	}
+	chatWSRegistry.conns[conn] = struct{}{}
+	return true
+}
+
+func releaseChatWS(conn *websocket.Conn) {
+	chatWSRegistry.Lock()
+	delete(chatWSRegistry.conns, conn)
+	chatWSRegistry.Unlock()
+}
+
+// CloseAllChatWS 关闭全部 WebSocket 连接并拒绝后续连接。
+// 关闭连接会打断读循环，由 handler 自身完成取消与资源释放。
+func CloseAllChatWS() {
+	chatWSRegistry.Lock()
+	chatWSRegistry.stopping = true
+	conns := make([]*websocket.Conn, 0, len(chatWSRegistry.conns))
+	for conn := range chatWSRegistry.conns {
+		conns = append(conns, conn)
+	}
+	chatWSRegistry.Unlock()
+	for _, conn := range conns {
+		_ = conn.Close()
+	}
+}
 
 // ChatWS
 // @Tags      Chat
@@ -35,6 +76,11 @@ func (b *ChatApiV1Group) ChatWS(c *gin.Context) {
 
 	connCtx, cancelConn := context.WithCancel(c.Request.Context())
 	defer cancelConn()
+	// 关停流程开始后不再接受新连接；已建立连接由 CloseAllChatWS 主动关闭。
+	if !acquireChatWS(conn) {
+		return
+	}
+	defer releaseChatWS(conn)
 
 	var (
 		mu         sync.Mutex

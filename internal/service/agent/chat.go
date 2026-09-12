@@ -87,7 +87,14 @@ func flushTurn(recorder *turnRecorder) {
 // SSE 连接就是本轮的生命周期：断联只意味着停止本轮，不表示后台续跑。
 // 切换会话不会关闭流式连接，因此各会话的轮次继续执行到完成。
 func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, req *dtochat.ChatReq) {
-	defer beginWork()()
+	// 先登记工作再占用轮次槽位：关停中直接拒绝，不会在等待期间增加新工作量。
+	finishWork, ok := startWork()
+	if !ok {
+		defer close(dataChan)
+		pushChatError(ctx, dataChan, "", ErrServiceStopping)
+		return
+	}
+	defer finishWork()
 	defer close(dataChan)
 
 	target, err := resolveChatTarget(ctx, req.ModelID)

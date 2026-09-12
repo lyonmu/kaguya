@@ -71,20 +71,40 @@ func tryAcquire(slots chan struct{}) bool {
 
 func releaseSlot(slots chan struct{}) { <-slots }
 
-// activeWork 统计进行中的聊天轮次与标题任务；关停时等待其结束，避免数据库
-// 关闭后仍有写入。
-var activeWork sync.WaitGroup
-
-func beginWork() func() {
-	activeWork.Add(1)
-	return activeWork.Done
+// workLifecycle 统一管理聊天轮次与标题任务的准入、取消与等待。
+// stopping 置位后拒绝新任务；Wait 返回的条件是“停止接纳后所有已登记任务都已完成”。
+type workLifecycle struct {
+	mu       sync.Mutex
+	stopping bool
+	active   sync.WaitGroup
+	count    atomic.Int64
 }
 
-// WaitActive 等待进行中的工作结束或 ctx 超时。
-func WaitActive(ctx context.Context) error {
+func (w *workLifecycle) start() (finish func(), ok bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.stopping {
+		return nil, false
+	}
+	w.active.Add(1)
+	w.count.Add(1)
+	return func() { w.active.Done(); w.count.Add(-1) }, true
+}
+
+// pending 返回尚未结束的任务数量，仅供关停日志与测试观测。
+func (w *workLifecycle) pending() int64 { return w.count.Load() }
+
+func (w *workLifecycle) stop() {
+	w.mu.Lock()
+	w.stopping = true
+	w.mu.Unlock()
+}
+
+// wait 等待进行中的工作结束或 ctx 超时。
+func (w *workLifecycle) wait(ctx context.Context) error {
 	done := make(chan struct{})
 	go func() {
-		activeWork.Wait()
+		w.active.Wait()
 		close(done)
 	}()
 	select {
@@ -95,10 +115,30 @@ func WaitActive(ctx context.Context) error {
 	}
 }
 
+var activeWork workLifecycle
+
+// ErrServiceStopping 表示服务已进入关停流程，不再接受新的生成任务。
+var ErrServiceStopping = errors.New("service is shutting down")
+
+// startWork 登记一项工作；服务关停中时返回 false，调用方必须直接拒绝。
+func startWork() (finish func(), ok bool) { return activeWork.start() }
+
+// WaitActive 等待进行中的工作结束或 ctx 超时。
+func WaitActive(ctx context.Context) error { return activeWork.wait(ctx) }
+
+// PendingWork 返回尚未结束的聊天/标题任务数量，用于关停超时的可观测性。
+func PendingWork() int64 { return activeWork.pending() }
+
 var (
 	shutdownOnce               sync.Once
 	titleTaskCtx, endTitleTask = context.WithCancel(context.Background())
 )
 
-// Shutdown 取消后台标题任务；聊天轮次由各自的请求 context 控制。
-func Shutdown() { shutdownOnce.Do(endTitleTask) }
+// Shutdown 停止接纳新任务并取消后台标题任务；聊天轮次由各自的请求 context 控制。
+// 调用后必须用 WaitActive 等待已登记任务落库，再关闭数据库连接。
+func Shutdown() {
+	shutdownOnce.Do(func() {
+		activeWork.stop()
+		endTitleTask()
+	})
+}
