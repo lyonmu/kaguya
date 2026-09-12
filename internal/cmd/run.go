@@ -14,7 +14,6 @@ import (
 	pkgid "github.com/lyonmu/gopkg/id"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/db"
-	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
 	initialize "github.com/lyonmu/kaguya/internal/init"
@@ -37,18 +36,13 @@ import (
 // @contact.email               lyonmu@foxmail.com
 // @host                        localhost:9024
 // @BasePath                    /kaguya/api
-// @schemes                     https
+// @schemes                     http
 
 func Run() {
 
 	var zapLogger *zap.Logger
 	var err error
-	if global.Cfg.PrepareTLS {
-		// stdout is a public PEM export; operational messages must go to stderr.
-		zapLogger, err = zap.NewProduction()
-	} else {
-		zapLogger, err = global.Cfg.LogInfo.NewLogger()
-	}
+	zapLogger, err = global.Cfg.LogInfo.NewLogger()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create logger: %v\n", err)
 		os.Exit(1)
@@ -99,21 +93,6 @@ func Run() {
 		os.Exit(1)
 	}
 
-	tlsCtx, cancelTLS := context.WithTimeout(context.Background(), 15*time.Second)
-	if global.Cfg.RenewTLS {
-		_, err := (&servicesystem.SystemSvc{}).TLSUpdate(tlsCtx, &dtosystem.TLSSaveReq{Generate: true, Hosts: append([]string{global.Cfg.Host}, global.Cfg.TrustedHosts...)})
-		if err != nil {
-			cancelTLS()
-			global.Logger.Error("renew TLS configuration failed")
-			os.Exit(1)
-		}
-	}
-	tlsConfig, tlsErr := (&servicesystem.SystemSvc{}).PrepareTLS(tlsCtx, append([]string{global.Cfg.Host}, global.Cfg.TrustedHosts...))
-	cancelTLS()
-	if tlsErr != nil {
-		global.Logger.Error("prepare TLS configuration failed", zap.Error(tlsErr))
-		os.Exit(1)
-	}
 	// API Key 静态加密必须在读取提供商配置前就绪；初始化失败（旧格式未迁移、
 	// 密钥材料不匹配）直接中止启动，避免用不可用密钥继续处理请求。
 	dbKey, keyErr := global.Cfg.DB.SQLCipherKeyBytes()
@@ -127,15 +106,6 @@ func Run() {
 	if secretErr != nil {
 		global.Logger.Error("initialize provider API key encryption failed", zap.Error(secretErr))
 		os.Exit(1)
-	}
-	if global.Cfg.PrepareTLS {
-		info, err := (&servicesystem.SystemSvc{}).Info(context.Background())
-		if err != nil {
-			global.Logger.Error("read public TLS certificate failed")
-			os.Exit(1)
-		}
-		fmt.Print(info.TLS.CertificatePEM)
-		return
 	}
 	// serviceCtx 随 SIGTERM/中断取消，传播到 HTTP 请求与 SSE 流。
 	serviceCtx, cancelService := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -166,11 +136,11 @@ func Run() {
 	router.InitRouter(ginEngine)
 
 	address := global.Cfg.ListenAddress()
-	global.Logger.Sugar().Infof("kaguya is listening on https://%s (TLS 1.3 only)", address)
+	global.Logger.Sugar().Infof("kaguya is listening on http://%s", address)
 	server := &http.Server{
 		Addr: address, Handler: ginEngine,
-		BaseContext: func(net.Listener) context.Context { return serviceCtx },
-		TLSConfig:   tlsConfig, ErrorLog: zap.NewStdLog(global.Logger),
+		BaseContext:       func(net.Listener) context.Context { return serviceCtx },
+		ErrorLog:          zap.NewStdLog(global.Logger),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       60 * time.Second,
@@ -178,7 +148,7 @@ func Run() {
 		// Streaming chats must not inherit a short HTTP write timeout.
 	}
 	serverDone := make(chan error, 1)
-	go func() { serverDone <- server.ListenAndServeTLS("", "") }()
+	go func() { serverDone <- server.ListenAndServe() }()
 	select {
 	case <-serviceCtx.Done():
 		// 关停顺序：先停止接纳新任务并取消连接与后台任务，等待终态落库，

@@ -15,6 +15,5 @@ type SystemInfoSaveReq struct {
 
 type SystemInfoResp struct {
 	SystemInfoSaveReq
-	TLS                TLSInfoResp `json:"tls"`
-	GlobalSystemPrompt string      `json:"global_system_prompt"` // 只读基础人设，与自定义提示词拼接后用于聊天
+	GlobalSystemPrompt string `json:"global_system_prompt"` // 只读基础人设，与自定义提示词拼接后用于聊天
 }

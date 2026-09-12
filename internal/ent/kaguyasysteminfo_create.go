@@ -93,34 +93,6 @@ func (_c *KaguyaSystemInfoCreate) SetNillableContextCompactionPercent(v *int) *K
 	return _c
 }
 
-// SetTLSCertificatePem sets the "tls_certificate_pem" field.
-func (_c *KaguyaSystemInfoCreate) SetTLSCertificatePem(v string) *KaguyaSystemInfoCreate {
-	_c.mutation.SetTLSCertificatePem(v)
-	return _c
-}
-
-// SetNillableTLSCertificatePem sets the "tls_certificate_pem" field if the given value is not nil.
-func (_c *KaguyaSystemInfoCreate) SetNillableTLSCertificatePem(v *string) *KaguyaSystemInfoCreate {
-	if v != nil {
-		_c.SetTLSCertificatePem(*v)
-	}
-	return _c
-}
-
-// SetTLSPrivateKeyPem sets the "tls_private_key_pem" field.
-func (_c *KaguyaSystemInfoCreate) SetTLSPrivateKeyPem(v string) *KaguyaSystemInfoCreate {
-	_c.mutation.SetTLSPrivateKeyPem(v)
-	return _c
-}
-
-// SetNillableTLSPrivateKeyPem sets the "tls_private_key_pem" field if the given value is not nil.
-func (_c *KaguyaSystemInfoCreate) SetNillableTLSPrivateKeyPem(v *string) *KaguyaSystemInfoCreate {
-	if v != nil {
-		_c.SetTLSPrivateKeyPem(*v)
-	}
-	return _c
-}
-
 // SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
 func (_c *KaguyaSystemInfoCreate) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoCreate {
 	_c.mutation.SetCommandTimeoutSeconds(v)
@@ -284,14 +256,6 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultContextCompactionPercent
 		_c.mutation.SetContextCompactionPercent(v)
 	}
-	if _, ok := _c.mutation.TLSCertificatePem(); !ok {
-		v := kaguyasysteminfo.DefaultTLSCertificatePem
-		_c.mutation.SetTLSCertificatePem(v)
-	}
-	if _, ok := _c.mutation.TLSPrivateKeyPem(); !ok {
-		v := kaguyasysteminfo.DefaultTLSPrivateKeyPem
-		_c.mutation.SetTLSPrivateKeyPem(v)
-	}
 	if _, ok := _c.mutation.CommandTimeoutSeconds(); !ok {
 		v := kaguyasysteminfo.DefaultCommandTimeoutSeconds
 		_c.mutation.SetCommandTimeoutSeconds(v)
@@ -346,12 +310,6 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 		if err := kaguyasysteminfo.ContextCompactionPercentValidator(v); err != nil {
 			return &ValidationError{Name: "context_compaction_percent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.context_compaction_percent": %w`, err)}
 		}
-	}
-	if _, ok := _c.mutation.TLSCertificatePem(); !ok {
-		return &ValidationError{Name: "tls_certificate_pem", err: errors.New(`ent: missing required field "KaguyaSystemInfo.tls_certificate_pem"`)}
-	}
-	if _, ok := _c.mutation.TLSPrivateKeyPem(); !ok {
-		return &ValidationError{Name: "tls_private_key_pem", err: errors.New(`ent: missing required field "KaguyaSystemInfo.tls_private_key_pem"`)}
 	}
 	if _, ok := _c.mutation.CommandTimeoutSeconds(); !ok {
 		return &ValidationError{Name: "command_timeout_seconds", err: errors.New(`ent: missing required field "KaguyaSystemInfo.command_timeout_seconds"`)}
@@ -446,14 +404,6 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.ContextCompactionPercent(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldContextCompactionPercent, field.TypeInt, value)
 		_node.ContextCompactionPercent = value
-	}
-	if value, ok := _c.mutation.TLSCertificatePem(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldTLSCertificatePem, field.TypeString, value)
-		_node.TLSCertificatePem = value
-	}
-	if value, ok := _c.mutation.TLSPrivateKeyPem(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldTLSPrivateKeyPem, field.TypeString, value)
-		_node.TLSPrivateKeyPem = value
 	}
 	if value, ok := _c.mutation.CommandTimeoutSeconds(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
@@ -598,30 +548,6 @@ func (u *KaguyaSystemInfoUpsert) UpdateContextCompactionPercent() *KaguyaSystemI
 // AddContextCompactionPercent adds v to the "context_compaction_percent" field.
 func (u *KaguyaSystemInfoUpsert) AddContextCompactionPercent(v int) *KaguyaSystemInfoUpsert {
 	u.Add(kaguyasysteminfo.FieldContextCompactionPercent, v)
-	return u
-}
-
-// SetTLSCertificatePem sets the "tls_certificate_pem" field.
-func (u *KaguyaSystemInfoUpsert) SetTLSCertificatePem(v string) *KaguyaSystemInfoUpsert {
-	u.Set(kaguyasysteminfo.FieldTLSCertificatePem, v)
-	return u
-}
-
-// UpdateTLSCertificatePem sets the "tls_certificate_pem" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsert) UpdateTLSCertificatePem() *KaguyaSystemInfoUpsert {
-	u.SetExcluded(kaguyasysteminfo.FieldTLSCertificatePem)
-	return u
-}
-
-// SetTLSPrivateKeyPem sets the "tls_private_key_pem" field.
-func (u *KaguyaSystemInfoUpsert) SetTLSPrivateKeyPem(v string) *KaguyaSystemInfoUpsert {
-	u.Set(kaguyasysteminfo.FieldTLSPrivateKeyPem, v)
-	return u
-}
-
-// UpdateTLSPrivateKeyPem sets the "tls_private_key_pem" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsert) UpdateTLSPrivateKeyPem() *KaguyaSystemInfoUpsert {
-	u.SetExcluded(kaguyasysteminfo.FieldTLSPrivateKeyPem)
 	return u
 }
 
@@ -852,34 +778,6 @@ func (u *KaguyaSystemInfoUpsertOne) AddContextCompactionPercent(v int) *KaguyaSy
 func (u *KaguyaSystemInfoUpsertOne) UpdateContextCompactionPercent() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateContextCompactionPercent()
-	})
-}
-
-// SetTLSCertificatePem sets the "tls_certificate_pem" field.
-func (u *KaguyaSystemInfoUpsertOne) SetTLSCertificatePem(v string) *KaguyaSystemInfoUpsertOne {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.SetTLSCertificatePem(v)
-	})
-}
-
-// UpdateTLSCertificatePem sets the "tls_certificate_pem" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsertOne) UpdateTLSCertificatePem() *KaguyaSystemInfoUpsertOne {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.UpdateTLSCertificatePem()
-	})
-}
-
-// SetTLSPrivateKeyPem sets the "tls_private_key_pem" field.
-func (u *KaguyaSystemInfoUpsertOne) SetTLSPrivateKeyPem(v string) *KaguyaSystemInfoUpsertOne {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.SetTLSPrivateKeyPem(v)
-	})
-}
-
-// UpdateTLSPrivateKeyPem sets the "tls_private_key_pem" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsertOne) UpdateTLSPrivateKeyPem() *KaguyaSystemInfoUpsertOne {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.UpdateTLSPrivateKeyPem()
 	})
 }
 
@@ -1294,34 +1192,6 @@ func (u *KaguyaSystemInfoUpsertBulk) AddContextCompactionPercent(v int) *KaguyaS
 func (u *KaguyaSystemInfoUpsertBulk) UpdateContextCompactionPercent() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateContextCompactionPercent()
-	})
-}
-
-// SetTLSCertificatePem sets the "tls_certificate_pem" field.
-func (u *KaguyaSystemInfoUpsertBulk) SetTLSCertificatePem(v string) *KaguyaSystemInfoUpsertBulk {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.SetTLSCertificatePem(v)
-	})
-}
-
-// UpdateTLSCertificatePem sets the "tls_certificate_pem" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsertBulk) UpdateTLSCertificatePem() *KaguyaSystemInfoUpsertBulk {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.UpdateTLSCertificatePem()
-	})
-}
-
-// SetTLSPrivateKeyPem sets the "tls_private_key_pem" field.
-func (u *KaguyaSystemInfoUpsertBulk) SetTLSPrivateKeyPem(v string) *KaguyaSystemInfoUpsertBulk {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.SetTLSPrivateKeyPem(v)
-	})
-}
-
-// UpdateTLSPrivateKeyPem sets the "tls_private_key_pem" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsertBulk) UpdateTLSPrivateKeyPem() *KaguyaSystemInfoUpsertBulk {
-	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.UpdateTLSPrivateKeyPem()
 	})
 }
 

@@ -98,34 +98,6 @@ func (_u *KaguyaSystemInfoUpdate) AddContextCompactionPercent(v int) *KaguyaSyst
 	return _u
 }
 
-// SetTLSCertificatePem sets the "tls_certificate_pem" field.
-func (_u *KaguyaSystemInfoUpdate) SetTLSCertificatePem(v string) *KaguyaSystemInfoUpdate {
-	_u.mutation.SetTLSCertificatePem(v)
-	return _u
-}
-
-// SetNillableTLSCertificatePem sets the "tls_certificate_pem" field if the given value is not nil.
-func (_u *KaguyaSystemInfoUpdate) SetNillableTLSCertificatePem(v *string) *KaguyaSystemInfoUpdate {
-	if v != nil {
-		_u.SetTLSCertificatePem(*v)
-	}
-	return _u
-}
-
-// SetTLSPrivateKeyPem sets the "tls_private_key_pem" field.
-func (_u *KaguyaSystemInfoUpdate) SetTLSPrivateKeyPem(v string) *KaguyaSystemInfoUpdate {
-	_u.mutation.SetTLSPrivateKeyPem(v)
-	return _u
-}
-
-// SetNillableTLSPrivateKeyPem sets the "tls_private_key_pem" field if the given value is not nil.
-func (_u *KaguyaSystemInfoUpdate) SetNillableTLSPrivateKeyPem(v *string) *KaguyaSystemInfoUpdate {
-	if v != nil {
-		_u.SetTLSPrivateKeyPem(*v)
-	}
-	return _u
-}
-
 // SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
 func (_u *KaguyaSystemInfoUpdate) SetCommandTimeoutSeconds(v int) *KaguyaSystemInfoUpdate {
 	_u.mutation.ResetCommandTimeoutSeconds()
@@ -358,12 +330,6 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.AddedContextCompactionPercent(); ok {
 		_spec.AddField(kaguyasysteminfo.FieldContextCompactionPercent, field.TypeInt, value)
 	}
-	if value, ok := _u.mutation.TLSCertificatePem(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldTLSCertificatePem, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.TLSPrivateKeyPem(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldTLSPrivateKeyPem, field.TypeString, value)
-	}
 	if value, ok := _u.mutation.CommandTimeoutSeconds(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)
 	}
@@ -486,34 +452,6 @@ func (_u *KaguyaSystemInfoUpdateOne) SetNillableContextCompactionPercent(v *int)
 // AddContextCompactionPercent adds value to the "context_compaction_percent" field.
 func (_u *KaguyaSystemInfoUpdateOne) AddContextCompactionPercent(v int) *KaguyaSystemInfoUpdateOne {
 	_u.mutation.AddContextCompactionPercent(v)
-	return _u
-}
-
-// SetTLSCertificatePem sets the "tls_certificate_pem" field.
-func (_u *KaguyaSystemInfoUpdateOne) SetTLSCertificatePem(v string) *KaguyaSystemInfoUpdateOne {
-	_u.mutation.SetTLSCertificatePem(v)
-	return _u
-}
-
-// SetNillableTLSCertificatePem sets the "tls_certificate_pem" field if the given value is not nil.
-func (_u *KaguyaSystemInfoUpdateOne) SetNillableTLSCertificatePem(v *string) *KaguyaSystemInfoUpdateOne {
-	if v != nil {
-		_u.SetTLSCertificatePem(*v)
-	}
-	return _u
-}
-
-// SetTLSPrivateKeyPem sets the "tls_private_key_pem" field.
-func (_u *KaguyaSystemInfoUpdateOne) SetTLSPrivateKeyPem(v string) *KaguyaSystemInfoUpdateOne {
-	_u.mutation.SetTLSPrivateKeyPem(v)
-	return _u
-}
-
-// SetNillableTLSPrivateKeyPem sets the "tls_private_key_pem" field if the given value is not nil.
-func (_u *KaguyaSystemInfoUpdateOne) SetNillableTLSPrivateKeyPem(v *string) *KaguyaSystemInfoUpdateOne {
-	if v != nil {
-		_u.SetTLSPrivateKeyPem(*v)
-	}
 	return _u
 }
 
@@ -778,12 +716,6 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if value, ok := _u.mutation.AddedContextCompactionPercent(); ok {
 		_spec.AddField(kaguyasysteminfo.FieldContextCompactionPercent, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.TLSCertificatePem(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldTLSCertificatePem, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.TLSPrivateKeyPem(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldTLSPrivateKeyPem, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.CommandTimeoutSeconds(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldCommandTimeoutSeconds, field.TypeInt, value)

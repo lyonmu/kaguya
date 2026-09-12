@@ -462,8 +462,6 @@ var (
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "agent_max_steps", Type: field.TypeInt, Default: 0},
 		{Name: "context_compaction_percent", Type: field.TypeInt, Default: 90},
-		{Name: "tls_certificate_pem", Type: field.TypeString, Size: 2147483647, Default: ""},
-		{Name: "tls_private_key_pem", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "command_timeout_seconds", Type: field.TypeInt, Default: 120},
 		{Name: "chat_max_retries", Type: field.TypeInt, Comment: "聊天模型流式请求的最大重试次数；0 表示禁用", Default: 5},
 		{Name: "global_agents_paths", Type: field.TypeJSON, Nullable: true},

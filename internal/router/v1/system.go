@@ -13,7 +13,6 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 		systemRouter.GET("usage", apiGroup.SystemTokenUsage)
 		systemRouter.GET("info", apiGroup.SystemInfo)
 		systemRouter.PUT("info", apiGroup.SystemInfoUpdate)
-		systemRouter.PUT("info/tls", apiGroup.SystemTLSUpdate)
 
 		systemRouter.GET("mcp/page", apiGroup.SystemMCPPage)
 		systemRouter.GET("mcp/:id", apiGroup.SystemMCPDetail)

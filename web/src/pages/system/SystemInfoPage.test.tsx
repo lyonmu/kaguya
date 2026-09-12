@@ -16,7 +16,6 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const { render, fireEvent, cleanup, waitFor, act, within } = await import('@testing-library/react')
 const { App } = await import('antd')
 const { SystemInfoPage } = await import('./SystemInfoPage')
-const { TLSConfigPanel } = await import('./TLSConfigPanel')
 const { ModelCascader } = await import('../../features/providers/ModelCascader')
 const { AppLayout } = await import('../../components/layout/AppLayout')
 const originalFetch = globalThis.fetch
@@ -99,27 +98,6 @@ it('searches models by API ID, clears configuration and restores the chat defaul
   fireEvent.click(await within(chatPopup).findByText('提供商 A'))
   fireEvent.click(await within(chatPopup).findByText('同名模型'))
   assert.equal(selected, '')
-})
-
-it('saves TLS imports without retaining private keys and reports restart requirements', async () => {
-  let saved: Record<string, unknown> | undefined
-  const tls = { certificate_pem: 'public-certificate', fingerprint: 'abc123', not_after: '2027-09-10T00:00:00Z', hosts: ['localhost'] }
-  globalThis.fetch = (async (url, init) => {
-    assert.ok(String(url).endsWith('/info/tls'))
-    saved = JSON.parse(String(init?.body))
-    return response(tls)
-  }) as typeof fetch
-  let updated: unknown
-  const view = render(<App><TLSConfigPanel info={tls} onSaved={value => { updated = value }} /></App>)
-  assert.ok(view.getByRole('link', { name: '下载公钥证书' }))
-  fireEvent.click(view.getByText('导入已有证书与私钥'))
-  fireEvent.change(view.getByLabelText('TLS 证书 PEM'), { target: { value: 'replacement-cert' } })
-  fireEvent.change(view.getByLabelText('TLS 私钥 PEM'), { target: { value: 'secret-key' } })
-  fireEvent.click(view.getByRole('button', { name: '保存导入证书' }))
-  await waitFor(() => assert.deepEqual(saved, { certificate_pem: 'replacement-cert', private_key_pem: 'secret-key' }))
-  await waitFor(() => assert.equal((view.getByLabelText('TLS 私钥 PEM') as HTMLTextAreaElement).value, ''))
-  assert.deepEqual(updated, tls)
-  assert.ok(view.getByText('证书已更新，请重启服务并重新信任新证书'))
 })
 
 it('shows a config loading error instead of an editable empty form', async () => {

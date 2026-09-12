@@ -23,8 +23,6 @@ func (KaguyaSystemInfo) Fields() []ent.Field {
 		}),
 		field.Int("agent_max_steps").Default(0).Min(0).Max(1000),
 		field.Int("context_compaction_percent").Default(90).Min(10).Max(95),
-		field.Text("tls_certificate_pem").Default(""),
-		field.Text("tls_private_key_pem").Default("").Sensitive(),
 		field.Int("command_timeout_seconds").Default(120).Min(1).Max(86400),
 		field.Int("chat_max_retries").Default(5).Min(0).Max(20).Comment("聊天模型流式请求的最大重试次数；0 表示禁用"),
 		field.JSON("global_agents_paths", []string{}).Optional(),

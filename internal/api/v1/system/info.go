@@ -54,30 +54,3 @@ func (b *SystemApiV1Group) SystemInfoUpdate(c *gin.Context) {
 	}
 	dtocode.SystemSuccess.Success(resp, c)
 }
-
-// SystemTLSUpdate
-// @Tags System Info
-// @Summary 替换 TLS 证书，重启后生效
-// @Description generate=true 生成新的自签名证书；否则导入完整 PEM 证书与私钥。只返回公钥证书，不返回私钥。服务器仅支持 TLS 1.3。
-// @Param data body dtosystem.TLSSaveReq true "TLS 配置"
-// @Success 200 {object} dtocode.Response{data=dtosystem.TLSInfoResp}
-// @Router /v1/system/info/tls [put]
-func (b *SystemApiV1Group) SystemTLSUpdate(c *gin.Context) {
-	var req dtosystem.TLSSaveReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		dtocode.RequestParameterError.Failure(c)
-		return
-	}
-	resp, err := systemsvc.TLSUpdate(c.Request.Context(), &req)
-	if err != nil {
-		if errors.Is(err, servicesystem.ErrInvalidSystemInfo) {
-			dtocode.RequestParameterError.Failure(c)
-		} else {
-			global.Logger.Error("save TLS configuration failed")
-			dtocode.SystemInfoUpdateFailure.Failure(c)
-		}
-		return
-	}
-	c.Header("Cache-Control", "no-store")
-	dtocode.SystemSuccess.Success(resp, c)
-}

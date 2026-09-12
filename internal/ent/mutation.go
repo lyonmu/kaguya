@@ -9835,8 +9835,6 @@ type KaguyaSystemInfoMutation struct {
 	addagent_max_steps            *int
 	context_compaction_percent    *int
 	addcontext_compaction_percent *int
-	tls_certificate_pem           *string
-	tls_private_key_pem           *string
 	command_timeout_seconds       *int
 	addcommand_timeout_seconds    *int
 	chat_max_retries              *int
@@ -10188,78 +10186,6 @@ func (m *KaguyaSystemInfoMutation) AddedContextCompactionPercent() (r int, exist
 func (m *KaguyaSystemInfoMutation) ResetContextCompactionPercent() {
 	m.context_compaction_percent = nil
 	m.addcontext_compaction_percent = nil
-}
-
-// SetTLSCertificatePem sets the "tls_certificate_pem" field.
-func (m *KaguyaSystemInfoMutation) SetTLSCertificatePem(s string) {
-	m.tls_certificate_pem = &s
-}
-
-// TLSCertificatePem returns the value of the "tls_certificate_pem" field in the mutation.
-func (m *KaguyaSystemInfoMutation) TLSCertificatePem() (r string, exists bool) {
-	v := m.tls_certificate_pem
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldTLSCertificatePem returns the old "tls_certificate_pem" field's value of the KaguyaSystemInfo entity.
-// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *KaguyaSystemInfoMutation) OldTLSCertificatePem(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldTLSCertificatePem is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldTLSCertificatePem requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldTLSCertificatePem: %w", err)
-	}
-	return oldValue.TLSCertificatePem, nil
-}
-
-// ResetTLSCertificatePem resets all changes to the "tls_certificate_pem" field.
-func (m *KaguyaSystemInfoMutation) ResetTLSCertificatePem() {
-	m.tls_certificate_pem = nil
-}
-
-// SetTLSPrivateKeyPem sets the "tls_private_key_pem" field.
-func (m *KaguyaSystemInfoMutation) SetTLSPrivateKeyPem(s string) {
-	m.tls_private_key_pem = &s
-}
-
-// TLSPrivateKeyPem returns the value of the "tls_private_key_pem" field in the mutation.
-func (m *KaguyaSystemInfoMutation) TLSPrivateKeyPem() (r string, exists bool) {
-	v := m.tls_private_key_pem
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldTLSPrivateKeyPem returns the old "tls_private_key_pem" field's value of the KaguyaSystemInfo entity.
-// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *KaguyaSystemInfoMutation) OldTLSPrivateKeyPem(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldTLSPrivateKeyPem is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldTLSPrivateKeyPem requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldTLSPrivateKeyPem: %w", err)
-	}
-	return oldValue.TLSPrivateKeyPem, nil
-}
-
-// ResetTLSPrivateKeyPem resets all changes to the "tls_private_key_pem" field.
-func (m *KaguyaSystemInfoMutation) ResetTLSPrivateKeyPem() {
-	m.tls_private_key_pem = nil
 }
 
 // SetCommandTimeoutSeconds sets the "command_timeout_seconds" field.
@@ -10617,7 +10543,7 @@ func (m *KaguyaSystemInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaSystemInfoMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 12)
 	if m.created_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
 	}
@@ -10632,12 +10558,6 @@ func (m *KaguyaSystemInfoMutation) Fields() []string {
 	}
 	if m.context_compaction_percent != nil {
 		fields = append(fields, kaguyasysteminfo.FieldContextCompactionPercent)
-	}
-	if m.tls_certificate_pem != nil {
-		fields = append(fields, kaguyasysteminfo.FieldTLSCertificatePem)
-	}
-	if m.tls_private_key_pem != nil {
-		fields = append(fields, kaguyasysteminfo.FieldTLSPrivateKeyPem)
 	}
 	if m.command_timeout_seconds != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCommandTimeoutSeconds)
@@ -10678,10 +10598,6 @@ func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.AgentMaxSteps()
 	case kaguyasysteminfo.FieldContextCompactionPercent:
 		return m.ContextCompactionPercent()
-	case kaguyasysteminfo.FieldTLSCertificatePem:
-		return m.TLSCertificatePem()
-	case kaguyasysteminfo.FieldTLSPrivateKeyPem:
-		return m.TLSPrivateKeyPem()
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		return m.CommandTimeoutSeconds()
 	case kaguyasysteminfo.FieldChatMaxRetries:
@@ -10715,10 +10631,6 @@ func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldAgentMaxSteps(ctx)
 	case kaguyasysteminfo.FieldContextCompactionPercent:
 		return m.OldContextCompactionPercent(ctx)
-	case kaguyasysteminfo.FieldTLSCertificatePem:
-		return m.OldTLSCertificatePem(ctx)
-	case kaguyasysteminfo.FieldTLSPrivateKeyPem:
-		return m.OldTLSPrivateKeyPem(ctx)
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		return m.OldCommandTimeoutSeconds(ctx)
 	case kaguyasysteminfo.FieldChatMaxRetries:
@@ -10776,20 +10688,6 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContextCompactionPercent(v)
-		return nil
-	case kaguyasysteminfo.FieldTLSCertificatePem:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetTLSCertificatePem(v)
-		return nil
-	case kaguyasysteminfo.FieldTLSPrivateKeyPem:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetTLSPrivateKeyPem(v)
 		return nil
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		v, ok := value.(int)
@@ -10969,12 +10867,6 @@ func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyasysteminfo.FieldContextCompactionPercent:
 		m.ResetContextCompactionPercent()
-		return nil
-	case kaguyasysteminfo.FieldTLSCertificatePem:
-		m.ResetTLSCertificatePem()
-		return nil
-	case kaguyasysteminfo.FieldTLSPrivateKeyPem:
-		m.ResetTLSPrivateKeyPem()
 		return nil
 	case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 		m.ResetCommandTimeoutSeconds()

@@ -7,8 +7,6 @@ import type { ModelLabelOption } from '../../features/providers/types'
 import { fetchSystemInfo, updateSystemInfo } from '../../features/system-info/api'
 import type { SystemInfo, SystemInfoPayload } from '../../features/system-info/types'
 
-import { TLSConfigPanel } from './TLSConfigPanel'
-
 export function SystemInfoPage() {
   const { message } = App.useApp()
   const [form] = Form.useForm<SystemInfoPayload>()
@@ -78,6 +76,5 @@ export function SystemInfoPage() {
         <Space><Tooltip title="保存后新发起的聊天和后台任务立即生效，无需重启。"><Button htmlType="submit" type="primary" icon={<SaveOutlined />} loading={saving}>保存配置</Button></Tooltip></Space>
       </Form>
     </Card>}
-    {!loading && info && <TLSConfigPanel info={info.tls} onSaved={tls => setInfo(value => value ? { ...value, tls } : value)} />}
   </div>
 }

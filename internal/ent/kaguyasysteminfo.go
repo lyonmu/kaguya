@@ -28,10 +28,6 @@ type KaguyaSystemInfo struct {
 	AgentMaxSteps int `json:"agent_max_steps,omitempty"`
 	// ContextCompactionPercent holds the value of the "context_compaction_percent" field.
 	ContextCompactionPercent int `json:"context_compaction_percent,omitempty"`
-	// TLSCertificatePem holds the value of the "tls_certificate_pem" field.
-	TLSCertificatePem string `json:"tls_certificate_pem,omitempty"`
-	// TLSPrivateKeyPem holds the value of the "tls_private_key_pem" field.
-	TLSPrivateKeyPem string `json:"-"`
 	// CommandTimeoutSeconds holds the value of the "command_timeout_seconds" field.
 	CommandTimeoutSeconds int `json:"command_timeout_seconds,omitempty"`
 	// 聊天模型流式请求的最大重试次数；0 表示禁用
@@ -58,7 +54,7 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries:
 			values[i] = new(sql.NullInt64)
-		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldTLSCertificatePem, kaguyasysteminfo.FieldTLSPrivateKeyPem, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldUserAgent, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
+		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldUserAgent, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
 			values[i] = new(sql.NullString)
 		case kaguyasysteminfo.FieldCreatedAt, kaguyasysteminfo.FieldUpdatedAt, kaguyasysteminfo.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -113,18 +109,6 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field context_compaction_percent", values[i])
 			} else if value.Valid {
 				_m.ContextCompactionPercent = int(value.Int64)
-			}
-		case kaguyasysteminfo.FieldTLSCertificatePem:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field tls_certificate_pem", values[i])
-			} else if value.Valid {
-				_m.TLSCertificatePem = value.String
-			}
-		case kaguyasysteminfo.FieldTLSPrivateKeyPem:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field tls_private_key_pem", values[i])
-			} else if value.Valid {
-				_m.TLSPrivateKeyPem = value.String
 			}
 		case kaguyasysteminfo.FieldCommandTimeoutSeconds:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -222,11 +206,6 @@ func (_m *KaguyaSystemInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("context_compaction_percent=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ContextCompactionPercent))
-	builder.WriteString(", ")
-	builder.WriteString("tls_certificate_pem=")
-	builder.WriteString(_m.TLSCertificatePem)
-	builder.WriteString(", ")
-	builder.WriteString("tls_private_key_pem=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("command_timeout_seconds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CommandTimeoutSeconds))

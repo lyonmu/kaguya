@@ -2,9 +2,7 @@ import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { Agent } from 'node:https'
 import { fileURLToPath } from 'node:url'
-import { developmentCA } from './dev-ca.ts'
 
 // @git-diff-view/core 静态引入 lowlight 的全量语言集（约 1MB）。把库内部的
 // `lowlight` 解析到精选语言集的替代模块：highlighter 接口不变，但只打包常用语言，
@@ -45,7 +43,7 @@ function prismLightSubset(): Plugin {
   }
 }
 
-export default defineConfig(({ command }) => ({
+export default defineConfig({
   plugins: [react(), tailwindcss(), lowlightSubset(), prismLightSubset()],
   // 让开发服务器也使用与生产一致的精选语言集与 PrismLight。
   optimizeDeps: { exclude: ['@git-diff-view/lowlight', 'lowlight', 'react-syntax-highlighter'] },
@@ -118,11 +116,10 @@ export default defineConfig(({ command }) => ({
   server: {
     proxy: {
       '/kaguya/api': {
-        target: 'https://localhost:9024',
-        agent: command === 'serve' ? new Agent({ minVersion: 'TLSv1.3', ca: developmentCA() }) : undefined,
+        target: 'http://127.0.0.1:9024',
         // Preserve the browser's matching Host/Origin through the local proxy.
         changeOrigin: false,
       },
     },
   },
-}))
+})

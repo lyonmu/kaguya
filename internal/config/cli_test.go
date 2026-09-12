@@ -74,13 +74,15 @@ func TestCLITrustedHosts(t *testing.T) {
 	}
 }
 
-func TestTLSRenewalIsExplicitOfflineAction(t *testing.T) {
-	cli := Cli{Host: "127.0.0.1", RenewTLS: true}
-	if err := cli.Validate(); err == nil {
-		t.Fatal("renewal accepted without prepare-tls")
-	}
-	cli.PrepareTLS = true
-	if err := cli.Validate(); err != nil {
-		t.Fatal(err)
+func TestRemovedTLSParametersAreRejected(t *testing.T) {
+	for _, args := range [][]string{{"--prepare-tls"}, {"--renew-tls"}} {
+		var cli Cli
+		parser, err := kong.New(&cli)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := parser.Parse(args); err == nil {
+			t.Fatalf("%v must be rejected as an unknown parameter", args)
+		}
 	}
 }

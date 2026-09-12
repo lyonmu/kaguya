@@ -108,7 +108,6 @@ func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
 		},
 		GlobalSystemPrompt: consts.GlobalSystemPrompt,
-		TLS:                tlsInfo(row.TLSCertificatePem),
 	}
 }
 

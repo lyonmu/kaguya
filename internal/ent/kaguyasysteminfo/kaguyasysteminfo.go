@@ -24,10 +24,6 @@ const (
 	FieldAgentMaxSteps = "agent_max_steps"
 	// FieldContextCompactionPercent holds the string denoting the context_compaction_percent field in the database.
 	FieldContextCompactionPercent = "context_compaction_percent"
-	// FieldTLSCertificatePem holds the string denoting the tls_certificate_pem field in the database.
-	FieldTLSCertificatePem = "tls_certificate_pem"
-	// FieldTLSPrivateKeyPem holds the string denoting the tls_private_key_pem field in the database.
-	FieldTLSPrivateKeyPem = "tls_private_key_pem"
 	// FieldCommandTimeoutSeconds holds the string denoting the command_timeout_seconds field in the database.
 	FieldCommandTimeoutSeconds = "command_timeout_seconds"
 	// FieldChatMaxRetries holds the string denoting the chat_max_retries field in the database.
@@ -54,8 +50,6 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldAgentMaxSteps,
 	FieldContextCompactionPercent,
-	FieldTLSCertificatePem,
-	FieldTLSPrivateKeyPem,
 	FieldCommandTimeoutSeconds,
 	FieldChatMaxRetries,
 	FieldGlobalAgentsPaths,
@@ -96,10 +90,6 @@ var (
 	DefaultContextCompactionPercent int
 	// ContextCompactionPercentValidator is a validator for the "context_compaction_percent" field. It is called by the builders before save.
 	ContextCompactionPercentValidator func(int) error
-	// DefaultTLSCertificatePem holds the default value on creation for the "tls_certificate_pem" field.
-	DefaultTLSCertificatePem string
-	// DefaultTLSPrivateKeyPem holds the default value on creation for the "tls_private_key_pem" field.
-	DefaultTLSPrivateKeyPem string
 	// DefaultCommandTimeoutSeconds holds the default value on creation for the "command_timeout_seconds" field.
 	DefaultCommandTimeoutSeconds int
 	// CommandTimeoutSecondsValidator is a validator for the "command_timeout_seconds" field. It is called by the builders before save.
@@ -155,16 +145,6 @@ func ByAgentMaxSteps(opts ...sql.OrderTermOption) OrderOption {
 // ByContextCompactionPercent orders the results by the context_compaction_percent field.
 func ByContextCompactionPercent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContextCompactionPercent, opts...).ToFunc()
-}
-
-// ByTLSCertificatePem orders the results by the tls_certificate_pem field.
-func ByTLSCertificatePem(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTLSCertificatePem, opts...).ToFunc()
-}
-
-// ByTLSPrivateKeyPem orders the results by the tls_private_key_pem field.
-func ByTLSPrivateKeyPem(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldTLSPrivateKeyPem, opts...).ToFunc()
 }
 
 // ByCommandTimeoutSeconds orders the results by the command_timeout_seconds field.

@@ -713,16 +713,8 @@ func init() {
 			return nil
 		}
 	}()
-	// kaguyasysteminfoDescTLSCertificatePem is the schema descriptor for tls_certificate_pem field.
-	kaguyasysteminfoDescTLSCertificatePem := kaguyasysteminfoFields[3].Descriptor()
-	// kaguyasysteminfo.DefaultTLSCertificatePem holds the default value on creation for the tls_certificate_pem field.
-	kaguyasysteminfo.DefaultTLSCertificatePem = kaguyasysteminfoDescTLSCertificatePem.Default.(string)
-	// kaguyasysteminfoDescTLSPrivateKeyPem is the schema descriptor for tls_private_key_pem field.
-	kaguyasysteminfoDescTLSPrivateKeyPem := kaguyasysteminfoFields[4].Descriptor()
-	// kaguyasysteminfo.DefaultTLSPrivateKeyPem holds the default value on creation for the tls_private_key_pem field.
-	kaguyasysteminfo.DefaultTLSPrivateKeyPem = kaguyasysteminfoDescTLSPrivateKeyPem.Default.(string)
 	// kaguyasysteminfoDescCommandTimeoutSeconds is the schema descriptor for command_timeout_seconds field.
-	kaguyasysteminfoDescCommandTimeoutSeconds := kaguyasysteminfoFields[5].Descriptor()
+	kaguyasysteminfoDescCommandTimeoutSeconds := kaguyasysteminfoFields[3].Descriptor()
 	// kaguyasysteminfo.DefaultCommandTimeoutSeconds holds the default value on creation for the command_timeout_seconds field.
 	kaguyasysteminfo.DefaultCommandTimeoutSeconds = kaguyasysteminfoDescCommandTimeoutSeconds.Default.(int)
 	// kaguyasysteminfo.CommandTimeoutSecondsValidator is a validator for the "command_timeout_seconds" field. It is called by the builders before save.
@@ -742,7 +734,7 @@ func init() {
 		}
 	}()
 	// kaguyasysteminfoDescChatMaxRetries is the schema descriptor for chat_max_retries field.
-	kaguyasysteminfoDescChatMaxRetries := kaguyasysteminfoFields[6].Descriptor()
+	kaguyasysteminfoDescChatMaxRetries := kaguyasysteminfoFields[4].Descriptor()
 	// kaguyasysteminfo.DefaultChatMaxRetries holds the default value on creation for the chat_max_retries field.
 	kaguyasysteminfo.DefaultChatMaxRetries = kaguyasysteminfoDescChatMaxRetries.Default.(int)
 	// kaguyasysteminfo.ChatMaxRetriesValidator is a validator for the "chat_max_retries" field. It is called by the builders before save.
@@ -762,21 +754,21 @@ func init() {
 		}
 	}()
 	// kaguyasysteminfoDescSystemPrompt is the schema descriptor for system_prompt field.
-	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[8].Descriptor()
+	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[6].Descriptor()
 	// kaguyasysteminfo.DefaultSystemPrompt holds the default value on creation for the system_prompt field.
 	kaguyasysteminfo.DefaultSystemPrompt = kaguyasysteminfoDescSystemPrompt.Default.(string)
 	// kaguyasysteminfoDescUserAgent is the schema descriptor for user_agent field.
-	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[9].Descriptor()
+	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[7].Descriptor()
 	// kaguyasysteminfo.DefaultUserAgent holds the default value on creation for the user_agent field.
 	kaguyasysteminfo.DefaultUserAgent = kaguyasysteminfoDescUserAgent.Default.(string)
 	// kaguyasysteminfo.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
 	kaguyasysteminfo.UserAgentValidator = kaguyasysteminfoDescUserAgent.Validators[0].(func(string) error)
 	// kaguyasysteminfoDescDefaultModelID is the schema descriptor for default_model_id field.
-	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[10].Descriptor()
+	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[8].Descriptor()
 	// kaguyasysteminfo.DefaultDefaultModelID holds the default value on creation for the default_model_id field.
 	kaguyasysteminfo.DefaultDefaultModelID = kaguyasysteminfoDescDefaultModelID.Default.(string)
 	// kaguyasysteminfoDescTaskModelID is the schema descriptor for task_model_id field.
-	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[11].Descriptor()
+	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[9].Descriptor()
 	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
 	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
 	// kaguyasysteminfoDescID is the schema descriptor for id field.
