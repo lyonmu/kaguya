@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -30,10 +31,8 @@ type turnRecorder struct {
 	once    sync.Once
 
 	mu         sync.Mutex
-	flushedRev map[int64]int64 // sequence 已写入的轨迹版本
-	revision   int64
-	toolRev    int64
-	bytes      int64
+	flushed    traceStats     // 最近一次成功提交时的快照统计
+	flushedRev map[int64]int64 // sequence 已成功写入的轨迹版本
 	lastFlush  time.Time
 }
 
@@ -76,30 +75,33 @@ func (r *turnRecorder) shouldFlush() bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	bytes, revision, toolRev := r.trace.stats()
-	if revision == r.revision {
+	if revision == r.flushed.Revision {
 		return false
 	}
 	// 工具调用/结果必须尽快可见；正文按空闲时间或累计字节数节流。
-	if toolRev != r.toolRev || bytes-r.bytes >= turnFlushMinBytes {
+	if toolRev != r.flushed.ToolRevision || bytes-r.flushed.Bytes >= turnFlushMinBytes {
 		return true
 	}
 	return time.Since(r.lastFlush) >= turnFlushMaxIdle
 }
 
-// flush 把自上次刷盘以来变化的块写入数据库。整个过程在一个事务内，读者不会看到半个块。
+// flush 把自上次刷盘以来变化的块写入数据库。整个过程在一个事务内，读者不会看到半个块；
+// 只有提交成功后才推进内存水位，失败时下一次 flush 会重试同一批块。
 func (r *turnRecorder) flush(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	snapshot := r.trace.snapshot()
-	bytes, revision, toolRev := r.trace.stats()
 	tx, err := db.EntClient.Tx(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	client := tx.Client()
-	for _, item := range snapshot {
+	// 待推进水位先放局部变量，commit 成功后才写回 recorder。
+	flushedRev := make(map[int64]int64, len(snapshot.Blocks))
+	for _, item := range snapshot.Blocks {
 		b := item.Block
+		flushedRev[b.Sequence] = item.Revision
 		if item.Revision == 0 || r.flushedRev[b.Sequence] >= item.Revision {
 			continue
 		}
@@ -140,11 +142,16 @@ func (r *turnRecorder) flush(ctx context.Context) error {
 			if output != nil {
 				update.SetOutput(output)
 			}
-			if err := update.Exec(ctx); err != nil {
+			// 水位只在写入成功后推进，因此这里必须命中已存在且序列唯一的行；
+			// 零行更新说明占位块被外部删除，继续推进会永久丢失内容。
+			changed, err := update.Save(ctx)
+			if err != nil {
 				return err
 			}
+			if changed != 1 {
+				return fmt.Errorf("update running turn block: turn_id=%s sequence=%d affected %d rows", r.turnID, b.Sequence, changed)
+			}
 		}
-		r.flushedRev[b.Sequence] = item.Revision
 	}
 	if err := ctx.Err(); err != nil {
 		return err
@@ -152,7 +159,8 @@ func (r *turnRecorder) flush(ctx context.Context) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
-	r.revision, r.toolRev, r.bytes = revision, toolRev, bytes
+	r.flushedRev = flushedRev
+	r.flushed = traceStats{Bytes: snapshot.Bytes, Revision: snapshot.Revision, ToolRevision: snapshot.ToolRevision}
 	r.lastFlush = time.Now()
 	return nil
 }

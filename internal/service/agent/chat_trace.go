@@ -66,22 +66,41 @@ func (t *turnTrace) finish(at time.Time) error {
 	return nil
 }
 
-// stats 返回当前累计内容字节、版本号与工具事件版本号，供增量落库判断是否需要刷盘。
+// stats 返回当前累计内容字节、版本号与工具事件版本号。
+// 仅用于节流判断；落库必须使用 snapshot，保证块与版本来自同一临界区。
 func (t *turnTrace) stats() (bytes, revision, toolRevision int64) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.bytes, t.revision, t.toolRev
 }
 
-// snapshot 返回内容块的只读副本及各自版本，调用方可安全落库。
-func (t *turnTrace) snapshot() []traceBlock {
+// snapshot 在同一临界区内返回内容块副本与聚合统计。增量落库必须使用这一份数据：
+// 若分两次读取，两次锁之间新增的 delta 会让调用方把未包含在块副本中的版本
+// 标记为已落库，此后不再重试。
+func (t *turnTrace) snapshot() traceSnapshot {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	out := make([]traceBlock, len(t.blocks))
+	blocks := make([]traceBlock, len(t.blocks))
 	for i := range t.blocks {
-		out[i] = traceBlock{Block: t.blocks[i], Revision: t.revs[i]}
+		blocks[i] = traceBlock{Block: t.blocks[i], Revision: t.revs[i]}
 	}
-	return out
+	return traceSnapshot{
+		traceStats: traceStats{Bytes: t.bytes, Revision: t.revision, ToolRevision: t.toolRev},
+		Blocks:     blocks,
+	}
+}
+
+// traceSnapshot 是一次性读取的轨迹视图，调用方据其安全落库。
+type traceSnapshot struct {
+	traceStats
+	Blocks []traceBlock
+}
+
+// traceStats 是轨迹的聚合统计，用于落库节流与水位对比。
+type traceStats struct {
+	Bytes        int64
+	Revision     int64
+	ToolRevision int64
 }
 
 // result 返回成功提交所需的块副本。
