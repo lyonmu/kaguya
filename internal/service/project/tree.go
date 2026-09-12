@@ -142,17 +142,23 @@ func (s *ProjectSvc) Content(ctx context.Context, id, path string) (*dto.Content
 		return nil, err
 	}
 	defer root.Close()
-	file, err := root.Open(rel)
+	// 先非阻塞打开再看类型：项目内的 FIFO 无写端时，普通 Open 会永久阻塞，
+	// 且不受 context 取消影响；lstat 预检查也无法阻止检查后的替换。
+	file, err := openReadFile(root, rel)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
+	clearNonblock(file)
 	info, err := file.Stat()
 	if err != nil {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
 		return nil, ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	data, err := io.ReadAll(io.LimitReader(file, maxContentBytes+1))
 	if err != nil {

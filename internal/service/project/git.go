@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -45,11 +46,14 @@ func (b *limitedBuffer) Write(p []byte) (int, error) {
 }
 
 // runGit 只读执行 git：err 仅表示启动失败或超时，退出码交由调用方判断。
+// 固定环境变量并限制进程组，避免外部配置改写目标仓库或拖住超时。
 func runGit(ctx context.Context, dir string, limit int, args ...string) ([]byte, int, bool, error) {
 	runCtx, cancel := context.WithTimeout(ctx, gitTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(runCtx, "git", args...)
 	cmd.Dir = dir
+	cmd.Env = gitEnv()
+	configureGitProcess(cmd)
 	stdout, stderr := &limitedBuffer{limit: limit}, &limitedBuffer{limit: gitStderrLimit}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
 	err := cmd.Run()
@@ -69,28 +73,71 @@ func runGit(ctx context.Context, dir string, limit int, args ...string) ([]byte,
 	return nil, -1, false, err
 }
 
+// gitReadOnlyConfig 关闭查看类命令的外部程序与钩子，只看仓库内容本身：
+// 外部 diff、属性 textconv 与 fsmonitor 钩子都可能执行仓库配置指定的程序。
+var gitReadOnlyConfig = []string{
+	"-c", "core.quotePath=false",
+	"-c", "core.fsmonitor=false",
+	"-c", "core.untrackedCache=false",
+}
+
+// gitArgs 在只读配置前面追加具体子命令参数，返回独立切片，
+// 避免 append 复用 gitReadOnlyConfig 的底层数组互相污染。
+func gitArgs(args ...string) []string {
+	out := make([]string, 0, len(gitReadOnlyConfig)+len(args))
+	out = append(out, gitReadOnlyConfig...)
+	return append(out, args...)
+}
+
+// gitEnv 返回剔除了会改写仓库定位与执行行为的环境变量后的副本，
+// 保留 PATH/HOME 等运行必需项，否则服务进程内的未预期 GIT_* 变量会误导 git。
+func gitEnv() []string {
+	parent := os.Environ()
+	env := make([]string, 0, len(parent))
+	for _, item := range parent {
+		key, _, _ := strings.Cut(item, "=")
+		switch key {
+		case "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM", "GIT_EXEC_PATH":
+			// 只保留显式指定全局/系统配置与 git 子命令路径的变量。
+		default:
+			if strings.HasPrefix(key, "GIT_") {
+				continue
+			}
+		}
+		env = append(env, item)
+	}
+	return env
+}
+
 func gitUnavailable(err error) bool {
 	var execErr *exec.Error
 	return errors.As(err, &execErr) && errors.Is(execErr.Err, exec.ErrNotFound)
 }
 
-// gitRepository 判断目录是否位于 Git 工作树内，并返回项目根相对仓库根的前缀。
-func gitRepository(ctx context.Context, dir string) (bool, string, error) {
-	out, exitCode, _, err := runGit(ctx, dir, 4096, "rev-parse", "--is-inside-work-tree")
+// gitRepository 判断目录是否位于 Git 工作树内，返回项目根相对仓库根的前缀与仓库根路径。
+func gitRepository(ctx context.Context, dir string) (bool, string, string, error) {
+	out, exitCode, _, err := runGit(ctx, dir, 4096, gitArgs("rev-parse", "--is-inside-work-tree")...)
 	if err != nil {
-		return false, "", err
+		return false, "", "", err
 	}
 	if exitCode != 0 || strings.TrimSpace(string(out)) != "true" {
-		return false, "", nil
+		return false, "", "", nil
 	}
-	prefixOut, exitCode, _, err := runGit(ctx, dir, 4096, "rev-parse", "--show-prefix")
+	prefixOut, exitCode, _, err := runGit(ctx, dir, 4096, gitArgs("rev-parse", "--show-prefix")...)
 	if err != nil {
-		return false, "", err
+		return false, "", "", err
 	}
 	if exitCode != 0 {
-		return true, "", nil
+		return true, "", "", nil
 	}
-	return true, strings.TrimSpace(string(prefixOut)), nil
+	rootOut, exitCode, _, err := runGit(ctx, dir, 4096, gitArgs("rev-parse", "--show-toplevel")...)
+	if err != nil {
+		return false, "", "", err
+	}
+	if exitCode != 0 {
+		return true, "", "", nil
+	}
+	return true, strings.TrimSpace(string(prefixOut)), strings.TrimSpace(string(rootOut)), nil
 }
 
 func trimGitPrefix(path, prefix string) (string, bool) {
@@ -228,7 +275,7 @@ func (s *ProjectSvc) GitStatus(ctx context.Context, id string) (*dto.GitStatusRe
 		return nil, err
 	}
 	resp := &dto.GitStatusResp{Files: []dto.GitFile{}}
-	inside, prefix, err := gitRepository(ctx, dir)
+	inside, prefix, gitRoot, err := gitRepository(ctx, dir)
 	if err != nil {
 		if gitUnavailable(err) {
 			resp.Message = "运行环境未找到 git 命令"
@@ -240,7 +287,19 @@ func (s *ProjectSvc) GitStatus(ctx context.Context, id string) (*dto.GitStatusRe
 		resp.Message = "当前项目不是 Git 仓库"
 		return resp, nil
 	}
-	out, exitCode, truncated, err := runGit(ctx, dir, gitOutputLimit, "status", "--porcelain=v2", "-z", "--branch", "--untracked-files=all", "--", ".")
+	// rev-parse --show-toplevel 不可用时退回项目目录，至少保持原行为。
+	if gitRoot == "" {
+		gitRoot = dir
+	}
+	// 从仓库根执行并用仓库相对字面路径限定范围，项目位于子目录时也只列出自身。
+	pathspec := "."
+	if gitRoot != "" {
+		pathspec = strings.TrimSuffix(prefix, "/")
+		if pathspec == "" {
+			pathspec = "."
+		}
+	}
+	out, exitCode, truncated, err := runGit(ctx, gitRoot, gitOutputLimit, gitArgs("status", "--porcelain=v2", "-z", "--branch", "--untracked-files=all", "--", pathspec)...)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +323,7 @@ func (s *ProjectSvc) GitStatus(ctx context.Context, id string) (*dto.GitStatusRe
 		}
 	}
 	// HEAD 尚不存在的空仓库没有可比较基线，行数统计保持为零。
-	if stats, statExit, _, statErr := runGit(ctx, dir, gitOutputLimit, "diff", "--numstat", "-z", "HEAD", "--", "."); statErr == nil && statExit == 0 {
+	if stats, statExit, _, statErr := runGit(ctx, gitRoot, gitOutputLimit, gitArgs("diff", "--no-textconv", "--numstat", "-z", "HEAD", "--", pathspec)...); statErr == nil && statExit == 0 {
 		numstat := parseNumstat(stats)
 		for index := range files {
 			if value, exists := numstat[prefix+files[index].Path]; exists {
@@ -287,7 +346,7 @@ func (s *ProjectSvc) GitDiff(ctx context.Context, id, path string) (*dto.GitDiff
 	if err != nil {
 		return nil, err
 	}
-	inside, _, err := gitRepository(ctx, dir)
+	inside, prefix, gitRoot, err := gitRepository(ctx, dir)
 	if err != nil {
 		if gitUnavailable(err) {
 			return nil, ErrNotGit
@@ -297,20 +356,25 @@ func (s *ProjectSvc) GitDiff(ctx context.Context, id, path string) (*dto.GitDiff
 	if !inside {
 		return nil, ErrNotGit
 	}
+	if gitRoot == "" {
+		gitRoot = dir
+	}
 	resp := &dto.GitDiffResp{Path: rel}
-	_, headExit, _, err := runGit(ctx, dir, 4096, "rev-parse", "--verify", "--quiet", "HEAD")
+	// 项目根可能是仓库的子目录，git 命令从仓库根执行并使用字面仓库相对路径。
+	gitPath := prefix + rel
+	_, headExit, _, err := runGit(ctx, gitRoot, 4096, gitArgs("rev-parse", "--verify", "--quiet", "HEAD")...)
 	if err != nil {
 		return nil, err
 	}
-	_, trackExit, _, err := runGit(ctx, dir, 4096, "ls-files", "--error-unmatch", "--", rel)
+	_, trackExit, _, err := runGit(ctx, gitRoot, 4096, gitArgs("ls-files", "--error-unmatch", "--", gitPath)...)
 	if err != nil {
 		return nil, err
 	}
 	if headExit == 0 && trackExit == 0 {
-		resp.Diff, resp.Truncated, err = gitDiffOutput(ctx, dir, "HEAD", rel)
+		resp.Diff, resp.Truncated, err = gitDiffOutput(ctx, gitRoot, "HEAD", gitPath)
 	} else {
 		// 空仓库和未跟踪文件都没有 HEAD 版本，与 /dev/null 对比得到全新增 diff。
-		resp.Diff, resp.Truncated, err = gitDiffOutput(ctx, dir, "", rel)
+		resp.Diff, resp.Truncated, err = gitDiffOutput(ctx, gitRoot, "", gitPath)
 	}
 	if err != nil {
 		return nil, err
@@ -320,8 +384,11 @@ func (s *ProjectSvc) GitDiff(ctx context.Context, id, path string) (*dto.GitDiff
 	return resp, nil
 }
 
+// gitDiffOutput 只输出仓库内容本身：禁用外部 diff 与属性 textconv，
+// 避免仅查看 diff 就执行仓库 .gitattributes/.git/config 指定的程序。
+// rel 是相对仓库根的字面路径。
 func gitDiffOutput(ctx context.Context, dir, revision, rel string) (string, bool, error) {
-	args := []string{"-c", "core.quotePath=false", "diff", "--no-color", "--no-ext-diff"}
+	args := gitArgs("diff", "--no-color", "--no-ext-diff", "--no-textconv")
 	if revision == "" {
 		args = append(args, "--no-index", "--", "/dev/null", rel)
 	} else {
