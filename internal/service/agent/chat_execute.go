@@ -95,6 +95,9 @@ var ErrProviderSecretUnavailable = errors.New("provider API key cannot be decryp
 // providerAPIKey 解密提供商的 API Key。密文无法解开时统一返回
 // ErrProviderSecretUnavailable，避免前端只看到通用的对话失败。
 func providerAPIKey(provider *ent.KaguyaProviderInfo, conversationID string) (string, error) {
+	// 与 TLS 轮换互斥：轮换提交前不能用旧密钥解出已被重写的新密文。
+	secret.RLockCredentials()
+	defer secret.RUnlockCredentials()
 	apiKey, err := secret.Decrypt(provider.APIKey)
 	if err != nil {
 		global.Logger.Sugar().Errorf("decrypt provider api key failed: conversation_id=%s provider_id=%s err=%v", conversationID, provider.ID, err)

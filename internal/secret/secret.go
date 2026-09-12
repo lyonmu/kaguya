@@ -14,6 +14,10 @@
 //
 // 未调用 Init 时 Encrypt 原样返回明文、Decrypt 直接返回输入，便于单元测试与
 // 未启用加密的调用路径。生产启动流程必然调用 Init。
+//
+// Cipher 是不可变对象：TLSUpdate 可以先用旧 Cipher 解密、再用新 Cipher 加密，
+// 在数据库事务成功提交后才把活动密钥切换为新对象，避免轮换中途失败留下
+// 新证书配旧密文的状态。
 package secret
 
 import (
@@ -45,58 +49,166 @@ const (
 // ErrNoKeyMaterial 表示既没有外部密钥，也没有可用于派生的证书私钥。
 var ErrNoKeyMaterial = errors.New("no encryption key material: set KAGUYA_SECRET_KEY or configure a TLS certificate")
 
-var (
-	mu              sync.RWMutex
+// Cipher 是不可变的加密对象。构造成功即持有全部密钥材料，
+// 之后不依赖包级状态，可在轮换过程中与新 Cipher 并存。
+type Cipher struct {
 	key             []byte
 	fromCertificate bool
-)
+}
 
-// Init 加载加密密钥，必须在使用 Encrypt/Decrypt 前调用。
+func newCipher(key []byte, fromCertificate bool) *Cipher {
+	return &Cipher{key: key, fromCertificate: fromCertificate}
+}
+
+// NewCipher 根据外部密钥或证书私钥构造 Cipher，不修改包级活动密钥。
 // explicitKey 为空时回退到 tlsPrivateKeyPEM 派生。
-func Init(explicitKey, tlsPrivateKeyPEM string) error {
-	mu.Lock()
-	defer mu.Unlock()
-	key, fromCertificate = nil, false
+func NewCipher(explicitKey, tlsPrivateKeyPEM string) (*Cipher, error) {
 	if material := strings.TrimSpace(explicitKey); material != "" {
 		parsed, err := parseExplicitKey(material)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		key = parsed
-		return nil
+		return newCipher(parsed, false), nil
 	}
 	if strings.TrimSpace(tlsPrivateKeyPEM) == "" {
-		return ErrNoKeyMaterial
+		return nil, ErrNoKeyMaterial
 	}
 	derived, err := deriveFromCertificate(tlsPrivateKeyPEM)
 	if err != nil {
+		return nil, err
+	}
+	return newCipher(derived, true), nil
+}
+
+// DerivedFromCertificate 报告该 Cipher 的密钥是否由证书私钥派生。证书轮换会改变这种密钥，
+// 调用方必须先重新加密已有密文。
+func (c *Cipher) DerivedFromCertificate() bool {
+	return c != nil && c.fromCertificate
+}
+
+// Encrypt 加密明文。空值原样返回；已带前缀的值不做二次加密。
+func (c *Cipher) Encrypt(plain string) (string, error) {
+	if plain == "" || IsEncrypted(plain) {
+		return plain, nil
+	}
+	aead, err := c.aead()
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, aead.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return "", fmt.Errorf("generate nonce: %w", err)
+	}
+	sealed := aead.Seal(nonce, nonce, []byte(plain), nil)
+	return prefix + base64.RawStdEncoding.EncodeToString(sealed), nil
+}
+
+// Decrypt 解密密文。历史明文记录（无前缀）原样返回，便于平滑迁移。
+func (c *Cipher) Decrypt(value string) (string, error) {
+	if !IsEncrypted(value) {
+		return value, nil
+	}
+	if c == nil {
+		return "", errors.New("encrypted value requires an initialized secret key")
+	}
+	aead, err := c.aead()
+	if err != nil {
+		return "", err
+	}
+	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(value, prefix))
+	if err != nil {
+		return "", fmt.Errorf("decode ciphertext: %w", err)
+	}
+	if len(raw) < aead.NonceSize() {
+		return "", errors.New("ciphertext is truncated")
+	}
+	plain, err := aead.Open(nil, raw[:aead.NonceSize()], raw[aead.NonceSize():], nil)
+	if err != nil {
+		// 证书轮换或更换外部密钥后，既有密文无法解开；调用方应提示重新填写。
+		return "", errors.New("cannot decrypt value with the current secret key; re-enter the API key after a TLS certificate rotation")
+	}
+	return string(plain), nil
+}
+
+func (c *Cipher) aead() (cipher.AEAD, error) {
+	if c == nil {
+		return nil, errors.New("secret cipher is not initialized")
+	}
+	block, err := aes.NewCipher(c.key)
+	if err != nil {
+		return nil, err
+	}
+	return cipher.NewGCM(block)
+}
+
+var (
+	// activeMu 只保护 active 指针本身。读取活动 Cipher 不进入协调锁，
+	// 因此 Swap 期间不会阻塞正在进行的凭据操作。
+	activeMu sync.RWMutex
+	active   *Cipher
+
+	// coordMu 协调“读数据库 → 解密/加密 → 写数据库”的完整短操作。
+	// 普通凭据操作共享访问，TLS 轮换独占访问。
+	coordMu sync.RWMutex
+)
+
+func setActive(c *Cipher) {
+	activeMu.Lock()
+	active = c
+	activeMu.Unlock()
+}
+
+// current 返回当前活动 Cipher；未初始化时返回 nil。
+func current() *Cipher {
+	activeMu.RLock()
+	defer activeMu.RUnlock()
+	return active
+}
+
+// Current 返回当前活动 Cipher。调用方在使用它与数据库交互期间
+// 应持有 RLockCredentials，避免与 TLS 轮换交错。
+func Current() *Cipher { return current() }
+
+// Init 加载活动加密密钥，必须在使用 Encrypt/Decrypt 前调用。
+// 构造失败时不修改已有密钥，避免一次错误的显式密钥清空可用状态。
+func Init(explicitKey, tlsPrivateKeyPEM string) error {
+	c, err := NewCipher(explicitKey, tlsPrivateKeyPEM)
+	if err != nil {
 		return err
 	}
-	key, fromCertificate = derived, true
+	setActive(c)
 	return nil
 }
 
-// DerivedFromCertificate 报告当前密钥是否由证书私钥派生。证书轮换会改变这种密钥，
-// 调用方必须先重新加密已有密文。
-func DerivedFromCertificate() bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	return fromCertificate
-}
-
 // Reset 清除当前密钥，仅用于测试与降级路径。
-func Reset() {
-	mu.Lock()
-	defer mu.Unlock()
-	key, fromCertificate = nil, false
-}
+func Reset() { setActive(nil) }
+
+// Publish 把已构造好的 Cipher 发布为活动密钥。用于 TLS 轮换：
+// 事务提交后直接把候选 Cipher 切为活动状态，不再重新解析密钥材料。
+func Publish(c *Cipher) { setActive(c) }
 
 // Enabled 报告当前是否具备可用密钥。
 func Enabled() bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	return len(key) > 0
+	c := current()
+	return c != nil && len(c.key) > 0
 }
+
+// DerivedFromCertificate 报告活动密钥是否由证书私钥派生。证书轮换会改变这种密钥，
+// 调用方必须先重新加密已有密文。
+func DerivedFromCertificate() bool { return current().DerivedFromCertificate() }
+
+// LockCredentials 阻止新的凭据读写，直到 UnlockCredentials。
+// TLS 轮换在“读取密文 → 用新密钥重写 → 提交事务”期间独占使用。
+func LockCredentials() { coordMu.Lock() }
+
+// UnlockCredentials 释放凭据协调锁。
+func UnlockCredentials() { coordMu.Unlock() }
+
+// RLockCredentials 声明当前操作会读取凭据密文并与轮换互斥。
+func RLockCredentials() { coordMu.RLock() }
+
+// RUnlockCredentials 释放凭据共享锁。
+func RUnlockCredentials() { coordMu.RUnlock() }
 
 func parseExplicitKey(material string) ([]byte, error) {
 	if decoded, err := hex.DecodeString(material); err == nil && len(decoded) == keyLength {
@@ -127,65 +239,26 @@ func deriveFromCertificate(privateKeyPEM string) ([]byte, error) {
 // IsEncrypted 判断取值是否为本包产生的密文。
 func IsEncrypted(value string) bool { return strings.HasPrefix(value, prefix) }
 
-// Encrypt 加密明文。空值原样返回；未初始化密钥时返回明文（静态加密未启用）。
+// Encrypt 用活动密钥加密。未初始化密钥时返回明文（静态加密未启用），
+// 便于未启用加密的调用路径与单元测试。
 func Encrypt(plain string) (string, error) {
-	if plain == "" || IsEncrypted(plain) {
+	c := current()
+	if c == nil {
 		return plain, nil
 	}
-	aead, err := currentAEAD()
-	if err != nil {
-		return "", err
-	}
-	if aead == nil {
-		return plain, nil
-	}
-	nonce := make([]byte, aead.NonceSize())
-	if _, err := rand.Read(nonce); err != nil {
-		return "", fmt.Errorf("generate nonce: %w", err)
-	}
-	sealed := aead.Seal(nonce, nonce, []byte(plain), nil)
-	return prefix + base64.RawStdEncoding.EncodeToString(sealed), nil
+	return c.Encrypt(plain)
 }
 
-// Decrypt 解密密文。历史明文记录（无前缀）原样返回，便于平滑迁移。
+// Decrypt 用活动密钥解密。未初始化密钥时密文返回错误、历史明文原样返回。
 func Decrypt(value string) (string, error) {
 	if !IsEncrypted(value) {
 		return value, nil
 	}
-	aead, err := currentAEAD()
-	if err != nil {
-		return "", err
-	}
-	if aead == nil {
+	c := current()
+	if c == nil {
 		return "", errors.New("encrypted value requires an initialized secret key")
 	}
-	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(value, prefix))
-	if err != nil {
-		return "", fmt.Errorf("decode ciphertext: %w", err)
-	}
-	if len(raw) < aead.NonceSize() {
-		return "", errors.New("ciphertext is truncated")
-	}
-	plain, err := aead.Open(nil, raw[:aead.NonceSize()], raw[aead.NonceSize():], nil)
-	if err != nil {
-		// 证书轮换或更换外部密钥后，既有密文无法解开；调用方应提示重新填写。
-		return "", errors.New("cannot decrypt value with the current secret key; re-enter the API key after a TLS certificate rotation")
-	}
-	return string(plain), nil
-}
-
-func currentAEAD() (cipher.AEAD, error) {
-	mu.RLock()
-	current := key
-	mu.RUnlock()
-	if len(current) == 0 {
-		return nil, nil
-	}
-	block, err := aes.NewCipher(current)
-	if err != nil {
-		return nil, err
-	}
-	return cipher.NewGCM(block)
+	return c.Decrypt(value)
 }
 
 // MaskUnavailable 表示已配置密钥但当前密钥无法解密（例如 TLS 证书已轮换）。

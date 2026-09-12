@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testPrivateKeyPEM(t *testing.T) string {
@@ -184,4 +185,109 @@ func TestMask(t *testing.T) {
 			t.Errorf("Mask(%q) = %q, want %q", tt.in, got, tt.want)
 		}
 	}
+}
+
+// Cipher 必须可独立构造：轮换时允许旧 Cipher 解密、新 Cipher 加密并存，
+// 且构造失败不修改包级状态。
+func TestCipherIndependentOfActiveState(t *testing.T) {
+	Reset()
+	defer Reset()
+	oldCert, newCert := testPrivateKeyPEM(t), testPrivateKeyPEM(t)
+	oldCipher, err := NewCipher("", oldCert)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newCipher, err := NewCipher("", newCert)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !oldCipher.DerivedFromCertificate() {
+		t.Fatal("certificate cipher must report derived key")
+	}
+	cipherText, err := oldCipher.Encrypt("sk-independent")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 构造新 Cipher 不影响包级状态与旧 Cipher 的可用性。
+	if Enabled() {
+		t.Fatal("NewCipher must not publish the active key")
+	}
+	if plain, err := oldCipher.Decrypt(cipherText); err != nil || plain != "sk-independent" {
+		t.Fatalf("old cipher decrypt: %q %v", plain, err)
+	}
+	if _, err := newCipher.Decrypt(cipherText); err == nil {
+		t.Fatal("new cipher must not decrypt ciphers of the old key")
+	}
+	// 显式密钥优先于证书派生，且不标记为证书派生。
+	external, err := NewCipher(strings.Repeat("ab", 32), newCert)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if external.DerivedFromCertificate() {
+		t.Fatal("explicit key must not be reported as certificate-derived")
+	}
+}
+
+// Init 失败不得清空已有活动密钥，成功时才会替换。
+func TestInitFailureKeepsActiveKey(t *testing.T) {
+	Reset()
+	defer Reset()
+	if err := Init("", testPrivateKeyPEM(t)); err != nil {
+		t.Fatal(err)
+	}
+	cipherText, err := Encrypt("sk-still-readable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Init("not-a-valid-key", ""); err == nil {
+		t.Fatal("invalid explicit key must fail")
+	}
+	if !Enabled() {
+		t.Fatal("failed Init cleared the active key")
+	}
+	if plain, err := Decrypt(cipherText); err != nil || plain != "sk-still-readable" {
+		t.Fatalf("active key lost after failed Init: %q %v", plain, err)
+	}
+}
+
+// 凭据协调锁只用于串行化读写与轮换；活动 Cipher 的读取不进入该锁。
+func TestCredentialLockSerializes(t *testing.T) {
+	Reset()
+	defer Reset()
+	if err := Init("", testPrivateKeyPEM(t)); err != nil {
+		t.Fatal(err)
+	}
+	acquired := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		LockCredentials()
+		defer UnlockCredentials()
+		// 轮换持有独占锁期间仍可读取活动密钥。
+		if !Enabled() {
+			t.Error("active cipher must stay readable under the exclusive lock")
+		}
+		close(acquired)
+		<-release
+	}()
+	<-acquired
+	blocked := make(chan struct{})
+	go func() {
+		RLockCredentials()
+		defer RUnlockCredentials()
+		close(blocked)
+	}()
+	select {
+	case <-blocked:
+		t.Fatal("reader acquired the credential lock during rotation")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case <-blocked:
+	case <-time.After(time.Second):
+		t.Fatal("reader did not acquire the credential lock after rotation")
+	}
+	<-done
 }
