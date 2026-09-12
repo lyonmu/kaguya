@@ -3,7 +3,6 @@ package schema
 import (
 	"charm.land/fantasy"
 	"entgo.io/ent"
-	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -17,7 +16,7 @@ func (KaguyaChatTurn) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("conversation_id").MaxLen(64).NotEmpty(),
 		field.Int64("turn_index").Positive(),
-		field.Text("user_content").SchemaType(map[string]string{dialect.MySQL: "longtext"}),
+		field.Text("user_content"),
 		field.String("provider_id"), field.String("provider_name"),
 		field.String("model_id"), field.String("model_name"), field.String("api_protocol"),
 		field.Enum("status").Values("running", "completed", "interrupted", "canceled", "failed").Default("completed").

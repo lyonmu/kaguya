@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
@@ -60,11 +59,11 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m1, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("first").SetModelID("first-api").SetIsDefault(consts.IsFalse).Save(ctx)
+	m1, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("first").SetModelID("first-api").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m2, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("second").SetModelID("second-api").SetIsDefault(consts.IsFalse).Save(ctx)
+	m2, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("second").SetModelID("second-api").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

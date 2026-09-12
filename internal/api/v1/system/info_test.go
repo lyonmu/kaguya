@@ -36,7 +36,7 @@ func TestSystemInfoAPI(t *testing.T) {
 	if err := client.KaguyaProviderInfo.Create().SetID("p").SetProviderName("p").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := client.KaguyaModelsInfo.Create().SetID("m").SetProviderID("p").SetModelName("m").SetModelID("api-m").SetIsDefault(consts.IsFalse).Exec(ctx); err != nil {
+	if err := client.KaguyaModelsInfo.Create().SetID("m").SetProviderID("p").SetModelName("m").SetModelID("api-m").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if err := initialize.Run(ctx, client); err != nil {

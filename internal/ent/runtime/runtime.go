@@ -473,32 +473,24 @@ func init() {
 	kaguyamodelsinfoDescModelID := kaguyamodelsinfoFields[2].Descriptor()
 	// kaguyamodelsinfo.ModelIDValidator is a validator for the "model_id" field. It is called by the builders before save.
 	kaguyamodelsinfo.ModelIDValidator = kaguyamodelsinfoDescModelID.Validators[0].(func(string) error)
-	// kaguyamodelsinfoDescIsDefault is the schema descriptor for is_default field.
-	kaguyamodelsinfoDescIsDefault := kaguyamodelsinfoFields[3].Descriptor()
-	// kaguyamodelsinfo.DefaultIsDefault holds the default value on creation for the is_default field.
-	kaguyamodelsinfo.DefaultIsDefault = consts.Status(kaguyamodelsinfoDescIsDefault.Default.(int))
-	// kaguyamodelsinfoDescIsTask is the schema descriptor for is_task field.
-	kaguyamodelsinfoDescIsTask := kaguyamodelsinfoFields[4].Descriptor()
-	// kaguyamodelsinfo.IsTaskValidator is a validator for the "is_task" field. It is called by the builders before save.
-	kaguyamodelsinfo.IsTaskValidator = kaguyamodelsinfoDescIsTask.Validators[0].(func(int) error)
 	// kaguyamodelsinfoDescReasoningEnabled is the schema descriptor for reasoning_enabled field.
-	kaguyamodelsinfoDescReasoningEnabled := kaguyamodelsinfoFields[5].Descriptor()
+	kaguyamodelsinfoDescReasoningEnabled := kaguyamodelsinfoFields[3].Descriptor()
 	// kaguyamodelsinfo.DefaultReasoningEnabled holds the default value on creation for the reasoning_enabled field.
 	kaguyamodelsinfo.DefaultReasoningEnabled = consts.Status(kaguyamodelsinfoDescReasoningEnabled.Default.(int))
 	// kaguyamodelsinfoDescReasoningEffort is the schema descriptor for reasoning_effort field.
-	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[6].Descriptor()
+	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[4].Descriptor()
 	// kaguyamodelsinfo.DefaultReasoningEffort holds the default value on creation for the reasoning_effort field.
 	kaguyamodelsinfo.DefaultReasoningEffort = consts.ReasoningEffort(kaguyamodelsinfoDescReasoningEffort.Default.(string))
 	// kaguyamodelsinfoDescCapabilityToolUse is the schema descriptor for capability_tool_use field.
-	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[9].Descriptor()
+	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[7].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityToolUse holds the default value on creation for the capability_tool_use field.
 	kaguyamodelsinfo.DefaultCapabilityToolUse = consts.Status(kaguyamodelsinfoDescCapabilityToolUse.Default.(int))
 	// kaguyamodelsinfoDescCapabilityVision is the schema descriptor for capability_vision field.
-	kaguyamodelsinfoDescCapabilityVision := kaguyamodelsinfoFields[10].Descriptor()
+	kaguyamodelsinfoDescCapabilityVision := kaguyamodelsinfoFields[8].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityVision holds the default value on creation for the capability_vision field.
 	kaguyamodelsinfo.DefaultCapabilityVision = consts.Status(kaguyamodelsinfoDescCapabilityVision.Default.(int))
 	// kaguyamodelsinfoDescCapabilityStructuredOutput is the schema descriptor for capability_structured_output field.
-	kaguyamodelsinfoDescCapabilityStructuredOutput := kaguyamodelsinfoFields[11].Descriptor()
+	kaguyamodelsinfoDescCapabilityStructuredOutput := kaguyamodelsinfoFields[9].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityStructuredOutput holds the default value on creation for the capability_structured_output field.
 	kaguyamodelsinfo.DefaultCapabilityStructuredOutput = consts.Status(kaguyamodelsinfoDescCapabilityStructuredOutput.Default.(int))
 	// kaguyamodelsinfoDescID is the schema descriptor for id field.

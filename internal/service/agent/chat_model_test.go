@@ -34,14 +34,14 @@ func TestChatSelectedModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	def, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("default").SetModelID("default-api").SetIsDefault(consts.IsTrue).Save(ctx)
+	def, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("default").SetModelID("default-api").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetDefaultModelID(def.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	selected, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("selected").SetModelID("selected-api").SetIsDefault(consts.IsFalse).Save(ctx)
+	selected, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("selected").SetModelID("selected-api").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

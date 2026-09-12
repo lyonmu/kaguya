@@ -11,27 +11,27 @@ import (
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 )
 
-func TestSystemInfoDoesNotImportLegacySelections(t *testing.T) {
+func TestSystemInfoDoesNotSelectModelsImplicitly(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	client, svc := db.EntClient, &SystemSvc{}
 	p, err := client.KaguyaProviderInfo.Create().SetProviderName("legacy").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("old").SetModelID("old").SetIsDefault(consts.IsTrue).SetIsTask(consts.IsTrue).Save(ctx)
+	_, err = client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("old").SetModelID("old").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	info, err := svc.Info(ctx)
 	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" || info.UserAgent != consts.DefaultUserAgent || info.GlobalSystemPrompt != consts.GlobalSystemPrompt {
-		t.Fatalf("query imported legacy selections: %+v %v", info, err)
+		t.Fatalf("query selected a model implicitly: %+v %v", info, err)
 	}
 	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "agent/2", SystemPrompt: "custom"}); err != nil {
 		t.Fatal(err)
 	}
 	info, err = (&SystemSvc{}).Info(ctx)
 	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" || info.UserAgent != "agent/2" || info.SystemPrompt != "custom" {
-		t.Fatalf("cleared config regressed to legacy flags: %+v %v", info, err)
+		t.Fatalf("cleared config gained implicit selections: %+v %v", info, err)
 	}
 	if count, err := client.KaguyaSystemInfo.Query().Count(ctx); err != nil || count != 1 {
 		t.Fatalf("count=%d err=%v", count, err)
@@ -91,7 +91,7 @@ func TestSystemInfoRejectsDeletedModelsAndProviders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("model").SetModelID("model").SetIsDefault(consts.IsTrue).SetIsTask(consts.IsTrue).Save(ctx)
+	m, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("model").SetModelID("model").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -37,7 +37,7 @@ type KaguyaProviderInfo struct {
 	BaseURL string `json:"base_url,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the KaguyaProviderInfoQuery when eager-loading is set.
-	Edges        KaguyaProviderInfoEdges `json:"-" gorm:"-"`
+	Edges        KaguyaProviderInfoEdges `json:"-"`
 	selectValues sql.SelectValues
 }
 

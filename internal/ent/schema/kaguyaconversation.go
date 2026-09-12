@@ -62,5 +62,5 @@ func chatHistoryMixins() []ent.Mixin {
 }
 func chatHistoryAnnotations(table, comment string) []schema.Annotation {
 	enabled := true
-	return []schema.Annotation{schema.Comment(comment), entsql.Annotation{Table: table, Charset: "utf8mb4", Collation: "utf8mb4_general_ci", WithComments: &enabled}, edge.Annotation{StructTag: `json:"-" gorm:"-"`}}
+	return []schema.Annotation{schema.Comment(comment), entsql.Annotation{Table: table, WithComments: &enabled}, edge.Annotation{StructTag: `json:"-"`}}
 }

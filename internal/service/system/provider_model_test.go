@@ -12,7 +12,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	"github.com/lyonmu/kaguya/internal/ent"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
@@ -82,17 +81,16 @@ func TestProviderAndModelCRUD(t *testing.T) {
 		t.Fatalf("update provider: resp=%+v err=%v", provider, err)
 	}
 
-	first, err := svc.ModelCreate(ctx, modelSaveReq(provider.ID, "GPT First", "gpt-first"))
-	if err != nil {
+	if _, err := svc.ModelCreate(ctx, modelSaveReq(provider.ID, "GPT First", "gpt-first")); err != nil {
 		t.Fatalf("create first model: %v", err)
 	}
 	second, err := svc.ModelCreate(ctx, modelSaveReq(provider.ID, "GPT Second", "gpt-second"))
 	if err != nil {
 		t.Fatalf("create second model: %v", err)
 	}
-	firstDefault, err := db.EntClient.KaguyaModelsInfo.Query().Where(kaguyamodelsinfo.IDEQ(first.ID)).Only(ctx)
-	if err != nil || firstDefault.IsDefault != consts.IsFalse {
-		t.Fatalf("creating a model must not set a default: model=%+v err=%v", firstDefault, err)
+	info, err := svc.Info(ctx)
+	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" {
+		t.Fatalf("creating a model must not change the global selection: info=%+v err=%v", info, err)
 	}
 
 	detail, err := svc.ProviderDetail(ctx, provider.ID)

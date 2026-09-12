@@ -3,7 +3,6 @@ package schema
 import (
 	"encoding/json"
 	"entgo.io/ent"
-	"entgo.io/ent/dialect"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
@@ -18,9 +17,9 @@ func (KaguyaChatBlock) Fields() []ent.Field {
 		field.String("turn_id").MaxLen(64).NotEmpty(),
 		field.Int64("sequence").Positive().Comment("轮内首次出现顺序，非时间戳排序"),
 		field.Enum("type").Values("text", "reasoning", "tool_call"),
-		field.Text("text").Default("").SchemaType(map[string]string{dialect.MySQL: "longtext"}),
+		field.Text("text").Default(""),
 		field.String("tool_call_id").Default(""), field.String("tool_name").Default(""),
-		field.Text("input").Default("").SchemaType(map[string]string{dialect.MySQL: "longtext"}),
+		field.Text("input").Default(""),
 		field.JSON("output", json.RawMessage{}).Optional(),
 		field.Bool("provider_executed").Default(false), field.Bool("is_error").Default(false),
 		field.Text("error_message").Default(""),

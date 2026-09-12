@@ -99,7 +99,6 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 		SetProviderID(req.ProviderID).
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
-		SetIsDefault(consts.IsFalse). // 旧列不再参与模型选择，新模型不写选择标记。
 		SetReasoningEnabled(req.ReasoningEnabled).
 		SetReasoningEffort(req.ReasoningEffort).
 		SetTokenContextWindow(req.TokenContextWindow).
@@ -197,7 +196,6 @@ func (s *SystemSvc) ModelDelete(ctx context.Context, id string) error {
 	row, err := tx.KaguyaModelsInfo.UpdateOneID(id).
 		Where(kaguyamodelsinfo.DeletedAtIsNil()).
 		SetDeletedAt(time.Now()).
-		ClearIsTask().
 		Save(ctx)
 	if err != nil {
 		if ent.IsNotFound(err) {

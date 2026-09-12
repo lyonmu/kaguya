@@ -77,7 +77,7 @@ type KaguyaChatTurn struct {
 	Messages []fantasy.Message `json:"messages,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the KaguyaChatTurnQuery when eager-loading is set.
-	Edges        KaguyaChatTurnEdges `json:"-" gorm:"-"`
+	Edges        KaguyaChatTurnEdges `json:"-"`
 	selectValues sql.SelectValues
 }
 

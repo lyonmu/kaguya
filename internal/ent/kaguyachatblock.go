@@ -59,7 +59,7 @@ type KaguyaChatBlock struct {
 	EndOrder int64 `json:"end_order,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the KaguyaChatBlockQuery when eager-loading is set.
-	Edges        KaguyaChatBlockEdges `json:"-" gorm:"-"`
+	Edges        KaguyaChatBlockEdges `json:"-"`
 	selectValues sql.SelectValues
 }
 

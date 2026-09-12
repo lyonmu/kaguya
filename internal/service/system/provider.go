@@ -198,7 +198,6 @@ func (s *SystemSvc) ProviderDelete(ctx context.Context, id string) error {
 	if _, err = client.KaguyaModelsInfo.Update().
 		Where(kaguyamodelsinfo.ProviderIDEQ(id), kaguyamodelsinfo.DeletedAtIsNil()).
 		SetDeletedAt(now).
-		ClearIsTask().
 		Save(ctx); err != nil {
 		global.Logger.Sugar().Errorf("delete provider models failed: id=%s, err=%v", id, err)
 		return err

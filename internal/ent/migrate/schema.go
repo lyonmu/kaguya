@@ -17,10 +17,10 @@ var (
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "sequence", Type: field.TypeInt64, Comment: "轮内首次出现顺序，非时间戳排序"},
 		{Name: "type", Type: field.TypeEnum, Enums: []string{"text", "reasoning", "tool_call"}},
-		{Name: "text", Type: field.TypeString, Size: 2147483647, Default: "", SchemaType: map[string]string{"mysql": "longtext"}},
+		{Name: "text", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "tool_call_id", Type: field.TypeString, Default: ""},
 		{Name: "tool_name", Type: field.TypeString, Default: ""},
-		{Name: "input", Type: field.TypeString, Size: 2147483647, Default: "", SchemaType: map[string]string{"mysql": "longtext"}},
+		{Name: "input", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "output", Type: field.TypeJSON, Nullable: true},
 		{Name: "provider_executed", Type: field.TypeBool, Default: false},
 		{Name: "is_error", Type: field.TypeBool, Default: false},
@@ -80,7 +80,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "turn_index", Type: field.TypeInt64},
-		{Name: "user_content", Type: field.TypeString, Size: 2147483647, SchemaType: map[string]string{"mysql": "longtext"}},
+		{Name: "user_content", Type: field.TypeString, Size: 2147483647},
 		{Name: "provider_id", Type: field.TypeString},
 		{Name: "provider_name", Type: field.TypeString},
 		{Name: "model_id", Type: field.TypeString},
@@ -283,8 +283,6 @@ var (
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "model_name", Type: field.TypeString, Comment: "模型显示名称"},
 		{Name: "model_id", Type: field.TypeString, Comment: "调用 API 时使用的模型标识符"},
-		{Name: "is_default", Type: field.TypeInt, Nullable: true, Comment: "是否为该提供方下的默认模型", Default: 1},
-		{Name: "is_task", Type: field.TypeInt, Unique: true, Nullable: true, Comment: "全局后台任务模型；非任务模型为 NULL"},
 		{Name: "reasoning_enabled", Type: field.TypeInt, Nullable: true, Comment: "是否启用思考模式", Default: 1},
 		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true, Comment: "思考努力程度，影响推理深度和响应速度", Default: "medium"},
 		{Name: "token_context_window", Type: field.TypeInt, Nullable: true, Comment: "模型支持的最大上下文窗口大小（token 数）"},
@@ -303,7 +301,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_models_info_kaguya_provider_info_models",
-				Columns:    []*schema.Column{KaguyaModelsInfoColumns[15]},
+				Columns:    []*schema.Column{KaguyaModelsInfoColumns[13]},
 				RefColumns: []*schema.Column{KaguyaProviderInfoColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -332,7 +330,7 @@ var (
 			{
 				Name:    "kaguyamodelsinfo_provider_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaModelsInfoColumns[15]},
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[13]},
 			},
 			{
 				Name:    "kaguyamodelsinfo_model_id",
@@ -342,12 +340,7 @@ var (
 			{
 				Name:    "kaguyamodelsinfo_provider_id_model_id",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaModelsInfoColumns[15], KaguyaModelsInfoColumns[5]},
-			},
-			{
-				Name:    "kaguyamodelsinfo_is_default",
-				Unique:  false,
-				Columns: []*schema.Column{KaguyaModelsInfoColumns[6]},
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[13], KaguyaModelsInfoColumns[5]},
 			},
 		},
 	}
@@ -515,44 +508,30 @@ var (
 func init() {
 	KaguyaChatBlockTable.ForeignKeys[0].RefTable = KaguyaChatTurnTable
 	KaguyaChatBlockTable.Annotation = &entsql.Annotation{
-		Table:     "kaguya_chat_block",
-		Charset:   "utf8mb4",
-		Collation: "utf8mb4_general_ci",
+		Table: "kaguya_chat_block",
 	}
 	KaguyaChatTurnTable.ForeignKeys[0].RefTable = KaguyaConversationTable
 	KaguyaChatTurnTable.Annotation = &entsql.Annotation{
-		Table:     "kaguya_chat_turn",
-		Charset:   "utf8mb4",
-		Collation: "utf8mb4_general_ci",
+		Table: "kaguya_chat_turn",
 	}
 	KaguyaConversationTable.ForeignKeys[0].RefTable = KaguyaProjectTable
 	KaguyaConversationTable.Annotation = &entsql.Annotation{
-		Table:     "kaguya_conversation",
-		Charset:   "utf8mb4",
-		Collation: "utf8mb4_general_ci",
+		Table: "kaguya_conversation",
 	}
 	KaguyaMcpServerTable.Annotation = &entsql.Annotation{
 		Table: "kaguya_mcp_server",
 	}
 	KaguyaModelsInfoTable.ForeignKeys[0].RefTable = KaguyaProviderInfoTable
 	KaguyaModelsInfoTable.Annotation = &entsql.Annotation{
-		Table:     "kaguya_models_info",
-		Charset:   "utf8mb4",
-		Collation: "utf8mb4_general_ci",
+		Table: "kaguya_models_info",
 	}
 	KaguyaProjectTable.Annotation = &entsql.Annotation{
-		Table:     "kaguya_project",
-		Charset:   "utf8mb4",
-		Collation: "utf8mb4_general_ci",
+		Table: "kaguya_project",
 	}
 	KaguyaProviderInfoTable.Annotation = &entsql.Annotation{
-		Table:     "kaguya_provider_info",
-		Charset:   "utf8mb4",
-		Collation: "utf8mb4_general_ci",
+		Table: "kaguya_provider_info",
 	}
 	KaguyaSystemInfoTable.Annotation = &entsql.Annotation{
-		Table:     "kaguya_system_info",
-		Charset:   "utf8mb4",
-		Collation: "utf8mb4_general_ci",
+		Table: "kaguya_system_info",
 	}
 }

@@ -32,7 +32,7 @@ type KaguyaProject struct {
 	Description string `json:"description,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the KaguyaProjectQuery when eager-loading is set.
-	Edges        KaguyaProjectEdges `json:"-" gorm:"-"`
+	Edges        KaguyaProjectEdges `json:"-"`
 	selectValues sql.SelectValues
 }
 

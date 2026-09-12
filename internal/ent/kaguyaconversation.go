@@ -57,7 +57,7 @@ type KaguyaConversation struct {
 	ReasoningTokens int64 `json:"reasoning_tokens,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the KaguyaConversationQuery when eager-loading is set.
-	Edges        KaguyaConversationEdges `json:"-" gorm:"-"`
+	Edges        KaguyaConversationEdges `json:"-"`
 	selectValues sql.SelectValues
 }
 

@@ -65,10 +65,8 @@ func (KaguyaProviderInfo) Annotations() []schema.Annotation {
 		schema.Comment("模型提供商信息表"),
 		entsql.Annotation{
 			Table:        "kaguya_provider_info",
-			Charset:      "utf8mb4",
-			Collation:    "utf8mb4_general_ci",
 			WithComments: &withCommentsEnabled,
 		},
-		edge.Annotation{StructTag: `json:"-" gorm:"-"`},
+		edge.Annotation{StructTag: `json:"-"`},
 	}
 }

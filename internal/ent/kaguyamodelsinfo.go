@@ -32,10 +32,6 @@ type KaguyaModelsInfo struct {
 	ModelName string `json:"model_name,omitempty"`
 	// 调用 API 时使用的模型标识符
 	ModelID string `json:"model_id,omitempty"`
-	// 是否为该提供方下的默认模型
-	IsDefault consts.Status `json:"is_default,omitempty"`
-	// 全局后台任务模型；非任务模型为 NULL
-	IsTask *consts.Status `json:"is_task,omitempty"`
 	// 是否启用思考模式
 	ReasoningEnabled consts.Status `json:"reasoning_enabled,omitempty"`
 	// 思考努力程度，影响推理深度和响应速度
@@ -52,7 +48,7 @@ type KaguyaModelsInfo struct {
 	CapabilityStructuredOutput consts.Status `json:"capability_structured_output,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the KaguyaModelsInfoQuery when eager-loading is set.
-	Edges        KaguyaModelsInfoEdges `json:"-" gorm:"-"`
+	Edges        KaguyaModelsInfoEdges `json:"-"`
 	selectValues sql.SelectValues
 }
 
@@ -81,7 +77,7 @@ func (*KaguyaModelsInfo) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyamodelsinfo.FieldIsDefault, kaguyamodelsinfo.FieldIsTask, kaguyamodelsinfo.FieldReasoningEnabled, kaguyamodelsinfo.FieldTokenContextWindow, kaguyamodelsinfo.FieldTokenMaxOutputTokens, kaguyamodelsinfo.FieldCapabilityToolUse, kaguyamodelsinfo.FieldCapabilityVision, kaguyamodelsinfo.FieldCapabilityStructuredOutput:
+		case kaguyamodelsinfo.FieldReasoningEnabled, kaguyamodelsinfo.FieldTokenContextWindow, kaguyamodelsinfo.FieldTokenMaxOutputTokens, kaguyamodelsinfo.FieldCapabilityToolUse, kaguyamodelsinfo.FieldCapabilityVision, kaguyamodelsinfo.FieldCapabilityStructuredOutput:
 			values[i] = new(sql.NullInt64)
 		case kaguyamodelsinfo.FieldID, kaguyamodelsinfo.FieldProviderID, kaguyamodelsinfo.FieldModelName, kaguyamodelsinfo.FieldModelID, kaguyamodelsinfo.FieldReasoningEffort:
 			values[i] = new(sql.NullString)
@@ -144,19 +140,6 @@ func (_m *KaguyaModelsInfo) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field model_id", values[i])
 			} else if value.Valid {
 				_m.ModelID = value.String
-			}
-		case kaguyamodelsinfo.FieldIsDefault:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field is_default", values[i])
-			} else if value.Valid {
-				_m.IsDefault = consts.Status(value.Int64)
-			}
-		case kaguyamodelsinfo.FieldIsTask:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field is_task", values[i])
-			} else if value.Valid {
-				_m.IsTask = new(consts.Status)
-				*_m.IsTask = consts.Status(value.Int64)
 			}
 		case kaguyamodelsinfo.FieldReasoningEnabled:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -260,14 +243,6 @@ func (_m *KaguyaModelsInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("model_id=")
 	builder.WriteString(_m.ModelID)
-	builder.WriteString(", ")
-	builder.WriteString("is_default=")
-	builder.WriteString(fmt.Sprintf("%v", _m.IsDefault))
-	builder.WriteString(", ")
-	if v := _m.IsTask; v != nil {
-		builder.WriteString("is_task=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
 	builder.WriteString(", ")
 	builder.WriteString("reasoning_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReasoningEnabled))

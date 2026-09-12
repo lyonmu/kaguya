@@ -24,11 +24,11 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 	if err := client.Schema.Create(ctx, migrate.WithForeignKeys(false)); err != nil {
 		t.Fatal(err)
 	}
-	// 即使有旧标记，初始化也不选择模型。
+	// 初始化不选择模型，模型选择只能来自全局配置。
 	if err := client.KaguyaProviderInfo.Create().SetID("p").SetProviderName("legacy").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := client.KaguyaModelsInfo.Create().SetID("m").SetProviderID("p").SetModelName("legacy").SetModelID("legacy").SetIsDefault(consts.IsTrue).SetIsTask(consts.IsTrue).Exec(ctx); err != nil {
+	if err := client.KaguyaModelsInfo.Create().SetID("m").SetProviderID("p").SetModelName("legacy").SetModelID("legacy").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if err := Run(ctx, client); err != nil {
@@ -63,6 +63,46 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 	}
 	if count, err := client.KaguyaSystemInfo.Query().Count(ctx); err != nil || count != 1 {
 		t.Fatalf("count=%d err=%v", count, err)
+	}
+}
+
+// 旧库升级：schema 移除 is_default/is_task 后，物理旧列可能仍存在；
+// 初始化不得把这些遗留标记恢复为全局模型选择。
+func TestInfoInitializationIgnoresLegacyModelColumns(t *testing.T) {
+	ctx := context.Background()
+	client, err := ent.Open(dialect.SQLite, "file:init-info-legacy?mode=memory&cache=shared&_foreign_keys=on")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	if err := client.Schema.Create(ctx, migrate.WithForeignKeys(false)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ExecContext(ctx, "ALTER TABLE kaguya_models_info ADD COLUMN is_default INTEGER DEFAULT 1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ExecContext(ctx, "ALTER TABLE kaguya_models_info ADD COLUMN is_task INTEGER"); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaProviderInfo.Create().SetID("p").SetProviderName("legacy").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	model, err := client.KaguyaModelsInfo.Create().SetID("m").SetProviderID("p").SetModelName("legacy").SetModelID("legacy").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.ExecContext(ctx, "UPDATE kaguya_models_info SET is_default = 1, is_task = 1 WHERE id = ?", model.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := Run(ctx, client); err != nil {
+		t.Fatal(err)
+	}
+	row, err := client.KaguyaSystemInfo.Get(ctx, consts.SystemInfoID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.DefaultModelID != "" || row.TaskModelID != "" {
+		t.Fatalf("legacy columns drove model selection: default=%q task=%q", row.DefaultModelID, row.TaskModelID)
 	}
 }
 
