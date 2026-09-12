@@ -55,7 +55,7 @@ func runChat(ctx context.Context, t *testing.T, req *dtochat.ChatReq) chatFrames
 		if frame.Err != nil {
 			frames.err = frame.Err
 		}
-		if frame.Chat.Flag == dtochat.WSFlagDone {
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			frames.done++
 		}
 	}

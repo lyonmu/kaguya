@@ -78,7 +78,7 @@ func TestLoopUnlimitedAndResumableLimit(t *testing.T) {
 					if frame.Err != nil {
 						t.Fatal(frame.Err)
 					}
-					if frame.Chat.Flag == dto.WSFlagDone {
+					if frame.Chat.Flag == dto.ChatFlagDone {
 						done = frame
 					}
 				}

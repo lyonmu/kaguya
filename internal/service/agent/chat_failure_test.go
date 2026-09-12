@@ -80,7 +80,7 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 				go (&AgentSvc{}).Chat(callCtx, ch, &dtochat.ChatReq{ID: id, Messages: "must not save"})
 				var done, fail int
 				for frame := range ch {
-					if frame.Chat.Flag == dtochat.WSFlagDone {
+					if frame.Chat.Flag == dtochat.ChatFlagDone {
 						done++
 					}
 					if frame.Err != nil {
@@ -196,7 +196,7 @@ func TestChatRetriesTransientStreamOverload(t *testing.T) {
 			failures++
 			failure = frame.Err
 		}
-		if frame.Chat.Flag == dtochat.WSFlagDone {
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			done++
 		}
 		if frame.Chat.Block != nil && frame.Chat.Block.Type == dtochat.BlockTypeText {

@@ -29,7 +29,7 @@ func requestSecurity(trustedHosts []string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "untrusted request host"})
 			return
 		}
-		// Apply to GET and WebSocket upgrades too: both expose sensitive data.
+		// Applies to every request, including SSE subscriptions.
 		if site := r.Header.Get("Sec-Fetch-Site"); site == "cross-site" || site == "same-site" {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "cross-origin request denied"})
 			return

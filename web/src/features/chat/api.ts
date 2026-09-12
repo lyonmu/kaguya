@@ -42,7 +42,7 @@ export async function streamChat(id: string, messages: string, signal: AbortSign
     method: 'POST',
     headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
     credentials: 'same-origin',
-    body: JSON.stringify({ id: id || undefined, messages, flag: 'chat', model_id: modelId || undefined, project_id: projectId || undefined, files: projectId && files.length ? files : undefined }),
+    body: JSON.stringify({ id: id || undefined, messages, model_id: modelId || undefined, project_id: projectId || undefined, files: projectId && files.length ? files : undefined }),
     signal,
   })
   if (!response.ok || !response.headers.get('content-type')?.includes('text/event-stream')) {

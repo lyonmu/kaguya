@@ -11,7 +11,7 @@ describe('chat API', () => {
     globalThis.fetch = (async (url, init) => {
       assert.ok(String(url).endsWith('/v1/chat/sse'))
       assert.equal(init?.method, 'POST')
-      assert.deepEqual(JSON.parse(String(init?.body)), { id: '123', messages: '你好', flag: 'chat' })
+      assert.deepEqual(JSON.parse(String(init?.body)), { id: '123', messages: '你好' })
       assert.ok(init?.signal)
       return new Response('data: {"code":100000,"data":{"chat":{"id":"123","flag":"done"}}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
     }) as typeof fetch
@@ -25,7 +25,7 @@ describe('chat API', () => {
   })
   it('sends selected project files independently from the visible message', async () => {
     globalThis.fetch = (async (_url, init) => {
-      assert.deepEqual(JSON.parse(String(init?.body)), { id: '123', messages: '检查实现', flag: 'chat', model_id: 'm', project_id: 'p', files: ['docs/my file.md'] })
+      assert.deepEqual(JSON.parse(String(init?.body)), { id: '123', messages: '检查实现', model_id: 'm', project_id: 'p', files: ['docs/my file.md'] })
       return new Response('data: {"code":100000,"data":{"chat":{"id":"123","flag":"done"}}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
     }) as typeof fetch
     await streamChat('123', '检查实现', new AbortController().signal, () => {}, 'm', 'p', ['docs/my file.md'])

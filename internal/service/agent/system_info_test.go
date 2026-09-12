@@ -98,7 +98,7 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 			if frame.Err != nil {
 				t.Fatal(frame.Err)
 			}
-			if frame.Chat.Flag == dtochat.WSFlagDone {
+			if frame.Chat.Flag == dtochat.ChatFlagDone {
 				done = true
 				id = frame.Chat.ID
 			}

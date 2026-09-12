@@ -84,7 +84,7 @@ func TestClientDisconnectStopsTurnAndKeepsPartial(t *testing.T) {
 		if frame.Chat.ID != "" {
 			convID = frame.Chat.ID
 		}
-		if frame.Chat.Flag == dtochat.WSFlagDone {
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			t.Fatal("disconnected turn reported done")
 		}
 		// 收到首块后模拟断网/休眠：取消请求上下文，不再读取后续帧。

@@ -2,15 +2,13 @@ package chat
 
 import "github.com/lyonmu/kaguya/internal/consts"
 
-type WSFlag string
+type ChatFlag string
 
 const (
-	WSFlagChat   WSFlag = "chat"   // 上行：发起一轮对话
-	WSFlagCancel WSFlag = "cancel" // 上行：取消当前生成
-	WSFlagStart  WSFlag = "start"  // 下行：本轮首帧（会话 ID + 模型信息）
-	WSFlagDelta  WSFlag = "delta"  // 下行：增量内容帧
-	WSFlagDone   WSFlag = "done"   // 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
-	WSFlagError  WSFlag = "error"  // 下行：出错或被取消
+	ChatFlagStart ChatFlag = "start" // 下行：本轮首帧（会话 ID + 模型信息）
+	ChatFlagDelta ChatFlag = "delta" // 下行：增量内容帧
+	ChatFlagDone  ChatFlag = "done"  // 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
+	ChatFlagError ChatFlag = "error" // 下行：出错或被取消
 )
 
 type ChatResp struct {
@@ -76,7 +74,7 @@ type ToolOutput struct {
 type Chat struct {
 	ID      string        `json:"id"`                // 会话雪花 ID；后续请求沿用此 ID 恢复上下文
 	Content string        `json:"content,omitempty"` // 兼容字段：仅正文增量，与 block.text 二选一消费
-	Flag    WSFlag        `json:"flag"`
+	Flag    ChatFlag      `json:"flag"`
 	Block   *ContentBlock `json:"block,omitempty"` // delta 帧的内容块事件；整轮 done 不携带内容
 }
 

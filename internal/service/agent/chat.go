@@ -30,7 +30,7 @@ var ErrChatModelNotConfigured = errors.New("chat model is not configured")
 func pushChatError(ctx context.Context, dataChan chan *dtochat.ChatResp, convID string, err error) {
 	resp := &dtochat.ChatResp{Err: err}
 	if convID != "" {
-		resp.Chat = dtochat.Chat{ID: convID, Flag: dtochat.WSFlagError}
+		resp.Chat = dtochat.Chat{ID: convID, Flag: dtochat.ChatFlagError}
 	}
 	send(ctx, dataChan, resp)
 }
@@ -39,7 +39,7 @@ func pushChatError(ctx context.Context, dataChan chan *dtochat.ChatResp, convID 
 func startFrame(exec chatExecution) *dtochat.ChatResp {
 	provider, model := exec.target.provider, exec.target.model
 	return &dtochat.ChatResp{
-		Chat:        dtochat.Chat{ID: exec.conversationID, Flag: dtochat.WSFlagStart},
+		Chat:        dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagStart},
 		APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
 		Created:     time.Now().Unix(),
 		ModelID:     model.ModelID,
@@ -51,7 +51,7 @@ func startFrame(exec chatExecution) *dtochat.ChatResp {
 func doneFrame(exec chatExecution, outcome *chatOutcome) *dtochat.ChatResp {
 	provider, model, usage := exec.target.provider, exec.target.model, outcome.usage
 	return &dtochat.ChatResp{
-		Chat:         dtochat.Chat{ID: exec.conversationID, Flag: dtochat.WSFlagDone},
+		Chat:         dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagDone},
 		FinishReason: outcome.finishReason,
 		APIProtocol:  consts.ProviderProtocol(provider.APIProtocol),
 		Usage: dtochat.Usage{

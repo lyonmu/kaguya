@@ -25,6 +25,9 @@ func TestRequestSecurity(t *testing.T) {
 		{"dev proxy", "localhost:5173", "http://localhost:5173", "same-origin", "POST", 204},
 		{"IPv6", "[::1]:9024", "http://[::1]:9024", "", "GET", 204},
 		{"TLS proxy", "agent.example.com", "https://agent.example.com", "same-origin", "POST", 204},
+		{"TLS proxy missing site header", "agent.example.com", "https://agent.example.com", "", "GET", 204},
+		{"TLS proxy wrong origin", "agent.example.com", "https://other.example.com", "same-origin", "POST", 403},
+		{"TLS proxy wrong host", "other.example.com", "https://agent.example.com", "same-origin", "POST", 403},
 		{"foreign GET", "localhost:9024", "https://evil.example", "", "GET", 403},
 		{"foreign POST", "localhost:9024", "https://evil.example", "", "POST", 403},
 		{"foreign preflight", "localhost:9024", "https://evil.example", "", "OPTIONS", 403},
@@ -75,27 +78,5 @@ func TestRequestBodyLimit(t *testing.T) {
 		if w.Code != 413 || called {
 			t.Fatalf("chunked=%v status=%d called=%v", chunked, w.Code, called)
 		}
-	}
-}
-
-func TestWebSocketRejectsForeignOriginByDefault(t *testing.T) {
-	r := gin.New()
-	r.GET("/", func(c *gin.Context) {
-		conn, err := Upgrade(c)
-		if err == nil {
-			conn.Close()
-			t.Error("foreign origin accepted")
-		}
-	})
-	req := httptest.NewRequest("GET", "http://localhost/", nil)
-	req.Header.Set("Origin", "https://evil.example")
-	req.Header.Set("Connection", "Upgrade")
-	req.Header.Set("Upgrade", "websocket")
-	req.Header.Set("Sec-WebSocket-Version", "13")
-	req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != 403 {
-		t.Fatalf("status=%d", w.Code)
 	}
 }

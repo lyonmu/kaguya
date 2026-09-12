@@ -71,7 +71,7 @@ func TestChatStreamBlocks(t *testing.T) {
 			}
 		}
 	}
-	payload := dtochat.Chat{ID: "conv", Flag: dtochat.WSFlagDelta, Block: &events[1]}
+	payload := dtochat.Chat{ID: "conv", Flag: dtochat.ChatFlagDelta, Block: &events[1]}
 	data, err := json.Marshal(payload)
 	must(err)
 	var got dtochat.Chat

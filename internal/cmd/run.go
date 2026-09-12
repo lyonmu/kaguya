@@ -12,7 +12,6 @@ import (
 	"time"
 
 	pkgid "github.com/lyonmu/gopkg/id"
-	"github.com/lyonmu/kaguya/internal/api/v1/chat"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
@@ -134,8 +133,7 @@ func Run() {
 		fmt.Print(info.TLS.CertificatePEM)
 		return
 	}
-	// serviceCtx 随 SIGTERM/中断取消，传播到 HTTP 请求与 SSE 流；
-	// 关停时也要主动关闭已 hijack 的 WebSocket 连接。
+	// serviceCtx 随 SIGTERM/中断取消，传播到 HTTP 请求与 SSE 流。
 	serviceCtx, cancelService := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelService()
 	restoreDone := make(chan struct{})
@@ -182,7 +180,6 @@ func Run() {
 		// 关停顺序：先停止接纳新任务并取消连接与后台任务，等待终态落库，
 		// 最后关闭工作区资源和数据库，避免数据库关闭后仍有写入。
 		cancelService()
-		chat.CloseAllChatWS()
 		serviceagent.Shutdown()
 		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancelShutdown()

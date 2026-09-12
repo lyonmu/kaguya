@@ -138,7 +138,7 @@ func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatRe
 	var stepStreamed atomic.Bool
 	stream := newChatStream(func(block dtochat.ContentBlock) error {
 		stepStreamed.Store(true)
-		frame := dtochat.Chat{ID: exec.conversationID, Flag: dtochat.WSFlagDelta, Block: &block}
+		frame := dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagDelta, Block: &block}
 		if block.Type == dtochat.BlockTypeText && block.Phase == dtochat.BlockPhaseDelta {
 			frame.Content = block.Text
 		}

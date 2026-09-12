@@ -57,7 +57,7 @@ func TestChatIndependentConversationsRunConcurrently(t *testing.T) {
 	}
 	cancelFirst()
 	for frame := range first {
-		if frame.Chat.Flag == dtochat.WSFlagDone {
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			t.Fatal("cancelled conversation completed")
 		}
 	}
@@ -67,7 +67,7 @@ func TestChatIndependentConversationsRunConcurrently(t *testing.T) {
 		if frame.Err != nil {
 			t.Fatalf("second conversation failed: %v", frame.Err)
 		}
-		if frame.Chat.Flag == dtochat.WSFlagDone {
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			done = true
 		}
 	}

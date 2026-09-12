@@ -149,14 +149,14 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 				t.Fatalf("conversation ID changed: %+v", frame.Chat)
 			}
 			switch frame.Chat.Flag {
-			case dtochat.WSFlagStart:
+			case dtochat.ChatFlagStart:
 				starts++
 				// 首轮在正文开始生成前已落库，不再等待轮次完成；
 				// 记录错误而不是直接终止，避免 Chat goroutine 访问已回收的全局状态。
 				if _, err := client.KaguyaConversation.Get(ctx, returnedID); err != nil {
 					startErr = fmt.Errorf("conversation missing at start frame: %w", err)
 				}
-			case dtochat.WSFlagDone:
+			case dtochat.ChatFlagDone:
 				done++
 				if frame.Chat.Content != "" || frame.Chat.Block != nil {
 					t.Fatalf("done repeated content: %+v", frame.Chat)
@@ -286,7 +286,7 @@ func TestChatFailureKeepsStartedConversationAndTitle(t *testing.T) {
 		if frame.Chat.ID != "" {
 			convID = frame.Chat.ID
 		}
-		if frame.Chat.Flag == dtochat.WSFlagDone {
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			t.Fatal("failed turn reported done")
 		}
 		if frame.Err != nil {

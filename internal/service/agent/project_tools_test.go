@@ -165,7 +165,7 @@ func TestChatExecutesCodingToolAndPersistsResult(t *testing.T) {
 			t.Fatal(frame.Err)
 		}
 		id = frame.Chat.ID
-		if frame.Chat.Flag == dtochat.WSFlagDone {
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			done++
 		}
 		if frame.Chat.Block != nil && frame.Chat.Block.Type == dtochat.BlockTypeToolCall {

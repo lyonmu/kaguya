@@ -16,7 +16,6 @@ import (
 
 	"entgo.io/ent/dialect"
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
@@ -28,13 +27,13 @@ import (
 	"go.uber.org/zap"
 )
 
-type wsAPIID struct{ value atomic.Int64 }
+type sseAPIID struct{ value atomic.Int64 }
 
-func (g *wsAPIID) GenID() (int64, error) { return g.value.Add(1), nil }
+func (g *sseAPIID) GenID() (int64, error) { return g.value.Add(1), nil }
 
-// WebSocket 对话必须像 SSE 一样把 project_id 和 files 交给服务层，否则项目工具和
-// 文件引用会被静默丢弃。
-func TestChatWebSocketForwardsProjectAndFiles(t *testing.T) {
+// SSE 对话必须把 project_id 和 files 交给服务层，否则项目工具和文件引用会被静默丢弃；
+// 请求体不再携带上行 flag，POST /sse 本身即表示发起一轮对话。
+func TestChatSSEForwardsProjectAndFiles(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	home := t.TempDir()
@@ -49,7 +48,7 @@ func TestChatWebSocketForwardsProjectAndFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	oldClient, oldID, oldLogger := db.EntClient, global.Id, global.Logger
-	db.EntClient, global.Id, global.Logger = client, &wsAPIID{}, zap.NewNop()
+	db.EntClient, global.Id, global.Logger = client, &sseAPIID{}, zap.NewNop()
 	defer func() { db.EntClient, global.Id, global.Logger = oldClient, oldID, oldLogger }()
 	if err := initialize.Run(ctx, client); err != nil {
 		t.Fatal(err)
@@ -62,7 +61,7 @@ func TestChatWebSocketForwardsProjectAndFiles(t *testing.T) {
 	if err := os.MkdirAll(projectDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	const marker = "WEBSOCKET-FILE-CONTENT-MARKER"
+	const marker = "SSE-FILE-CONTENT-MARKER"
 	if err := os.WriteFile(filepath.Join(projectDir, "notes.txt"), []byte(marker+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +83,7 @@ func TestChatWebSocketForwardsProjectAndFiles(t *testing.T) {
 			"data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
 	}))
 	defer providerServer.Close()
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("ws").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(providerServer.URL).Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("sse").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(providerServer.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,42 +98,41 @@ func TestChatWebSocketForwardsProjectAndFiles(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	api := &ChatApiV1Group{}
-	engine.GET("/v1/chat/ws", api.ChatWS)
-	server := httptest.NewServer(engine)
-	defer server.Close()
+	engine.POST("/v1/chat/sse", api.ChatSSE)
 
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http")+"/v1/chat/ws", nil)
+	payload, err := json.Marshal(map[string]any{"messages": "总结这个文件", "project_id": project.ID, "files": []string{"notes.txt"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
-	if err := conn.WriteJSON(dtochat.ChatReq{Flag: dtochat.WSFlagChat, Messages: "总结这个文件", ProjectID: project.ID, Files: []string{"notes.txt"}}); err != nil {
-		t.Fatal(err)
+	request := httptest.NewRequest(http.MethodPost, "/v1/chat/sse", strings.NewReader(string(payload)))
+	request.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status %d: %s", response.Code, response.Body.String())
 	}
 
-	flags := []dtochat.WSFlag{}
-	for {
+	flags := []dtochat.ChatFlag{}
+	for _, line := range strings.Split(response.Body.String(), "\n") {
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
 		var frame struct {
 			Code int              `json:"code"`
 			Data dtochat.ChatResp `json:"data"`
 		}
-		if err := conn.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
-			t.Fatal(err)
-		}
-		if err := conn.ReadJSON(&frame); err != nil {
-			t.Fatal(err)
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &frame); err != nil {
+			t.Fatalf("invalid SSE frame %q: %v", line, err)
 		}
 		if frame.Code != 100000 || frame.Data.Err != nil {
 			t.Fatalf("unexpected frame: %+v", frame)
 		}
 		flags = append(flags, frame.Data.Chat.Flag)
-		if frame.Data.Chat.Flag == dtochat.WSFlagDone {
-			break
-		}
 	}
-	if len(flags) < 2 || flags[0] != dtochat.WSFlagStart || flags[len(flags)-1] != dtochat.WSFlagDone {
+	if len(flags) < 2 || flags[0] != dtochat.ChatFlagStart || flags[len(flags)-1] != dtochat.ChatFlagDone {
 		t.Fatalf("unexpected lifecycle: %v", flags)
 	}
+
 	body := prompt.Load()
 	if body == nil {
 		t.Fatal("provider did not receive a request")
@@ -142,17 +140,17 @@ func TestChatWebSocketForwardsProjectAndFiles(t *testing.T) {
 	if !strings.Contains(body.(string), marker) {
 		t.Fatalf("referenced file content missing from upstream prompt: %s", body)
 	}
-	var request struct {
+	var upstream struct {
 		Messages []struct {
 			Role    string          `json:"role"`
 			Content json.RawMessage `json:"content"`
 		} `json:"messages"`
 	}
-	if err := json.Unmarshal([]byte(body.(string)), &request); err != nil || len(request.Messages) == 0 {
+	if err := json.Unmarshal([]byte(body.(string)), &upstream); err != nil || len(upstream.Messages) == 0 {
 		t.Fatalf("invalid upstream request: %v", err)
 	}
 	referenced := false
-	for _, message := range request.Messages {
+	for _, message := range upstream.Messages {
 		if message.Role != "system" && strings.Contains(string(message.Content), marker) {
 			referenced = true
 		}

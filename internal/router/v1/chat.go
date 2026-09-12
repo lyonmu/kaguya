@@ -12,7 +12,6 @@ func (r *ChatRouter) InitChatRouter(group *gin.RouterGroup, apiGroup apiv1.ApiV1
 	chatRouter := group.Group("v1/chat")
 	{
 		chatRouter.POST("sse", apiGroup.ChatSSE)
-		chatRouter.GET("ws", apiGroup.ChatWS)
 		chatRouter.GET("conversation/page", apiGroup.ConversationPage)
 		chatRouter.GET("conversation/:id", apiGroup.ConversationDetail)
 		chatRouter.GET("conversation/:id/turns", apiGroup.ConversationTurns)

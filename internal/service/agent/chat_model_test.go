@@ -54,11 +54,11 @@ func TestChatSelectedModel(t *testing.T) {
 			if frame.Err != nil {
 				failed = true
 			}
-			if frame.Chat.Flag == dtochat.WSFlagDone {
+			if frame.Chat.Flag == dtochat.ChatFlagDone {
 				done = true
 				id = frame.Chat.ID
 			}
-			if frame.Chat.Flag == dtochat.WSFlagStart && frame.ModelID != want {
+			if frame.Chat.Flag == dtochat.ChatFlagStart && frame.ModelID != want {
 				t.Errorf("model = %q, want %q", frame.ModelID, want)
 			}
 		}

@@ -10,11 +10,11 @@ import (
 )
 
 func TestMapFramePreservesExplicitLifecycle(t *testing.T) {
-	for _, flag := range []dtochat.WSFlag{dtochat.WSFlagStart, dtochat.WSFlagDelta, dtochat.WSFlagDone} {
+	for _, flag := range []dtochat.ChatFlag{dtochat.ChatFlagStart, dtochat.ChatFlagDelta, dtochat.ChatFlagDone} {
 		t.Run(string(flag), func(t *testing.T) {
 			// done 在 usage=0 时也生效，且不携带重复内容。
 			input := &dtochat.ChatResp{Chat: dtochat.Chat{ID: "conv", Flag: flag}}
-			if flag == dtochat.WSFlagDelta {
+			if flag == dtochat.ChatFlagDelta {
 				input.Chat.Block = &dtochat.ContentBlock{Type: dtochat.BlockTypeReasoning, Phase: dtochat.BlockPhaseEnd}
 			}
 			resp, isErr := mapFrame(input)
@@ -29,7 +29,7 @@ func TestMapFramePreservesExplicitLifecycle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if flag == dtochat.WSFlagDone {
+			if flag == dtochat.ChatFlagDone {
 				for _, field := range []string{`"turn_id"`, `"blocks"`, `"block"`, `"content"`} {
 					if strings.Contains(string(data), field) {
 						t.Fatalf("unexpected %s in done: %s", field, data)
@@ -46,7 +46,7 @@ func TestMapFrameErrorPreservesIdentity(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	got := resp.Data.(dtochat.ChatResp)
-	if got.Chat.Flag != dtochat.WSFlagError || got.Chat.ID != "conv" {
+	if got.Chat.Flag != dtochat.ChatFlagError || got.Chat.ID != "conv" {
 		t.Fatalf("lost identity: %+v", got)
 	}
 	data, err := json.Marshal(resp)

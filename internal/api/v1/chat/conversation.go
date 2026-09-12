@@ -24,7 +24,7 @@ func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
 	case errors.Is(err, serviceagent.ErrConversationNotFound):
 		dtocode.ConversationNotFound.Failure(c)
 	case errors.Is(err, serviceagent.ErrConversationBusy):
-		dtocode.ChatWSBusy.Failure(c)
+		dtocode.ChatBusy.Failure(c)
 	case errors.Is(err, serviceagent.ErrConversationUpdate):
 		dtocode.RequestParameterError.Failure(c)
 	default:

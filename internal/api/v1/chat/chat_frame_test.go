@@ -17,7 +17,7 @@ func TestMapFrameKnownFailures(t *testing.T) {
 		err  error
 		want dtocode.Response
 	}{
-		{"busy", serviceagent.ErrConversationBusy, dtocode.ChatWSBusy},
+		{"busy", serviceagent.ErrConversationBusy, dtocode.ChatBusy},
 		{"not found", serviceagent.ErrConversationNotFound, dtocode.ConversationNotFound},
 		{"model", serviceagent.ErrChatModelNotConfigured, dtocode.ChatModelNotConfigured},
 		{"concurrency", serviceagent.ErrChatConcurrencyLimited, dtocode.ChatConcurrencyLimited},
@@ -34,7 +34,7 @@ func TestMapFrameKnownFailures(t *testing.T) {
 				t.Fatalf("resp=%+v want=%+v", resp, tt.want)
 			}
 			data, ok := resp.Data.(dtochat.ChatResp)
-			if !ok || data.Chat.Flag != dtochat.WSFlagError || data.Err != nil {
+			if !ok || data.Chat.Flag != dtochat.ChatFlagError || data.Err != nil {
 				t.Fatalf("error frame leaked internal error: %+v", resp.Data)
 			}
 		})
@@ -42,7 +42,7 @@ func TestMapFrameKnownFailures(t *testing.T) {
 }
 
 func TestMapFrameSuccessKeepsData(t *testing.T) {
-	frame := &dtochat.ChatResp{Chat: dtochat.Chat{ID: "1", Flag: dtochat.WSFlagDone}}
+	frame := &dtochat.ChatResp{Chat: dtochat.Chat{ID: "1", Flag: dtochat.ChatFlagDone}}
 	resp, isErr := mapFrame(frame)
 	if isErr || resp.Code != dtocode.SystemSuccess.Code {
 		t.Fatalf("resp=%+v isErr=%v", resp, isErr)
