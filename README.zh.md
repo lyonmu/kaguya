@@ -1,7 +1,7 @@
 <p align="center">
   <img src="images/kaguya.png" alt="Kaguya" width="120" />
 </p>
-<p align="center">带有 Web 控制台的 Go 原生 AI Agent</p>
+<p align="center">用于日常对话与本地项目工作的个人桌面 AI Agent</p>
 <p align="center">
   <a href="README.md">English</a> |
   <a href="README.zh.md">简体中文</a>
@@ -9,371 +9,253 @@
 
 # Kaguya
 
-**Kaguya** 是一个使用 Go 构建的实验性 AI Agent 应用，将流式对话、模型配置、历史持久化和 Token 用量分析整合到一个控制台中。React 前端嵌入 Go 二进制：macOS 默认打开原生 Desktop 窗口，显式 `--web` 时运行原来的 HTTP 服务；两种模式提供同一套界面和 API。
+**Kaguya** 是我个人使用的桌面 AI Agent，将日常对话、本地项目操作、模型与 MCP 配置、历史记录和 Token 用量集中在一个应用中。后端使用 Go，React 界面随应用一起打包，数据保存在本机的 SQLCipher 加密数据库中。
 
-项目面向学习、个人使用和 Agent Runtime 设计探索。当前控制台为中文界面；中英文 README 描述相同的功能，并使用同一组截图。
+项目以跨平台 Desktop 应用为定位。**当前仓库已实现的原生桌面宿主与应用打包支持 macOS 14 及以上**；以下桌面使用说明以 macOS 应用为准。界面目前使用中文。
 
-![对话工作区：历史列表、模型选择与 Markdown 回答](images/screenshots/chat.jpg)
+## 开始使用
 
-## 功能概览
+1. 打开 `Kaguya.app`。使用 DMG 时，将应用拖入 `Applications` 后打开。
+2. 点击左下角 **系统管理**，进入 **AI 配置 → 提供商与模型**，添加提供商的协议、完整请求地址和 API Key。
+3. 在提供商的 **模型管理** 中添加模型，填写上游模型标识与显示名称，并按实际模型填写上下文窗口、最大输出等信息。
+4. 在 **系统配置** 选择默认对话模型；配置后台任务模型后，可自动生成对话标题。
+5. 返回 **对话管理** 开始对话，或切换到 **项目** 添加本机目录后开展项目工作。
 
-| 模块 | 可以做什么 |
+已安装的应用运行时不需要 Go、Bun 或独立数据库服务。模型请求使用你配置的提供商与凭据；项目命令和本地 MCP 服务使用主机上已安装的工具。
+
+## 功能与使用
+
+以下截图于 **2026-09-13** 拍摄自本机已安装的 `Kaguya.app`。截图中的提供商、模型、MCP 服务、设置和用量属于该实例，**不代表内置默认值或上游能力保证**；例如截图中的最大步数为 128、压缩比例为 50%，产品默认值仍以设置表为准。提供商列表按名称筛选，API Key 保持掩码显示。
+
+### 对话与历史
+
+![桌面对话首页：历史列表、模型选择与输入框](images/screenshots/desktop-2026-09-13/chat.jpg)
+
+- **流式回答**：支持 Markdown、表格、代码高亮和复制；提供商返回的思考内容、工具参数与结果可独立展开查看。
+- **Mermaid 图表**：回答中的 Mermaid 代码块在生成完成后渲染，支持缩放、平移、下载和源码切换。Markdown 图片由用户点击后加载。
+- **模型选择**：输入框按“提供商 → 模型”选择模型；收起时显示模型名称，未单独指定时使用系统默认对话模型。
+- **多会话并行**：切换对话或进入系统页面时，正在生成的会话继续运行；可查看运行中的会话并分别停止。同一会话一次运行一轮。
+- **会话管理**：新建、按标题前缀搜索、续聊、重命名和删除；支持重新加载历史；历史分页查看，轮次摘要显示 Token、耗时和工具调用次数。
+- **上下文管理**：输入框显示最近一次模型调用的上下文占用。达到配置阈值后自动摘要早期内容，保留近期消息与原始历史；摘要随成功轮次保存，后续续聊复用。模型窗口未知时显示未知占用并跳过自动压缩。
+
+**Enter** 发送，**Shift + Enter** 换行。生成时可点击停止；停止、失败或断联的轮次保留已生成的内容与工具记录。下次续聊会保留未完成轮次的用户提问，半截助手回答与工具记录只用于展示。关闭应用、刷新页面或流式连接断开会中断当前轮次。
+
+### 本地项目工作区
+
+![个人示例项目中的历史对话、思考与工具执行卡片](images/screenshots/desktop-2026-09-13/project-chat.jpg)
+
+在侧栏 **项目** 中可按名称前缀搜索项目，选择当前用户主目录下的已有文件夹，可编辑项目名称、路径与描述，并在项目下创建多个会话。普通对话与项目对话分别显示。项目路径须唯一；删除项目保留会话，将其转为普通对话，不删除本机文件。
+
+项目会话启用以下四个内置工具，以项目目录作为工作目录：
+
+| 工具 | 用途 |
 | --- | --- |
-| 流式对话 | 通过 SSE 接收回答，查看 Markdown 与提供商返回的思考内容，停止生成，为请求选择模型。 |
-| 并行对话 | 生成时可新建或切换对话；各会话独立接收结果和停止生成，切到系统页面也继续执行。同一会话一次只执行一轮。 |
-| 对话管理 | 继续已保存的对话，按标题前缀搜索，重命名和删除对话，按项目组织对话，分页浏览历史并查看轮次摘要。 |
-| 代码预览 | 项目会话可从顶部菜单打开代码浏览器：文件树带 Git 变更标记，查看文件内容，并对比相对 HEAD 的未提交差异。 |
-| 提供商与模型 | 在界面中管理提供商及其模型，配置完整请求 URL、API Key、协议类型和模型元数据。API Key 加密存储，接口只返回掩码。 |
-| MCP 管理 | 在 AI 配置页面管理 MCP 服务，支持 stdio、Streamable HTTP 和 SSE，动态启停并将工具接入聊天。 |
-| 系统配置 | 分别选择默认对话模型和后台任务模型，追加自定义系统提示词，配置上游请求的 `User-Agent`；保存后新请求立即生效，无需重启。 |
-| Token 用量分析 | 查看累计用量、日峰值、活跃会话、活动热力图，以及按模型或提供商划分的 Token 构成。 |
-| 部署与开发 | 原生单二进制运行，macOS 默认桌面窗口、`--web` 提供 HTTP 服务，使用 SQLCipher 加密 SQLite 并启用 WAL，无需 Docker 或数据库服务，提供 Swagger 与 Prometheus 端点。 |
+| `read` | 分页读取文本或读取模型可识别的图片 |
+| `bash` | 执行主机命令，返回标准输出与错误输出，支持超时和取消 |
+| `edit` | 定位并替换文件内容，返回修改差异 |
+| `write` | 新建或覆盖文件，按需创建父目录 |
 
-## 界面与使用方式
+在输入框输入 **@** 搜索项目文件，用 ↑/↓ 选择、Enter 添加、Esc 关闭。文件作为可移除的引用卡片展示，发送时读取文本内容；每条消息最多引用 **8** 个文件，单文件最多 **2000 行 / 50 KiB**，总量最多 **256 KiB**。
 
-截图采集于 **2026-09-09** 的运行实例。图中的模型名称、元数据、对话和用量均为该实例的示例数据，不是项目内置默认配置，也不代表上游模型的可用性承诺。模型截图裁取了管理抽屉区域，避开提供商凭据和端点详情。
+![项目文件引用搜索](images/screenshots/desktop-2026-09-13/file-reference.jpg)
 
-### 1. 对话工作区
+项目会话顶部菜单的 **查看代码与改动** 提供文件树、代码预览和 Git 未提交变更。差异支持统一与左右分栏视图；文件树遵循 `.gitignore` / `.dockerignore` 并跳过常见依赖目录。文本预览上限 **512 KiB**，单文件差异上限 **1 MiB**。非 Git 目录也可以浏览文件。
 
-**项目管理：** 侧栏以文件夹标题分组展示多个项目，下方缩进显示各自对话并高亮当前对话；项目行菜单提供新建对话、编辑和删除。项目名称可重复，但未删除项目的规范化绝对路径必须唯一（符号链接别名也视为同一路径）；删除项目后可重新使用该目录。选择服务器已有文件夹时，从程序运行用户的 `~/` 开始（例如 `/root` 或 `/home/ubuntu`）；不能选择文件或越界目录，包括指向边界之外的符号链接。进入目录即选中当前目录，点击确认即可创建项目，无子目录时不显示空文件夹提示。一个项目可以包含多个对话，打开项目后新建对话，首轮开始生成时就建立项目关联。普通对话仅在 **对话** 列表中，项目对话仅在对应项目下展示，两类列表不混合。删除项目仍沿用解除归属并保留历史的行为，原项目对话转为普通对话，不删除主机文件。项目对话默认启用 `read`、`bash`、`edit`、`write` 四个编码工具，以项目目录作为工作目录；普通对话与标题生成不启用主机工具。Docker 环境中的路径属于容器运行用户的主目录，需要访问宿主机文件夹时应将其挂载到该目录下。项目会话的顶部菜单提供 **查看代码与改动**：左侧文件树浏览整个项目（包含隐藏项，按 `.gitignore` / `.dockerignore` 过滤，并跳过 `.git` 等目录），有改动的文件带 `M/A/D/U` 标记；右侧支持语法高亮查看文件内容，并可在统一或分栏视图中对比相对 `HEAD` 的未提交差异。非 Git 目录只提供文件浏览；单个文件的 diff 最大 1MB、文件内容最大 512KB，超出时截断；面板按需加载，不进入聊天首屏。
+![项目代码浏览器：文件树与左右分栏差异](images/screenshots/desktop-2026-09-13/code-split.jpg)
 
-通过左侧列表新建或打开历史对话，按标题前缀搜索，或切换 **对话**（仅普通对话）和 **项目** 列表。对话顶部提供重命名和删除操作。输入框可选择提供商及模型，也可使用默认模型：**Enter** 发送，**Shift + Enter** 换行，生成中点击 **停止** 可取消回答。
+<details>
+<summary>查看统一差异与文件预览</summary>
 
-用户消息气泡随文字长度收窄，长句和连续字符自动换行。Markdown 图片需点击后加载，避免模型生成的图片 URL 自动向外发送请求。回答支持 Markdown、代码块，以及提供商返回时可折叠查看的思考内容。轮次摘要显示 Token、耗时和工具调用次数。用量和模型窗口数据齐备时，输入框显示最近一次模型调用的上下文占用（输入含缓存，加输出），相对于系统配置的有效窗口（默认模型窗口的 90%）的占比，不再累计各轮费用。每次模型调用前检查系统配置的压缩阈值，自动总结较早内容并保留近期消息、工具调用配对和原始历史；压缩快照随成功轮次事务保存，续聊从快照恢复。生成遵守模型配置的输出上限和按压缩比例预留的剩余窗口。窗口未知时不自动压缩。超长历史按受限大小分段总结，再逐步合并摘要，避免总结请求本身超出模型窗口。摘要使用当前聊天模型且不带工具，摘要消耗计入本轮用量；失败或无法安全压缩时明确报错。
+![统一差异视图](images/screenshots/desktop-2026-09-13/code-unified.jpg)
 
-只有状态为 `completed` 的完整轮次会成为可继续使用的对话历史并计入用量。生成开始前先写入 `running` 占位行，正文与工具记录按节流增量落库；刷新、断网或休眠导致 SSE 断开时，服务端在察觉断开后停止本轮，把已经推送给前端的模型输出与工具执行情况保留为 `interrupted`，用户主动停止保留为 `canceled`，生成失败保留为 `failed`，均可在历史中查看和展开工具详情。未完成轮次的**用户提问**会按轮次顺序拼回下一次请求（对齐 pi：用户消息始终保留在上下文中，不完整的助手消息在发送前被过滤），让“继续”仍有指代；半截助手内容与工具记录只用于展示，绝不进入上下文。切换会话不会关闭各会话自己的 SSE 连接，因此各会话的轮次继续执行到完成。配置后台任务模型后，新会话在首轮正文开始生成前即创建并出现在列表中，同时只用用户提问并行请求简短中文标题，模型返回后异步更新；中断或失败的轮次保留空会话，也不会覆盖手动设置的标题。
+![文件内容预览](images/screenshots/desktop-2026-09-13/code-file.jpg)
 
-历史列表和聊天内容分别分页：侧栏虚拟列表每次读取 20 个对话摘要；聊天正文每页读取 5 轮，翻页替换当前页。前端使用 `compact=true`，完整返回用户消息和回答正文，思考与工具块仅返回状态等元信息，展开时才加载该块的完整内容；关闭未完成的加载会取消请求，失败可重试。展示查询不读取模型消息或压缩上下文。轮次接口默认 `limit=5`，保留最大 100 轮及未启用 `compact` 时返回完整内容的兼容行为。分页控制轮数而非字节数，单条超长正文或主动展开的大块内容仍可能较大。
+</details>
 
-### 2. 提供商与模型
+文件工具通过 `os.Root` 限制项目路径；**Bash 与本地 MCP 进程使用当前用户权限，工作目录不是沙箱**。文件修改和外部操作立即生效，停止对话不会撤销它们。长命令输出会截断展示，超出展示范围的输出保存到 `/tmp/kaguya/YYYYMMDD/<conversation-id>/`，供当前会话分页读取，清理由操作系统临时目录机制负责。
 
-打开 **系统管理 → AI 提供商** 新增提供商，再进入对应的 **模型管理** 抽屉添加模型。
+### 提供商与模型
 
-![模型管理抽屉：模型标识、推理元数据与上下文窗口](images/screenshots/models.jpg)
+入口：**系统管理 → AI 配置 → 提供商与模型**。
 
-提供商支持显式选择以下三种 API 协议：
+![按名称筛选的提供商列表，API Key 保持掩码](images/screenshots/desktop-2026-09-13/providers.jpg)
 
-| 协议 | 配置值 | 完整请求 URL 示例 |
+![提供商的模型管理抽屉](images/screenshots/desktop-2026-09-13/models.jpg)
+
+| 协议 | 配置值 | 完整请求地址示例 |
 | --- | --- | --- |
 | OpenAI Chat Completions | `openai-chat` | `https://api.example.com/v1/chat/completions` |
 | OpenAI Responses | `openai-response` | `https://api.example.com/v1/responses` |
 | Anthropic Messages | `anthropic` | `https://api.example.com/v1/messages` |
 
-请将示例域名替换为提供商的实际端点。**请求 URL 必须包含完整端点路径**：Kaguya 原样使用配置，不会自动追加 `/chat/completions`、`/responses` 或 `/messages`。提供商类型包含标准（`normal`）和 OpenCode Go（`opencode-go`），后者会附加 OpenCode 会话请求头。
+将示例域名替换为实际提供商地址。**必须填写完整端点路径**，应用不会自动补上 `/chat/completions`、`/responses` 或 `/messages`。提供商类型支持普通类型 `normal` 和带 OpenCode 会话头的 `opencode-go`。
 
-每个模型包含显示名称、上游模型标识，以及推理等级、上下文窗口、最大输出 Token、Tool/Vision/JSON 能力等元数据。这些字段用于描述模型，本身不会启用附件、注册工具，也不保证每项参数都会传递给上游 API。聊天 API 选择模型时使用的是 **本地模型记录 ID**，不是上游模型标识。
+模型配置包含显示名称、上游模型标识、思考等级、上下文窗口、最大输出 Token，以及 Tool/Vision/JSON 能力元数据。按实际模型能力填写；项目与 MCP 工具调用依赖模型支持工具，图片读取还依赖视觉能力。
 
-### API Key 存储
+API Key 加密存储，列表默认掩码显示，显式查看时才返回原文；编辑时留空会保留已有 Key。界面中的模型与提供商来自个人配置，应用不预设默认对话模型或后台任务模型。
 
-API Key 以 AES-256-GCM 加密后存入数据库，并带 `enc:v2:` 版本前缀，便于将来更换算法时识别历史记录。列表与详情接口只返回掩码（如 `sk-l••••7890`），完整明文需要显式调用 `GET /v1/system/provider/{id}/api-key`，前端仅在点击“查看”时请求。编辑提供商时 `api_key` 留空表示保留已存储的密钥，不会被掩码覆盖。
+### MCP 工具
 
-加密密钥按以下优先级选取：
+入口：**系统管理 → AI 配置 → MCP 管理**。
 
-1. 启动参数或环境变量，例如 `KAGUYA_SECRET_KEY=<32 字节 hex 或 base64>`；
-2. 未提供时由 SQLCipher 主密钥经 HKDF-SHA256 域分离派生（`salt=kaguya-provider-secret-v2`，`info=provider-api-key`）。
+![MCP 服务列表：传输方式、运行状态、工具数和启停开关](images/screenshots/desktop-2026-09-13/mcp.jpg)
 
-**外部密钥保存在数据库之外**，数据库文件、备份或导出泄露时密文仍不可读；**数据库派生密钥与 SQLCipher 同根**，可以避免逻辑导出直接暴露 API Key，但无法抵御数据库文件与密钥文件被同时窃取。需要独立根信任时应配置外部密钥。
+可以搜索、添加、编辑、删除服务，动态启用或停用，并查看连接状态、工具数量和错误信息。
 
-启动时会先校验全部非空 API Key：必须使用 `enc:v2:` 且能用当前密钥解开，否则拒绝启动。旧版本记录（`enc:v1:`，由 TLS 证书私钥派生）与历史明文必须**离线**转换，程序运行时不再就地重写：
+| 传输方式 | 配置内容 |
+| --- | --- |
+| `stdio` | 可执行命令、JSON 参数数组、环境变量、可选的绝对工作目录 |
+| `streamable-http` | 服务 URL 与 HTTP 请求头 |
+| `sse` | SSE URL 与 HTTP 请求头 |
 
-```sh
-# 在主二进制旁构建一次性迁移工具。
-CGO_ENABLED=1 bash scripts/go-sqlcipher.sh build -o ./target/migrate-provider-secrets ./cmd/migrate-provider-secrets
+新服务默认停用，启用时连接并发现工具；重启应用会恢复已启用服务。修改正在启用的服务时，先验证新连接，失败则保留原配置。启用的 MCP 工具从下一次请求起供普通对话和项目对话使用，标题任务不使用工具。停用或删除服务会关闭连接并取消正在执行的 MCP 请求。
 
-# 在数据库副本上执行，不要直接操作正在使用的文件。
-./target/migrate-provider-secrets --db.path=/srv/kaguya/copy.db --db.key-file=/secure/kaguya.key \
-  [--old-secret-key=<原外部密钥>] [--new-secret-key=<目标外部密钥>]
-```
+工具超时可设 **1–600 秒**。HTTP 认证通过请求头配置；本地服务继承应用进程环境，可在服务配置中显式补充环境变量。
 
-旧 `enc:v1:` 记录使用外部密钥时须提供 `--old-secret-key`；否则工具读取数据库中保存的旧 TLS 私钥。目标密钥未指定时使用 SQLCipher 派生密钥。工具会转换 v1 与明文记录、校验已有 v2 记录、清空旧 TLS 列，并在单个事务内提交；任一步失败都会回滚且不改变文件，重复执行结果一致。需要回滚时请保留可恢复快照与旧二进制。
+### 系统配置
 
-无法解密（密钥材料不匹配或密文损坏）时，掩码显示为 `••••••••`；提供商管理接口返回 `106006`，对话与标题接口返回 `102010`。
+入口：**系统管理 → 系统配置**。
 
-### MCP 管理
+![系统配置：模型、步数、超时、重试、压缩比例和指令路径](images/screenshots/desktop-2026-09-13/settings.jpg)
 
-HTTP MCP 请求（包括旧式 SSE 返回的消息端点）必须与配置 URL 同源；禁止跨域跳转或 HTTPS 降级，避免认证头及工具参数泄露。
+| 设置 | 行为 |
+| --- | --- |
+| 默认对话模型 | 未手动选择模型时使用 |
+| 后台任务模型 | 用于生成对话标题，可与对话模型不同 |
+| Agent Loop 最大步数 | 默认 `0`，表示不限；可设 `1–1000`，达到上限后保存进度，可继续执行 |
+| 命令超时 | Bash 默认和最大超时，默认 `120` 秒，可设 `1–86400` 秒；模型可请求更短时间 |
+| 聊天请求最大重试次数 | 默认 `5`，范围 `0–20`；对限流、过载等临时错误退避重试，已输出内容后不重试 |
+| 会话压缩比例 | 默认 `90%`，范围 `10–95%`；其余窗口预留输出 |
+| 全局 AGENTS.md 路径 | 按顺序加载个人指令；清空列表可禁用全局文件加载 |
+| User-Agent | 用于后端聊天与标题请求 |
+| 自定义系统提示词 | 追加到只读基础提示词之后，用于聊天 |
 
-在 **系统管理 → AI 配置 → MCP 管理** 中新增、查询、编辑和删除服务，使用开关动态启停。配置存入 `kaguya_mcp_server` 表，启动时自动建表并恢复已启用服务；连接失败会显示异常状态，可手动重试。
+默认全局指令路径为 `~/.config/agents/AGENTS.md` 和 `~/.codex/AGENTS.md`，项目根目录的 `AGENTS.md` 自动加入，文件名大小写不敏感。指令在会话首次成功轮次保存快照，之后跨重启、压缩复用；修改文件或路径后，新会话使用新内容。全局和项目指令合计上限 **256 KiB**。
 
-- 支持 `stdio`（可执行文件、JSON 参数数组、环境变量和绝对工作目录）、`streamable-http` 和旧版 `sse`（URL 与 HTTP 请求头）。认证可通过 `Authorization` 等请求头配置；暂不提供 OAuth 登录流程。
-- 新配置默认停用。启用时先连接并发现工具；运行中编辑会先验证新连接，成功后保存并替换，失败保留原配置。停用或删除会关闭连接，并取消正在执行的 MCP 请求。
-- 启用工具对所有聊天生效，从下一轮请求注入；标题任务不使用 MCP。工具名称带唯一前缀，避免不同服务和内置工具重名。停用后，已有聊天轮次也不能继续调用旧连接；远端已产生的副作用不会撤销。
-- 本地进程以 Kaguya 服务权限运行，继承服务环境，不读取交互式 shell 配置；工作目录不是沙箱。工具调用超时可设为 1–600 秒，连接与工具发现最多 15 秒，工具输出最多 64 KiB，每个服务最多 256 个工具。
-- 当前接入 MCP tools；不加载 prompts/resources。复杂根级 schema（例如根级 `$ref`、`$defs` 或组合约束）暂不支持，发现时会明确报错。凭据随配置存储，列表不返回环境变量或请求头，编辑详情可读取原值。
+其他设置保存后对新请求生效。界面提供明暗主题切换和可收起的侧栏。
 
-### 3. 系统配置
+![系统配置下半页：只读基础提示词与自定义提示词](images/screenshots/desktop-2026-09-13/settings-prompts.jpg)
 
-![系统配置：对话与任务模型、User-Agent 和系统提示词](images/screenshots/settings.jpg)
+### Token 用量分析
 
-- **默认对话模型**：请求没有显式选择模型时使用。
-- **后台任务模型**：用于生成对话标题，可以与对话模型不同。
-- **Agent Loop 最大步数**：默认 `0`（不限，与 pi 一致），也可设为 1–1000。达到手动设置的上限时，保存完整工具结果并暂停，可点击“继续执行”接着处理。已有配置保留原值，可在此改为 `0`。
-- **会话压缩比例**：按模型最大上下文的百分比配置，默认 `90`，允许 `10–95`；新一轮聊天读取最新值，输入框的有效窗口显示同步使用该配置。保留剩余窗口用于输出，并遵守模型的输出上限。降低阈值会更早压缩，增加摘要成本；这不能消除模型幻觉，窗口未知时仍不自动压缩。
-- **命令超时**：bash 默认及最大超时为 120 秒，可设为 1–86400 秒；单次工具参数只能缩短期限。MCP 继续使用各服务自己的超时。
-- **全局 AGENTS.md 路径**：有序数组，默认 `~/.config/agents/AGENTS.md` 和 `~/.codex/AGENTS.md`；支持修改、追加及清空禁用。每个会话首次按服务进程用户读取，并自动加入所属项目根目录的 `AGENTS.md`；文件名不区分大小写，支持 `agents.md`、`Agents.md` 等变体。多个大小写变体同时存在时按文件名排序全部读取，同一实际文件去重；先全局、后项目。缺失的全局文件或项目根目录没有指令文件时跳过；项目文件通过 `os.Root` 读取，拒绝符号链接逃逸。全局与项目内容合计最多 256 KiB，非普通文件、无效 UTF-8、读取失败或超限会报错。快照随首个成功轮次保存到会话，后续请求复用，不重复读文件、不在历史中逐轮追加；服务重启和上下文压缩也不会丢失快照。空快照同样保留；首轮失败或取消不会落库，重试时重新读取。升级前没有快照的旧会话，在下一次成功续聊时补存一次。修改文件或路径仅影响新会话；普通系统配置仍按轮次读取。每次模型请求仍需携带这份系统指令，减少文件读取不等于免除模型输入 Token；标题任务不使用它。子目录内另有作用范围的指令，仍由 Agent 在处理相应文件前查看。
-- **User-Agent**：用于服务端发起的聊天与标题生成请求。
-- **系统提示词**：保留只读的基础人设，自定义内容追加在其后用于聊天；自定义内容留空时仍保留基础人设。
+入口：**系统管理 → 用量分析**。
 
-提供商、模型与系统配置均保存在数据库中。应用启动时初始化系统配置，但不会预选对话模型或任务模型。
+![Token 用量汇总与最近一年的活动热力图](images/screenshots/desktop-2026-09-13/usage.jpg)
 
-### 4. Token 用量分析
+- 日期范围控制汇总卡片：总 Token、日峰值 Token、活跃会话数和日会话峰值。
+- 活动热力图固定显示最近一年，可按日、周、月聚合。
+- 构成图按全部历史展示用量前十的模型或提供商，分别显示输入、输出、思考和缓存读取。
 
-![Token 用量概览与每日活动热力图](images/screenshots/usage.jpg)
+![全部历史按模型展示的 Token 构成](images/screenshots/desktop-2026-09-13/usage-composition.jpg)
 
-日期范围只影响概览卡片：累计 Token、日峰值 Token、去重后的活跃会话数，以及日峰值会话数。活动热力图固定展示 **最近一年** 的每日消耗，可按日、周、月切换聚合方式；Token 构成图固定统计 **全部历史**，两者都不随日期范围变化。活动日期按 **UTC** 统计。
+日期按 **UTC** 统计。只计入成功完成的聊天轮次，已删除会话的历史消耗仍保留；上下文摘要用量计入聊天轮次，标题任务及未完成轮次不计入。因此该页面反映应用记录的聊天用量。
 
-![按模型展示的 Token 构成：输入、输出、思考和缓存](images/screenshots/usage-composition.jpg)
+## 安装与构建
 
-构成图统计全部历史用量，展示用量最高的 **前 10 个** 模型或提供商。输入包含缓存写入，输出不包含思考，缓存读取和思考单独展示，避免重复计数。
+### macOS 桌面应用
 
-分析仅统计 **完整提交（`completed`）的聊天轮次**，包含已删除会话的历史消耗；不包含标题生成任务、进行中/中断/失败轮次，因此不等同于上游的完整计费账单。
-
-## 部署
-
-### 原生二进制（推荐）
-
-源码构建需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make、Git、C 编译器、Tcl、curl、Perl 和 pkg-config。macOS 需安装 Xcode Command Line Tools，并执行 `brew install pkgconf tcl-tk`；`make native` 会在 `target/openssl` 构建固定版本 OpenSSL，不再需要系统的 OpenSSL 开发文件。Debian/Ubuntu 对应原生依赖为 `build-essential tcl pkg-config libssl-dev curl`，仍使用系统静态 `libcrypto.a`，确保 `pkg-config --exists libcrypto` 成功，必要时设置 `PKG_CONFIG_PATH`。
+源码构建需要 [go.mod](go.mod) 指定的 Go（当前 `1.26.8`）、Bun、Make、Git、Xcode Command Line Tools、Tcl、pkg-config、curl 和 Perl。macOS 上可用 `brew install pkgconf tcl-tk` 补充依赖。
 
 ```sh
 git clone https://github.com/lyonmu/kaguya.git
 cd kaguya
-CGO_ENABLED=1 make build
-./target/kaguya
+make package-macos
+# 打开 target/Kaguya.app，或复制到 Applications
 ```
 
-全新安装首次运行时，程序使用 Go 的 `crypto/rand` 自动创建 `~/.kaguya/kaguya.key`，运行时不需要 `openssl` 命令或 shell。**请安全备份生成的密钥，切勿用新生成的密钥覆盖旧密钥。** `make install` 构建并安装到 `~/.local/bin/<仓库目录名>`；确保 `~/.local/bin` 已存在并加入 `PATH`。请以普通用户运行，不要以 root 运行。预构建二进制启动无需 Go/Bun、Docker 或数据库服务；编码工具仍需要主机 Bash 和项目工具链，HTTPS 模型请求需要可信 CA 证书。
-
-`make native` 先在 `target/` 下准备固定版本的 C 依赖：macOS 下载官方 [OpenSSL 3.5.8](https://github.com/openssl/openssl/releases/tag/openssl-3.5.8) 源码（校验 SHA-256）并构建静态 `libcrypto.a` 到 `target/openssl`，再下载官方 [SQLCipher v4.19.0](https://github.com/sqlcipher/sqlcipher/releases/tag/v4.19.0) 源码（校验 SHA-256）并构建到 `target/sqlcipher`。两者都以 `MACOSX_DEPLOYMENT_TARGET`（默认 14.0，与 Info.plist 一致）为部署目标，避免把面向更高系统版本的 C 对象链进应用；发行环境可用 `OPENSSL_STATIC_LIB=/path/to/libcrypto.a` 指定自备静态库。Go `database/sql` 适配器使用 `github.com/mattn/go-sqlite3`，通过 `USE_LIBSQLITE3` 禁用它自带的明文 SQLite 源码。SQLCipher 和 OpenSSL 以明确的**静态库**链接：应用运行时不需要 SQLCipher/OpenSSL 动态库，但仍使用平台系统库（如 Linux 的 libc）。前端继续内嵌。请在目标系统／架构上构建；当前构建不支持 `CGO_ENABLED=0`，也不支持仅修改 GOOS/GOARCH 的交叉编译。缺失构建依赖时明确失败。`make package-macos` 会核对链接的 C 静态库与应用的最低系统版本，不一致时拒绝打包。分发二进制时需保留 SQLCipher、OpenSSL 和适配器的许可证声明；两者的声明会复制到 `target/sqlcipher` 与 `target/openssl`。
-
-**可写数据不存放在 `go:embed` 中**。启动时先检查或初始化默认密钥文件，再自动创建 `~/.kaguya/kaguya.db` 并迁移 schema；`~` 指的是**服务运行用户**的主目录。新建目录权限为 `0700`，新建数据库文件为 `0600`，不修改已有权限。
-
-### macOS Desktop（默认启动）
-
-macOS 上不带参数启动会创建原生 Desktop 窗口：窗口加载 `wails://localhost/`，请求经 Wails 的 WKURLSchemeHandler 在进程内直接进入 Gin，**不创建任何入站 TCP/UDP 监听**（可用 `lsof -nP -a -p <PID> -iTCP -sTCP:LISTEN` 核对）。原有 REST、POST SSE、Handler、Service、Ent 与 Fantasy 执行链整体复用；剪贴板与外部链接通过同一原生通道的两个窄接口调用系统 API，没有网络监听地址。模型请求、远程 MCP 与项目命令仍按各自配置发起出站连接。
+`make package-macos` 构建前后端并组装 `target/Kaguya.app`。`make dmg-macos` 生成可拖拽安装的 `target/Kaguya-<版本>.dmg`。在目标架构的 macOS 上原生构建；C 依赖与应用最低系统版本默认均为 **14.0**。
 
 ```sh
-CGO_ENABLED=1 make build
-./target/kaguya         # macOS 默认：Desktop 窗口
-./target/kaguya --web   # 显式运行 HTTP 服务
+make build                 # 构建 target/kaguya
+./target/kaguya             # 打开桌面窗口
+mkdir -p ~/.local/bin
+make install               # 构建并安装命令行入口到 ~/.local/bin/kaguya
 ```
 
-- **平台**：Desktop 仅支持 macOS；非 macOS 上默认启动会提示改用 `--web`，Web 路径保持原行为。发布目标为 macOS 14 及以上，arm64 与 amd64 各自原生构建。
-- **网络参数**：`--host`、`--port`、`--trusted-host` 只属于 `--web`，Desktop 不参与监听或 Host/Origin 白名单。`--router-prefix` 两种模式共用；Desktop 会校验它是没有 query、fragment、越级段，且不与 `/wails`、`/__desktop`、静态资源冲突的规范本地路径。
-- **数据与密钥**：Desktop 与 Web 使用同一 `~/.kaguya/kaguya.db` 与密钥路径，不做迁移，也不会另建空库；`.app` 只包含二进制、Info.plist、图标与许可证，不写运行数据。约定两者不要同时打开同一数据库。
-- **Finder 环境**：从 Finder 启动的进程由 launchd 派生，初始 `PATH` 只有系统目录。Desktop 启动时会执行一次登录 shell（`$SHELL`，默认 `/bin/zsh`），读取并合并其 `PATH`，使 Bash 工具与 stdio MCP 能解析 nvm、Homebrew、bun、uvx 等用户工具；读取失败或超过 5 秒超时时保留系统 `PATH` 并继续启动。代理及其他终端临时环境变量仍不继承；需要完整终端环境时，从该终端执行 `.app/Contents/MacOS/kaguya`（仍是同一个 Desktop 程序）。自定义数据库、密钥与文件日志路径请用绝对路径或 `~/`，不要依赖工作目录。
-- **系统集成**：外链交给系统浏览器，不为内部通信添加 loopback HTTP 的 ATS 例外；访问桌面／文稿／下载等目录时系统按用途说明请求授权，拒绝时返回原有项目错误，不自动提权。
+输出二进制名称跟随仓库目录名。`make native` 自动下载并校验固定版本的 OpenSSL / SQLCipher，构建静态库；运行应用无需另装这些共享库。构建必须启用 CGO，使用 Make 目标以带上 SQLCipher 链接参数。
 
-打包、签名与公证（身份与 keychain profile 是发行环境输入）：
+发行签名与公证使用已有脚本，由发行环境提供身份与钥匙串配置：
 
 ```sh
-make package-macos                     # 组装 target/Kaguya.app（不签名）
-make dmg-macos                         # 打包 target/Kaguya-<版本>.dmg，拖拽安装
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' make sign-macos
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
   NOTARY_PROFILE=kaguya-notary make notarize-macos
 ```
 
-缺少 `CODESIGN_IDENTITY` 或 `NOTARY_PROFILE` 时目标明确失败，不生成 ad-hoc 包冒充正式发行版。`make dmg-macos` 生成的 DMG 未签名，仅适合本机使用；对外分发须完成签名与公证，否则 Gatekeeper 会拦截下载后的首次打开。`make notarize-macos` 会依次公证并 staple 应用包与 DMG。初始 entitlements 为空字典，使用 Hardened Runtime、不做 App Sandbox；现有主机项目、Bash 与 MCP 能力按运行用户访问主机文件。
+普通打包目标生成未签名产物；公证目标同时处理应用和 DMG。
 
-| 参数 | 环境变量 | 默认值 |
-| --- | --- | --- |
-| `--web` | — | `false`；macOS 上显式运行 HTTP 服务，而不是打开桌面窗口 |
-| `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
-| `--db.key-file` | `DB_KEY_FILE` | 未设置时初始化／使用 `~/.kaguya/kaguya.key`；显式路径必须已存在 |
-| `--host` | — | `127.0.0.1`（仅 `--web`） |
-| `--secret-key` | `KAGUYA_SECRET_KEY` | 空；为空时由 SQLCipher 主密钥派生 API Key 加密密钥 |
-| `--trusted-host` | — | 空；额外信任的精确域名（仅 `--web`） |
-| `--port` | — | `9024`（仅 `--web`） |
-| `--router-prefix` | — | `/kaguya/api`；Desktop 会校验为规范本地路径 |
+### 桌面运行环境
 
-`--web` 服务默认绑定 `127.0.0.1:9024`，仅允许本机连接。需要远程访问时，显式运行 `./target/kaguya --web --host=0.0.0.0`；IPv6 本机访问可使用 `--host=::1`。`--host` 只接受 IP 地址，空值或无效地址会被拒绝。
+桌面窗口通过 Wails 原生资源通道调用同一套 Go 服务，**不监听本地网络端口**。外部链接交给系统浏览器，复制使用系统剪贴板；模型和远程 MCP 请求仍按配置访问网络。
 
-`--web` 模式下 HTTP 拒绝跨域浏览器请求。默认仅接受 `localhost` 和 IP 地址作为请求 Host，以防 DNS 重绑定；通过自有域名的认证反向代理访问时，添加 `--trusted-host=agent.example.com`，代理须保留原始 Host、Origin 和 Sec-Fetch-Site，不要将任意外部 Host 重写为可信本机地址。Vite 开发代理已保留匹配的 Host/Origin。此校验不替代登录或网络访问控制。HTTP 请求体上限为 1 MiB；请求头读取上限 10 秒、请求读取上限 30 秒，SSE 回答不设短写入超时。应用本身只提供明文 HTTP：由网关终止 TLS，把公开域名加入 `--trusted-host`，对 SSE 关闭响应缓冲，认证与访问控制留在网关。
+从 Finder 启动时，应用会尝试通过登录 shell 补充 `PATH`，方便找到 Homebrew、Bun、uvx 等命令；失败或 5 秒超时后保留原 `PATH`。此步骤只补充 `PATH`。需要终端中的代理变量等环境时，可从终端运行 `/Applications/Kaguya.app/Contents/MacOS/kaguya`。项目所需的 Bash、Git 和其他工具链须在主机上可用。
+
+### 可选 Web 模式
 
 ```sh
-./target/kaguya --web --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
-# 引号中的 ~/ 路径也会由应用展开。
-DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya --web
+./target/kaguya --web
 ```
 
-父目录自动创建，相对路径基于工作目录解析，不支持 `~user` 展开。主程序**不加载 `config.yml`**；提供商、模型与提示词通过控制台配置并保存到 SQLite。
+浏览器打开 [http://127.0.0.1:9024](http://127.0.0.1:9024)。Web 使用同一套界面、服务和数据，主要用于浏览器访问与前端开发。`--host`、`--port`、`--trusted-host` 只适用于此模式。远程访问应通过带身份验证的 HTTPS 网关，保留原始 Host / Origin / Sec-Fetch-Site，并通过 `--trusted-host` 放行准确的主机名。
 
-**SQLCipher 运行策略：** 保留 `sqlite` 配置值和 Ent dialect，实际引擎是 SQLCipher 4，不是明文 SQLite。应用在打开业务数据库前验证 `cipher_version`，迁移前读取 schema 校验密钥。每个物理连接在打开数据库时应用密钥，早于 WAL 等 PRAGMA。启动时启用并检查 WAL，每个连接设置 5 秒锁等待超时及 `synchronous=FULL`。应用连接池限制为一个连接，串行处理进程内数据库操作。SQLite 仍只允许一个写事务，适合个人／单实例服务；数据库应放在本地文件系统，不要使用共享网络文件系统。数据库旁可能生成 `kaguya.db-wal` 和 `kaguya.db-shm`。运行时数据库固定为 SQLCipher；修改路径会创建或打开另一份数据库。
+## 本地数据与备份
 
-**密钥管理：** 密钥必须是普通文件，内容为恰好 64 个十六进制字符（32 字节密码学随机数据），末尾可带 LF／CRLF。Unix 下拒绝组用户／其他用户可访问的密钥文件，请使用 `chmod 600`。它是 AES-256 原始密钥，**不是口令**。程序没有内置／默认秘密，也不会回退到未加密存储。启动日志之后、初始化数据库之前，由 `internal/init/sqlcipher.go` 检查密钥：未设置 `--db.key-file`／`DB_KEY_FILE`，且默认密钥及配置的数据库文件均不存在时，Go 生成 32 字节随机数据，写入私有临时文件并同步后原子发布，不覆盖已有文件。已有密钥校验后复用；密钥缺失但数据库文件（包括空文件）、WAL、SHM 或回滚日志已存在时，明确报错并要求恢复原密钥。显式指定的密钥路径必须已存在，即使指定的是默认位置。无效密钥不会被替换；错误密钥或明文数据库会打开失败，不自动转换。密钥内容不作为 CLI 参数、序列化配置或应用日志字段；内部 DSN 含密钥，禁止记录。`modernc.org/sqlite` 仅作为加密测试的独立明文引擎保留，应用不再使用它。
+| 内容 | 默认位置 / 行为 |
+| --- | --- |
+| 数据库 | `~/.kaguya/kaguya.db`，SQLCipher 加密 SQLite，WAL 模式 |
+| 数据库密钥 | `~/.kaguya/kaguya.key`，全新安装首次启动自动生成 |
+| 提供商、模型、MCP、系统配置与会话 | 保存在数据库中 |
+| 自定义数据库位置 | `--db.path` / `DB_PATH` |
+| 自定义密钥文件 | `--db.key-file` / `DB_KEY_FILE`，指定文件必须已存在 |
+| API Key 独立加密密钥 | `--secret-key` / `KAGUYA_SECRET_KEY`；未指定时由数据库密钥派生 |
 
-**已有数据库：** 给明文 SQLite 配置密钥并不能直接加密旧文件。先停止并备份旧部署，再通过 SQLCipher 的带密钥 `ATTACH` 和 `sqlcipher_export()` 显式迁移到**新文件**，参考[官方转换说明](https://discuss.zetetic.net/t/how-to-encrypt-a-plaintext-sqlite-database-to-use-sqlcipher-and-avoid-file-is-encrypted-or-is-not-a-database-errors/868)。切换 `--db.path` 前，核对 schema、业务数据、时间字段和使用目标密钥重新打开的结果。提供商 API Key 记录是另一项独立能力：运行时只读取当前 `enc:v2:` 格式，旧记录必须先离线转换（见 **API Key 存储**）。本次不实现明文数据库自动加密与密钥轮换。
+应用包仅包含程序与静态资源，升级应用不会把数据写进 `.app`。主程序通过 CLI / 环境变量接收启动参数，模型与提示词在界面配置。
 
-**备份与升级：** 最简单的备份方式是先停止服务，将数据库及仍存在的 WAL/SHM 文件作为整体复制；写入期间不能只复制主数据库，也不要手动删除 WAL。密钥必须**单独、安全地备份**，丢失后无法恢复数据。在线导出应使用支持 SQLCipher 的工具，并为目标数据库显式设置密钥；不要假定普通 SQLite 备份或 `VACUUM INTO` 会生成加密备份。升级前备份数据和密钥、停止服务、替换二进制，再以相同运行用户、路径和密钥重启。前台日志由配置的 logger 输出；后台运行和启停管理交给服务管理器。
+备份时退出应用，复制数据库及仍存在的 WAL/SHM 文件，并单独安全保存密钥；使用独立 API Key 加密密钥时也须保留它。丢失密钥将无法解密数据。不要替换已有数据库的密钥，不要同时用 Desktop 和 Web 打开同一个数据库。数据库与密钥同时丢失或被窃取时，文件加密无法替代主机访问保护。
 
-**安全边界：** SQLCipher 加密数据库页及 WAL 中的页内容，不加密所有文件系统元数据、日志、工具输出或进程内存数据。密钥与数据库放在同一磁盘相邻位置，不能防止两者一起被窃取；有需要时采用独立挂载的秘密文件、操作系统秘密配置和磁盘加密。运行中的 Agent Bash 工具具有服务用户权限，可能访问密钥；数据库加密不是工具沙箱。入站传输安全由 TLS 网关负责，不保护本地密钥；由 SQLCipher 密钥派生的 API Key 加密密钥与数据库同根，同样不能抵御两者一起被窃取。远程访问控制台时，请使用带访问控制的 HTTPS 反向代理；应用本身没有内置登录。调试模式也不记录含参数的数据库 SQL，避免提示词、API Key 和 MCP 凭据泄露到日志。
+API Key 使用 AES-256-GCM（`enc:v2:`）。旧凭据格式需通过 [离线迁移工具](cmd/migrate-provider-secrets/) 在数据库副本上转换，启动不会原地重写旧数据。
 
-在 Desktop 窗口中（`--web` 时为 [http://127.0.0.1:9024](http://127.0.0.1:9024)）添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
-
-知识库与语义检索可通过自行配置的外部 MCP 工具提供，不要求本地 pgvector 服务。应用不内置知识库、长期记忆、Embedding 或 FTS5 搜索。
-
-### 容器部署（未验证）
-
-仓库中的 [Dockerfile](Dockerfile) 与 [docker-compose.yml](docker-compose.yml) 描述单服务 SQLCipher 部署；该方案在当前开发环境中**未实际构建或运行**，推荐方式仍是原生二进制。
-
-镜像用 Bun 构建前端，用带 SQLCipher 工具链的 Go 构建后端，运行层为带 Bash（Agent 工具需要）和 CA 证书的 Alpine。Compose 只发布 `127.0.0.1:9024`，数据库保存在 `./kaguya-data`。
-
-首次启动前必须先准备密钥；挂载源不存在时 Docker 会自动创建目录：
-
-```sh
-mkdir -p kaguya-data
-openssl rand -hex 32 > kaguya-key
-chmod 600 kaguya-key
-docker build -t kaguya:latest .
-docker compose up -d
-docker compose logs --tail=100 kaguya-svc
-```
-
-容器启动参数：`--web --host=0.0.0.0 --port=9024 --router-prefix=/kaguya/api --db.path=/data/kaguya.db --db.key-file=/run/secrets/kaguya.key`（容器没有桌面窗口，必须显式 `--web`）。修改路径时通过 Compose `command` 覆盖完整参数列表。升级前把 `kaguya-data` 与 `kaguya-key` 作为整体备份；`docker compose down` 会保留两者。不要把端口直接暴露到公网，远程访问请在前面部署 TLS 网关。
-
-## 架构
-
-聊天使用 assistant-ui 的 ExternalStoreRuntime、消息视口和输入组件，沿用 Go SSE 与数据库历史；配置表单、表格和通用控件继续使用 Ant Design，用量图表继续使用 ECharts。会话列表、消息和输入区采用侧栏式聊天布局。并发状态保存在当前浏览器应用内；刷新或关闭页面会断开流式连接，服务端随之停止该轮并把已产生内容保留为中断轮次（不是空会话）。切换会话不会关闭其余会话自己的连接，各轮次继续执行到完成。Go 按请求使用独立 goroutine，同一会话保持互斥，不同会话可并发等待模型和工具。实际吞吐仍受提供商限流、数据库和主机资源约束。
+## 项目结构与开发
 
 ```text
-macOS Desktop 窗口：WKWebView（wails://localhost，无监听端口）──┐
-浏览器：React 19 + TypeScript + assistant-ui + Ant Design + ECharts ─┤ fetch/JSON + POST SSE
-                                                              ▼
-Go 二进制：Kong CLI → 模式分流（默认 Desktop / --web）→ Gin 路由 → 应用服务
-    ├── Agent Runtime（charm.land/fantasy）→ 已配置的模型提供商
-    ├── 对话轮次、内容块与模型上下文 → Ent → SQLCipher 加密 SQLite（WAL）
-    ├── 提供商／模型配置、系统配置与用量查询 → Ent
-    └── 内嵌前端 / Swagger / Prometheus
+桌面窗口 / 可选 Web 界面
+        │ JSON + POST SSE
+        ▼
+Go 启动与路由 → 应用服务 → Fantasy Agent → 模型提供商
+                    ├── 项目文件工具 / MCP 工具
+                    └── Ent → SQLCipher 本地数据库
 ```
 
-| 路径 | 职责 |
+| 目录 | 职责 |
 | --- | --- |
-| `main.go`、`internal/cmd/`、`internal/config/` | CLI 解析、启动模式分流、共享初始化与关停 |
-| `internal/router/`、`internal/api/` | HTTP 路由与请求响应处理 |
-| `internal/desktop/` | Desktop 宿主的原生资源通道、请求准入门与剪贴板／外链窄接口 |
-| `internal/service/agent/` | 流式对话、历史持久化、上下文和标题生成 |
-| `internal/agent/runtime/`、`internal/agent/token/` | 模型适配、执行与用量记录抽象 |
-| `internal/agent/tools/` | pi 风格的七个工具、目录边界、输出截断、文件修改与命令执行 |
-| `internal/service/system/` | 提供商／模型管理、系统配置与用量分析 |
-| `internal/ent/schema/` | 手写数据库 schema，其余 Ent 文件由工具生成 |
-| `web/` | Web 控制台源码与前端测试 |
+| `main.go`, `internal/cmd/`, `internal/config/` | CLI、运行模式、共享初始化与关停 |
+| `internal/desktop/` | 原生窗口、资源通道、系统集成与启动环境 |
+| `internal/router/`, `internal/api/`, `internal/dto/` | 路由、请求处理与数据契约 |
+| `internal/service/agent/` | 聊天、历史、标题、指令快照与上下文压缩 |
+| `internal/service/project/` | 项目管理、文件浏览和 Git 差异 |
+| `internal/service/system/` | 提供商、模型、MCP 配置、设置与用量 |
+| `internal/agent/runtime/`, `internal/agent/token/` | Fantasy 模型执行与用量记录 |
+| `internal/agent/tools/`, `internal/agent/mcp/` | 内置文件/命令工具与 MCP 连接生命周期 |
+| `internal/db/`, `internal/secret/`, `internal/ent/schema/` | 数据库、凭据加密与手写 schema |
+| `web/` | React / TypeScript 界面与测试 |
+| `build/darwin/`, `scripts/` | 桌面资源、原生依赖和打包脚本 |
 | `docs/` | 生成的 Swagger 文档 |
 
-### 编码工具
-
-参照 [pi 的工具设计](https://github.com/earendil-works/pi/tree/acaa253cc8e3f159e6100b6f3874861b1f0bfc99/packages/coding-agent/src/core/tools) 实现七个 Go 工具，不包含 PowerShell：
-
-| 工具 | 行为 |
-| --- | --- |
-| `read` | 文本分页读取或图片附件；文本最多 2000 行 / 50KB，返回续读位置 |
-| `bash` | 在项目目录执行命令，合并 stdout/stderr，保留末尾 2000 行 / 50KB；可指定超时，取消时终止进程组 |
-| `edit` | 同一原始文件上的多处唯一、不重叠替换，全部校验通过后原子写入；保留 BOM/换行符，返回 diff |
-| `write` | 创建或覆盖文件，自动创建父目录，原子替换 |
-| `grep` | 使用 `rg` 搜索，支持正则/字面量、大小写、glob、上下文，默认最多 100 个匹配 |
-| `find` | 使用 `fd` 按 glob 查找，遵循忽略规则，默认最多 1000 项 |
-| `ls` | 按名称列出文件夹，包含隐藏文件，目录带 `/`，默认最多 500 项 |
-
-`tools.New(workspace, global.Logger)` 封装一组工具并提供 `CodingTools()`（前四个）、`ReadOnlyTools()`（read/grep/find/ls）和 `AllTools()`。项目聊天通过现有 `WithTools` 注册默认四个；查询工具作为可选工厂保留，不额外扩大默认模型工具清单。续聊从数据库恢复项目归属，不能通过请求的 `project_id` 改变目录。每轮默认不限模型步骤，可在系统配置设置上限；目录失效时明确报错，不退回主机工作目录。
-
-工具输入通过 JSON Schema 传入模型：Go 类型定义字段类型、必填项和说明，工具契约补充行号/数量/超时范围、非空字符串及 `edits` 数组约束。各工具描述包含正确的 JSON 参数示例、用途边界和失败后的修正方法。本地执行前复用预编译 Schema 校验，并额外拒绝顶层未知字段；嵌套 `edits` 对象的未知字段约束也会发送给模型。校验失败不执行工具，返回具体字段错误。Fantasy 当前只重建根级 `properties/required`，因此不宣称所有提供商都支持相同的严格生成模式。MCP 工具保留远端公布的描述和 Schema，不套用内置文件工具参数。
-
-工具日志和历史中的 `call_id` / `tool_call_id` 是上游协议的调用关联标识，必须原样返回以对应工具结果；其格式可包含 UUID。会话、轮次和内容块的数据库主键仍使用本地雪花 ID，二者不互相替换。
-
-服务端适配：文件操作使用 `os.Root` 限定项目范围，`write/edit` 不接受符号链接路径；同路径修改在进程内串行。文本/编辑/写入有 32MB 安全上限，超大文件请用 bash 分段处理；图片附件上限 10MB，PNG/JPEG/GIF 超过 2000 像素时缩小，WebP/BMP 原样传递。编辑支持 pi 的 Unicode/尾部空白匹配，保留未修改行；过大的 diff 会截断且不返回不完整的 patch。命令完整输出临时保存在 `/tmp/kaguya/YYYYMMDD/<会话ID>/bash-<雪花ID>.log`，可用 `read` 分页读取；工作区外只允许读取当前会话（含前一天等旧日期目录）生成的输出路径，其它会话仍被拒绝。单条命令最多保留 64 MiB、单个会话目录最多 256 MiB；达到上限会终止命令并在结果中说明原因与已保存路径，不静默丢弃。Kaguya 不删除这些文件，其生命周期交由操作系统的临时目录机制管理。当前前端沿用工具调用开始/结束与最终结果展示，不逐块推送 bash 输出。
-
-**权限警告：工作目录不是沙箱。** bash 以服务进程权限运行，可访问该用户能够访问的主机资源；文件工具的路径限制不约束 shell 命令。仅对可信用户开放服务，建议通过低权限用户或容器限制权限，不要将可执行工具的 API 直接暴露到公网。文件修改和命令副作用立即生效，即使对话失败、取消或历史未保存也不会回滚。日志记录工具名、调用 ID、项目/对话与耗时，不记录原始命令或文件内容。
-
-编码 Agent 按原生主机服务使用和验证：运行 `make install` 安装二进制，再使用默认 SQLCipher 数据库或显式指定 `--db.path` 启动服务。本机需要安装 Bash；启用可选搜索工具时还需 `rg` 和 `fd`，缺失时明确报错，不自动下载。项目所需的 Git、Go、Bun 等命令也应安装在主机，并出现在服务进程的 `PATH` 中；系统服务的环境可能与交互式终端不同。本工具集以主机原生运行为验证目标；容器镜像只是提供了 Bash，未经实际验证。
-
-## API
-
-使用默认路由前缀时，常用端点如下：
-
-| 端点 | 用途 |
-| --- | --- |
-| `POST /kaguya/api/v1/chat/sse` | SSE 流式对话 |
-| `POST /kaguya/api/v1/chat/conversation/:id/stop` | 标记该会话当前轮次为用户主动停止（`canceled`）；没有运行轮次时为幂等空操作 |
-| `GET /kaguya/api/v1/chat/conversation/page` | 分页查询对话列表 |
-| `GET /kaguya/api/v1/chat/conversation/:id/turns` | 查询对话轮次 |
-| `GET /kaguya/api/v1/chat/conversation/:id/turns/:turn/blocks/:sequence` | 按需读取单个历史内容块 |
-| `GET /kaguya/api/v1/chat/conversation/:id/context` | 查询对话上下文统计 |
-| `GET /kaguya/api/v1/project/page` | 项目列表（名称前缀与分页） |
-| `GET /kaguya/api/v1/project/directories` | 浏览服务端运行用户主目录内的文件夹 |
-| `POST /kaguya/api/v1/project` | 创建项目 |
-| `GET / PUT / DELETE /kaguya/api/v1/project/:id` | 项目详情、更新与删除 |
-| `GET /kaguya/api/v1/project/:id/tree` | 项目文件树（包含隐藏项，按 .gitignore / .dockerignore 过滤） |
-| `GET /kaguya/api/v1/project/:id/content` | 读取项目内单个文本文件（最大 512KB） |
-| `GET /kaguya/api/v1/project/:id/git/status` | 项目未提交变更清单 |
-| `GET /kaguya/api/v1/project/:id/git/diff` | 单个文件的统一 diff（最大 1MB） |
-| `GET /kaguya/api/v1/system/mcp/page` | MCP 分页列表与运行状态 |
-| `POST /kaguya/api/v1/system/mcp` | 创建 MCP 配置（默认停用） |
-| `GET / PUT / DELETE /kaguya/api/v1/system/mcp/:id` | MCP 详情、修改、删除 |
-| `PUT /kaguya/api/v1/system/mcp/:id/state` | 动态启停，请求体为 `{"enabled": true/false}` |
-| `GET /kaguya/api/v1/system/provider/page` | 查询提供商列表（API Key 仅返回掩码） |
-| `GET /kaguya/api/v1/system/provider/:id/api-key` | 显式查看单个提供商的 API Key 明文 |
-| `GET /kaguya/api/v1/system/model/page` | 查询模型列表 |
-| `GET /kaguya/api/v1/system/usage` | Token 用量分析 |
-| `GET /kaguya/api/v1/system/info` | 查询系统配置（`PUT` 用于更新） |
-| `/kaguya/api/swagger/index.html` | Swagger UI |
-| `/kaguya/api/metrics` | Prometheus 指标 |
-
-对话响应包含 `is_project` 标记，由 `project_id` 是否为空派生，无需数据库回填。列表默认仅返回普通对话；`is_project=true` 仅查询项目对话，`project_id` 可指定项目（单独传入时兼容按项目查询），不能与 `is_project=false` 同时使用。筛选在数据库分页和计数前执行。SSE 新对话通过 `project_id` 指定项目，续聊保留原有归属。
-
-配置默认模型后，可以这样开启对话：
-
 ```sh
-curl -N http://127.0.0.1:9024/kaguya/api/v1/chat/sse \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: text/event-stream' \
-  -d '{"messages":"Hello, Kaguya"}'
-```
-
-在后续请求体中复用返回的会话 `id`，即可继续该会话的历史。显式选择模型时，传入值为本地模型记录 ID 的 `model_id`。流式帧使用 `start`、`delta`、`done` 和 `error`，完整轮次保存成功后才会发送 `done`。当前接口契约可查阅 [路由定义](internal/router/v1/) 与 [聊天 DTO](internal/dto/chat/)。
-
-业务 JSON 接口共用同一响应信封：HTTP 200，`{"code": ..., "message": ..., "data": ...}`；`100000` 表示成功，其他码携带用户可读的 `message`。码段按域划分（`102xxx` 聊天、`103xxx` 模型、`104xxx` 系统配置、`105xxx` MCP、`106xxx` 提供商、`107xxx` 项目）。浏览器层拒绝（不可信 Host、超大请求体）仍返回普通 HTTP 403/413。
-
-单实例下：SQLCipher 通过单连接串行写入，进程限制同时进行的对话轮次（16）与后台标题任务（2），超出的轮次快速失败并返回 `102009`，被跳过的标题会在下一轮成功后重试。续聊从最近一次压缩快照开始读取，长会话只读快照及之后的轮次；未完成轮次的用户提问会按顺序拼回，用于下一轮指代。流式连接就是本轮的生命周期：断网、刷新或超时标记为 `interrupted`，用户主动停止（前端先调用 `stop` 接口再断开）标记为 `canceled`，两者都保留已推送内容；进程崩溃/强杀时保留按节流已写入的部分，下次启动把遗留的 `running` 轮次标记为 `interrupted`。切换会话不关闭各会话自己的连接，轮次继续执行。提供商请求带 2 分钟响应头超时与 5 分钟流空闲超时，挂起的流会被取消并按可重试错误上报；SSE 写入带单帧写截止时间，停止读取的客户端不会长期占据轮次。
-
-## 开发
-
-源码开发需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make 及上文列出的原生依赖。执行 `CGO_ENABLED=1 make build` 后通过 `./target/kaguya` 运行（全新安装自动初始化默认密钥），无需 Docker／数据库服务；macOS 默认打开 Desktop 窗口，本机 Web 服务使用 `./target/kaguya --web`。请使用 Make 目标而非直接 `go build`／`go test`，以应用 SQLCipher 链接参数。局部测试可先执行 `make native`，再执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`。
-
-在仓库根目录执行 `CGO_ENABLED=1 make install`，会完整构建前后端并将二进制安装到 `~/.local/bin/<仓库目录名>`（通常为 `~/.local/bin/kaguya`），权限为 `0755`。请先创建 `~/.local/bin` 并加入 `PATH`；该命令不会启动服务。
-
-```sh
-CGO_ENABLED=1 make test    # 使用 SQLCipher 的 Go 测试，开启竞态检测
+make test                  # SQLCipher + Go race tests
 cd web
 bun install --frozen-lockfile
-bun run test               # 前端测试
-bun run lint               # oxlint
-bun run build              # TypeScript 检查与 Vite 生产构建
-bun run dev # 将 API 代理到本机 HTTP 服务
+bun run test
+bun run lint
+bun run build
 ```
 
-开发前端时，用 `./target/kaguya --web` 保持服务运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `http://127.0.0.1:9024`，并保留浏览器匹配的 Host/Origin。生产构建不需要任何证书文件。Vite 页面只用于本机 Web 开发；Desktop 始终加载嵌入资源，不使用 Vite dev server 或 HMR，修改前端后需重新执行 `make frontend` 或 `make build`。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置；Desktop 固定的原生前缀来自启动参数，忽略 `VITE_API_BASE_URL`。修改后端后，执行 `make build` 并重启二进制。
+前端开发先从仓库根目录运行 `./target/kaguya --web`，再在 `web/` 执行 `bun run dev`。Desktop 加载嵌入资源，修改前端后需重新构建并重启应用。
 
-修改 Ent schema 后，在仓库根目录执行 `go generate ./internal/ent`，保持生成的 Ent 代码与 schema 同步。
+Ent schema 在 `internal/ent/schema/` 修改后执行 `go generate ./internal/ent`。API 路由与 DTO 分别见 [internal/router/v1/](internal/router/v1/) 和 [internal/dto/](internal/dto/)；Web 模式默认 Swagger 地址为 `/kaguya/api/swagger/index.html`，Prometheus 为 `/kaguya/api/metrics`。更多协作与验证约定见 [AGENTS.md](AGENTS.md)。
 
-## 当前范围
+## 名称与许可证
 
-- 控制台当前为中文界面，英文文档不代表已提供英文 UI。
-- 聊天输入为文本；项目工具可以读取工作区图片并回传模型，但不等于浏览器图片上传。模型须支持工具调用，图片内容还需要视觉能力。
-- 当前路由未提供内置用户登录和按用户隔离访问的能力。项目是实验性控制台，并非完整的多租户服务。
-
-## 为什么叫 Kaguya？
-
-**Kaguya** 源自 **Kaguya-hime / 辉夜姬**，即静谧、优雅而神秘的月宫公主。在《龙族》中，这个名字也与日本分部的超级人工智能系统相关联。项目借用这一形象，探索一个冷静、理性、可控的 Agent 核心。
-
-## 许可证
+Kaguya 取自辉夜姬（Kaguya-hime），也呼应《龙族》中日本分部的人工智能系统名称。
 
 [MIT](LICENSE)。
-
-### 聊天交互
-
-`mermaid` 代码块在所在文本块输出完成后由 Ant Design X Mermaid 直接渲染成图，首轮回答与已保存历史均支持；流式输出期间保留可读源码，不显示额外的图表生成占位动作。完成后可缩放、平移、下载，并可在图形与可复制源码之间切换；语法错误时显示错误及源码。渲染在浏览器本地完成。当前不承载 MCP Apps 或 Excalidraw 小组件，工具返回“Diagram displayed”或 checkpoint ID 本身不会显示图片；聊天提示词会告知模型在适用时直接在回答中提供 Mermaid 图。
-
-点击进行中或最近会话时，会同步切换对话／项目列表、选中所属项目，并将当前条目滚动到可见位置。尚未保存的会话以及当前分页之外的选中条目也能在列表中直接访问。
-
-项目对话输入框支持输入 `@` 搜索项目文件，使用 ↑／↓ 选择、Enter 添加、Esc 关闭。选中的文件以输入区域内可删除的 `@path/to/my file.go` 引用卡片显示，不在消息文本中插入带双引号的路径；文件列表通过独立请求字段发送，因此带空格的文件名无需转义。每次最多引用 8 个文件，发送时后端在项目工作区内读取并附上文本内容，普通对话不读取主机文件。单文件沿用 read 工具的 2000 行／50 KiB 限制，引用总量最多 256 KiB；不读取工作区外的路径或图片。文件搜索忽略常见依赖和构建目录，最多扫描 20000 个条目、返回 50 个匹配项。
-
-思考过程与工具调用使用独立的可展开卡片，展示工具名称、关键参数、执行状态、耗时及输出。Markdown 支持表格、代码语言与按需语法高亮，代码块右上角提供复制按钮和成功／失败反馈；长代码与宽表格可独立滚动。明暗主题分别适配，鼠标操作避免重复焦点框，键盘操作保留焦点提示。
