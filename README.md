@@ -167,13 +167,13 @@ Packaging, signing, and notarization (identity and keychain profile are release-
 
 ```sh
 make package-macos                     # assemble target/Kaguya.app (unsigned)
-make install-app                       # copy to /Applications
+make dmg-macos                         # package target/Kaguya-<version>.dmg (drag to install)
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' make sign-macos
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
   NOTARY_PROFILE=kaguya-notary make notarize-macos
 ```
 
-Targets fail explicitly when `CODESIGN_IDENTITY` or `NOTARY_PROFILE` is missing instead of shipping an ad-hoc bundle as a release. Entitlements start as an empty dictionary with Hardened Runtime and no App Sandbox; host projects, Bash, and MCP keep accessing files as the running user.
+Targets fail explicitly when `CODESIGN_IDENTITY` or `NOTARY_PROFILE` is missing instead of shipping an ad-hoc bundle as a release. The DMG from `make dmg-macos` is unsigned and intended for local use; distributed copies must be signed and notarized, or Gatekeeper blocks the first launch after download. `make notarize-macos` notarizes and staples both the app bundle and the disk image. Entitlements start as an empty dictionary with Hardened Runtime and no App Sandbox; host projects, Bash, and MCP keep accessing files as the running user.
 
 | Argument | Environment | Default |
 | --- | --- | --- |

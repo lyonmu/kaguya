@@ -167,13 +167,13 @@ CGO_ENABLED=1 make build
 
 ```sh
 make package-macos                     # 组装 target/Kaguya.app（不签名）
-make install-app                       # 复制到 /Applications
+make dmg-macos                         # 打包 target/Kaguya-<版本>.dmg，拖拽安装
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' make sign-macos
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
   NOTARY_PROFILE=kaguya-notary make notarize-macos
 ```
 
-缺少 `CODESIGN_IDENTITY` 或 `NOTARY_PROFILE` 时目标明确失败，不生成 ad-hoc 包冒充正式发行版。初始 entitlements 为空字典，使用 Hardened Runtime、不做 App Sandbox；现有主机项目、Bash 与 MCP 能力按运行用户访问主机文件。
+缺少 `CODESIGN_IDENTITY` 或 `NOTARY_PROFILE` 时目标明确失败，不生成 ad-hoc 包冒充正式发行版。`make dmg-macos` 生成的 DMG 未签名，仅适合本机使用；对外分发须完成签名与公证，否则 Gatekeeper 会拦截下载后的首次打开。`make notarize-macos` 会依次公证并 staple 应用包与 DMG。初始 entitlements 为空字典，使用 Hardened Runtime、不做 App Sandbox；现有主机项目、Bash 与 MCP 能力按运行用户访问主机文件。
 
 | 参数 | 环境变量 | 默认值 |
 | --- | --- | --- |

@@ -2,7 +2,7 @@
 # Developer ID 签名、公证与验证。
 #
 #   scripts/sign-macos.sh sign      使用 CODESIGN_IDENTITY 签名并验证
-#   scripts/sign-macos.sh notarize  签名后提交公证、staple 并做 Gatekeeper 验证
+#   scripts/sign-macos.sh notarize  签名并公证应用包与 DMG，staple 后做 Gatekeeper 验证
 #
 # 身份与 keychain profile 属于发行环境输入；缺失时明确失败，不生成 ad-hoc 包。
 set -euo pipefail
@@ -13,6 +13,8 @@ cd "$root"
 app_name="Kaguya"
 bundle="target/${app_name}.app"
 zip="target/${app_name}.zip"
+version=$(cat VERSION)
+dmg="target/${app_name}-${version}.dmg"
 entitlements="build/darwin/entitlements.plist"
 
 mode=${1:-}
@@ -64,6 +66,16 @@ xcrun stapler validate "$bundle"
 rm -f "$zip"
 ditto -c -k --keepParent "$bundle" "$zip"
 
+# 分发 DMG 必须单独签名与公证：装入已 staple 的应用包后，再签名、提交、staple。
+bash scripts/dmg-macos.sh
+codesign --force --timestamp --sign "$CODESIGN_IDENTITY" "$dmg"
+xcrun notarytool submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
+xcrun stapler staple "$dmg"
+xcrun stapler validate "$dmg"
+
 spctl --assess --type execute --verbose=4 "$bundle"
 codesign --verify --deep --strict --verbose=2 "$bundle"
-echo "notarized: $zip"
+spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
+echo "notarized app: $bundle"
+echo "notarized zip: $zip"
+echo "notarized dmg: $dmg"

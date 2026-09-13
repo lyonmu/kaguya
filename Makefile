@@ -62,10 +62,10 @@ package-macos: frontend native
 	$(MAKE) backend
 	MACOS_DEPLOYMENT_TARGET=$(MACOS_DEPLOYMENT_TARGET) bash scripts/package-macos.sh
 
-# 把本地组装的应用包安装到 /Applications。
-.PHONY: install-app
-install-app: package-macos
-	ditto target/$(APP_BUNDLE) /Applications/$(APP_BUNDLE)
+# 打包可拖拽安装的 DMG（不签名）。
+.PHONY: dmg-macos
+dmg-macos: package-macos
+	bash scripts/dmg-macos.sh
 
 # Developer ID 签名与公证；缺少 CODESIGN_IDENTITY/NOTARY_PROFILE 时明确失败。
 .PHONY: sign-macos
