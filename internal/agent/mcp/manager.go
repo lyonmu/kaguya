@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -97,6 +98,10 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 	connection.session, err = client.Connect(connectCtx, persistentTransport{Transport: transport, ctx: life}, nil)
 	if err != nil {
 		cancel()
+		// 可执行文件缺失是最常见的 GUI 启动问题；给出可操作提示，其余错误保持通用。
+		if errors.Is(err, exec.ErrNotFound) {
+			return nil, fmt.Errorf("找不到 MCP 可执行文件 %q，请检查 PATH 或改用绝对路径", config.Command)
+		}
 		return nil, fmt.Errorf("MCP 连接失败，请检查服务地址、命令及认证配置")
 	}
 	for tool, err := range connection.session.Tools(connectCtx, nil) {

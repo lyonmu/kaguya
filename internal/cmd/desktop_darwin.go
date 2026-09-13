@@ -24,6 +24,9 @@ const desktopDrainBudget = 25 * time.Second
 // runDesktop 启动 macOS 原生窗口；业务请求经 Wails 原生通道直接进入同进程
 // Gin，不创建任何入站监听端口。
 func runDesktop() error {
+	// Finder 启动不继承终端的 PATH；在初始化前补齐，供 stdio MCP 与 Bash 工具使用。
+	desktop.AdoptLoginShellPath()
+
 	rt := newAppRuntime(context.Background())
 	defer rt.close()
 

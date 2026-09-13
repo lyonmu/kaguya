@@ -200,3 +200,49 @@ func TestProviderAndModelDuplicateValidation(t *testing.T) {
 		t.Fatalf("expected duplicate model error, got %v", err)
 	}
 }
+
+// TestDeletedModelDoesNotBlockRecreate 确保软删除模型释放唯一标识：
+// 已删除的模型不参与重复校验，只保留未删除模型的唯一性。
+func TestDeletedModelDoesNotBlockRecreate(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	svc := &SystemSvc{}
+	provider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic", APIProtocol: consts.ProtocolAnthropic})
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+
+	deleted, err := svc.ModelCreate(ctx, modelSaveReq(provider.ID, "Claude", "claude"))
+	if err != nil {
+		t.Fatalf("create model: %v", err)
+	}
+	if err = svc.ModelDelete(ctx, deleted.ID); err != nil {
+		t.Fatalf("delete model: %v", err)
+	}
+
+	// 编辑其他未删除模型到已删除模型的标识应通过。
+	live, err := svc.ModelCreate(ctx, modelSaveReq(provider.ID, "Claude Live", "claude-live"))
+	if err != nil {
+		t.Fatalf("create live model: %v", err)
+	}
+	renamed, err := svc.ModelUpdate(ctx, live.ID, modelSaveReq(provider.ID, "Claude Renamed", "claude"))
+	if err != nil || renamed.ModelID != "claude" {
+		t.Fatalf("update model to deleted id: resp=%+v err=%v", renamed, err)
+	}
+
+	// 未删除模型之间仍然互斥。
+	if _, err = svc.ModelCreate(ctx, modelSaveReq(provider.ID, "Claude Duplicate", "claude")); !errors.Is(err, ErrModelDuplicate) {
+		t.Fatalf("expected duplicate model error, got %v", err)
+	}
+
+	// 软删除后同一个标识可以重新创建。
+	second, err := svc.ModelCreate(ctx, modelSaveReq(provider.ID, "Claude Second", "claude-second"))
+	if err != nil {
+		t.Fatalf("create second model: %v", err)
+	}
+	if err = svc.ModelDelete(ctx, second.ID); err != nil {
+		t.Fatalf("delete second model: %v", err)
+	}
+	if _, err = svc.ModelCreate(ctx, modelSaveReq(provider.ID, "Claude Reborn", "claude-second")); err != nil {
+		t.Fatalf("recreate deleted model id: %v", err)
+	}
+}

@@ -160,7 +160,7 @@ CGO_ENABLED=1 make build
 - **平台**：Desktop 仅支持 macOS；非 macOS 上默认启动会提示改用 `--web`，Web 路径保持原行为。发布目标为 macOS 14 及以上，arm64 与 amd64 各自原生构建。
 - **网络参数**：`--host`、`--port`、`--trusted-host` 只属于 `--web`，Desktop 不参与监听或 Host/Origin 白名单。`--router-prefix` 两种模式共用；Desktop 会校验它是没有 query、fragment、越级段，且不与 `/wails`、`/__desktop`、静态资源冲突的规范本地路径。
 - **数据与密钥**：Desktop 与 Web 使用同一 `~/.kaguya/kaguya.db` 与密钥路径，不做迁移，也不会另建空库；`.app` 只包含二进制、Info.plist、图标与许可证，不写运行数据。约定两者不要同时打开同一数据库。
-- **Finder 环境**：从 Finder 启动不继承终端里临时设置的 `PATH`、代理或 API Key。Bash 与 MCP 使用进程环境；需要终端特定环境时，从该终端执行 `.app/Contents/MacOS/kaguya`（仍是同一个 Desktop 程序）。自定义数据库、密钥与文件日志路径请用绝对路径或 `~/`，不要依赖工作目录。
+- **Finder 环境**：从 Finder 启动的进程由 launchd 派生，初始 `PATH` 只有系统目录。Desktop 启动时会执行一次登录 shell（`$SHELL`，默认 `/bin/zsh`），读取并合并其 `PATH`，使 Bash 工具与 stdio MCP 能解析 nvm、Homebrew、bun、uvx 等用户工具；读取失败或超过 5 秒超时时保留系统 `PATH` 并继续启动。代理及其他终端临时环境变量仍不继承；需要完整终端环境时，从该终端执行 `.app/Contents/MacOS/kaguya`（仍是同一个 Desktop 程序）。自定义数据库、密钥与文件日志路径请用绝对路径或 `~/`，不要依赖工作目录。
 - **系统集成**：外链交给系统浏览器，不为内部通信添加 loopback HTTP 的 ATS 例外；访问桌面／文稿／下载等目录时系统按用途说明请求授权，拒绝时返回原有项目错误，不自动提权。
 
 打包、签名与公证（身份与 keychain profile 是发行环境输入）：

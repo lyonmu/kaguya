@@ -341,6 +341,9 @@ var (
 				Name:    "kaguyamodelsinfo_provider_id_model_id",
 				Unique:  true,
 				Columns: []*schema.Column{KaguyaModelsInfoColumns[13], KaguyaModelsInfoColumns[5]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
 			},
 		},
 	}

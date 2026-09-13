@@ -65,7 +65,8 @@ func (KaguyaModelsInfo) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("provider_id"),
 		index.Fields("model_id"),
-		index.Fields("provider_id", "model_id").Unique(),
+		// 唯一性只约束未删除模型：软删除的行保留历史，不阻止同标识重建。
+		index.Fields("provider_id", "model_id").Unique().Annotations(entsql.IndexWhere("deleted_at IS NULL")),
 	}
 }
 

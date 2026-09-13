@@ -184,6 +184,16 @@ func TestConfigValidation(t *testing.T) {
 	}
 }
 
+// 命令缺失时必须给出可操作提示，而不是笼统的连接失败。
+func TestMissingCommandErrorMentionsPath(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := Prepare(ctx, Config{Name: "missing", Transport: "stdio", Command: "kaguya-missing-mcp-command", TimeoutSeconds: 2})
+	if err == nil || !strings.Contains(err.Error(), "找不到") || !strings.Contains(err.Error(), "kaguya-missing-mcp-command") {
+		t.Fatalf("missing command error=%v", err)
+	}
+}
+
 func TestTimeoutAndFailedConnect(t *testing.T) {
 	server := testServer()
 	remote := httptest.NewServer(sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return server }, &sdk.StreamableHTTPOptions{JSONResponse: true}))
