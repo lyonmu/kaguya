@@ -6,7 +6,7 @@ const MCPManagementPanel = lazy(() => import('./MCPManagementPanel').then(module
 
 export function AIConfigurationPage() {
   return <Suspense fallback={<div className="p-8 text-center"><Spin /></div>}>
-    <Tabs className="w-full" tabBarStyle={{ padding: '12px 32px 0', marginBottom: 0 }} destroyOnHidden items={[
+    <Tabs className="w-full" tabBarStyle={{ padding: '8px 24px 0', marginBottom: 0 }} destroyOnHidden items={[
       { key: 'providers', label: '提供商与模型', children: <ProviderManagementPage /> },
       { key: 'mcp', label: 'MCP 管理', children: <MCPManagementPanel /> },
     ]} />

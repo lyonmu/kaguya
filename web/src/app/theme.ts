@@ -48,12 +48,13 @@ export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
       colorBorderSecondary: palette.borderSoft,
       colorText: palette.text,
       colorTextSecondary: palette.muted,
-      borderRadius: 9,
-      borderRadiusLG: 12,
+      borderRadius: 8,
+      borderRadiusLG: 10,
       fontFamily:
         'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
       fontSize: 14,
-      controlHeight: 36,
+      // 桌面控制台按紧凑密度呈现，避免默认留白让页面显得松散。
+      controlHeight: 32,
     },
     components: {
       Layout: {
@@ -74,7 +75,9 @@ export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
         darkItemHoverColor: palette.text,
         darkItemSelectedBg: palette.selected,
         darkItemSelectedColor: '#e8f1ff',
-        itemBorderRadius: 9,
+        itemBorderRadius: 8,
+        itemHeight: 34,
+        itemMarginBlock: 2,
         itemMarginInline: 0,
       },
       Table: {
@@ -82,9 +85,28 @@ export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
         headerColor: palette.muted,
         borderColor: palette.borderSoft,
         rowHoverBg: palette.hover,
+        cellPaddingBlock: 10,
+        cellPaddingInline: 12,
+        cellPaddingBlockSM: 6,
+        cellPaddingInlineSM: 8,
       },
       Card: {
         colorBgContainer: palette.surface,
+        bodyPadding: 20,
+        headerHeight: 46,
+        headerPadding: 20,
+      },
+      Form: {
+        itemMarginBottom: 18,
+        verticalLabelPadding: '0 0 4px',
+      },
+      Tabs: {
+        horizontalItemGutter: 24,
+        horizontalItemPadding: '9px 0',
+        horizontalMargin: '0 0 10px 0',
+      },
+      Descriptions: {
+        itemPaddingBottom: 12,
       },
       Input: {
         activeBorderColor: isDark ? '#526f95' : '#5b8fd8',
@@ -101,6 +123,7 @@ export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
       },
       Pagination: {
         itemActiveBg: palette.selected,
+        itemSize: 30,
       },
     },
   }

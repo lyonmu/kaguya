@@ -54,25 +54,25 @@ export function AppLayout({
         <Sider
           className="border-r border-k-border bg-k-panel! max-[720px]:hidden!"
           theme={isDark ? 'dark' : 'light'}
-          width={232}
+          width={216}
           collapsed={systemCollapsed}
           collapsedWidth={0}
           trigger={null}
         >
-          <div className="flex h-full flex-col px-3 pb-4">
-            <div className="border-b border-k-border-soft px-2.5 pt-[23px] pb-5">
-              <span className="mb-2 block text-[9px] font-bold tracking-[1.3px] text-k-text-subtle">
+          <div className="flex h-full flex-col px-2.5 pb-3">
+            <div className="border-b border-k-border-soft px-2.5 pt-5 pb-4">
+              <span className="mb-1.5 block text-[9px] font-bold tracking-[1.3px] text-k-text-subtle">
                 KAGUYA CONSOLE
               </span>
-              <h1 className="m-0 text-[17px] font-semibold text-k-text">
+              <h1 className="m-0 text-[16px] font-semibold text-k-text">
                 系统管理
               </h1>
-              <p className="mt-1 mb-0 text-[11px] text-k-text-subtle">
+              <p className="mt-0.5 mb-0 text-[11px] text-k-text-subtle">
                 System workspace
               </p>
             </div>
 
-            <div className="px-2.5 pt-5 pb-2 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
+            <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
               AI 配置
             </div>
             <Menu
@@ -84,7 +84,7 @@ export function AppLayout({
               theme={isDark ? 'dark' : 'light'}
             />
 
-            <div className="px-2.5 pt-5 pb-2 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
+            <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
               日志与审计
             </div>
             <Menu
@@ -99,7 +99,7 @@ export function AppLayout({
             />
 
             <div className="flex-1" />
-            <div className="mx-1 mt-3 flex items-center gap-2.5 rounded-[10px] border border-k-border bg-k-elevated p-2.5">
+            <div className="mx-1 mt-2 flex items-center gap-2.5 rounded-[10px] border border-k-border bg-k-elevated p-2">
               <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg border border-k-border bg-k-selected text-k-primary">
                 <ApiOutlined />
               </span>
@@ -122,7 +122,7 @@ export function AppLayout({
           ]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
         </Drawer>
         <Layout className="min-w-0 bg-k-canvas">
-          <Header className="flex h-[60px]! min-h-[60px] items-center justify-between border-b border-k-border-soft bg-k-surface/95! px-7! leading-none! backdrop-blur-md max-[720px]:h-14! max-[720px]:min-h-14 max-[720px]:px-[18px]!">
+          <Header className="flex h-[52px]! min-h-[52px] items-center justify-between border-b border-k-border-soft bg-k-surface/95! px-5! leading-none! backdrop-blur-md max-[720px]:h-12! max-[720px]:min-h-12 max-[720px]:px-4!">
             <div className="flex min-w-0 items-center gap-2">
             <Button className="max-[720px]:hidden!" type="text" aria-label={systemCollapsed ? '展开系统菜单' : '收起系统菜单'} aria-expanded={!systemCollapsed} icon={<MenuOutlined />} onClick={() => setSystemCollapsed(value => !value)} />
             <Button className="min-[721px]:hidden!" type="text" aria-label="打开系统菜单" aria-expanded={mobileMenuOpen} icon={<MenuOutlined />} onClick={() => setMobileMenuOpen(true)} />

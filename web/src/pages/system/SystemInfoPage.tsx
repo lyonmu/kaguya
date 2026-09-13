@@ -47,13 +47,13 @@ export function SystemInfoPage() {
     } catch (error) { void message.error(error instanceof Error ? error.message : '保存失败') }
     finally { setSaving(false) }
   }
-  return <div className="mx-auto w-full max-w-[1000px] px-8 py-7 max-[620px]:px-3.5">
-    <div className="mb-5 flex items-center justify-between gap-3">
-      <h2 className="m-0 text-[22px] font-semibold text-k-text">系统配置</h2>
+  return <div className="mx-auto w-full max-w-[1000px] px-6 py-5 max-[620px]:px-3.5">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <h2 className="m-0 text-[20px] font-semibold text-k-text">系统配置</h2>
       <Button icon={<ReloadOutlined />} disabled={saving} loading={loading} onClick={() => setRevision(value => value + 1)}>重新加载</Button>
     </div>
-    {error && <Alert type="error" title={error} showIcon className="mb-4" />}
-    {loading ? <div className="p-8 text-center"><Spin /></div> : info && <Card>
+    {error && <Alert type="error" title={error} showIcon className="mb-3" />}
+    {loading ? <div className="p-6 text-center"><Spin /></div> : info && <Card>
       <Form form={form} layout="vertical" requiredMark={false} disabled={saving || !!error} onFinish={save}>
         <div className="grid grid-cols-2 gap-x-4 max-[620px]:grid-cols-1">
           <Form.Item label="默认对话模型" name="default_model_id" tooltip="用于未手动选择模型的对话，清空则取消配置。"><ModelCascader aria-label="默认对话模型" models={models} /></Form.Item>

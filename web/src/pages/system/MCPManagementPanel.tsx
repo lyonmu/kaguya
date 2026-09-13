@@ -84,14 +84,14 @@ export function MCPManagementPanel() {
     finally { setBusy('') }
   }
 
-  return <div className="mx-auto w-full max-w-[1480px] px-8 pt-4 pb-11 max-[620px]:px-3.5">
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="m-0 text-[22px] font-semibold text-k-text">MCP 管理</h2><Typography.Text type="secondary">连接外部工具服务，动态启停，无需重启应用。</Typography.Text></div>
+  return <div className="mx-auto w-full max-w-[1480px] px-6 pt-4 pb-8 max-[620px]:px-3.5">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div><h2 className="m-0 text-[20px] font-semibold text-k-text">MCP 管理</h2><Typography.Text type="secondary">连接外部工具服务，动态启停，无需重启应用。</Typography.Text></div>
       <Space><Button icon={<ReloadOutlined />} onClick={reload} loading={loading}>刷新</Button><Button type="primary" icon={<PlusOutlined />} disabled={!!busy || saving} onClick={() => { setEditing(undefined); form.resetFields(); form.setFieldsValue(toMCPForm()); setOpen(true) }}>新增 MCP</Button></Space>
     </div>
     <Card>
-      <Input.Search aria-label="搜索 MCP 名称" placeholder="搜索 MCP 名称" allowClear className="mb-4 max-w-[360px]" onSearch={name => setQuery({ ...query, name: name.trim(), page: 1 })} />
-      {error && <Alert type="error" title={error} showIcon className="mb-4" />}
+      <Input.Search aria-label="搜索 MCP 名称" placeholder="搜索 MCP 名称" allowClear className="mb-3 max-w-[360px]" onSearch={name => setQuery({ ...query, name: name.trim(), page: 1 })} />
+      {error && <Alert type="error" title={error} showIcon className="mb-3" />}
       <Table<MCPServer> rowKey="id" dataSource={data.items} loading={loading} scroll={{ x: 900 }}
         pagination={{ current: query.page, pageSize: query.pageSize, total: data.total, showSizeChanger: true, onChange: (page, pageSize) => setQuery({ ...query, page, pageSize }) }}
         columns={[

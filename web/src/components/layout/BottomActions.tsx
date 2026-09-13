@@ -5,7 +5,7 @@ import { CommentOutlined, LeftOutlined, MenuOutlined, MoonOutlined, ReloadOutlin
 
 export function BottomActions({ onRefresh, loading }: { onRefresh?: () => void; loading?: boolean }) {
   const navigation = useContext(BottomActionsContext)
-  return <div className="flex items-center gap-1 p-2" role="group" aria-label="快捷操作">
+  return <div className="flex items-center gap-1 p-1.5" role="group" aria-label="快捷操作">
     {!navigation?.collapsed && <>
       {navigation && <>
         <Tooltip title="Kaguya · 返回对话"><Button type="text" aria-label="Kaguya" onClick={navigation.onChat} className="p-1!">{navigation.avatar}</Button></Tooltip>

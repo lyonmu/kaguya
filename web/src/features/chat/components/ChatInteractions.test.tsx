@@ -118,6 +118,11 @@ it('uses Ant Design X Mermaid after streaming and recovers from invalid source',
     assert.ok(view.container.querySelector('.ant-mermaid'))
     assert.ok(view.getByText('图片'))
     assert.ok(view.getByText('代码'))
+    // 桌面应用不提供 PNG 下载，只保留缩放与重置。
+    assert.equal(view.container.querySelector('.anticon-download'), null)
+    assert.ok(view.container.querySelector('.anticon-zoom-in'))
+    assert.ok(view.container.querySelector('.anticon-zoom-out'))
+    assert.ok(view.getByText('重置'))
     view.rerender(<Markdown text={source + '\n\n说明文字'} />)
     assert.ok(view.container.querySelector('.ant-mermaid-graph svg'))
     view.rerender(<Markdown text={'```mermaid\nnot a diagram\n```'} />)

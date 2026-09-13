@@ -409,11 +409,11 @@ export function ProviderManagementPage() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] px-8 pt-7 pb-11 max-[900px]:px-5 max-[620px]:px-3.5 max-[620px]:pt-5">
-      <div className="mb-5 flex items-end justify-between gap-6 max-[620px]:items-start">
+    <div className="mx-auto w-full max-w-[1480px] px-6 pt-5 pb-8 max-[900px]:px-5 max-[620px]:px-3.5 max-[620px]:pt-5">
+      <div className="mb-4 flex items-end justify-between gap-6 max-[620px]:items-start">
         <div>
-          <span className="mb-2 block text-[9px] font-bold tracking-[1.4px] text-k-text-subtle">SYSTEM / AI CONFIGURATION</span>
-          <h2 className="m-0 text-[22px] font-semibold tracking-[-0.25px] text-k-text">AI 提供商管理</h2>
+          <span className="mb-1.5 block text-[9px] font-bold tracking-[1.4px] text-k-text-subtle">SYSTEM / AI CONFIGURATION</span>
+          <h2 className="m-0 text-[20px] font-semibold tracking-[-0.25px] text-k-text">AI 提供商管理</h2>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={reload}>刷新</Button>
@@ -421,7 +421,7 @@ export function ProviderManagementPage() {
         </Space>
       </div>
 
-      <Card className="mb-3.5 border-k-border! bg-k-surface! shadow-sm shadow-black/5">
+      <Card className="mb-3 border-k-border! bg-k-surface! shadow-sm shadow-black/5">
         <Form
           form={filterForm}
           layout="vertical"
@@ -451,10 +451,10 @@ export function ProviderManagementPage() {
         </Form>
       </Card>
 
-      {error ? <Alert className="mb-3.5" title="提供商加载失败" description={error} showIcon type="error" /> : null}
+      {error ? <Alert className="mb-3" title="提供商加载失败" description={error} showIcon type="error" /> : null}
 
       <Card className="overflow-hidden border-k-border! bg-k-surface! shadow-sm shadow-black/5" styles={{ body: { padding: 0 } }}>
-        <div className="flex min-h-16 items-center justify-between border-b border-k-border-soft px-4 py-3.5">
+        <div className="flex min-h-14 items-center justify-between border-b border-k-border-soft px-4 py-2.5">
           <div>
             <h3 className="m-0 text-[13px] font-semibold text-k-text">提供商列表</h3>
             <p className="mt-1 mb-0 text-[10px] text-k-text-subtle">共 {data.total.toLocaleString()} 个提供商</p>
