@@ -179,10 +179,10 @@ make install               # 构建并安装命令行入口到 ~/.local/bin/kagu
 ```sh
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' make sign-macos
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
-  NOTARY_PROFILE=kaguya-notary make notarize-macos
+  NOTARY_PROFILE=kaguya make notarize-macos
 ```
 
-普通打包目标生成未签名产物；公证目标同时处理应用和 DMG。
+普通打包目标自动对完整应用包进行 ad-hoc 临时签名，无需证书或 Apple 账号；DMG 本身不签名。这不会获得 Apple 的开发者信任。同事安装后首次打开若被拦截，可在确认来源可信后，前往“系统设置 → 隐私与安全性 → 仍要打开”手动放行。邮箱不能直接用作签名身份，正式发行仍需 Apple 颁发的 Developer ID Application 证书。公证 Profile 默认名为 `kaguya`，需提前通过 `notarytool` 配置对应的钥匙串凭据；公证目标同时处理应用和 DMG。
 
 ### 桌面运行环境
 

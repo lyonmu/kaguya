@@ -179,10 +179,10 @@ Distribution signing and notarization use the existing scripts, with the identit
 ```sh
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' make sign-macos
 CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
-  NOTARY_PROFILE=kaguya-notary make notarize-macos
+  NOTARY_PROFILE=kaguya make notarize-macos
 ```
 
-Ordinary packaging targets produce unsigned artifacts; the notarization target handles both the application and DMG.
+Ordinary packaging targets automatically apply an ad-hoc signature to the complete application bundle, without a certificate or Apple account; the DMG itself remains unsigned. This does not establish Apple developer trust. If the first launch is blocked after installation, colleagues who trust the source can allow it through System Settings → Privacy & Security → Open Anyway. An email address alone is not a signing identity; formal distribution still requires an Apple-issued Developer ID Application certificate. The notarization profile defaults to `kaguya` and its keychain credentials must be configured beforehand using `notarytool`; the notarization target handles both the application and DMG.
 
 ### Desktop runtime environment
 

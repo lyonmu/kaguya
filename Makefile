@@ -16,7 +16,7 @@ PRODUCTION_TAG := production
 MACOS_DEPLOYMENT_TARGET ?= 14.0
 # 签名与公证的身份是发行环境输入，不写死凭据。
 CODESIGN_IDENTITY ?=
-NOTARY_PROFILE ?=
+NOTARY_PROFILE ?= kaguya
 
 # Go build configuration
 CGO_ENABLED = 1
@@ -56,13 +56,13 @@ native:
 install: build
 	install -m 0755 ./target/$(PROJECT_NAME) ~/.local/bin/$(PROJECT_NAME)
 
-# macOS Desktop：组装 .app 包（不签名）。需要在该架构的原生 macOS 上执行。
+# macOS Desktop：组装 .app 包并做 ad-hoc 临时签名。需要在该架构的原生 macOS 上执行。
 .PHONY: package-macos
 package-macos: frontend native
 	$(MAKE) backend
 	MACOS_DEPLOYMENT_TARGET=$(MACOS_DEPLOYMENT_TARGET) bash scripts/package-macos.sh
 
-# 打包可拖拽安装的 DMG（不签名）。
+# 打包可拖拽安装的 DMG（内含 ad-hoc 签名应用，DMG 本身不签名）。
 .PHONY: dmg-macos
 dmg-macos: package-macos
 	bash scripts/dmg-macos.sh

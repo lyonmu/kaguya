@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 把已编译的 kaguya 二进制组装成 macOS 应用包（target/Kaguya.app）。
-# 只组装与校验，不做签名；签名与公证见 scripts/sign-macos.sh。
+# 组装、校验并做完整 ad-hoc 签名；Developer ID 签名与公证见 scripts/sign-macos.sh。
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -88,4 +88,9 @@ if otool -L "$bundle/Contents/MacOS/kaguya" | grep -E '/opt/homebrew|/usr/local/
   exit 1
 fi
 
-echo 'package-macos finished; run scripts/sign-macos.sh to sign and notarize'
+# 所有资源与 Info.plist 写入完成后签名，替换链接器不完整的临时签名。
+# ad-hoc 不需要证书，只保证应用包完整性，不提供 Gatekeeper 开发者信任。
+codesign --force --sign - "$bundle"
+codesign --verify --deep --strict --verbose=2 "$bundle"
+
+echo 'package-macos finished with ad-hoc signing; use scripts/sign-macos.sh for Developer ID signing and notarization'
