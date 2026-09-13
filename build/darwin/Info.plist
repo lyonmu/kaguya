@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh_CN</string>
+	<key>CFBundleExecutable</key>
+	<string>kaguya</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.lyonmu.kaguya</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Kaguya</string>
+	<key>CFBundleDisplayName</key>
+	<string>Kaguya</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.0.1</string>
+	<key>CFBundleVersion</key>
+	<string>0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>MIT License</string>
+	<!-- Agent 工具需要按运行用户访问主机文件系统；这些说明只在系统弹出授权提示时展示。 -->
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Kaguya 需要在你选择项目时读取桌面上的文件。</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Kaguya 需要在你选择项目时读取“文稿”中的文件。</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Kaguya 需要在你选择项目时读取“下载”中的文件。</string>
+</dict>
+</plist>

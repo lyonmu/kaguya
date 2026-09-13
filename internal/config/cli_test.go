@@ -61,13 +61,13 @@ func TestCLIRejectsInvalidHost(t *testing.T) {
 
 func TestCLITrustedHosts(t *testing.T) {
 	for _, host := range []string{"agent.example.com", "localhost", "AGENT.example.com"} {
-		c := Cli{Host: "127.0.0.1", TrustedHosts: []string{host}}
+		c := Cli{Host: "127.0.0.1", RouterPrefix: "/kaguya/api", TrustedHosts: []string{host}}
 		if err := c.Validate(); err != nil {
 			t.Fatal(err)
 		}
 	}
 	for _, host := range []string{"", "*.example.com", "https://example.com", "example.com:443", "example.com/path", "evil@localhost", "a..b", "-a.com", "a.com\n"} {
-		c := Cli{Host: "127.0.0.1", TrustedHosts: []string{host}}
+		c := Cli{Host: "127.0.0.1", RouterPrefix: "/kaguya/api", TrustedHosts: []string{host}}
 		if err := c.Validate(); err == nil {
 			t.Fatalf("accepted trusted host %q", host)
 		}
@@ -83,6 +83,48 @@ func TestRemovedTLSParametersAreRejected(t *testing.T) {
 		}
 		if _, err := parser.Parse(args); err == nil {
 			t.Fatalf("%v must be rejected as an unknown parameter", args)
+		}
+	}
+}
+
+func TestCLIWebFlagAndDesktopPrefix(t *testing.T) {
+	var cli Cli
+	parser, err := kong.New(&cli)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parser.Parse(nil); err != nil {
+		t.Fatal(err)
+	}
+	if cli.Web {
+		t.Fatal("desktop must be the default startup mode")
+	}
+	if _, err := parser.Parse([]string{"--web"}); err != nil {
+		t.Fatal(err)
+	}
+	if !cli.Web {
+		t.Fatal("--web did not enable the HTTP service mode")
+	}
+}
+
+func TestDesktopRouterPrefixValidation(t *testing.T) {
+	for _, prefix := range []string{"/kaguya/api", "/api", "/a/b/c"} {
+		c := Cli{Host: "127.0.0.1", RouterPrefix: prefix}
+		if err := c.Validate(); err != nil {
+			t.Fatalf("desktop rejected prefix %q: %v", prefix, err)
+		}
+	}
+	for _, prefix := range []string{"", "kaguya/api", "/", "/kaguya/", "/a//b", "/a/../b", "/a?x=1", "/a#b", "/a\\b", "/wails", "/__desktop", "/assets", "/kaguya-favicon.webp"} {
+		c := Cli{Host: "127.0.0.1", RouterPrefix: prefix}
+		if err := c.Validate(); err == nil {
+			t.Fatalf("desktop accepted prefix %q", prefix)
+		}
+	}
+	// Web 模式沿用原参数规则，不做 Desktop 前缀限制。
+	for _, prefix := range []string{"/", "/wails", "kaguya/api"} {
+		c := Cli{Host: "127.0.0.1", RouterPrefix: prefix, Web: true}
+		if err := c.Validate(); err != nil {
+			t.Fatalf("web rejected prefix %q: %v", prefix, err)
 		}
 	}
 }

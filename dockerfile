@@ -41,5 +41,6 @@ COPY --from=builder /kaguya/target/kaguya /bin/kaguya
 EXPOSE 9024
 
 ENTRYPOINT [ "/bin/kaguya" ]
+# Desktop mode is macOS-only; containers must start the HTTP service explicitly.
 # The container listens on all interfaces; publish the port only on the host loopback.
-CMD ["--host","0.0.0.0","--port","9024","--machine-id","924","--router-prefix","/kaguya/api","--db.path","/data/kaguya.db","--db.key-file","/run/secrets/kaguya.key"]
+CMD ["--web","--host","0.0.0.0","--port","9024","--machine-id","924","--router-prefix","/kaguya/api","--db.path","/data/kaguya.db","--db.key-file","/run/secrets/kaguya.key"]

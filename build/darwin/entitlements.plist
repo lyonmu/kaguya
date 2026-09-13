@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Hardened Runtime 的初始最小权限集：空字典。
+  不开放 JIT、unsigned executable memory、disable-library-validation 或 App Sandbox；
+  业务进程使用普通用户权限访问主机项目、Bash 与 MCP。
+-->
+<dict/>
+</plist>

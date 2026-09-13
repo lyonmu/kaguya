@@ -9,7 +9,7 @@
 
 # Kaguya
 
-**Kaguya** 是一个使用 Go 构建的实验性 AI Agent 应用，将流式对话、模型配置、历史持久化和 Token 用量分析整合到一个 Web 控制台中。React 前端嵌入 Go 二进制，由同一个服务提供界面和 API。
+**Kaguya** 是一个使用 Go 构建的实验性 AI Agent 应用，将流式对话、模型配置、历史持久化和 Token 用量分析整合到一个控制台中。React 前端嵌入 Go 二进制：macOS 默认打开原生 Desktop 窗口，显式 `--web` 时运行原来的 HTTP 服务；两种模式提供同一套界面和 API。
 
 项目面向学习、个人使用和 Agent Runtime 设计探索。当前控制台为中文界面；中英文 README 描述相同的功能，并使用同一组截图。
 
@@ -27,7 +27,7 @@
 | MCP 管理 | 在 AI 配置页面管理 MCP 服务，支持 stdio、Streamable HTTP 和 SSE，动态启停并将工具接入聊天。 |
 | 系统配置 | 分别选择默认对话模型和后台任务模型，追加自定义系统提示词，配置上游请求的 `User-Agent`；保存后新请求立即生效，无需重启。 |
 | Token 用量分析 | 查看累计用量、日峰值、活跃会话、活动热力图，以及按模型或提供商划分的 Token 构成。 |
-| 部署与开发 | 原生单二进制运行，使用 SQLCipher 加密 SQLite 并启用 WAL，无需 Docker 或数据库服务，提供 Swagger 与 Prometheus 端点。 |
+| 部署与开发 | 原生单二进制运行，macOS 默认桌面窗口、`--web` 提供 HTTP 服务，使用 SQLCipher 加密 SQLite 并启用 WAL，无需 Docker 或数据库服务，提供 Swagger 与 Prometheus 端点。 |
 
 ## 界面与使用方式
 
@@ -147,24 +147,53 @@ CGO_ENABLED=1 make build
 
 **可写数据不存放在 `go:embed` 中**。启动时先检查或初始化默认密钥文件，再自动创建 `~/.kaguya/kaguya.db` 并迁移 schema；`~` 指的是**服务运行用户**的主目录。新建目录权限为 `0700`，新建数据库文件为 `0600`，不修改已有权限。
 
-| 参数 | 环境变量 | 默认值 |
-| --- | --- | --- |
-| `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
-| `--db.key-file` | `DB_KEY_FILE` | 未设置时初始化／使用 `~/.kaguya/kaguya.key`；显式路径必须已存在 |
-| `--host` | — | `127.0.0.1` |
-| `--secret-key` | `KAGUYA_SECRET_KEY` | 空；为空时由 SQLCipher 主密钥派生 API Key 加密密钥 |
-| `--trusted-host` | — | 空；额外信任的精确域名 |
-| `--port` | — | `9024` |
-| `--router-prefix` | — | `/kaguya/api` |
+### macOS Desktop（默认启动）
 
-服务默认绑定 `127.0.0.1:9024`，仅允许本机连接。需要远程访问时，显式运行 `./target/kaguya --host=0.0.0.0`；IPv6 本机访问可使用 `--host=::1`。`--host` 只接受 IP 地址，空值或无效地址会被拒绝。
-
-HTTP 拒绝跨域浏览器请求。默认仅接受 `localhost` 和 IP 地址作为请求 Host，以防 DNS 重绑定；通过自有域名的认证反向代理访问时，添加 `--trusted-host=agent.example.com`，代理须保留原始 Host、Origin 和 Sec-Fetch-Site，不要将任意外部 Host 重写为可信本机地址。Vite 开发代理已保留匹配的 Host/Origin。此校验不替代登录或网络访问控制。HTTP 请求体上限为 1 MiB；请求头读取上限 10 秒、请求读取上限 30 秒，SSE 回答不设短写入超时。应用本身只提供明文 HTTP：由网关终止 TLS，把公开域名加入 `--trusted-host`，对 SSE 关闭响应缓冲，认证与访问控制留在网关。
+macOS 上不带参数启动会创建原生 Desktop 窗口：窗口加载 `wails://localhost/`，请求经 Wails 的 WKURLSchemeHandler 在进程内直接进入 Gin，**不创建任何入站 TCP/UDP 监听**（可用 `lsof -nP -a -p <PID> -iTCP -sTCP:LISTEN` 核对）。原有 REST、POST SSE、Handler、Service、Ent 与 Fantasy 执行链整体复用；剪贴板与外部链接通过同一原生通道的两个窄接口调用系统 API，没有网络监听地址。模型请求、远程 MCP 与项目命令仍按各自配置发起出站连接。
 
 ```sh
-./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
+CGO_ENABLED=1 make build
+./target/kaguya         # macOS 默认：Desktop 窗口
+./target/kaguya --web   # 显式运行 HTTP 服务
+```
+
+- **平台**：Desktop 仅支持 macOS；非 macOS 上默认启动会提示改用 `--web`，Web 路径保持原行为。发布目标为 macOS 14 及以上，arm64 与 amd64 各自原生构建。
+- **网络参数**：`--host`、`--port`、`--trusted-host` 只属于 `--web`，Desktop 不参与监听或 Host/Origin 白名单。`--router-prefix` 两种模式共用；Desktop 会校验它是没有 query、fragment、越级段，且不与 `/wails`、`/__desktop`、静态资源冲突的规范本地路径。
+- **数据与密钥**：Desktop 与 Web 使用同一 `~/.kaguya/kaguya.db` 与密钥路径，不做迁移，也不会另建空库；`.app` 只包含二进制、Info.plist、图标与许可证，不写运行数据。约定两者不要同时打开同一数据库。
+- **Finder 环境**：从 Finder 启动不继承终端里临时设置的 `PATH`、代理或 API Key。Bash 与 MCP 使用进程环境；需要终端特定环境时，从该终端执行 `.app/Contents/MacOS/kaguya`（仍是同一个 Desktop 程序）。自定义数据库、密钥与文件日志路径请用绝对路径或 `~/`，不要依赖工作目录。
+- **系统集成**：外链交给系统浏览器，不为内部通信添加 loopback HTTP 的 ATS 例外；访问桌面／文稿／下载等目录时系统按用途说明请求授权，拒绝时返回原有项目错误，不自动提权。
+
+打包、签名与公证（身份与 keychain profile 是发行环境输入）：
+
+```sh
+make package-macos                     # 组装 target/Kaguya.app（不签名）
+make install-app                       # 复制到 /Applications
+CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' make sign-macos
+CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
+  NOTARY_PROFILE=kaguya-notary make notarize-macos
+```
+
+缺少 `CODESIGN_IDENTITY` 或 `NOTARY_PROFILE` 时目标明确失败，不生成 ad-hoc 包冒充正式发行版。初始 entitlements 为空字典，使用 Hardened Runtime、不做 App Sandbox；现有主机项目、Bash 与 MCP 能力按运行用户访问主机文件。
+
+| 参数 | 环境变量 | 默认值 |
+| --- | --- | --- |
+| `--web` | — | `false`；macOS 上显式运行 HTTP 服务，而不是打开桌面窗口 |
+| `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
+| `--db.key-file` | `DB_KEY_FILE` | 未设置时初始化／使用 `~/.kaguya/kaguya.key`；显式路径必须已存在 |
+| `--host` | — | `127.0.0.1`（仅 `--web`） |
+| `--secret-key` | `KAGUYA_SECRET_KEY` | 空；为空时由 SQLCipher 主密钥派生 API Key 加密密钥 |
+| `--trusted-host` | — | 空；额外信任的精确域名（仅 `--web`） |
+| `--port` | — | `9024`（仅 `--web`） |
+| `--router-prefix` | — | `/kaguya/api`；Desktop 会校验为规范本地路径 |
+
+`--web` 服务默认绑定 `127.0.0.1:9024`，仅允许本机连接。需要远程访问时，显式运行 `./target/kaguya --web --host=0.0.0.0`；IPv6 本机访问可使用 `--host=::1`。`--host` 只接受 IP 地址，空值或无效地址会被拒绝。
+
+`--web` 模式下 HTTP 拒绝跨域浏览器请求。默认仅接受 `localhost` 和 IP 地址作为请求 Host，以防 DNS 重绑定；通过自有域名的认证反向代理访问时，添加 `--trusted-host=agent.example.com`，代理须保留原始 Host、Origin 和 Sec-Fetch-Site，不要将任意外部 Host 重写为可信本机地址。Vite 开发代理已保留匹配的 Host/Origin。此校验不替代登录或网络访问控制。HTTP 请求体上限为 1 MiB；请求头读取上限 10 秒、请求读取上限 30 秒，SSE 回答不设短写入超时。应用本身只提供明文 HTTP：由网关终止 TLS，把公开域名加入 `--trusted-host`，对 SSE 关闭响应缓冲，认证与访问控制留在网关。
+
+```sh
+./target/kaguya --web --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
 # 引号中的 ~/ 路径也会由应用展开。
-DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
+DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya --web
 ```
 
 父目录自动创建，相对路径基于工作目录解析，不支持 `~user` 展开。主程序**不加载 `config.yml`**；提供商、模型与提示词通过控制台配置并保存到 SQLite。
@@ -179,7 +208,7 @@ DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
 
 **安全边界：** SQLCipher 加密数据库页及 WAL 中的页内容，不加密所有文件系统元数据、日志、工具输出或进程内存数据。密钥与数据库放在同一磁盘相邻位置，不能防止两者一起被窃取；有需要时采用独立挂载的秘密文件、操作系统秘密配置和磁盘加密。运行中的 Agent Bash 工具具有服务用户权限，可能访问密钥；数据库加密不是工具沙箱。入站传输安全由 TLS 网关负责，不保护本地密钥；由 SQLCipher 密钥派生的 API Key 加密密钥与数据库同根，同样不能抵御两者一起被窃取。远程访问控制台时，请使用带访问控制的 HTTPS 反向代理；应用本身没有内置登录。调试模式也不记录含参数的数据库 SQL，避免提示词、API Key 和 MCP 凭据泄露到日志。
 
-打开 [http://127.0.0.1:9024](http://127.0.0.1:9024)，添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
+在 Desktop 窗口中（`--web` 时为 [http://127.0.0.1:9024](http://127.0.0.1:9024)）添加提供商（完整请求 URL、API Key）及至少一个模型，然后在**系统配置**中选择默认对话模型；可选后台任务模型用于生成标题。
 
 知识库与语义检索可通过自行配置的外部 MCP 工具提供，不要求本地 pgvector 服务。应用不内置知识库、长期记忆、Embedding 或 FTS5 搜索。
 
@@ -200,17 +229,17 @@ docker compose up -d
 docker compose logs --tail=100 kaguya-svc
 ```
 
-容器启动参数：`--host=0.0.0.0 --port=9024 --router-prefix=/kaguya/api --db.path=/data/kaguya.db --db.key-file=/run/secrets/kaguya.key`。修改路径时通过 Compose `command` 覆盖完整参数列表。升级前把 `kaguya-data` 与 `kaguya-key` 作为整体备份；`docker compose down` 会保留两者。不要把端口直接暴露到公网，远程访问请在前面部署 TLS 网关。
+容器启动参数：`--web --host=0.0.0.0 --port=9024 --router-prefix=/kaguya/api --db.path=/data/kaguya.db --db.key-file=/run/secrets/kaguya.key`（容器没有桌面窗口，必须显式 `--web`）。修改路径时通过 Compose `command` 覆盖完整参数列表。升级前把 `kaguya-data` 与 `kaguya-key` 作为整体备份；`docker compose down` 会保留两者。不要把端口直接暴露到公网，远程访问请在前面部署 TLS 网关。
 
 ## 架构
 
 聊天使用 assistant-ui 的 ExternalStoreRuntime、消息视口和输入组件，沿用 Go SSE 与数据库历史；配置表单、表格和通用控件继续使用 Ant Design，用量图表继续使用 ECharts。会话列表、消息和输入区采用侧栏式聊天布局。并发状态保存在当前浏览器应用内；刷新或关闭页面会断开流式连接，服务端随之停止该轮并把已产生内容保留为中断轮次（不是空会话）。切换会话不会关闭其余会话自己的连接，各轮次继续执行到完成。Go 按请求使用独立 goroutine，同一会话保持互斥，不同会话可并发等待模型和工具。实际吞吐仍受提供商限流、数据库和主机资源约束。
 
 ```text
-浏览器：React 19 + TypeScript + assistant-ui + Ant Design + Tailwind CSS + ECharts
-    │  SSE 对话 / JSON API
-    ▼
-Go 二进制：Kong CLI → Gin 路由 → 应用服务
+macOS Desktop 窗口：WKWebView（wails://localhost，无监听端口）──┐
+浏览器：React 19 + TypeScript + assistant-ui + Ant Design + ECharts ─┤ fetch/JSON + POST SSE
+                                                              ▼
+Go 二进制：Kong CLI → 模式分流（默认 Desktop / --web）→ Gin 路由 → 应用服务
     ├── Agent Runtime（charm.land/fantasy）→ 已配置的模型提供商
     ├── 对话轮次、内容块与模型上下文 → Ent → SQLCipher 加密 SQLite（WAL）
     ├── 提供商／模型配置、系统配置与用量查询 → Ent
@@ -219,8 +248,9 @@ Go 二进制：Kong CLI → Gin 路由 → 应用服务
 
 | 路径 | 职责 |
 | --- | --- |
-| `main.go`、`internal/cmd/`、`internal/config/` | CLI 解析、启动流程与基础设施配置 |
+| `main.go`、`internal/cmd/`、`internal/config/` | CLI 解析、启动模式分流、共享初始化与关停 |
 | `internal/router/`、`internal/api/` | HTTP 路由与请求响应处理 |
+| `internal/desktop/` | Desktop 宿主的原生资源通道、请求准入门与剪贴板／外链窄接口 |
 | `internal/service/agent/` | 流式对话、历史持久化、上下文和标题生成 |
 | `internal/agent/runtime/`、`internal/agent/token/` | 模型适配、执行与用量记录抽象 |
 | `internal/agent/tools/` | pi 风格的七个工具、目录边界、输出截断、文件修改与命令执行 |
@@ -306,7 +336,7 @@ curl -N http://127.0.0.1:9024/kaguya/api/v1/chat/sse \
 
 ## 开发
 
-源码开发需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make 及上文列出的原生依赖。执行 `CGO_ENABLED=1 make build` 后通过 `./target/kaguya` 运行（全新安装自动初始化默认密钥），无需 Docker／数据库服务。请使用 Make 目标而非直接 `go build`／`go test`，以应用 SQLCipher 链接参数。局部测试可先执行 `make native`，再执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`。
+源码开发需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make 及上文列出的原生依赖。执行 `CGO_ENABLED=1 make build` 后通过 `./target/kaguya` 运行（全新安装自动初始化默认密钥），无需 Docker／数据库服务；macOS 默认打开 Desktop 窗口，本机 Web 服务使用 `./target/kaguya --web`。请使用 Make 目标而非直接 `go build`／`go test`，以应用 SQLCipher 链接参数。局部测试可先执行 `make native`，再执行 `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`。
 
 在仓库根目录执行 `CGO_ENABLED=1 make install`，会完整构建前后端并将二进制安装到 `~/.local/bin/<仓库目录名>`（通常为 `~/.local/bin/kaguya`），权限为 `0755`。请先创建 `~/.local/bin` 并加入 `PATH`；该命令不会启动服务。
 
@@ -320,7 +350,7 @@ bun run build              # TypeScript 检查与 Vite 生产构建
 bun run dev # 将 API 代理到本机 HTTP 服务
 ```
 
-开发前端时，保持原生应用运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `http://127.0.0.1:9024`，并保留浏览器匹配的 Host/Origin。生产构建不需要任何证书文件。Vite 页面只用于本机开发；正常使用请打开后端内嵌的 HTTP 页面，远程访问在前面部署 TLS 网关。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置。修改后端后，执行 `make build` 并重启二进制。
+开发前端时，用 `./target/kaguya --web` 保持服务运行在 `9024` 端口；Vite 将 `/kaguya/api` 代理到 `http://127.0.0.1:9024`，并保留浏览器匹配的 Host/Origin。生产构建不需要任何证书文件。Vite 页面只用于本机 Web 开发；Desktop 始终加载嵌入资源，不使用 Vite dev server 或 HMR，修改前端后需重新执行 `make frontend` 或 `make build`。如果调整 API 前缀或部署地址，请同步前端 `VITE_API_BASE_URL` 与代理配置；Desktop 固定的原生前缀来自启动参数，忽略 `VITE_API_BASE_URL`。修改后端后，执行 `make build` 并重启二进制。
 
 修改 Ent schema 后，在仓库根目录执行 `go generate ./internal/ent`，保持生成的 Ent 代码与 schema 同步。
 

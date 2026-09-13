@@ -4,6 +4,7 @@ import { CheckOutlined, CopyOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import type { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { copyText, isDesktop, openExternal } from '../../../platform/host'
 import { MermaidBlock } from './MermaidBlock'
 
 export function CopyButton({ text, label = '复制代码', visibleLabel = '复制' }: { text: string; label?: string; visibleLabel?: string }) {
@@ -12,7 +13,7 @@ export function CopyButton({ text, label = '复制代码', visibleLabel = '复�
   useEffect(() => () => clearTimeout(timer.current), [])
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(text)
+      await copyText(text)
       setState('copied')
     } catch { setState('error') }
     clearTimeout(timer.current)
@@ -67,7 +68,17 @@ export function Markdown({ text, streaming = false }: { text: string; streaming?
       return language?.toLowerCase() === 'mermaid' ? <MermaidBlock code={code} streaming={streaming} /> : <CodeBlock code={code} language={language} />
     },
     table: ({ children }) => <div className="chat-table-scroll" tabIndex={0} aria-label="表格"><table>{children}</table></div>,
-    a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+    a: ({ href, children }) => <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={event => {
+        // Desktop 不把外部站点加载到应用窗口，交给系统浏览器打开。
+        if (!href || !isDesktop()) return
+        event.preventDefault()
+        void openExternal(href).catch(() => { /* 打开失败时保持当前页面 */ })
+      }}
+    >{children}</a>,
     img: MarkdownImage,
   }), [streaming])
   return <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{text}</ReactMarkdown></div>

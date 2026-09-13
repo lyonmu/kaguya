@@ -56,3 +56,20 @@ func sameRequestOrigin(origin, host string) bool {
 		u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == "" &&
 		strings.EqualFold(u.Host, host)
 }
+
+// desktopRequestSecurity 只保留两种模式共用的安全头与请求体限制。原生窗口
+// 来源（Host、窗口 ID、Origin、Sec-Fetch-Site）由 Desktop 的 Assets 中间件
+// 校验，这里不重复也不放宽 Web 的白名单。
+func desktopRequestSecurity() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "no-referrer")
+		if c.Request.ContentLength > maxRequestBytes {
+			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body exceeds 1 MiB"})
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRequestBytes)
+		c.Next()
+	}
+}

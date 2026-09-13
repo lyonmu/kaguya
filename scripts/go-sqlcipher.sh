@@ -28,5 +28,11 @@ export CGO_LDFLAGS="${CGO_LDFLAGS:-} $prefix/lib/libsqlite3.a $crypto_flags -lm"
 # archives. Apple ld safely ignores them; silence only its duplicate warning.
 if [[ "$(go env GOHOSTOS)" == darwin ]]; then
   export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-no_warn_duplicate_libraries"
+  # Pin the Mach-O deployment target; without it clang falls back to the SDK
+  # default and the binary advertises a lower minimum than the release target.
+  if [[ -n "${MACOSX_DEPLOYMENT_TARGET:-}" ]]; then
+    export CGO_CFLAGS="$CGO_CFLAGS -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
+    export CGO_LDFLAGS="$CGO_LDFLAGS -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
+  fi
 fi
 exec go "$@"

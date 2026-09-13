@@ -1,3 +1,5 @@
+import { desktopApiBase, isDesktop } from '../platform/host'
+
 export interface ApiResponse<T> {
   code: number
   data?: T
@@ -28,10 +30,18 @@ export const isApiEnvelope = (value: unknown): value is ApiResponse<unknown> => 
 type QueryValue = string | number | boolean | null | undefined
 
 export const SUCCESS_CODE = 100000
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/kaguya/api').replace(
+// Web 构建允许用 VITE_API_BASE_URL 指向外部服务；Desktop 只用宿主注入的本地前缀。
+const webApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/kaguya/api').replace(
   /\/$/,
   '',
 )
+
+function resolveApiBase(): string {
+  if (!isDesktop()) return webApiBaseUrl
+  const resolved = desktopApiBase()
+  if (!resolved.ok) throw new ApiRequestError(resolved.error)
+  return resolved.prefix
+}
 
 export class ApiRequestError extends Error {
   code?: number
@@ -46,6 +56,7 @@ export class ApiRequestError extends Error {
 }
 
 export function buildUrl(path: string, query?: Record<string, QueryValue>) {
+  const apiBaseUrl = resolveApiBase()
   const searchParams = new URLSearchParams()
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
@@ -69,9 +80,11 @@ async function request<T>(
   guard?: PayloadGuard<T>,
 ): Promise<T> {
   let response: Response
+  // Desktop 前缀非法时在发起请求前抛错，避免被当成网络不可用。
+  const url = buildUrl(path, options?.query)
 
   try {
-    response = await fetch(buildUrl(path, options?.query), {
+    response = await fetch(url, {
       method,
       headers: {
         Accept: 'application/json',

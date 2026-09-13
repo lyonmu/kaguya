@@ -80,3 +80,50 @@ func TestRequestBodyLimit(t *testing.T) {
 		}
 	}
 }
+
+// TestDesktopGinSkipsWebOriginRules 确认 Desktop 入口不套用 Web 的 Host/Origin
+// 白名单（原生通道来源在 Assets 层校验），但仍保留体积限制与安全头。
+func TestDesktopGinSkipsWebOriginRules(t *testing.T) {
+	r, err := NewDesktopGin(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Any("/", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	req := httptest.NewRequest(http.MethodPost, "http://localhost/", strings.NewReader("{}"))
+	req.Header.Set("Origin", "null")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body)
+	}
+	if w.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatal("desktop engine must keep the shared security headers")
+	}
+
+	oversized := httptest.NewRequest(http.MethodPost, "http://localhost/", strings.NewReader("{}"))
+	oversized.ContentLength = maxRequestBytes + 1
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, oversized)
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized status=%d", w.Code)
+	}
+}
+
+// TestWebGinStillRejectsOpaqueOrigin 确认 Web 入口不放行 Desktop 的原生来源特例。
+func TestWebGinStillRejectsOpaqueOrigin(t *testing.T) {
+	r, err := NewGin(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.Any("/", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+	for _, origin := range []string{"null", "wails://localhost"} {
+		req := httptest.NewRequest(http.MethodPost, "http://localhost:9024/", nil)
+		req.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("origin %q status=%d", origin, w.Code)
+		}
+	}
+}

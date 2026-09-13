@@ -25,5 +25,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "kaguya exited with error: %v\n", err)
+		os.Exit(1)
+	}
 }

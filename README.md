@@ -9,7 +9,7 @@
 
 # Kaguya
 
-**Kaguya** is an experimental AI Agent application built with Go. It brings streaming conversations, model configuration, persistent history, and token analytics into one web console. The React frontend is embedded in the Go binary, so one service serves both the UI and the API.
+**Kaguya** is an experimental AI Agent application built with Go. It brings streaming conversations, model configuration, persistent history, and token analytics into one console. The React frontend is embedded in the Go binary: macOS opens a native desktop window by default, while `--web` runs the original HTTP service. Both modes share the same UI and API.
 
 The project is intended for learning, personal use, and exploring Agent runtime design. The current console is in Chinese; both READMEs describe the same features and use the same screenshots.
 
@@ -27,7 +27,7 @@ The project is intended for learning, personal use, and exploring Agent runtime 
 | MCP management | Manage MCP services under AI configuration, with stdio, Streamable HTTP, SSE, dynamic start/stop, and chat tool integration. |
 | System configuration | Choose separate default chat and background-task models, append a custom system prompt, and configure the upstream `User-Agent`. Saved settings apply to new requests without restarting. |
 | Token analytics | Inspect total usage, daily peaks, active conversations, an activity heatmap, and token composition by model or provider. |
-| Deployment and development | Run a native binary with SQLCipher-encrypted SQLite (WAL), no Docker or database server required; access Swagger and Prometheus endpoints. |
+| Deployment and development | Run a native binary that opens a macOS desktop window by default or serves HTTP with `--web`, using SQLCipher-encrypted SQLite (WAL), no Docker or database server required, with Swagger and Prometheus endpoints. |
 
 ## A tour of the console
 
@@ -147,24 +147,53 @@ On a fresh installation, the first run automatically creates `~/.kaguya/kaguya.k
 
 Writable data is **not** stored in `go:embed`: after checking or initializing the default key file, startup creates `~/.kaguya/kaguya.db` and migrates the schema. `~` means the **service user's** home directory. New directories use mode `0700` and new database files `0600`; existing permissions are not changed.
 
-| Argument | Environment | Default |
-| --- | --- | --- |
-| `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
-| `--db.key-file` | `DB_KEY_FILE` | Unset: initialize/use `~/.kaguya/kaguya.key`; explicit paths must already exist |
-| `--host` | — | `127.0.0.1` |
-| `--secret-key` | `KAGUYA_SECRET_KEY` | Empty; when empty the API key encryption key is derived from the SQLCipher database key |
-| `--trusted-host` | — | Empty; additional exact trusted hostname |
-| `--port` | — | `9024` |
-| `--router-prefix` | — | `/kaguya/api` |
+### macOS desktop (default startup)
 
-The server binds to `127.0.0.1:9024` by default, allowing connections only from the local machine. To allow remote access explicitly, run `./target/kaguya --host=0.0.0.0`; use `--host=::1` for IPv6 loopback. `--host` accepts an IP address and rejects empty or invalid values.
-
-HTTP rejects cross-origin browser requests. Request Host values default to `localhost` and IP literals to prevent DNS rebinding. For an authenticated reverse proxy on your own domain, add `--trusted-host=agent.example.com` and preserve the original Host, Origin and Sec-Fetch-Site; do not rewrite arbitrary external Host values to a trusted local address. The Vite development proxy preserves matching Host/Origin values. These checks do not replace authentication or network access control. HTTP bodies are limited to 1 MiB, with a 10-second header read timeout and 30-second request read timeout; SSE answers have no short write timeout. The application itself serves plain HTTP: terminate TLS at a gateway, add the public hostname to `--trusted-host`, disable response buffering for SSE, and keep authentication and access control at the gateway.
+Starting without arguments on macOS creates a native desktop window. The window loads `wails://localhost/`, and requests enter Gin in-process through Wails' WKURLSchemeHandler: the app **creates no inbound TCP/UDP listener** (verify with `lsof -nP -a -p <PID> -iTCP -sTCP:LISTEN`). The existing REST, POST SSE, handler, service, Ent, and Fantasy chain is reused as-is; clipboard and external links call system APIs through two narrow endpoints on the same native channel, which has no network address. Model requests, remote MCP servers, and project commands still make outbound connections as configured.
 
 ```sh
-./target/kaguya --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
+CGO_ENABLED=1 make build
+./target/kaguya         # macOS default: desktop window
+./target/kaguya --web   # explicit HTTP service
+```
+
+- **Platform:** desktop mode is macOS-only; on other systems the default start reports that `--web` is required, and the web path is unchanged. Release targets are macOS 14 and later, built natively for arm64 and amd64.
+- **Network flags:** `--host`, `--port`, and `--trusted-host` belong to `--web`; the desktop does not listen or apply the Host/Origin allowlist. `--router-prefix` is shared, and desktop mode validates it as a clean local path without query, fragment, or parent segments that does not conflict with `/wails`, `/__desktop`, or static assets.
+- **Data and keys:** the desktop and web modes use the same `~/.kaguya/kaguya.db` and key paths, with no migration and no second empty database; the `.app` holds only the binary, Info.plist, icon, and licenses, never runtime data. Do not open the same database in both modes at once.
+- **Finder environment:** launching from Finder does not inherit a `PATH`, proxy, or API keys set temporarily in a terminal. Bash and MCP use the process environment; run `.app/Contents/MacOS/kaguya` from that terminal when you need terminal-specific settings (it is the same desktop program). Use absolute or `~/` paths for custom database, key, and file-log locations instead of relying on the working directory.
+- **System integration:** external links go to the system browser without adding a loopback-HTTP ATS exception; requesting Desktop/Documents/Downloads access shows the usage descriptions and returns the existing project errors when denied, without escalating privileges.
+
+Packaging, signing, and notarization (identity and keychain profile are release-environment inputs):
+
+```sh
+make package-macos                     # assemble target/Kaguya.app (unsigned)
+make install-app                       # copy to /Applications
+CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' make sign-macos
+CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
+  NOTARY_PROFILE=kaguya-notary make notarize-macos
+```
+
+Targets fail explicitly when `CODESIGN_IDENTITY` or `NOTARY_PROFILE` is missing instead of shipping an ad-hoc bundle as a release. Entitlements start as an empty dictionary with Hardened Runtime and no App Sandbox; host projects, Bash, and MCP keep accessing files as the running user.
+
+| Argument | Environment | Default |
+| --- | --- | --- |
+| `--web` | — | `false`; on macOS run the HTTP service instead of opening the desktop window |
+| `--db.path` | `DB_PATH` | `~/.kaguya/kaguya.db` |
+| `--db.key-file` | `DB_KEY_FILE` | Unset: initialize/use `~/.kaguya/kaguya.key`; explicit paths must already exist |
+| `--host` | — | `127.0.0.1` (`--web` only) |
+| `--secret-key` | `KAGUYA_SECRET_KEY` | Empty; when empty the API key encryption key is derived from the SQLCipher database key |
+| `--trusted-host` | — | Empty; additional exact trusted hostname (`--web` only) |
+| `--port` | — | `9024` (`--web` only) |
+| `--router-prefix` | — | `/kaguya/api`; desktop mode validates it as a clean local path |
+
+In `--web` mode the server binds to `127.0.0.1:9024` by default, allowing connections only from the local machine. To allow remote access explicitly, run `./target/kaguya --web --host=0.0.0.0`; use `--host=::1` for IPv6 loopback. `--host` accepts an IP address and rejects empty or invalid values.
+
+In `--web` mode, HTTP rejects cross-origin browser requests. Request Host values default to `localhost` and IP literals to prevent DNS rebinding. For an authenticated reverse proxy on your own domain, add `--trusted-host=agent.example.com` and preserve the original Host, Origin and Sec-Fetch-Site; do not rewrite arbitrary external Host values to a trusted local address. The Vite development proxy preserves matching Host/Origin values. These checks do not replace authentication or network access control. HTTP bodies are limited to 1 MiB, with a 10-second header read timeout and 30-second request read timeout; SSE answers have no short write timeout. The application itself serves plain HTTP: terminate TLS at a gateway, add the public hostname to `--trusted-host`, disable response buffering for SSE, and keep authentication and access control at the gateway.
+
+```sh
+./target/kaguya --web --db.path=/srv/kaguya/kaguya.db --db.key-file=/secure/kaguya.key
 # Quoted ~/ paths are also expanded by the application.
-DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya
+DB_PATH='~/.kaguya/kaguya.db' DB_KEY_FILE='~/.kaguya/kaguya.key' ./target/kaguya --web
 ```
 
 Parent directories are created automatically. Relative paths resolve from the working directory; `~user` expansion is not supported. The main program **does not load `config.yml`**. Provider/model settings and prompts are configured in the console and stored in SQLite.
@@ -179,7 +208,7 @@ Parent directories are created automatically. Relative paths resolve from the wo
 
 **Security boundary:** SQLCipher encrypts database pages and WAL page payloads, not all filesystem metadata, logs, tool output, or data in process memory. A key stored beside the database on the same disk does not protect against theft of both files; use a separately mounted secret or OS secret provisioning and disk encryption where appropriate. The running Agent's Bash tool has the service user's permissions and may access its key: encryption is not a tool sandbox. Inbound transport security belongs to the TLS gateway, not the local key; an API key encryption key derived from the SQLCipher key shares its root with the database and likewise cannot withstand theft of both files. For remote console access, use an HTTPS reverse proxy with access control; the application itself has no built-in login. Debug mode also omits database SQL argument logging to keep prompts, API keys and MCP credentials out of logs.
 
-Open [http://127.0.0.1:9024](http://127.0.0.1:9024), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
+In the desktop window (or [http://127.0.0.1:9024](http://127.0.0.1:9024) with `--web`), add a provider with its full request URL/API key and at least one model, then select a default chat model in **System configuration**. Optionally select a background-task model for titles.
 
 Knowledge bases and semantic retrieval can be supplied through externally configured MCP tools, without a local pgvector service. The application does not include a built-in knowledge base, long-term memory, embeddings, or FTS5 search.
 
@@ -200,17 +229,17 @@ docker compose up -d
 docker compose logs --tail=100 kaguya-svc
 ```
 
-Container arguments: `--host=0.0.0.0 --port=9024 --router-prefix=/kaguya/api --db.path=/data/kaguya.db --db.key-file=/run/secrets/kaguya.key`. Override the Compose `command` with the full argument list when changing paths. Back up `kaguya-data` and `kaguya-key` together before upgrades; `docker compose down` keeps both. Do not expose the published port directly; put a TLS gateway in front for remote access.
+Container arguments: `--web --host=0.0.0.0 --port=9024 --router-prefix=/kaguya/api --db.path=/data/kaguya.db --db.key-file=/run/secrets/kaguya.key` (containers have no desktop window, so `--web` is required). Override the Compose `command` with the full argument list when changing paths. Back up `kaguya-data` and `kaguya-key` together before upgrades; `docker compose down` keeps both. Do not expose the published port directly; put a TLS gateway in front for remote access.
 
 ## Architecture
 
 Chat uses assistant-ui ExternalStoreRuntime, message viewport, and composer primitives over the existing Go SSE transport and database history. Configuration forms, tables, and general controls retain Ant Design; usage charts retain ECharts. The chat layout uses a conversation sidebar, message area, and composer. Concurrent state lives in the current browser application; refreshing or closing the page breaks the streaming connection, so the server stops that turn and preserves what was produced as an interrupted turn instead of an empty conversation. Switching conversations does not close each conversation's own connection, and their turns keep running to completion. Go uses independent request goroutines with per-conversation exclusion, allowing different conversations to wait on models and tools concurrently. Throughput remains subject to provider limits, database capacity, and host resources.
 
 ```text
-Browser: React 19 + TypeScript + assistant-ui + Ant Design + Tailwind CSS + ECharts
-    │  SSE chat / JSON API
-    ▼
-Go binary: Kong CLI → Gin routes → application services
+macOS desktop window: WKWebView (wails://localhost, no listening port) ──┐
+Browser: React 19 + TypeScript + assistant-ui + Ant Design + ECharts ───┤ fetch/JSON + POST SSE
+                                                                        ▼
+Go binary: Kong CLI → mode dispatch (desktop by default / --web) → Gin routes → application services
     ├── Agent runtime (charm.land/fantasy) → configured model provider
     ├── Conversation turns, content blocks, and model context → Ent → SQLCipher-encrypted SQLite (WAL)
     ├── Provider/model settings, system settings, and usage queries → Ent
@@ -219,8 +248,9 @@ Go binary: Kong CLI → Gin routes → application services
 
 | Path | Responsibility |
 | --- | --- |
-| `main.go`, `internal/cmd/`, `internal/config/` | CLI parsing, startup, and infrastructure configuration |
+| `main.go`, `internal/cmd/`, `internal/config/` | CLI parsing, startup-mode dispatch, shared initialization and teardown |
 | `internal/router/`, `internal/api/` | HTTP routes and request/response handling |
+| `internal/desktop/` | Desktop native asset channel, request admission, and the clipboard/external-link endpoints |
 | `internal/service/agent/` | Streaming chat, history persistence, context, and title generation |
 | `internal/agent/runtime/`, `internal/agent/token/` | Model adapters, execution, and usage recording abstractions |
 | `internal/agent/tools/` | Seven pi-style tools, workspace boundaries, output truncation, file mutations, and command execution |
@@ -306,7 +336,7 @@ Reuse the returned conversation `id` in subsequent request bodies to continue it
 
 ## Development
 
-Source development requires Go (minimum 1.26.8, as specified in `go.mod`), Bun, Make, and the native dependencies listed above. Use `CGO_ENABLED=1 make build`, then run `./target/kaguya` (the default key is initialized on a fresh installation); no Docker/database service is needed. Use the Make targets rather than bare `go build`/`go test` so the SQLCipher link settings are applied. For targeted tests, run `make native` then `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`.
+Source development requires Go (minimum 1.26.8, as specified in `go.mod`), Bun, Make, and the native dependencies listed above. Use `CGO_ENABLED=1 make build`, then run `./target/kaguya` (the default key is initialized on a fresh installation); no Docker/database service is needed. On macOS this opens the desktop window by default; use `./target/kaguya --web` for the local HTTP service. Use the Make targets rather than bare `go build`/`go test` so the SQLCipher link settings are applied. For targeted tests, run `make native` then `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh test -race -count=1 ./internal/db ./internal/config`.
 
 Run `CGO_ENABLED=1 make install` from the repository root to build both frontend and backend and install the binary to `~/.local/bin/<repository-directory-name>` (usually `~/.local/bin/kaguya`) with mode `0755`. Create `~/.local/bin` first and add it to `PATH`; the command does not start the service.
 
@@ -320,7 +350,7 @@ bun run build              # TypeScript checks and Vite production build
 bun run dev # Proxy the API to the local HTTP service
 ```
 
-For frontend development, keep the native application running on port `9024`; Vite proxies `/kaguya/api` to `http://127.0.0.1:9024` and preserves the browser's matching Host/Origin headers. Production builds do not require any certificate file. The Vite page is for local development only; use the embedded HTTP console for normal operation, or put a TLS gateway in front for remote access. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned. Run `make build` and restart the binary after backend changes.
+For frontend development, run `./target/kaguya --web` to keep the service on port `9024`; Vite proxies `/kaguya/api` to `http://127.0.0.1:9024` and preserves the browser's matching Host/Origin headers. Production builds do not require any certificate file. The Vite page is for local web development only; the desktop always loads the embedded assets and uses neither the Vite dev server nor HMR, so rerun `make frontend` or `make build` after frontend changes. If the API prefix or deployment location changes, keep the frontend `VITE_API_BASE_URL` and proxy configuration aligned; the desktop uses the prefix from its startup arguments and ignores `VITE_API_BASE_URL`. Run `make build` and restart the binary after backend changes.
 
 After changing Ent schemas, run `go generate ./internal/ent` from the repository root. Keep generated Ent code in sync with the schemas.
 

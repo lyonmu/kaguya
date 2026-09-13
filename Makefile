@@ -7,6 +7,17 @@ VERSION := $(shell cat VERSION)
 COMMIT = $(shell git rev-parse HEAD)
 BRANCH = $(shell git branch --show-current)
 
+# macOS Desktop 发行包
+APP_NAME := Kaguya
+APP_BUNDLE := $(APP_NAME).app
+# Wails 3 预发布依赖使用 production 构建标签：关闭 dev server 与调试行为。
+PRODUCTION_TAG := production
+# 发布支持的最低系统版本（Info.plist 与 C 部署目标保持一致）。
+MACOS_DEPLOYMENT_TARGET ?= 14.0
+# 签名与公证的身份是发行环境输入，不写死凭据。
+CODESIGN_IDENTITY ?=
+NOTARY_PROFILE ?=
+
 # Go build configuration
 CGO_ENABLED = 1
 GOOS ?= $(shell go env GOOS)
@@ -32,7 +43,7 @@ frontend:
 .PHONY: backend
 backend: native
 	mkdir -p target
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) bash scripts/go-sqlcipher.sh build $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
+	MACOSX_DEPLOYMENT_TARGET=$(MACOS_DEPLOYMENT_TARGET) CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) bash scripts/go-sqlcipher.sh build -tags $(PRODUCTION_TAG) $(LDFLAGS) -o ./target/$(PROJECT_NAME) main.go
 
 .PHONY: build
 build: frontend
@@ -43,6 +54,26 @@ native:
 
 install: build
 	install -m 0755 ./target/$(PROJECT_NAME) ~/.local/bin/$(PROJECT_NAME)
+
+# macOS Desktop：组装 .app 包（不签名）。需要在该架构的原生 macOS 上执行。
+.PHONY: package-macos
+package-macos: frontend native
+	$(MAKE) backend
+	MACOS_DEPLOYMENT_TARGET=$(MACOS_DEPLOYMENT_TARGET) bash scripts/package-macos.sh
+
+# 把本地组装的应用包安装到 /Applications。
+.PHONY: install-app
+install-app: package-macos
+	ditto target/$(APP_BUNDLE) /Applications/$(APP_BUNDLE)
+
+# Developer ID 签名与公证；缺少 CODESIGN_IDENTITY/NOTARY_PROFILE 时明确失败。
+.PHONY: sign-macos
+sign-macos: package-macos
+	CODESIGN_IDENTITY='$(CODESIGN_IDENTITY)' bash scripts/sign-macos.sh sign
+
+.PHONY: notarize-macos
+notarize-macos: package-macos
+	CODESIGN_IDENTITY='$(CODESIGN_IDENTITY)' NOTARY_PROFILE='$(NOTARY_PROFILE)' bash scripts/sign-macos.sh notarize
 
 .PHONY: docker
 docker:
