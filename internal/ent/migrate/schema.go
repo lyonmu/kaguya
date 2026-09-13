@@ -236,7 +236,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true},
-		{Name: "name", Type: field.TypeString, Unique: true, Size: 100},
+		{Name: "name", Type: field.TypeString, Size: 100},
 		{Name: "transport", Type: field.TypeEnum, Enums: []string{"stdio", "streamable-http", "sse"}},
 		{Name: "command", Type: field.TypeString, Default: ""},
 		{Name: "args", Type: field.TypeJSON},
@@ -272,6 +272,14 @@ var (
 				Name:    "kaguyamcpserver_id",
 				Unique:  false,
 				Columns: []*schema.Column{KaguyaMcpServerColumns[0]},
+			},
+			{
+				Name:    "kaguyamcpserver_name",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaMcpServerColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
 			},
 		},
 	}
@@ -405,7 +413,7 @@ var (
 		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
-		{Name: "provider_name", Type: field.TypeString, Unique: true, Comment: "提供商名称"},
+		{Name: "provider_name", Type: field.TypeString, Comment: "提供商名称"},
 		{Name: "api_protocol", Type: field.TypeString, Nullable: true, Comment: "API 协议类型", Default: "openai-chat"},
 		{Name: "provider_type", Type: field.TypeString, Comment: "提供商类型：normal 或 opencode-go", Default: "normal"},
 		{Name: "api_key", Type: field.TypeString, Nullable: true, Comment: "API Key"},
@@ -440,8 +448,11 @@ var (
 			},
 			{
 				Name:    "kaguyaproviderinfo_provider_name",
-				Unique:  false,
+				Unique:  true,
 				Columns: []*schema.Column{KaguyaProviderInfoColumns[4]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL",
+				},
 			},
 			{
 				Name:    "kaguyaproviderinfo_api_protocol",

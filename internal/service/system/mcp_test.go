@@ -125,8 +125,8 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if row.DeletedAt == nil || row.Enabled || len(row.Headers) != 0 {
-		t.Fatal("deleted row was not cleaned")
+	if row.DeletedAt == nil || row.Enabled || len(row.Headers) != 0 || row.Name != req.Name {
+		t.Fatal("deleted row was not cleaned or kept its name")
 	}
 	if _, err := svc.MCPCreate(ctx, req); err != nil {
 		t.Fatalf("recreate deleted name: %v", err)

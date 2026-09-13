@@ -5,6 +5,7 @@ import (
 	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // KaguyaMCPServer 保存 MCP 连接配置与期望启用状态，运行状态由连接管理器维护。
@@ -12,7 +13,7 @@ type KaguyaMCPServer struct{ ent.Schema }
 
 func (KaguyaMCPServer) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("name").NotEmpty().MaxLen(100).Unique(),
+		field.String("name").NotEmpty().MaxLen(100),
 		field.Enum("transport").Values("stdio", "streamable-http", "sse"),
 		field.String("command").Default(""),
 		field.JSON("args", []string{}).Default([]string{}),
@@ -26,6 +27,11 @@ func (KaguyaMCPServer) Fields() []ent.Field {
 }
 
 func (KaguyaMCPServer) Mixin() []ent.Mixin { return (KaguyaProviderInfo{}).Mixin() }
+
+func (KaguyaMCPServer) Indexes() []ent.Index {
+	// 唯一性只约束未删除服务：软删除的行保留历史，不阻止同名重建。
+	return []ent.Index{index.Fields("name").Unique().Annotations(entsql.IndexWhere("deleted_at IS NULL"))}
+}
 
 func (KaguyaMCPServer) Annotations() []schema.Annotation {
 	return []schema.Annotation{entsql.Annotation{Table: "kaguya_mcp_server"}}

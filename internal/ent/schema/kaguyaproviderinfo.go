@@ -22,7 +22,7 @@ type KaguyaProviderInfo struct {
 // Fields of the KaguyaProviderInfo.
 func (KaguyaProviderInfo) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("provider_name").Unique().NotEmpty().Comment("提供商名称"),
+		field.String("provider_name").NotEmpty().Comment("提供商名称"),
 		field.String("api_protocol").Optional().GoType(consts.ProviderProtocol("")).Comment("API 协议类型").Default(string(consts.ProtocolOpenAIChat)),
 		field.String("provider_type").GoType(consts.ProviderType("")).Default(string(consts.ProviderTypeNormal)).Comment("提供商类型：normal 或 opencode-go"),
 		field.String("api_key").Optional().Comment("API Key"),
@@ -54,7 +54,8 @@ func (KaguyaProviderInfo) Mixin() []ent.Mixin {
 
 func (KaguyaProviderInfo) Indexes() []ent.Index {
 	return []ent.Index{
-		index.Fields("provider_name"),
+		// 唯一性只约束未删除提供商：软删除的行保留历史，不阻止同名重建。
+		index.Fields("provider_name").Unique().Annotations(entsql.IndexWhere("deleted_at IS NULL")),
 		index.Fields("api_protocol"),
 	}
 }

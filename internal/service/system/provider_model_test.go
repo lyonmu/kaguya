@@ -201,6 +201,31 @@ func TestProviderAndModelDuplicateValidation(t *testing.T) {
 	}
 }
 
+// TestDeletedProviderDoesNotBlockRecreate 确保软删除提供商释放名称：
+// 已删除的提供商不参与重复校验，未删除提供商之间仍然互斥。
+func TestDeletedProviderDoesNotBlockRecreate(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	svc := &SystemSvc{}
+	req := &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic", APIProtocol: consts.ProtocolAnthropic}
+	provider, err := svc.ProviderCreate(ctx, req)
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+	if err = svc.ProviderDelete(ctx, provider.ID); err != nil {
+		t.Fatalf("delete provider: %v", err)
+	}
+	recreated, err := svc.ProviderCreate(ctx, req)
+	if err != nil {
+		t.Fatalf("recreate deleted provider name: %v", err)
+	}
+	if recreated.ProviderName != req.ProviderName {
+		t.Fatalf("provider name=%q", recreated.ProviderName)
+	}
+	if _, err = svc.ProviderCreate(ctx, req); !errors.Is(err, ErrProviderDuplicate) {
+		t.Fatalf("expected duplicate provider error, got %v", err)
+	}
+}
+
 // TestDeletedModelDoesNotBlockRecreate 确保软删除模型释放唯一标识：
 // 已删除的模型不参与重复校验，只保留未删除模型的唯一性。
 func TestDeletedModelDoesNotBlockRecreate(t *testing.T) {

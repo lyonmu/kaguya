@@ -201,8 +201,8 @@ func (s *SystemSvc) MCPDelete(ctx context.Context, id string) error {
 	if _, err := mcpFind(ctx, id); err != nil {
 		return err
 	}
-	// 和项目其他配置保持软删除一致；清除秘密，释放名称以便重建。
-	_, err = db.EntClient.KaguyaMCPServer.UpdateOneID(id).SetDeletedAt(time.Now()).SetEnabled(false).SetName("deleted-" + id).SetEnv(map[string]string{}).SetHeaders(map[string]string{}).SetArgs([]string{}).SetCommand("").SetURL("").Save(ctx)
+	// 和项目其他配置保持软删除一致；清除秘密，名称唯一性只约束未删除行。
+	_, err = db.EntClient.KaguyaMCPServer.UpdateOneID(id).SetDeletedAt(time.Now()).SetEnabled(false).SetEnv(map[string]string{}).SetHeaders(map[string]string{}).SetArgs([]string{}).SetCommand("").SetURL("").Save(ctx)
 	if err != nil {
 		return err
 	}

@@ -52,6 +52,18 @@ func InitSQLite(c *config.DatabaseConfig) (*ent.Client, error) {
 		return nil, fmt.Errorf("cannot read SQLCipher schema: incorrect key or damaged encrypted database")
 	}
 	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.SQLite, conn)))
+	// Ent 自动迁移默认不删除索引（WithDropIndex=false）。提供商与 MCP 的字段级
+	// 唯一索引改为部分唯一索引后，旧库会残留 *_key 唯一索引并继续约束软删除行，
+	// 这里显式清理，使升级库与全新库的索引集合一致。
+	for _, legacy := range []string{
+		"kaguya_provider_info_provider_name_key",
+		"kaguya_mcp_server_name_key",
+	} {
+		if _, err := conn.ExecContext(context.Background(), "DROP INDEX IF EXISTS "+legacy); err != nil {
+			_ = client.Close()
+			return nil, fmt.Errorf("drop legacy index %s: %w", legacy, err)
+		}
+	}
 	if createErr := client.Schema.Create(context.Background(), migrate.WithForeignKeys(false)); createErr != nil {
 		_ = client.Close()
 		return nil, createErr

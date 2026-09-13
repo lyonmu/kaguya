@@ -127,6 +127,53 @@ func TestInitSQLiteWALAndPersistence(t *testing.T) {
 	}
 }
 
+// TestInitSQLiteDropsLegacyUniqueIndexes 验证旧库残留的字段级唯一索引会被清理，
+// 并恢复为只约束未删除行的部分唯一索引，否则软删除行仍会阻塞同名重建。
+func TestInitSQLiteDropsLegacyUniqueIndexes(t *testing.T) {
+	cfg := encryptedConfig(t)
+	if err := cfg.EnsureSQLiteDatabase(); err != nil {
+		t.Fatal(err)
+	}
+	client, err := db.InitSQLite(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	// 模拟旧库：移除新的部分唯一索引，重建字段级唯一索引。
+	for _, statement := range []string{
+		"DROP INDEX IF EXISTS kaguyaproviderinfo_provider_name",
+		"DROP INDEX IF EXISTS kaguyamcpserver_name",
+		"CREATE UNIQUE INDEX kaguya_provider_info_provider_name_key ON kaguya_provider_info (provider_name)",
+		"CREATE UNIQUE INDEX kaguya_mcp_server_name_key ON kaguya_mcp_server (name)",
+	} {
+		if _, err := client.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("%s: %v", statement, err)
+		}
+	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
+	client, err = db.InitSQLite(&cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+
+	conn := openCipher(t, &cfg)
+	for _, name := range []string{"kaguya_provider_info_provider_name_key", "kaguya_mcp_server_name_key"} {
+		var count int
+		if err := conn.QueryRowContext(ctx, "SELECT count(*) FROM sqlite_master WHERE type='index' AND name = ?", name).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("legacy index %s survived: count=%d err=%v", name, count, err)
+		}
+	}
+	for _, name := range []string{"kaguyaproviderinfo_provider_name", "kaguyamcpserver_name"} {
+		var indexSQL string
+		if err := conn.QueryRowContext(ctx, "SELECT sql FROM sqlite_master WHERE type='index' AND name = ?", name).Scan(&indexSQL); err != nil || !strings.Contains(indexSQL, "deleted_at IS NULL") {
+			t.Fatalf("partial unique index %s missing: sql=%q err=%v", name, indexSQL, err)
+		}
+	}
+}
+
 func TestDebugDoesNotLogDatabaseSecrets(t *testing.T) {
 	var output bytes.Buffer
 	previous := log.Writer()
