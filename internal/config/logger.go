@@ -27,10 +27,10 @@ const (
 type LogConfig struct {
 	Module         string `name:"module" long:"module" env:"LOG_MODULE" help:"日志模块名称" default:"kaguya" mapstructure:"module" yaml:"module" json:"module"`
 	Level          Level  `name:"level" long:"level" env:"LOG_LEVEL" help:"日志级别" enum:"debug,info,warn,error" default:"info" mapstructure:"level" yaml:"level" json:"level"`
-	Format         Format `name:"format" long:"format" env:"LOG_FORMAT" help:"日志输出格式" enum:"console,json" default:"console" mapstructure:"format" yaml:"format" json:"format"`
-	ConsoleEnabled bool   `name:"console-enabled" long:"console-enabled" env:"LOG_CONSOLE_ENABLED" help:"是否输出日志到控制台" default:"true" mapstructure:"console_enabled" yaml:"console_enabled" json:"console_enabled"`
-	FileEnabled    bool   `name:"file-enabled" long:"file-enabled" env:"LOG_FILE_ENABLED" help:"是否输出日志到文件" default:"false" mapstructure:"file_enabled" yaml:"file_enabled" json:"file_enabled"`
-	FilePath       string `name:"file-path" long:"file-path" env:"LOG_FILE_PATH" help:"日志文件根目录" default:"./logs" mapstructure:"file_path" yaml:"file_path" json:"file_path"`
+	Format         Format `name:"format" long:"format" env:"LOG_FORMAT" help:"日志输出格式" enum:"console,json" default:"json" mapstructure:"format" yaml:"format" json:"format"`
+	ConsoleEnabled bool   `name:"console-enabled" long:"console-enabled" env:"LOG_CONSOLE_ENABLED" help:"是否输出日志到控制台" default:"false" mapstructure:"console_enabled" yaml:"console_enabled" json:"console_enabled"`
+	FileEnabled    bool   `name:"file-enabled" long:"file-enabled" env:"LOG_FILE_ENABLED" help:"是否输出日志到文件" default:"true" mapstructure:"file_enabled" yaml:"file_enabled" json:"file_enabled"`
+	FilePath       string `name:"file-path" long:"file-path" env:"LOG_FILE_PATH" help:"日志文件根目录" default:"~/.kaguya/logs" mapstructure:"file_path" yaml:"file_path" json:"file_path"`
 	MaxSize        int    `name:"max-size" long:"max-size" env:"LOG_MAX_SIZE" help:"单个日志文件最大大小，单位 MB" default:"10" mapstructure:"max_size" yaml:"max_size" json:"max_size"`
 	MaxAge         int    `name:"max-age" long:"max-age" env:"LOG_MAX_AGE" help:"日志文件最大保留天数" default:"7" mapstructure:"max_age" yaml:"max_age" json:"max_age"`
 	MaxBackups     int    `name:"max-backups" long:"max-backups" env:"LOG_MAX_BACKUPS" help:"日志文件最大备份数量" default:"3" mapstructure:"max_backups" yaml:"max_backups" json:"max_backups"`
