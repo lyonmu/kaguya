@@ -50,7 +50,8 @@ build: frontend
 	$(MAKE) backend
 
 native:
-	bash scripts/build-sqlcipher.sh
+	MACOSX_DEPLOYMENT_TARGET=$(MACOS_DEPLOYMENT_TARGET) bash scripts/build-openssl.sh
+	MACOSX_DEPLOYMENT_TARGET=$(MACOS_DEPLOYMENT_TARGET) bash scripts/build-sqlcipher.sh
 
 install: build
 	install -m 0755 ./target/$(PROJECT_NAME) ~/.local/bin/$(PROJECT_NAME)

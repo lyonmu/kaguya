@@ -21,7 +21,7 @@
 ## 数据与部署
 
 - 当前应用按 **macOS Desktop 默认 + 可选 HTTP 服务 + SQLCipher 单后端** 使用：macOS 无参数启动为原生窗口，`--web` 启动原 HTTP 服务（`--host`／`--port`／`--trusted-host` 仅对 `--web` 生效）。`make install` 完整构建并安装二进制到 `~/.local/bin/<仓库目录名>`，`make package-macos` 另行组装 `target/Kaguya.app`。数据库是唯一运行时存储，网络数据库（MySQL/PostgreSQL）与 Redis 代码已移除；主机须提供 Bash 和项目工具链，默认不构建或测试 Docker。
-- `make native` 先把 SQLCipher/OpenSSL 静态库构建到 `target/sqlcipher`；Go 侧固定使用 `github.com/mattn/go-sqlite3`（`USE_LIBSQLITE3`）与 `modernc.org/sqlite` 仅作为测试用的明文对照引擎。不要重新引入其他数据库驱动。
+- `make native` 先在 `target/` 下构建固定版本的 C 依赖：macOS 构建 OpenSSL 静态库到 `target/openssl`，再构建 SQLCipher 到 `target/sqlcipher`；两者都以 `MACOSX_DEPLOYMENT_TARGET`（默认 14.0）为部署目标。Go 侧固定使用 `github.com/mattn/go-sqlite3`（`USE_LIBSQLITE3`），`modernc.org/sqlite` 仅作为测试用的明文对照引擎。不要重新引入其他数据库驱动。
 - Web 模式的 `--web` 提供入站 HTTP，公开访问的 TLS 由网关负责；聊天传输为 POST SSE，不恢复应用 WebSocket。网关需传递原始外部 Host／Origin／Sec-Fetch-Site，并通过 `--trusted-host` 精确放行。Desktop 不创建监听端口，请求来源由原生通道中间件校验。
 - 以下 Docker / Compose 配置是保留的容器部署描述，本机 Web 目标下未实际验证：从仓库根目录执行 `docker build -t kaguya:latest .`，准备 `./kaguya-key`（64 位十六进制、`chmod 600`）后执行 `docker compose up -d`；Compose 使用本地镜像，不会自动构建。容器只发布到宿主 `127.0.0.1:9024`，数据在 `./kaguya-data`。不要删除已有数据目录。
 - Docker 运行层需要 Bash（Agent 工具）与 CA 证书；健康检查依赖 `pidof`。构建层需要 SQLCipher 所需的静态 OpenSSL 与 pkg-config；修改镜像时保留这些依赖。
@@ -35,7 +35,7 @@
 | 前端验证 | 在 `web/` 执行 `bun run test`、`bun run lint`（oxlint）、`bun run build`（TypeScript + Vite） |
 | 完整构建 | `make build`：构建并嵌入前端，再输出 `target/<仓库目录名>` |
 | 仅后端构建 | `make backend`，需先由 `make frontend` 准备嵌入资源；使用 `production` 构建标签 |
-| macOS 应用包 | `make package-macos`（组装 `target/Kaguya.app`）、`make install-app`；签名／公证用 `CODESIGN_IDENTITY`、`NOTARY_PROFILE` 驱动 `make sign-macos`／`make notarize-macos` |
+| macOS 应用包 | `make package-macos`（组装 `target/Kaguya.app` 并核对 C 静态库的最低系统版本）、`make install-app`；签名／公证用 `CODESIGN_IDENTITY`、`NOTARY_PROFILE` 驱动 `make sign-macos`／`make notarize-macos` |
 | 前端开发 | 在 `web/` 执行 `bun run dev`；先以 `./target/kaguya --web` 保持 API 于 `http://127.0.0.1:9024`。Desktop 不用 Vite dev server |
 | 旧凭据迁移 | `CGO_ENABLED=1 bash scripts/go-sqlcipher.sh build -o ./target/migrate-provider-secrets ./cmd/migrate-provider-secrets`，只在数据库副本上执行 |
 

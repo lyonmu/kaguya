@@ -132,7 +132,7 @@ HTTP MCP 请求（包括旧式 SSE 返回的消息端点）必须与配置 URL �
 
 ### 原生二进制（推荐）
 
-源码构建需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make、Git、C 编译器、Tcl、curl、pkg-config 和 OpenSSL 开发文件（包含**静态 `libcrypto.a`**）。macOS 需安装 Xcode Command Line Tools，并执行 `brew install openssl@3 pkgconf tcl-tk`；Debian/Ubuntu 对应原生依赖为 `build-essential tcl pkg-config libssl-dev curl`。确保 `pkg-config --exists libcrypto` 成功，必要时设置 `PKG_CONFIG_PATH`。
+源码构建需要 Go（最低 1.26.8，以 `go.mod` 为准）、Bun、Make、Git、C 编译器、Tcl、curl、Perl 和 pkg-config。macOS 需安装 Xcode Command Line Tools，并执行 `brew install pkgconf tcl-tk`；`make native` 会在 `target/openssl` 构建固定版本 OpenSSL，不再需要系统的 OpenSSL 开发文件。Debian/Ubuntu 对应原生依赖为 `build-essential tcl pkg-config libssl-dev curl`，仍使用系统静态 `libcrypto.a`，确保 `pkg-config --exists libcrypto` 成功，必要时设置 `PKG_CONFIG_PATH`。
 
 ```sh
 git clone https://github.com/lyonmu/kaguya.git
@@ -143,7 +143,7 @@ CGO_ENABLED=1 make build
 
 全新安装首次运行时，程序使用 Go 的 `crypto/rand` 自动创建 `~/.kaguya/kaguya.key`，运行时不需要 `openssl` 命令或 shell。**请安全备份生成的密钥，切勿用新生成的密钥覆盖旧密钥。** `make install` 构建并安装到 `~/.local/bin/<仓库目录名>`；确保 `~/.local/bin` 已存在并加入 `PATH`。请以普通用户运行，不要以 root 运行。预构建二进制启动无需 Go/Bun、Docker 或数据库服务；编码工具仍需要主机 Bash 和项目工具链，HTTPS 模型请求需要可信 CA 证书。
 
-`make native` 下载官方 [SQLCipher v4.19.0](https://github.com/sqlcipher/sqlcipher/releases/tag/v4.19.0) 源码，校验固定 SHA-256，并构建到 `target/sqlcipher`。Go `database/sql` 适配器使用 `github.com/mattn/go-sqlite3`，通过 `USE_LIBSQLITE3` 禁用它自带的明文 SQLite 源码。SQLCipher 和 OpenSSL 以明确的**静态库**链接：应用运行时不需要 SQLCipher/OpenSSL 动态库，但仍使用平台系统库（如 Linux 的 libc）。前端继续内嵌。请在目标系统／架构上构建；当前构建不支持 `CGO_ENABLED=0`，也不支持仅修改 GOOS/GOARCH 的交叉编译。缺失构建依赖时明确失败。分发二进制时需保留 SQLCipher、OpenSSL 和适配器的许可证声明；SQLCipher 声明会复制到 `target/sqlcipher`。
+`make native` 先在 `target/` 下准备固定版本的 C 依赖：macOS 下载官方 [OpenSSL 3.5.8](https://github.com/openssl/openssl/releases/tag/openssl-3.5.8) 源码（校验 SHA-256）并构建静态 `libcrypto.a` 到 `target/openssl`，再下载官方 [SQLCipher v4.19.0](https://github.com/sqlcipher/sqlcipher/releases/tag/v4.19.0) 源码（校验 SHA-256）并构建到 `target/sqlcipher`。两者都以 `MACOSX_DEPLOYMENT_TARGET`（默认 14.0，与 Info.plist 一致）为部署目标，避免把面向更高系统版本的 C 对象链进应用；发行环境可用 `OPENSSL_STATIC_LIB=/path/to/libcrypto.a` 指定自备静态库。Go `database/sql` 适配器使用 `github.com/mattn/go-sqlite3`，通过 `USE_LIBSQLITE3` 禁用它自带的明文 SQLite 源码。SQLCipher 和 OpenSSL 以明确的**静态库**链接：应用运行时不需要 SQLCipher/OpenSSL 动态库，但仍使用平台系统库（如 Linux 的 libc）。前端继续内嵌。请在目标系统／架构上构建；当前构建不支持 `CGO_ENABLED=0`，也不支持仅修改 GOOS/GOARCH 的交叉编译。缺失构建依赖时明确失败。`make package-macos` 会核对链接的 C 静态库与应用的最低系统版本，不一致时拒绝打包。分发二进制时需保留 SQLCipher、OpenSSL 和适配器的许可证声明；两者的声明会复制到 `target/sqlcipher` 与 `target/openssl`。
 
 **可写数据不存放在 `go:embed` 中**。启动时先检查或初始化默认密钥文件，再自动创建 `~/.kaguya/kaguya.db` 并迁移 schema；`~` 指的是**服务运行用户**的主目录。新建目录权限为 `0700`，新建数据库文件为 `0600`，不修改已有权限。
 

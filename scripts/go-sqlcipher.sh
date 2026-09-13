@@ -12,10 +12,23 @@ if [[ "${GOOS:-$(go env GOHOSTOS)}" != "$(go env GOHOSTOS)" || "${GOARCH:-$(go e
   exit 1
 fi
 [[ -f "$prefix/lib/libsqlite3.a" ]] || { echo 'Run make native to build SQLCipher first' >&2; exit 1; }
-crypto_lib="$(pkg-config --variable=libdir libcrypto)/libcrypto.a"
-[[ -f "$crypto_lib" ]] || { echo 'Static OpenSSL libcrypto.a is required' >&2; exit 1; }
-crypto_flags=$(pkg-config --libs --static libcrypto)
-crypto_flags=${crypto_flags//-lcrypto/$crypto_lib}
+# Static crypto: prefer OPENSSL_STATIC_LIB, then the pinned build from
+# scripts/build-openssl.sh, and fall back to the system OpenSSL via pkg-config.
+crypto_lib=""
+if [[ -n "${OPENSSL_STATIC_LIB:-}" ]]; then
+  crypto_lib="$OPENSSL_STATIC_LIB"
+elif [[ -f "$root/target/openssl/lib/libcrypto.a" ]]; then
+  crypto_lib="$root/target/openssl/lib/libcrypto.a"
+fi
+if [[ -n "$crypto_lib" ]]; then
+  [[ -f "$crypto_lib" ]] || { echo "Static OpenSSL libcrypto.a not found at $crypto_lib" >&2; exit 1; }
+  crypto_flags="$crypto_lib"
+else
+  crypto_lib="$(pkg-config --variable=libdir libcrypto)/libcrypto.a"
+  [[ -f "$crypto_lib" ]] || { echo 'Static OpenSSL libcrypto.a is required' >&2; exit 1; }
+  crypto_flags=$(pkg-config --libs --static libcrypto)
+  crypto_flags=${crypto_flags//-lcrypto/$crypto_lib}
+fi
 
 # USE_LIBSQLITE3 disables mattn's plaintext amalgamation. Do NOT use the
 # libsqlite3 Go build tag: it adds -lsqlite3 and may select the system SQLite.
@@ -28,11 +41,10 @@ export CGO_LDFLAGS="${CGO_LDFLAGS:-} $prefix/lib/libsqlite3.a $crypto_flags -lm"
 # archives. Apple ld safely ignores them; silence only its duplicate warning.
 if [[ "$(go env GOHOSTOS)" == darwin ]]; then
   export CGO_LDFLAGS="$CGO_LDFLAGS -Wl,-no_warn_duplicate_libraries"
-  # Pin the Mach-O deployment target; without it clang falls back to the SDK
-  # default and the binary advertises a lower minimum than the release target.
-  if [[ -n "${MACOSX_DEPLOYMENT_TARGET:-}" ]]; then
-    export CGO_CFLAGS="$CGO_CFLAGS -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
-    export CGO_LDFLAGS="$CGO_LDFLAGS -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
-  fi
+  # Keep every link (including test binaries) on the macOS support floor. Without
+  # this clang falls back to the SDK default and warns about the pinned C deps.
+  export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-14.0}"
+  export CGO_CFLAGS="$CGO_CFLAGS -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
+  export CGO_LDFLAGS="$CGO_LDFLAGS -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET"
 fi
 exec go "$@"

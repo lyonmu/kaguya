@@ -56,12 +56,30 @@ else
   echo 'skipping app icon: sips/iconutil or images/kaguya.png unavailable' >&2
 fi
 
-# 冒烟校验：架构、静态依赖与最低系统版本。
+# 冒烟校验：架构、C 静态依赖与最低系统版本。
 echo "bundle:  $bundle"
 echo "arch:    $(lipo -archs "$bundle/Contents/MacOS/kaguya" 2>/dev/null || file -b "$bundle/Contents/MacOS/kaguya")"
+
+# 链接的 C 静态库必须与部署目标一致，否则二进制声称支持的系统上可能调用更新的 API。
+max_minos() { otool -l "$1" 2>/dev/null | awk '/minos/{print $2}' | sort -V | tail -1; }
+is_newer() { [[ "$1" != "$2" ]] && [[ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" == "$1" ]]; }
+crypto_archive=${OPENSSL_STATIC_LIB:-}
+if [[ -z "$crypto_archive" && -f "$root/target/openssl/lib/libcrypto.a" ]]; then
+  crypto_archive="$root/target/openssl/lib/libcrypto.a"
+fi
+for archive in "$root/target/sqlcipher/lib/libsqlite3.a" "$crypto_archive"; do
+  [[ -f "$archive" ]] || continue
+  archive_minos=$(max_minos "$archive")
+  echo "c-dep:   $(basename "$archive") minos=${archive_minos:-unknown}"
+  if [[ -n "$archive_minos" ]] && is_newer "$archive_minos" "$deployment_target"; then
+    echo "$archive was built for macOS $archive_minos; rebuild the C dependencies with MACOSX_DEPLOYMENT_TARGET=$deployment_target" >&2
+    exit 1
+  fi
+done
+
 minos=$(otool -l "$bundle/Contents/MacOS/kaguya" | awk '/LC_BUILD_VERSION/{f=1} f&&/minos/{print $2; exit}')
 echo "target:  $minos (expected $deployment_target)"
-if [[ -n "$minos" && "$minos" != "$deployment_target" ]] && [[ "$(printf '%s\n%s\n' "$minos" "$deployment_target" | sort -V | tail -1)" == "$minos" ]]; then
+if [[ -n "$minos" ]] && is_newer "$minos" "$deployment_target"; then
   echo 'Mach-O minimum system is newer than the deployment target; rebuild the C dependencies' >&2
   exit 1
 fi

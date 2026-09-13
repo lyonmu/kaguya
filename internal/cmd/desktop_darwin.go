@@ -29,8 +29,8 @@ func runDesktop() error {
 
 	host, err := desktop.New(desktop.Options{
 		Name:        "Kaguya",
-		Description: "Kaguya AI Agent Console",
-		WindowTitle: "Kaguya Agent Console",
+		Description: "Kaguya 是一位冷静、理性、可靠且始终保持克制的智能助手。",
+		WindowTitle: "Kaguya",
 		Width:       1280,
 		Height:      860,
 		MinWidth:    960,
