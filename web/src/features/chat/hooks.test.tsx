@@ -498,4 +498,22 @@ describe('conversation list refresh cost', () => {
     assert.equal(result.current.items[0].id, 'conv-1')
     assert.equal(result.current.items.at(-1)?.id, 'conv-30')
   })
+
+  // 刷新只重取首尾页时，中间已加载页不能被刷新结果覆盖丢失。
+  it('keeps loaded middle pages after a quiet refresh', async () => {
+    globalThis.fetch = (async url => {
+      const page = Number(new URL(String(url), 'http://localhost').searchParams.get('page'))
+      return response({ items: [{ ...detail, id: `conv-${page}` }], total: 5, page, page_size: 1 })
+    }) as typeof fetch
+
+    const { result } = renderHook(() => useConversations())
+    await waitFor(() => assert.equal(result.current.items.length, 1))
+    for (let page = 2; page <= 5; page++) {
+      await act(async () => { result.current.loadMore() })
+      await waitFor(() => assert.equal(result.current.items.length, page))
+    }
+    await act(async () => { await result.current.refreshQuietly() })
+    assert.deepEqual(result.current.items.map(item => item.id), ['conv-1', 'conv-2', 'conv-3', 'conv-4', 'conv-5'])
+    assert.equal(result.current.total, 5)
+  })
 })

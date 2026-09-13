@@ -43,6 +43,11 @@ it('shows multiple project folders with nested conversations and active highligh
     return response({ items: id === 'p1' ? [{ id: 'c1', title: '完善中英文项目文档' }] : [{ id: 'c2', title: '增加文章标题和标签' }, { id: 'c3', title: '重构优化并删除 galleries' }], total: id === 'p1' ? 1 : 2 })
   }) as typeof fetch
   const view = render(<App><ProjectPanel disabled={false} activeId="c1" selected={projects[0]} onSelect={() => {}} onConversationSelect={(project, id) => { selected = `${project.id}:${id}` }} /></App>)
+  await view.findByRole('button', { name: 'folder-open kaguya' })
+  // 选中的项目自动展开；未展开的项目不请求也不展示会话。
+  assert.equal(view.queryByText('增加文章标题和标签'), null)
+  fireEvent.click(view.getByRole('button', { name: '展开项目 blog' }))
+  await waitFor(() => assert.ok(view.getByText('完善中英文项目文档')))
   await waitFor(() => assert.ok(view.getByText('重构优化并删除 galleries')))
   // 会话行现在带前置图标，标题文本单独成行，高亮类在按钮上。
   const active = view.getByRole('button', { name: '完善中英文项目文档' })
@@ -52,6 +57,34 @@ it('shows multiple project folders with nested conversations and active highligh
   fireEvent.click(view.getByRole('button', { name: '增加文章标题和标签' }))
   assert.equal(selected, 'p2:c2')
   assert.equal(view.queryByText('/root/kaguya'), null)
+  // 收起后不再展示该项目内的会话，展开状态可再次打开。
+  fireEvent.click(view.getByRole('button', { name: '收起项目 kaguya' }))
+  assert.equal(view.queryByText('完善中英文项目文档'), null)
+  fireEvent.click(view.getByRole('button', { name: '展开项目 kaguya' }))
+  await waitFor(() => assert.ok(view.getByText('完善中英文项目文档')))
+})
+
+it('loads the next project page when the virtual list reaches the end', async () => {
+  const requested: number[] = []
+  const project = (page: number, index: number) => ({ id: `p${(page - 1) * 20 + index + 1}`, name: `项目${(page - 1) * 20 + index + 1}`, path: `/root/p${index}`, description: '', created_at: '' })
+  globalThis.fetch = (async url => {
+    const page = Number(new URL(String(url), 'http://localhost').searchParams.get('page'))
+    requested.push(page)
+    const items = Array.from({ length: page === 1 ? 25 : 5 }, (_, index) => project(page, index))
+    return response({ items, total: 30, page, page_size: 20 })
+  }) as typeof fetch
+  const original = dom.HTMLElement.prototype.getBoundingClientRect
+  dom.HTMLElement.prototype.getBoundingClientRect = () => new dom.DOMRect(0, 0, 500, 60)
+  try {
+    const view = render(<App><ProjectPanel disabled={false} onSelect={() => {}} /></App>)
+    await view.findByRole('button', { name: 'folder-open 项目1' })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    assert.deepEqual(requested, [1])
+    const viewport = view.container.querySelector('.project-list') as HTMLElement
+    Object.defineProperty(viewport, 'clientHeight', { value: 400, configurable: true })
+    fireEvent.scroll(viewport, { target: { scrollTop: 1200 } })
+    await waitFor(() => assert.ok(requested.includes(2)))
+  } finally { dom.HTMLElement.prototype.getBoundingClientRect = original }
 })
 
 it('creates a project by navigating server folders from home', async () => {

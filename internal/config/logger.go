@@ -1,6 +1,12 @@
 package config
 
 import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/lyonmu/gopkg/logger"
 	"go.uber.org/zap"
 )
@@ -38,8 +44,13 @@ type LogConfig struct {
 	LocalTime      bool   `name:"local-time" long:"local-time" env:"LOG_LOCAL_TIME" help:"日志文件轮转时间是否使用本地时间" default:"true" mapstructure:"local_time" yaml:"local_time" json:"local_time"`
 }
 
-// NewLogger 根据应用日志配置创建 Logger。
+// NewLogger 根据应用日志配置创建 Logger。日志目录必须先展开 ~，否则会相对
+// 进程工作目录创建名为 ~ 的目录；打包应用从 Finder 启动时工作目录是只读根目录。
 func (l LogConfig) NewLogger() (*zap.Logger, error) {
+	filePath, err := l.resolveFilePath()
+	if err != nil {
+		return nil, err
+	}
 	return logger.New(logger.Config{
 		Module: l.Module,
 		Level:  logger.Level(l.Level),
@@ -50,7 +61,7 @@ func (l LogConfig) NewLogger() (*zap.Logger, error) {
 			},
 			File: logger.FileOutputConfig{
 				Enabled:    l.FileEnabled,
-				Path:       l.FilePath,
+				Path:       filePath,
 				MaxSize:    l.MaxSize,
 				MaxAge:     l.MaxAge,
 				MaxBackups: l.MaxBackups,
@@ -59,4 +70,27 @@ func (l LogConfig) NewLogger() (*zap.Logger, error) {
 			},
 		},
 	})
+}
+
+// resolveFilePath 展开日志目录中的 ~，与数据库路径一致仅支持当前用户；
+// 文件输出停用时不校验路径，避免无关配置阻止启动。
+func (l LogConfig) resolveFilePath() (string, error) {
+	if !l.FileEnabled {
+		return l.FilePath, nil
+	}
+	path := l.FilePath
+	if path == "~" || strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve log home directory: %w", err)
+		}
+		if path == "~" {
+			return home, nil
+		}
+		return filepath.Join(home, strings.TrimPrefix(path, "~/")), nil
+	}
+	if strings.HasPrefix(path, "~") {
+		return "", errors.New("log file path does not support ~user expansion")
+	}
+	return path, nil
 }

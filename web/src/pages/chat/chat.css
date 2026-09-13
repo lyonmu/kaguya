@@ -5,19 +5,26 @@
 .chat-sidebar-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
 .chat-sidebar-title h2 { font-size: 15px; margin: 0; font-weight: 650; }
 .chat-sidebar-head .ant-segmented { margin-top: 10px; }
-.project-panel { padding: 10px; overflow: auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.project-panel { padding: 10px; overflow: hidden; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .project-panel-list { flex: 1; }
+.project-panel-head { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.project-list { flex: 1; min-height: 0; overflow: auto; }
+.project-list-more { flex-shrink: 0; padding: 4px; text-align: center; }
 .project-group { padding: 0 0 6px; }
 .project-group-header { display: flex; align-items: center; gap: 4px; }
 .project-group-name { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 7px; border: 0; background: transparent; color: var(--k-text); text-align: left; cursor: pointer; font: inherit; font-size: 14px; }
 .project-group-name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-group-name.selected { color: var(--k-primary); }
+.project-group-header .project-group-toggle { flex-shrink: 0; width: 24px; min-width: 24px; padding: 0; color: var(--k-text-muted); }
 .project-group-header > .ant-btn { opacity: 0; }
-.project-group-header:hover > .ant-btn, .project-group-header:focus-within > .ant-btn { opacity: 1; }
-.project-conversation { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px 9px 40px; margin: 1px 0; border: 0; border-radius: 10px; text-align: left; background: transparent; color: var(--k-text); font: inherit; font-size: 13px; cursor: pointer; }
+.project-group-header:hover > .ant-btn, .project-group-header:focus-within > .ant-btn, .project-group-header > .project-group-toggle { opacity: 1; }
+/* 项目内会话与项目标题左侧对齐，不再缩进；展开后的列表自带限高滚动。 */
+.project-conversations { max-height: 320px; overscroll-behavior: contain; }
+.project-conversation { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px 9px 7px; margin: 1px 0; border: 0; border-radius: 10px; text-align: left; background: transparent; color: var(--k-text); font: inherit; font-size: 13px; cursor: pointer; }
 .project-conversation:hover { background: var(--k-elevated); }
 .project-conversation.active { background: var(--k-selected); }
 .project-conversation:disabled, .project-group-name:disabled { cursor: not-allowed; }
+.project-empty { padding: 6px 7px; color: var(--k-text-muted); font-size: 12px; }
 @media (hover: none) { .project-group-header > .ant-btn { opacity: 1; } }
 .project-panel h3, .project-panel p { margin: 0; }
 .project-path { display: block; overflow-wrap: anywhere; font-size: 12px; color: var(--k-text-muted); }
