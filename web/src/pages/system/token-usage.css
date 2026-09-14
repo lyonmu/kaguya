@@ -1,4 +1,4 @@
-.token-usage-page { max-width: 1400px; margin: auto; padding: 20px; display: grid; gap: 16px; color: var(--k-text); }
+.token-usage-page { max-width: 1400px; margin: auto; padding: 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; color: var(--k-text); }
 .token-usage-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .token-usage-header h1 { font-size: 21px; font-weight: 650; margin: 0 0 4px; }
 .token-usage-header p, .token-usage-summary p, .token-usage-note { color: var(--k-text-muted); font-size: 12px; margin: 5px 0 0; }

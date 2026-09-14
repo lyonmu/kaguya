@@ -5,11 +5,24 @@ import { mock } from 'bun:test'
 import { Window } from 'happy-dom'
 
 const dom = new Window({ url: 'http://localhost' })
+// 用量页通过 ResizeObserver 计算构成图标签宽度；测试里显式触发回调，保证断言不受布局实现影响。
+const resizeObservers: TestResizeObserver[] = []
+class TestResizeObserver {
+  callback: (entries: { contentRect: { width: number } }[]) => void
+  targets: Element[] = []
+  constructor(callback: (entries: { contentRect: { width: number } }[]) => void) {
+    this.callback = callback
+    resizeObservers.push(this)
+  }
+  observe(target: Element) { this.targets.push(target) }
+  unobserve() {}
+  disconnect() {}
+}
 const globals = {
   window: dom, document: dom.document, navigator: dom.navigator,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
   SVGElement: dom.SVGElement, ShadowRoot: dom.ShadowRoot,
-  MutationObserver: dom.MutationObserver, ResizeObserver: dom.ResizeObserver,
+  MutationObserver: dom.MutationObserver, ResizeObserver: TestResizeObserver,
   getComputedStyle: dom.getComputedStyle.bind(dom), IS_REACT_ACT_ENVIRONMENT: true,
 }
 const previous = new Map(Object.keys(globals).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
@@ -29,9 +42,15 @@ const usage = {
   models: [{ id: 'm', name: 'model', provider_id: 'p', provider_name: 'provider', input_tokens: 1, output_tokens: 1, reasoning_tokens: 1, cached_tokens: 1, total_tokens: 4 }],
   providers: [],
 }
+async function resizeComposition(width: number) {
+  const observers = resizeObservers.filter(observer => observer.targets.some(target => target.classList.contains('token-usage-composition')))
+  assert.equal(observers.length, 1)
+  await act(async () => { observers[0].callback([{ contentRect: { width } }]) })
+}
 afterEach(async () => {
   cleanup()
   options.length = 0
+  resizeObservers.length = 0
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
   globalThis.fetch = originalFetch
 })
@@ -68,18 +87,23 @@ it('renders the activity calendar on the fixed window instead of the selected ra
   const composition = options.find(option => option.series?.[0]?.type === 'bar')
   assert.deepEqual(composition?.xAxis.data, ['model'])
   assert.equal(composition?.xAxis.axisLabel.fontSize, 11)
+  // 尚未测到容器宽度时使用默认标签宽度；实测后由 compositionLabelWidth 按容器宽度分档。
   assert.equal(composition?.xAxis.axisLabel.width, 84)
   assert.equal(composition?.series[0].barMaxWidth, 36)
-  assert.equal(page.container.querySelector<HTMLElement>('.token-usage-composition')?.style.minWidth, '720px')
+  // 不设固定最小宽度，构成图随卡片宽度自适应。
+  assert.equal(page.container.querySelector<HTMLElement>('.token-usage-composition')?.style.minWidth, '')
 })
 
-it('widens the composition chart with the category count so labels stay readable', async () => {
+it('fits composition labels to the measured container width', async () => {
   const models = Array.from({ length: 10 }, (_, index) => ({ ...usage.models[0], id: `m${index}`, name: `model-${index}` }))
   globalThis.fetch = (async () => Response.json({ code: 100000, data: { ...usage, models } })) as typeof fetch
-  const page = render(<TokenUsagePage />)
+  render(<TokenUsagePage />)
   await waitFor(() => assert.ok(options.find(option => option.series?.[0]?.type === 'bar')))
-  const composition = options.find(option => option.series?.[0]?.type === 'bar')
-  assert.deepEqual(composition?.xAxis.data, models.map(model => model.name))
-  // 10 个类目预留 85 + 10 * 92 像素，保证每个标签有 84 像素限宽所需的间距；窗口更窄时横向滚动。
-  assert.equal(page.container.querySelector<HTMLElement>('.token-usage-composition')?.style.minWidth, '1005px')
+  // 容器变窄时标签逐档收窄截断，不再靠固定最小宽度把页面撑出横向滚动。
+  await resizeComposition(1005)
+  assert.equal(options.at(-1)?.xAxis.axisLabel.width, 84)
+  await resizeComposition(663)
+  assert.equal(options.at(-1)?.xAxis.axisLabel.width, 48)
+  await resizeComposition(1312)
+  assert.equal(options.at(-1)?.xAxis.axisLabel.width, 112)
 })
