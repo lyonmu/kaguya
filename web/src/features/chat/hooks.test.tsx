@@ -580,4 +580,35 @@ describe('conversation defaults on open', () => {
     assert.equal(result.current.error, '')
     assert.equal(result.current.conversation?.title, '新对话')
   })
+
+  it('retries default title generation when reopening a cached conversation', async () => {
+    let titleRequests = 0
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost')
+      if (path.pathname.endsWith('/title/wait')) {
+        titleRequests++
+        return response({ id: '123', title: titleRequests === 1 ? '新对话' : '自动标题' })
+      }
+      if (path.pathname.endsWith('/turns')) return response({ items: [turn], page: 1, total: 1, total_pages: 1, page_size: 5 })
+      const id = path.pathname.endsWith('/456') ? '456' : '123'
+      return response({ ...detail, id, title: id === '456' ? '已有标题' : '新对话' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    // 首次打开生成失败：保留“新对话”。
+    await act(async () => { await result.current.select('123') })
+    await waitFor(() => assert.equal(titleRequests, 1))
+    assert.equal(result.current.conversation?.title, '新对话')
+    await act(async () => { await result.current.select('456') })
+    assert.equal(result.current.conversation?.title, '已有标题')
+    assert.equal(titleRequests, 1)
+    // 会话仍在缓存中：重新打开时仍要补一次生成。
+    await act(async () => { await result.current.select('123') })
+    await waitFor(() => assert.equal(titleRequests, 2))
+    await waitFor(() => assert.equal(result.current.conversation?.title, '自动标题'))
+    // 标题已生成，再切换到其它会话又切回来不再请求。
+    await act(async () => { await result.current.select('456') })
+    await act(async () => { await result.current.select('123') })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    assert.equal(titleRequests, 2)
+  })
 })

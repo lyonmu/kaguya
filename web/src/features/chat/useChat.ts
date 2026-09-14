@@ -133,7 +133,12 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     selected.current = session
     if (session !== previous) setViewKey(value => value + 1)
     // Completed background results remain visible; explicit reload refreshes persisted history.
-    if (session.streaming || (session !== previous && session.turns.length > 0)) { notify(); return }
+    if (session.streaming || (session !== previous && session.turns.length > 0)) {
+      // 已加载过的会话不再请求详情：仍补一次默认标题生成，与首次加载保持一致。
+      if (!session.streaming) refreshDefaultTitle(session)
+      notify()
+      return
+    }
     session.error = ''
     if (!session.id) { notify(); return }
     // 重载会使等待中的延迟确认失效，避免旧响应覆盖刚拉取的历史。
