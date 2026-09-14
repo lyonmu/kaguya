@@ -34,7 +34,11 @@ fi
 # libsqlite3 Go build tag: it adds -lsqlite3 and may select the system SQLite.
 # Explicit archives keep SQLCipher and OpenSSL out of runtime shared libraries.
 export CGO_ENABLED=1
-export CGO_CFLAGS="${CGO_CFLAGS:-} -DUSE_LIBSQLITE3 -I$prefix/include"
+# Go's build cache hashes CGO_CFLAGS but not the archives referenced by
+# CGO_LDFLAGS, so a rebuilt SQLCipher/OpenSSL would otherwise reuse a stale link.
+# Fold a fingerprint of the linked archives into CGO_CFLAGS to invalidate it.
+archive_fingerprint=$(cksum "$prefix/lib/libsqlite3.a" "$crypto_lib" | awk '{printf "%s_%s_", $1, $2}')
+export CGO_CFLAGS="${CGO_CFLAGS:-} -DUSE_LIBSQLITE3 -DKAGUYA_STATIC_ARCHIVES=$archive_fingerprint -I$prefix/include"
 # SQLCipher's SQLite math functions require libm after the static archive.
 export CGO_LDFLAGS="${CGO_LDFLAGS:-} $prefix/lib/libsqlite3.a $crypto_flags -lm"
 # Go records CGO_LDFLAGS in each cgo package, so the final link repeats these

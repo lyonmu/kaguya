@@ -39,8 +39,13 @@ else
   crypto_ldflags="$(pkg-config --libs libcrypto)"
 fi
 
-# Rebuild when the engine, target host, C compiler, deployment target, or crypto installation changes.
-stamp="$version $(uname -sm) ${CC:-cc} ${MACOSX_DEPLOYMENT_TARGET:-default} $crypto_version $crypto_lib"
+# FTS5 is off by default upstream; the application relies on it for full-text
+# search, so enable it as an autosetup feature flag (adds -DSQLITE_ENABLE_FTS5).
+configure_flags=(--enable-fts5)
+
+# Rebuild when the engine, target host, C compiler, deployment target, crypto
+# installation, or configure feature flags change.
+stamp="$version $(uname -sm) ${CC:-cc} ${MACOSX_DEPLOYMENT_TARGET:-default} $crypto_version $crypto_lib ${configure_flags[*]}"
 if [[ -f "$prefix/build-stamp" && -f "$prefix/lib/libsqlite3.a" && -f "$prefix/include/sqlite3.h" ]] && [[ "$(<"$prefix/build-stamp")" == "$stamp" ]]; then
   exit 0
 fi
@@ -57,9 +62,12 @@ if [[ "${actual##* }" != "$sha256" ]]; then
 fi
 tar -xzf "$archive" -C "$work"
 cd "$work/sqlcipher-$version"
-./configure --prefix="$prefix" --disable-shared --disable-tcl --with-tempstore=yes \
+./configure --prefix="$prefix" --disable-shared --disable-tcl --with-tempstore=yes "${configure_flags[@]}" \
   CFLAGS="-O2 -DSQLITE_HAS_CODEC -DSQLITE_EXTRA_INIT=sqlcipher_extra_init -DSQLITE_EXTRA_SHUTDOWN=sqlcipher_extra_shutdown $crypto_cflags" \
   LDFLAGS="$crypto_ldflags"
+# Configure flags are not part of make's dependency graph, so drop objects from an
+# earlier build to avoid installing a library compiled without the current flags.
+rm -f *.o libsqlite3.a
 make
 make install
 # Preserve upstream licensing alongside the build artifacts for redistributors.

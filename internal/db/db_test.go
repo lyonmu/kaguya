@@ -174,6 +174,44 @@ func TestInitSQLiteDropsLegacyUniqueIndexes(t *testing.T) {
 	}
 }
 
+// TestSQLiteFTS5Available 固定编译进来的 SQLCipher 必须带 FTS5：全文检索依赖该编译期
+// 能力，缺失时应在测试阶段暴露，而不是运行时才报 no such module。
+func TestSQLiteFTS5Available(t *testing.T) {
+	cfg := encryptedConfig(t)
+	if err := cfg.EnsureSQLiteDatabase(); err != nil {
+		t.Fatal(err)
+	}
+	conn := openCipher(t, &cfg)
+	ctx := context.Background()
+	for _, statement := range []string{
+		"CREATE VIRTUAL TABLE notes USING fts5(body)",
+		"CREATE VIRTUAL TABLE notes_cjk USING fts5(body, tokenize='trigram')",
+		"INSERT INTO notes(body) VALUES ('sqlcipher keeps full text search encrypted')",
+		"INSERT INTO notes_cjk(body) VALUES ('SQLCipher 加密数据库支持全文检索')",
+	} {
+		if _, err := conn.ExecContext(ctx, statement); err != nil {
+			t.Fatalf("FTS5 unavailable: %s: %v", statement, err)
+		}
+	}
+	var body, snippet string
+	if err := conn.QueryRowContext(ctx,
+		"SELECT body, snippet(notes, 0, '[', ']', '...', 4) FROM notes WHERE notes MATCH 'search'",
+	).Scan(&body, &snippet); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(snippet, "[search]") {
+		t.Fatalf("snippet = %q, want the highlighted match", snippet)
+	}
+	if err := conn.QueryRowContext(ctx,
+		"SELECT body FROM notes_cjk WHERE notes_cjk MATCH ?", "全文检索",
+	).Scan(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body != "SQLCipher 加密数据库支持全文检索" {
+		t.Fatalf("trigram match returned %q", body)
+	}
+}
+
 func TestDebugDoesNotLogDatabaseSecrets(t *testing.T) {
 	var output bytes.Buffer
 	previous := log.Writer()
