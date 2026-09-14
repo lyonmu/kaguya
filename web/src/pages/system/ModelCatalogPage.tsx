@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { App, Alert, Button, Card, Empty, Input, Space, Table, Tag, Typography } from 'antd'
-import { ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons'
+import { App, Alert, Button, Card, Descriptions, Drawer, Empty, Input, Space, Table, Tag, Typography } from 'antd'
+import { EyeOutlined, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons'
 import { fetchModelCatalogPage, syncModelCatalog } from '../../features/providers/api'
 import type { ModelCatalogItem, ModelCatalogResponse } from '../../features/providers/types'
 import { fetchSystemInfo } from '../../features/system-info/api'
@@ -15,6 +15,7 @@ export function ModelCatalogPage() {
   const { message } = App.useApp()
   const [info, setInfo] = useState<SystemInfo>()
   const [catalog, setCatalog] = useState<ModelCatalogResponse>({ total: 0, items: [], page: 1, page_size: PAGE_SIZE })
+  const [selectedModel, setSelectedModel] = useState<ModelCatalogItem>()
   const [draftKeyword, setDraftKeyword] = useState('')
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
@@ -62,7 +63,7 @@ export function ModelCatalogPage() {
     {
       title: '模型', key: 'model', width: 310,
       render: (_: unknown, item: ModelCatalogItem) => <div className="min-w-0">
-        <div className="font-medium text-k-text">{item.name}</div>
+        <Button className="h-auto! p-0! text-left! font-medium!" type="link" onClick={() => setSelectedModel(item)}>{item.name}</Button>
         <Typography.Text className="block! font-mono text-xs!" copyable={{ text: item.id }} type="secondary">{item.id}</Typography.Text>
         {item.description && <Typography.Text className="mt-1 block! max-w-[290px] text-xs!" ellipsis={{ tooltip: item.description }} type="secondary">{item.description}</Typography.Text>}
       </div>,
@@ -86,6 +87,7 @@ export function ModelCatalogPage() {
     },
     { title: '发布日期', dataIndex: 'release_date', key: 'release', width: 112, render: (value: string) => value || '—' },
     { title: '更新时间', dataIndex: 'last_updated', key: 'updated', width: 112, render: (value: string) => value || '—' },
+    { title: '操作', key: 'actions', fixed: 'right' as const, width: 76, render: (_: unknown, item: ModelCatalogItem) => <Button aria-label={`查看 ${item.name} 详情`} icon={<EyeOutlined />} type="text" onClick={() => setSelectedModel(item)}>查看</Button> },
   ]
 
   return <div className="mx-auto w-full max-w-[1480px] px-6 py-5 max-[620px]:px-3.5">
@@ -112,9 +114,49 @@ export function ModelCatalogPage() {
         locale={{ emptyText: <Empty description={keyword ? '没有匹配的模型' : '暂无模型，请先立即同步或到系统配置启用定时同步'} /> }}
         pagination={{ current: page, pageSize: PAGE_SIZE, total: catalog.total, showSizeChanger: false, showTotal: total => `共 ${total.toLocaleString()} 项`, onChange: setPage }}
         rowKey="id"
-        scroll={{ x: 1180 }}
+        scroll={{ x: 1260 }}
         size="middle"
       />
     </Card>
+    <Drawer
+      destroyOnHidden
+      open={!!selectedModel}
+      placement="right"
+      title="模型详情"
+      size={640}
+      onClose={() => setSelectedModel(undefined)}
+    >
+      {selectedModel && <div>
+        <div className="mb-5 border-b border-k-border-soft pb-4">
+          <h3 className="m-0 text-xl font-semibold text-k-text">{selectedModel.name}</h3>
+          <Typography.Text className="mt-1 block! font-mono text-xs!" copyable={{ text: selectedModel.id }} type="secondary">{selectedModel.id}</Typography.Text>
+          <Typography.Paragraph className="mt-3 mb-0! text-sm!" type="secondary">{selectedModel.description || '暂无模型描述'}</Typography.Paragraph>
+        </div>
+        <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small" title="基本信息">
+          <Descriptions.Item label="实验室">{selectedModel.lab || '—'}</Descriptions.Item>
+          <Descriptions.Item label="模型系列">{selectedModel.family || '—'}</Descriptions.Item>
+          <Descriptions.Item label="发布日期">{selectedModel.release_date || '—'}</Descriptions.Item>
+          <Descriptions.Item label="更新时间">{selectedModel.last_updated || '—'}</Descriptions.Item>
+        </Descriptions>
+        <Descriptions bordered className="mt-5" column={{ xs: 1, sm: 2 }} size="small" title="Token 限额">
+          <Descriptions.Item label="上下文窗口">{formatNumber(selectedModel.token_context_window)}</Descriptions.Item>
+          <Descriptions.Item label="最大输出">{formatNumber(selectedModel.token_max_output_tokens)}</Descriptions.Item>
+        </Descriptions>
+        <Descriptions bordered className="mt-5" column={1} size="small" title="模态与能力">
+          <Descriptions.Item label="输入模态">{selectedModel.input_modalities?.length ? <Space size={[0, 4]} wrap>{selectedModel.input_modalities.map(value => <Tag key={value}>{value}</Tag>)}</Space> : '—'}</Descriptions.Item>
+          <Descriptions.Item label="推理能力"><CapabilityStatus enabled={selectedModel.reasoning_enabled === 1} /></Descriptions.Item>
+          <Descriptions.Item label="工具调用"><CapabilityStatus enabled={selectedModel.capability_tool_use === 1} /></Descriptions.Item>
+          <Descriptions.Item label="视觉输入"><CapabilityStatus enabled={selectedModel.capability_vision === 1} /></Descriptions.Item>
+          <Descriptions.Item label="结构化输出"><CapabilityStatus enabled={selectedModel.capability_structured_output === 1} /></Descriptions.Item>
+        </Descriptions>
+        <div className="mt-5 rounded-lg border border-k-border-soft bg-k-canvas p-3 text-xs text-k-text-muted">
+          数据来自本地同步缓存：<Typography.Text className="text-xs!" copyable={{ text: info?.model_sync_url ?? '' }}>{info?.model_sync_url ?? '—'}</Typography.Text>
+        </div>
+      </div>}
+    </Drawer>
   </div>
+}
+
+function CapabilityStatus({ enabled }: { enabled: boolean }) {
+  return enabled ? <Tag color="green">支持</Tag> : <Tag>不支持</Tag>
 }
