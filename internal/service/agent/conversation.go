@@ -17,6 +17,8 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
 )
 
@@ -373,8 +375,40 @@ func (s *AgentSvc) ConversationDetail(ctx context.Context, id string) (*dtochat.
 		return nil, err
 	}
 	resp := conversationResp(row)
+	lastModelID, err := conversationLastModelID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	resp.LastModelID = lastModelID
 	return &resp, nil
 }
+
+// conversationLastModelID 解析最近一轮使用的本地模型记录 ID，供前端续聊时默认选中。
+// 会话没有轮次，或对应模型、提供商已删除时返回空，调用方回落到全局默认模型。
+func conversationLastModelID(ctx context.Context, conversationID string) (string, error) {
+	turn, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(conversationID)).
+		Select(kaguyachatturn.FieldProviderID, kaguyachatturn.FieldModelID).
+		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).First(ctx)
+	if ent.IsNotFound(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	model, err := db.EntClient.KaguyaModelsInfo.Query().
+		Where(kaguyamodelsinfo.DeletedAtIsNil(), kaguyamodelsinfo.ProviderIDEQ(turn.ProviderID), kaguyamodelsinfo.ModelIDEQ(turn.ModelID),
+			kaguyamodelsinfo.HasProviderWith(kaguyaproviderinfo.DeletedAtIsNil())).
+		Select(kaguyamodelsinfo.FieldID).Only(ctx)
+	if ent.IsNotFound(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return model.ID, nil
+}
+
 func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtochat.ConversationUpdateReq) (*dtochat.ConversationResp, error) {
 	if req.Title == nil && req.Favorite == nil {
 		return nil, ErrConversationUpdate

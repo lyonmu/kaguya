@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchConversation, fetchTurnPage, stopConversation, streamChat, HISTORY_PAGE_SIZE } from './api'
+import { fetchConversation, fetchTurnPage, generateConversationTitle, stopConversation, streamChat, HISTORY_PAGE_SIZE } from './api'
 import { applyFrame } from './reducer'
 import { syncCompletedConversation, syncStartedConversation } from './completion'
 import { isPersistedStatus, isRunningStatus } from './status'
@@ -35,6 +35,8 @@ interface Session {
   draft: string
   references: string[]
   modelId: string
+  // modelSeeded 标记已从会话详情沿用最近一轮模型；之后的重载与手动选择不再覆盖。
+  modelSeeded?: boolean
 }
 let nextKey = 0
 const createSession = (id = ''): Session => ({ key: `session-${++nextKey}`, id, draft: '', references: [], modelId: '', turns: [], page: 1, totalPages: 0, initialEnd: true, loading: false, streaming: false, error: '', opVersion: 0 })
@@ -85,6 +87,23 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     }
   }
 
+  // 打开已有会话时若标题仍是默认值，主动请求后端等待或补生成一次；不阻塞历史加载，
+  // 失败保留“新对话”，下次打开或轮次完成后仍会重试。
+  const refreshDefaultTitle = (session: Session) => {
+    if (session.conversation?.title !== '新对话') return
+    session.title?.abort()
+    const controller = new AbortController()
+    session.title = controller
+    void generateConversationTitle(session.id, controller.signal).then(title => {
+      if (controller.signal.aborted || title.title === '新对话') return
+      if (session.conversation) session.conversation = { ...session.conversation, title: title.title }
+      callbacks.current.onTitleUpdated(title)
+      notify()
+    }).catch(() => {
+      // 任务模型未配置、生成失败或等待超时都保留“新对话”。
+    }).finally(() => { if (session.title === controller) session.title = undefined })
+  }
+
   useEffect(() => {
     mounted.current = true
     const all = sessions.current
@@ -129,6 +148,12 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       if (controller.signal.aborted) return
       session.conversation = detail
       session.projectId = detail.project_id ?? undefined
+      // 续聊默认沿用最近一轮模型，用户手动选择后不再覆盖。
+      if (!session.modelSeeded) {
+        session.modelSeeded = true
+        if (detail.last_model_id) session.modelId = detail.last_model_id
+      }
+      refreshDefaultTitle(session)
       session.turns = history.items ?? []
       session.page = history.page
       session.totalPages = history.total_pages

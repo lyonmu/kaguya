@@ -517,3 +517,67 @@ describe('conversation list refresh cost', () => {
     assert.equal(result.current.total, 5)
   })
 })
+
+describe('conversation defaults on open', () => {
+  it('defaults an opened conversation to its last used model until the user chooses another', async () => {
+    const sent: Array<string | undefined> = []
+    globalThis.fetch = (async (url, init) => {
+      const path = new URL(String(url), 'http://localhost')
+      if (path.pathname.endsWith('/turns')) return response({ items: [turn], page: 1, total: 1, total_pages: 1, page_size: 5 })
+      if (path.pathname.endsWith('/sse')) {
+        sent.push(JSON.parse(String(init?.body)).model_id)
+        return new Response(`data: ${JSON.stringify({ code: 100000, data: { chat: { id: '123', flag: 'done' }, usage: { total_tokens: 1 } } })}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+      return response({ ...detail, last_model_id: 'local-model' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    assert.equal(result.current.modelId, 'local-model')
+    await act(async () => { await result.current.send('第一轮', result.current.modelId) })
+    assert.equal(sent[0], 'local-model')
+    // 手动选择后重新加载历史不再回落到会话最近模型。
+    act(() => { result.current.setModelId('manual-model') })
+    await act(async () => { await result.current.select('123') })
+    assert.equal(result.current.modelId, 'manual-model')
+    await act(async () => { await result.current.send('第二轮', result.current.modelId) })
+    assert.equal(sent[1], 'manual-model')
+  })
+
+  it('generates a default title once when opening a conversation detail', async () => {
+    let titleRequests = 0
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost')
+      if (path.pathname.endsWith('/title/wait')) {
+        titleRequests++
+        return response({ id: '123', title: '自动标题' })
+      }
+      if (path.pathname.endsWith('/turns')) return response({ items: [], page: 1, total: 0, total_pages: 1, page_size: 5 })
+      const id = path.pathname.endsWith('/456') ? '456' : '123'
+      return response({ ...detail, id, title: id === '456' ? '已有标题' : '新对话' })
+    }) as typeof fetch
+    const titles: string[] = []
+    const { result } = renderHook(() => useChat(onCompleted, title => titles.push(title.title)))
+    await act(async () => { await result.current.select('123') })
+    await waitFor(() => assert.equal(result.current.conversation?.title, '自动标题'))
+    assert.equal(titleRequests, 1)
+    assert.deepEqual(titles, ['自动标题'])
+    // 已有标题的会话不重复请求生成。
+    await act(async () => { await result.current.select('456') })
+    assert.equal(result.current.conversation?.title, '已有标题')
+    assert.equal(titleRequests, 1)
+  })
+
+  it('keeps the default title without an error when generation is unavailable', async () => {
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost')
+      if (path.pathname.endsWith('/title/wait')) return Response.json({ code: 102007, message: '任务模型未配置' })
+      if (path.pathname.endsWith('/turns')) return response({ items: [], page: 1, total: 0, total_pages: 1, page_size: 5 })
+      return response({ ...detail, title: '新对话' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    assert.equal(result.current.error, '')
+    assert.equal(result.current.conversation?.title, '新对话')
+  })
+})

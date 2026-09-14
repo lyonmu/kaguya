@@ -81,6 +81,7 @@ export interface Conversation {
   turn_count: number
   model_id: string
   model_name: string
+  last_model_id?: string
   created_at: string
   last_message_at: string
   duration_ms: number

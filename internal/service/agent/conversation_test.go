@@ -395,3 +395,42 @@ func TestSaveCompletedTurnPersistsManyBlocks(t *testing.T) {
 		}
 	}
 }
+
+// 会话详情返回最近一轮使用的本地模型记录 ID，供前端续聊时默认选中；
+// 无轮次、模型或提供商已删除时为空。
+func TestConversationDetailLastModelID(t *testing.T) {
+	ctx, client := setupChatTest(t)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("provider").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("model").SetModelID("api-model").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn := testCompletedTurn("123", 0)
+	turn.ProviderID, turn.ModelID, turn.ModelName = provider.ID, model.ModelID, model.ModelName
+	if err := saveCompletedTurn(ctx, turn); err != nil {
+		t.Fatal(err)
+	}
+	detail, err := (&AgentSvc{}).ConversationDetail(ctx, "123")
+	if err != nil || detail.LastModelID != model.ID {
+		t.Fatalf("last model: %+v %v", detail, err)
+	}
+	// 没有轮次的会话没有可沿用的模型。
+	if _, err := client.KaguyaConversation.Create().SetID("empty").SetTitle("新对话").SetModelID(model.ModelID).SetModelName(model.ModelName).SetLastMessageAt(time.Now()).Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = (&AgentSvc{}).ConversationDetail(ctx, "empty")
+	if err != nil || detail.LastModelID != "" {
+		t.Fatalf("empty conversation: %+v %v", detail, err)
+	}
+	// 模型软删除后不再返回，前端回落到全局默认模型。
+	if err := client.KaguyaModelsInfo.UpdateOneID(model.ID).SetDeletedAt(time.Now()).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	detail, err = (&AgentSvc{}).ConversationDetail(ctx, "123")
+	if err != nil || detail.LastModelID != "" {
+		t.Fatalf("deleted model: %+v %v", detail, err)
+	}
+}

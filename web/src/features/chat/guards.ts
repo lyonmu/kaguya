@@ -29,6 +29,7 @@ const isConversation = (value: unknown): value is Conversation =>
   isString(value.id) &&
   isString(value.title) &&
   isOptional(value.turn_count, isNumber) &&
+  isOptional(value.last_model_id, isString) &&
   isOptional(value.usage, (item): item is Usage => isUsage(item, false))
 
 export const conversationGuard: PayloadGuard<Conversation> = value =>

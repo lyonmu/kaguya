@@ -2092,6 +2092,10 @@ const docTemplate = `{
                 "last_message_at": {
                     "type": "string"
                 },
+                "last_model_id": {
+                    "description": "最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型",
+                    "type": "string"
+                },
                 "model_id": {
                     "type": "string"
                 },

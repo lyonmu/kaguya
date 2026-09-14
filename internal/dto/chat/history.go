@@ -45,6 +45,7 @@ type ConversationResp struct {
 	TurnCount     int64     `json:"turn_count"`
 	ModelID       string    `json:"model_id"`
 	ModelName     string    `json:"model_name"`
+	LastModelID   string    `json:"last_model_id,omitempty"` // 最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型
 	CreatedAt     time.Time `json:"created_at"`
 	LastMessageAt time.Time `json:"last_message_at"`
 	DurationMS    int64     `json:"duration_ms"`
