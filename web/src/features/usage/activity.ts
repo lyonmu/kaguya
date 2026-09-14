@@ -17,7 +17,7 @@ export function aggregateActivity(days: UsageDay[], mode: ActivityMode): [string
   return [...values.entries()].sort(([a], [b]) => a.localeCompare(b))
 }
 
-// 热力图档位：值为 0 的日期固定透明，非零数值按分位切分。
+// 热力图档位：值为 0 的日期固定使用 emptyColor，非零数值按分位切分。
 // 峰值极高时平均分档会把绝大多数日期压进最低档（甚至与空白日无法区分），
 // 按分位切分能保证有使用的日期彼此可辨。
 // 使用 gte/lte/value 而非 min/max：ECharts 对 min/max 的区间开闭另有兼容规则。
@@ -31,8 +31,9 @@ export interface ActivityPiece {
 
 // activityPieces 按分位把非零用量切成最多 colors.length 档，颜色由浅到深。
 // format 用于档位标签，与图表提示保持一致。
-export function activityPieces(values: number[], colors: string[], format: (value: number) => string): ActivityPiece[] {
-  const pieces: ActivityPiece[] = [{ value: 0, color: 'transparent', label: '0' }]
+// emptyColor 是零用量日期的填充色：透明会让空白日期与卡片背景重合，调用方需传入可见的弱填充色。
+export function activityPieces(values: number[], colors: string[], format: (value: number) => string, emptyColor: string): ActivityPiece[] {
+  const pieces: ActivityPiece[] = [{ value: 0, color: emptyColor, label: '0' }]
   const sorted = values.filter(value => value > 0).sort((a, b) => a - b)
   if (!sorted.length) return pieces
   const levels = Math.min(colors.length, sorted.length)

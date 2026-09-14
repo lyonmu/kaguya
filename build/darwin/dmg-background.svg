@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="800" viewBox="0 0 1320 800">
+  <!-- 2x（144dpi）位图，按 660x400 pt 居中绘制；箭头中心对准 (330, 190)，与图标同一水平线。 -->
+  <rect width="1320" height="800" fill="#f5f7fa"/>
+  <path d="M530 354 H690 V312 L790 380 L690 448 V406 H530 Z"
+        fill="#5b8def" stroke="#5b8def" stroke-width="18" stroke-linejoin="round"/>
+</svg>

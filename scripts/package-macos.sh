@@ -11,7 +11,6 @@ app_name="Kaguya"
 bundle="target/${app_name}.app"
 binary="target/${name}"
 version=$(cat VERSION)
-build_number=$(git rev-list --count HEAD 2>/dev/null || echo 0)
 deployment_target=${MACOS_DEPLOYMENT_TARGET:-14.0}
 
 if [[ "$(go env GOHOSTOS)" != darwin ]]; then
@@ -34,8 +33,13 @@ cp "$binary" "$bundle/Contents/MacOS/kaguya"
 cp build/darwin/Info.plist "$bundle/Contents/Info.plist"
 cp LICENSE "$bundle/Contents/Resources/LICENSE"
 
+# 关于面板的介绍与链接来自 Resources/Credits.html，提交号在打包时写入。
+if [[ -f build/darwin/Credits.html ]]; then
+  commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+  sed "s/__COMMIT__/${commit}/g" build/darwin/Credits.html > "$bundle/Contents/Resources/Credits.html"
+fi
+
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${version}" "$bundle/Contents/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${build_number}" "$bundle/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion ${deployment_target}" "$bundle/Contents/Info.plist"
 
 # 图标从仓库内原图生成；缺失 sips/iconutil 时保留无图标包而不是中断发布。

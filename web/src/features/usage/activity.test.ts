@@ -18,10 +18,10 @@ it('aggregates UTC weeks across years and preserves zero activity', () => {
 it('splits heatmap levels by quantile so small usage stays visible', () => {
   const colors = ['c0', 'c1', 'c2', 'c3']
   const values = [0, 0, 10, 12, 14, 16, 1000000]
-  const pieces = activityPieces(values, colors, String)
-  // 空白日期固定透明，非零日期使用不透明颜色。
-  assert.deepEqual(pieces[0], { value: 0, color: 'transparent', label: '0' })
-  assert.deepEqual(pieces.map(piece => piece.color), ['transparent', 'c0', 'c1', 'c2', 'c3'])
+  const pieces = activityPieces(values, colors, String, 'empty')
+  // 空白日期固定使用传入的弱填充色，非零日期使用不透明颜色。
+  assert.deepEqual(pieces[0], { value: 0, color: 'empty', label: '0' })
+  assert.deepEqual(pieces.map(piece => piece.color), ['empty', 'c0', 'c1', 'c2', 'c3'])
   assert.deepEqual(pieces.slice(1), [
     { gte: 1, lte: 11, color: 'c0', label: '1 - 11' },
     { gte: 12, lte: 13, color: 'c1', label: '12 - 13' },
@@ -35,9 +35,9 @@ it('splits heatmap levels by quantile so small usage stays visible', () => {
 })
 
 it('keeps a single level when every day has the same usage or none', () => {
-  assert.deepEqual(activityPieces([0, 0], ['c0', 'c1'], String), [{ value: 0, color: 'transparent', label: '0' }])
-  assert.deepEqual(activityPieces([5, 5, 5], ['c0', 'c1'], String), [
-    { value: 0, color: 'transparent', label: '0' },
+  assert.deepEqual(activityPieces([0, 0], ['c0', 'c1'], String, 'empty'), [{ value: 0, color: 'empty', label: '0' }])
+  assert.deepEqual(activityPieces([5, 5, 5], ['c0', 'c1'], String, 'empty'), [
+    { value: 0, color: 'empty', label: '0' },
     { gte: 1, lte: 4, color: 'c0', label: '1 - 4' },
     { gte: 5, color: 'c1', label: '≥ 5' },
   ])

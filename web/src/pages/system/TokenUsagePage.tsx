@@ -39,7 +39,8 @@ export function TokenUsagePage() {
     if (!data) return {}
     const values = aggregateActivity(data.days, mode)
     // 分位数分档：值差异极大时低用量日期仍保留可见颜色，并与空白日期区分。
-    const pieces = activityPieces(values.map(([, value]) => value), activityColors, compact)
+    // 零用量日期使用主题弱填充色，透明会与卡片背景重合（明亮模式等同于一片空白）。
+    const pieces = activityPieces(values.map(([, value]) => value), activityColors, compact, token.colorFillSecondary)
     const base = {
       animation: false, aria: { enabled: true }, textStyle: { color: token.colorTextSecondary },
       tooltip: { trigger: 'item', renderMode: 'richText', backgroundColor: token.colorBgElevated, textStyle: { color: token.colorText },

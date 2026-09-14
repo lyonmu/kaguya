@@ -19,6 +19,7 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const options: Record<string, any>[] = []
 mock.module('echarts/core', () => ({ init: () => ({ setOption: (option: Record<string, any>) => { options.push(option) }, resize() {}, dispose() {} }), use: () => {} }))
 const { render, cleanup, waitFor, act } = await import('@testing-library/react')
+const { theme } = await import('antd')
 const { TokenUsagePage } = await import('./TokenUsagePage')
 const originalFetch = globalThis.fetch
 const usage = {
@@ -54,11 +55,12 @@ it('renders the activity calendar on the fixed window instead of the selected ra
   // 未选日期时不带参数，日历与构成卡片固定，只有汇总卡片随后续时间段变化。
   assert.equal(requests[0].search, '')
   await waitFor(() => assert.deepEqual(options.find(option => option.calendar)?.calendar.range, ['2025-09-13', '2026-09-12']))
-  // 热力图按分档着色：空白日期透明，非零日期至少有可见颜色。
+  // 热力图按分档着色：空白日期使用主题弱填充色（不能透明，否则明亮模式下会与卡片背景重合），非零日期至少有可见颜色。
+  const emptyColor = theme.getDesignToken().colorFillSecondary
   const visualMap = options.find(option => option.calendar)?.visualMap
   assert.equal(visualMap.type, 'piecewise')
-  assert.deepEqual(visualMap.pieces[0], { value: 0, color: 'transparent', label: '0' })
-  assert.deepEqual(visualMap.pieces.map((piece: { color: string }) => piece.color), ['transparent', '#c6ddff', '#82b8ff'])
+  assert.deepEqual(visualMap.pieces[0], { value: 0, color: emptyColor, label: '0' })
+  assert.deepEqual(visualMap.pieces.map((piece: { color: string }) => piece.color), [emptyColor, '#c6ddff', '#82b8ff'])
   assert.ok(page.getByText(/最近一年 2025-09-13 — 2026-09-12/))
   assert.ok(page.getByText(/全部历史 · 用量最高的 10 项/))
   assert.ok(page.getByText('所选时间段内全部模型累计使用量'))
