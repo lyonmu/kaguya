@@ -88,3 +88,32 @@ export interface LabelOption {
   label: string
   value: string
 }
+
+export interface ModelCatalogItem {
+  id: string
+  name: string
+  lab: string
+  family: string
+  description: string
+  reasoning_enabled: Status
+  token_context_window: number
+  token_max_output_tokens: number
+  capability_tool_use: Status
+  capability_vision: Status
+  capability_structured_output: Status
+  input_modalities: string[]
+  release_date: string
+  last_updated: string
+}
+
+export interface ModelCatalogResponse {
+  total: number
+  items: ModelCatalogItem[]
+  page: number
+  page_size: number
+}
+
+export interface ModelSyncResponse {
+  count: number
+  synced_at: string
+}

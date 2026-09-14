@@ -10,6 +10,42 @@ import (
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 
+// SystemModelCatalog
+// @Tags System Model
+// @Summary 查询已同步的 models.dev 模型目录
+// @Param data query dtosystem.SystemModelCatalogReq true "请求参数"
+// @Success 200 {object} dtocode.Response{data=dtosystem.SystemModelCatalogListResp}
+// @Router /v1/system/model/catalog [get]
+func (b *SystemApiV1Group) SystemModelCatalog(c *gin.Context) {
+	var req dtosystem.SystemModelCatalogReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := systemsvc.ModelCatalog(c.Request.Context(), &req)
+	if err != nil {
+		global.Logger.Sugar().Errorf("query model catalog failed: %v", err)
+		dtocode.ModelQueryFailure.Failure(c)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// SystemModelSync
+// @Tags System Model
+// @Summary 立即从 models.dev 同步模型目录
+// @Success 200 {object} dtocode.Response{data=dtosystem.SystemModelSyncResp}
+// @Router /v1/system/model/sync [post]
+func (b *SystemApiV1Group) SystemModelSync(c *gin.Context) {
+	resp, err := servicesystem.DefaultModelCatalogSyncer.Sync(c.Request.Context())
+	if err != nil {
+		global.Logger.Sugar().Warnf("manual model catalog sync failed: %v", err)
+		dtocode.ModelCatalogSyncFailure.Failure(c)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
 // SystemModelPage
 // @Tags System Model
 // @Summary 获取模型分页列表

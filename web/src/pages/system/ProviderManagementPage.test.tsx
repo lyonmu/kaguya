@@ -8,6 +8,7 @@ const dom = new Window({ url: 'http://localhost' })
 const globals = {
   window: dom, document: dom.document, navigator: dom.navigator,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
+  HTMLBodyElement: dom.HTMLBodyElement, HTMLHtmlElement: dom.HTMLHtmlElement,
   SVGElement: dom.SVGElement, ShadowRoot: dom.ShadowRoot,
   MutationObserver: dom.MutationObserver, ResizeObserver: dom.ResizeObserver,
   getComputedStyle: dom.getComputedStyle.bind(dom), IS_REACT_ACT_ENVIRONMENT: true,
@@ -92,4 +93,44 @@ it('keeps the stored key when editing without entering a new one', async () => {
   })
   await waitFor(() => assert.equal(bodies.length, 1))
   assert.equal(JSON.parse(bodies[0]).api_key, '', 'untouched api_key must be submitted empty')
+})
+
+it('fills a new provider model from the synchronized models.dev catalog', async () => {
+  let saved: Record<string, unknown> | undefined
+  globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url), 'http://localhost').pathname
+    if (path.endsWith('/page')) return response({ total: 1, items: [provider], page: 1, page_size: 10 })
+    if (path.endsWith('/provider/label')) return response([{ label: provider.provider_name, value: provider.id }])
+    if (path.endsWith('/model/catalog')) return response({ total: 1, page: 1, page_size: 1000, items: [{
+      id: 'openai/gpt-test', name: 'GPT Test', reasoning_enabled: 1,
+      token_context_window: 128000, token_max_output_tokens: 32000,
+      capability_tool_use: 1, capability_vision: 2, capability_structured_output: 1,
+      last_updated: '2026-09-01',
+    }] })
+    if (path.endsWith('/model') && init?.method === 'POST') {
+      saved = JSON.parse(String(init.body))
+      return response({ id: 'm1', provider_name: provider.provider_name, ...saved })
+    }
+    return response([])
+  }) as typeof fetch
+
+  const view = render(<App><ProviderManagementPage /></App>)
+  await waitFor(() => assert.ok(view.getByText('示例提供商')))
+  fireEvent.click(view.getByText('模型管理'))
+  await waitFor(() => assert.ok(view.baseElement.querySelector('.ant-drawer-open')))
+  fireEvent.click(view.getByRole('button', { name: /新增模型/ }))
+  const catalog = await waitFor(() => view.baseElement.querySelector<HTMLInputElement>('input#catalog_model_id'))
+  assert.ok(catalog)
+  fireEvent.mouseDown(catalog)
+  fireEvent.click(await view.findByText('GPT Test · openai/gpt-test'))
+  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_name')?.value, 'GPT Test')
+  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_id')?.value, 'openai/gpt-test')
+  fireEvent.click(view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!)
+  await waitFor(() => assert.ok(saved))
+  assert.deepEqual(saved, {
+    provider_id: 'p1', model_name: 'GPT Test', model_id: 'openai/gpt-test',
+    reasoning_enabled: 1, reasoning_effort: 'medium', token_context_window: 128000,
+    token_max_output_tokens: 32000, capability_tool_use: 1, capability_vision: 2,
+    capability_structured_output: 1,
+  })
 })

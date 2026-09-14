@@ -34,7 +34,7 @@ func TestTaskModelUniqueAndIndependent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := dtosystem.SystemInfoSaveReq{UserAgent: "test", DefaultModelID: m1.ID, TaskModelID: m1.ID}
+	config := dtosystem.SystemInfoSaveReq{DefaultModelID: m1.ID, TaskModelID: m1.ID}
 	check := func(defaultID, taskID string) {
 		t.Helper()
 		info, err := svc.Info(ctx)

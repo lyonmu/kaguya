@@ -31,6 +31,8 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 
 		systemRouter.GET("model/page", apiGroup.SystemModelPage)
 		systemRouter.GET("model/label", apiGroup.SystemModelLabels)
+		systemRouter.GET("model/catalog", apiGroup.SystemModelCatalog)
+		systemRouter.POST("model/sync", apiGroup.SystemModelSync)
 		systemRouter.GET("model/:id", apiGroup.SystemModelDetail)
 		systemRouter.POST("model", apiGroup.SystemModelCreate)
 		systemRouter.PUT("model/:id", apiGroup.SystemModelUpdate)

@@ -745,22 +745,64 @@ func init() {
 			return nil
 		}
 	}()
+	// kaguyasysteminfoDescGlobalSystemPrompt is the schema descriptor for global_system_prompt field.
+	kaguyasysteminfoDescGlobalSystemPrompt := kaguyasysteminfoFields[6].Descriptor()
+	// kaguyasysteminfo.DefaultGlobalSystemPrompt holds the default value on creation for the global_system_prompt field.
+	kaguyasysteminfo.DefaultGlobalSystemPrompt = kaguyasysteminfoDescGlobalSystemPrompt.Default.(string)
 	// kaguyasysteminfoDescSystemPrompt is the schema descriptor for system_prompt field.
-	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[6].Descriptor()
+	kaguyasysteminfoDescSystemPrompt := kaguyasysteminfoFields[7].Descriptor()
 	// kaguyasysteminfo.DefaultSystemPrompt holds the default value on creation for the system_prompt field.
 	kaguyasysteminfo.DefaultSystemPrompt = kaguyasysteminfoDescSystemPrompt.Default.(string)
-	// kaguyasysteminfoDescUserAgent is the schema descriptor for user_agent field.
-	kaguyasysteminfoDescUserAgent := kaguyasysteminfoFields[7].Descriptor()
-	// kaguyasysteminfo.DefaultUserAgent holds the default value on creation for the user_agent field.
-	kaguyasysteminfo.DefaultUserAgent = kaguyasysteminfoDescUserAgent.Default.(string)
-	// kaguyasysteminfo.UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
-	kaguyasysteminfo.UserAgentValidator = kaguyasysteminfoDescUserAgent.Validators[0].(func(string) error)
+	// kaguyasysteminfoDescModelSyncEnabled is the schema descriptor for model_sync_enabled field.
+	kaguyasysteminfoDescModelSyncEnabled := kaguyasysteminfoFields[8].Descriptor()
+	// kaguyasysteminfo.DefaultModelSyncEnabled holds the default value on creation for the model_sync_enabled field.
+	kaguyasysteminfo.DefaultModelSyncEnabled = kaguyasysteminfoDescModelSyncEnabled.Default.(bool)
+	// kaguyasysteminfoDescModelSyncURL is the schema descriptor for model_sync_url field.
+	kaguyasysteminfoDescModelSyncURL := kaguyasysteminfoFields[9].Descriptor()
+	// kaguyasysteminfo.DefaultModelSyncURL holds the default value on creation for the model_sync_url field.
+	kaguyasysteminfo.DefaultModelSyncURL = kaguyasysteminfoDescModelSyncURL.Default.(string)
+	// kaguyasysteminfo.ModelSyncURLValidator is a validator for the "model_sync_url" field. It is called by the builders before save.
+	kaguyasysteminfo.ModelSyncURLValidator = kaguyasysteminfoDescModelSyncURL.Validators[0].(func(string) error)
+	// kaguyasysteminfoDescModelSyncIntervalHours is the schema descriptor for model_sync_interval_hours field.
+	kaguyasysteminfoDescModelSyncIntervalHours := kaguyasysteminfoFields[10].Descriptor()
+	// kaguyasysteminfo.DefaultModelSyncIntervalHours holds the default value on creation for the model_sync_interval_hours field.
+	kaguyasysteminfo.DefaultModelSyncIntervalHours = kaguyasysteminfoDescModelSyncIntervalHours.Default.(int)
+	// kaguyasysteminfo.ModelSyncIntervalHoursValidator is a validator for the "model_sync_interval_hours" field. It is called by the builders before save.
+	kaguyasysteminfo.ModelSyncIntervalHoursValidator = func() func(int) error {
+		validators := kaguyasysteminfoDescModelSyncIntervalHours.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(model_sync_interval_hours int) error {
+			for _, fn := range fns {
+				if err := fn(model_sync_interval_hours); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyasysteminfoDescModelCatalogJSON is the schema descriptor for model_catalog_json field.
+	kaguyasysteminfoDescModelCatalogJSON := kaguyasysteminfoFields[11].Descriptor()
+	// kaguyasysteminfo.DefaultModelCatalogJSON holds the default value on creation for the model_catalog_json field.
+	kaguyasysteminfo.DefaultModelCatalogJSON = kaguyasysteminfoDescModelCatalogJSON.Default.(string)
+	// kaguyasysteminfoDescModelCatalogCount is the schema descriptor for model_catalog_count field.
+	kaguyasysteminfoDescModelCatalogCount := kaguyasysteminfoFields[12].Descriptor()
+	// kaguyasysteminfo.DefaultModelCatalogCount holds the default value on creation for the model_catalog_count field.
+	kaguyasysteminfo.DefaultModelCatalogCount = kaguyasysteminfoDescModelCatalogCount.Default.(int)
+	// kaguyasysteminfo.ModelCatalogCountValidator is a validator for the "model_catalog_count" field. It is called by the builders before save.
+	kaguyasysteminfo.ModelCatalogCountValidator = kaguyasysteminfoDescModelCatalogCount.Validators[0].(func(int) error)
+	// kaguyasysteminfoDescModelSyncLastError is the schema descriptor for model_sync_last_error field.
+	kaguyasysteminfoDescModelSyncLastError := kaguyasysteminfoFields[15].Descriptor()
+	// kaguyasysteminfo.DefaultModelSyncLastError holds the default value on creation for the model_sync_last_error field.
+	kaguyasysteminfo.DefaultModelSyncLastError = kaguyasysteminfoDescModelSyncLastError.Default.(string)
 	// kaguyasysteminfoDescDefaultModelID is the schema descriptor for default_model_id field.
-	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[8].Descriptor()
+	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[16].Descriptor()
 	// kaguyasysteminfo.DefaultDefaultModelID holds the default value on creation for the default_model_id field.
 	kaguyasysteminfo.DefaultDefaultModelID = kaguyasysteminfoDescDefaultModelID.Default.(string)
 	// kaguyasysteminfoDescTaskModelID is the schema descriptor for task_model_id field.
-	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[9].Descriptor()
+	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[17].Descriptor()
 	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
 	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
 	// kaguyasysteminfoDescID is the schema descriptor for id field.

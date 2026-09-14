@@ -34,10 +34,26 @@ type KaguyaSystemInfo struct {
 	ChatMaxRetries int `json:"chat_max_retries,omitempty"`
 	// GlobalAgentsPaths holds the value of the "global_agents_paths" field.
 	GlobalAgentsPaths []string `json:"global_agents_paths,omitempty"`
+	// 可编辑的全局基础提示词
+	GlobalSystemPrompt string `json:"global_system_prompt,omitempty"`
 	// 追加到全局人设后的自定义提示词
 	SystemPrompt string `json:"system_prompt,omitempty"`
-	// 出站模型 API 请求的 User-Agent
-	UserAgent string `json:"user_agent,omitempty"`
+	// 是否定时同步 models.dev 模型目录
+	ModelSyncEnabled bool `json:"model_sync_enabled,omitempty"`
+	// 模型目录同步地址
+	ModelSyncURL string `json:"model_sync_url,omitempty"`
+	// 模型目录同步间隔小时数
+	ModelSyncIntervalHours int `json:"model_sync_interval_hours,omitempty"`
+	// models.dev 模型目录缓存，不通过系统配置接口返回
+	ModelCatalogJSON string `json:"model_catalog_json,omitempty"`
+	// 已缓存的模型目录条目数
+	ModelCatalogCount int `json:"model_catalog_count,omitempty"`
+	// ModelSyncLastAttemptAt holds the value of the "model_sync_last_attempt_at" field.
+	ModelSyncLastAttemptAt *time.Time `json:"model_sync_last_attempt_at,omitempty"`
+	// ModelSyncLastSuccessAt holds the value of the "model_sync_last_success_at" field.
+	ModelSyncLastSuccessAt *time.Time `json:"model_sync_last_success_at,omitempty"`
+	// ModelSyncLastError holds the value of the "model_sync_last_error" field.
+	ModelSyncLastError string `json:"model_sync_last_error,omitempty"`
 	// 默认聊天模型的本地记录 ID，空值表示未配置
 	DefaultModelID string `json:"default_model_id,omitempty"`
 	// 后台任务模型的本地记录 ID，空值表示未配置
@@ -52,11 +68,13 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyasysteminfo.FieldGlobalAgentsPaths:
 			values[i] = new([]byte)
-		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries:
+		case kaguyasysteminfo.FieldModelSyncEnabled:
+			values[i] = new(sql.NullBool)
+		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelCatalogCount:
 			values[i] = new(sql.NullInt64)
-		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldUserAgent, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
+		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
 			values[i] = new(sql.NullString)
-		case kaguyasysteminfo.FieldCreatedAt, kaguyasysteminfo.FieldUpdatedAt, kaguyasysteminfo.FieldDeletedAt:
+		case kaguyasysteminfo.FieldCreatedAt, kaguyasysteminfo.FieldUpdatedAt, kaguyasysteminfo.FieldDeletedAt, kaguyasysteminfo.FieldModelSyncLastAttemptAt, kaguyasysteminfo.FieldModelSyncLastSuccessAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -130,17 +148,67 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field global_agents_paths: %w", err)
 				}
 			}
+		case kaguyasysteminfo.FieldGlobalSystemPrompt:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field global_system_prompt", values[i])
+			} else if value.Valid {
+				_m.GlobalSystemPrompt = value.String
+			}
 		case kaguyasysteminfo.FieldSystemPrompt:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field system_prompt", values[i])
 			} else if value.Valid {
 				_m.SystemPrompt = value.String
 			}
-		case kaguyasysteminfo.FieldUserAgent:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field user_agent", values[i])
+		case kaguyasysteminfo.FieldModelSyncEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field model_sync_enabled", values[i])
 			} else if value.Valid {
-				_m.UserAgent = value.String
+				_m.ModelSyncEnabled = value.Bool
+			}
+		case kaguyasysteminfo.FieldModelSyncURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field model_sync_url", values[i])
+			} else if value.Valid {
+				_m.ModelSyncURL = value.String
+			}
+		case kaguyasysteminfo.FieldModelSyncIntervalHours:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field model_sync_interval_hours", values[i])
+			} else if value.Valid {
+				_m.ModelSyncIntervalHours = int(value.Int64)
+			}
+		case kaguyasysteminfo.FieldModelCatalogJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field model_catalog_json", values[i])
+			} else if value.Valid {
+				_m.ModelCatalogJSON = value.String
+			}
+		case kaguyasysteminfo.FieldModelCatalogCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field model_catalog_count", values[i])
+			} else if value.Valid {
+				_m.ModelCatalogCount = int(value.Int64)
+			}
+		case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field model_sync_last_attempt_at", values[i])
+			} else if value.Valid {
+				_m.ModelSyncLastAttemptAt = new(time.Time)
+				*_m.ModelSyncLastAttemptAt = value.Time
+			}
+		case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field model_sync_last_success_at", values[i])
+			} else if value.Valid {
+				_m.ModelSyncLastSuccessAt = new(time.Time)
+				*_m.ModelSyncLastSuccessAt = value.Time
+			}
+		case kaguyasysteminfo.FieldModelSyncLastError:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field model_sync_last_error", values[i])
+			} else if value.Valid {
+				_m.ModelSyncLastError = value.String
 			}
 		case kaguyasysteminfo.FieldDefaultModelID:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -216,11 +284,39 @@ func (_m *KaguyaSystemInfo) String() string {
 	builder.WriteString("global_agents_paths=")
 	builder.WriteString(fmt.Sprintf("%v", _m.GlobalAgentsPaths))
 	builder.WriteString(", ")
+	builder.WriteString("global_system_prompt=")
+	builder.WriteString(_m.GlobalSystemPrompt)
+	builder.WriteString(", ")
 	builder.WriteString("system_prompt=")
 	builder.WriteString(_m.SystemPrompt)
 	builder.WriteString(", ")
-	builder.WriteString("user_agent=")
-	builder.WriteString(_m.UserAgent)
+	builder.WriteString("model_sync_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelSyncEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("model_sync_url=")
+	builder.WriteString(_m.ModelSyncURL)
+	builder.WriteString(", ")
+	builder.WriteString("model_sync_interval_hours=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelSyncIntervalHours))
+	builder.WriteString(", ")
+	builder.WriteString("model_catalog_json=")
+	builder.WriteString(_m.ModelCatalogJSON)
+	builder.WriteString(", ")
+	builder.WriteString("model_catalog_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ModelCatalogCount))
+	builder.WriteString(", ")
+	if v := _m.ModelSyncLastAttemptAt; v != nil {
+		builder.WriteString("model_sync_last_attempt_at=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ModelSyncLastSuccessAt; v != nil {
+		builder.WriteString("model_sync_last_success_at=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("model_sync_last_error=")
+	builder.WriteString(_m.ModelSyncLastError)
 	builder.WriteString(", ")
 	builder.WriteString("default_model_id=")
 	builder.WriteString(_m.DefaultModelID)

@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
@@ -21,7 +22,17 @@ var ErrInvalidSystemInfo = errors.New("invalid system configuration")
 // 基础数据由 internal/init 在启动阶段创建，查询接口不初始化或迁移数据。
 func (s *SystemSvc) Info(ctx context.Context) (*dtosystem.SystemInfoResp, error) {
 	client := db.EntClient
-	row, err := client.KaguyaSystemInfo.Get(ctx, consts.SystemInfoID)
+	row, err := client.KaguyaSystemInfo.Query().Where(kaguyasysteminfo.IDEQ(consts.SystemInfoID)).
+		Select(
+			kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldAgentMaxSteps,
+			kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds,
+			kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldGlobalAgentsPaths,
+			kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt,
+			kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelSyncIntervalHours,
+			kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldModelSyncLastAttemptAt,
+			kaguyasysteminfo.FieldModelSyncLastSuccessAt, kaguyasysteminfo.FieldModelSyncLastError,
+			kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID,
+		).Only(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -32,16 +43,13 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	if req.ContextCompactionPercent != nil && (*req.ContextCompactionPercent < 10 || *req.ContextCompactionPercent > 95) {
 		return nil, ErrInvalidSystemInfo
 	}
-	if utf8.RuneCountInString(req.SystemPrompt) > 20000 || len(req.DefaultModelID) > 64 || len(req.TaskModelID) > 64 || strings.TrimSpace(req.UserAgent) == "" || len(req.UserAgent) > 512 {
+	if utf8.RuneCountInString(req.SystemPrompt) > 20000 || req.GlobalSystemPrompt != nil && utf8.RuneCountInString(*req.GlobalSystemPrompt) > 20000 || len(req.DefaultModelID) > 64 || len(req.TaskModelID) > 64 {
 		return nil, ErrInvalidSystemInfo
 	}
-	// HTTP 请求头只能使用可打印 ASCII，拒绝 CR/LF 等控制字符，防止头注入。
-	for _, c := range []byte(req.UserAgent) {
-		if c < 32 || c > 126 {
-			return nil, ErrInvalidSystemInfo
-		}
+	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || req.ChatMaxRetries != nil && (*req.ChatMaxRetries < 0 || *req.ChatMaxRetries > 20) || req.ModelSyncIntervalHours != nil && (*req.ModelSyncIntervalHours < 1 || *req.ModelSyncIntervalHours > 720) || len(req.GlobalAgentsPaths) > 32 {
+		return nil, ErrInvalidSystemInfo
 	}
-	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || req.ChatMaxRetries != nil && (*req.ChatMaxRetries < 0 || *req.ChatMaxRetries > 20) || len(req.GlobalAgentsPaths) > 32 {
+	if req.ModelSyncURL != "" && validateModelSyncURL(req.ModelSyncURL) != nil {
 		return nil, ErrInvalidSystemInfo
 	}
 	for _, path := range req.GlobalAgentsPaths {
@@ -60,8 +68,17 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	// 先取得单例行的写锁，再检查模型；与删除时清空选择的事务串行化。
 	// 校验失败时整体回滚，未提交配置不会对其他请求可见。
 	update := tx.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
-		SetSystemPrompt(req.SystemPrompt).SetUserAgent(req.UserAgent).
+		SetSystemPrompt(req.SystemPrompt).SetModelSyncEnabled(req.ModelSyncEnabled).
 		SetDefaultModelID(req.DefaultModelID).SetTaskModelID(req.TaskModelID)
+	if req.GlobalSystemPrompt != nil {
+		update.SetGlobalSystemPrompt(*req.GlobalSystemPrompt)
+	}
+	if req.ModelSyncIntervalHours != nil {
+		update.SetModelSyncIntervalHours(*req.ModelSyncIntervalHours)
+	}
+	if req.ModelSyncURL != "" {
+		update.SetModelSyncURL(req.ModelSyncURL)
+	}
 	if req.AgentMaxSteps != nil {
 		update.SetAgentMaxSteps(*req.AgentMaxSteps)
 	}
@@ -96,6 +113,7 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	DefaultModelCatalogSyncer.Notify()
 	return systemInfoResponse(row), nil
 }
 
@@ -103,20 +121,38 @@ func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 	return &dtosystem.SystemInfoResp{
 		SystemInfoSaveReq: dtosystem.SystemInfoSaveReq{
 			ContextCompactionPercent: &row.ContextCompactionPercent,
-			SystemPrompt:             row.SystemPrompt, UserAgent: row.UserAgent,
+			GlobalSystemPrompt:       &row.GlobalSystemPrompt, SystemPrompt: row.SystemPrompt,
 			AgentMaxSteps: &row.AgentMaxSteps, CommandTimeoutSeconds: &row.CommandTimeoutSeconds, ChatMaxRetries: &row.ChatMaxRetries, GlobalAgentsPaths: defaultAgentsPaths(row.GlobalAgentsPaths),
+			ModelSyncEnabled: row.ModelSyncEnabled, ModelSyncURL: row.ModelSyncURL, ModelSyncIntervalHours: &row.ModelSyncIntervalHours,
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
 		},
-		GlobalSystemPrompt: consts.GlobalSystemPrompt,
+		ModelSyncCatalogCount: row.ModelCatalogCount, ModelSyncLastAttemptAt: row.ModelSyncLastAttemptAt,
+		ModelSyncLastSuccessAt: row.ModelSyncLastSuccessAt, ModelSyncLastError: row.ModelSyncLastError,
 	}
 }
 
-// ChatSystemPrompt 始终保留基础人设，避免空自定义配置导致没有系统提示词。
-func ChatSystemPrompt(custom string) string {
-	if strings.TrimSpace(custom) == "" {
-		return consts.GlobalSystemPrompt
+func validateModelSyncURL(raw string) error {
+	if len(raw) > 2048 || strings.TrimSpace(raw) != raw {
+		return ErrInvalidSystemInfo
 	}
-	return consts.GlobalSystemPrompt + "\n\n" + custom
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Fragment != "" {
+		return ErrInvalidSystemInfo
+	}
+	return nil
+}
+
+// ChatSystemPrompt 将可编辑的基础提示词与附加提示词拼接。
+func ChatSystemPrompt(base, custom string) string {
+	base = strings.TrimSpace(base)
+	custom = strings.TrimSpace(custom)
+	if base == "" {
+		return custom
+	}
+	if custom == "" {
+		return base
+	}
+	return base + "\n\n" + custom
 }
 
 // 删除模型/提供商时，在同一事务内取消相关全局选择。

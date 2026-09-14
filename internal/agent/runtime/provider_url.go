@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/lyonmu/kaguya/internal/consts"
 )
 
 // providerHeaderTimeout 限制连接建立后等待响应头的时间；流式正文的长时间静默
@@ -31,20 +29,16 @@ func newProviderTransport() http.RoundTripper {
 // providerHTTPClient 使用配置的完整请求 URL，禁止 SDK 追加或修改端点路径。
 // SDK 仍负责请求体、认证、流式解析；这里仅指定最终请求地址。
 type providerHTTPClient struct {
-	endpoint  url.URL
-	client    *http.Client
-	userAgent string
+	endpoint url.URL
+	client   *http.Client
 }
 
-func newProviderHTTPClient(raw, userAgent string) (*providerHTTPClient, error) {
+func newProviderHTTPClient(raw string) (*providerHTTPClient, error) {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Fragment != "" {
 		return nil, fmt.Errorf("provider request URL must be a complete HTTP(S) URL without userinfo or fragment")
 	}
-	if userAgent == "" {
-		userAgent = consts.DefaultUserAgent
-	}
-	return &providerHTTPClient{endpoint: *u, client: sharedProviderHTTPClient, userAgent: userAgent}, nil
+	return &providerHTTPClient{endpoint: *u, client: sharedProviderHTTPClient}, nil
 }
 
 func (c *providerHTTPClient) Do(req *http.Request) (*http.Response, error) {
@@ -52,7 +46,7 @@ func (c *providerHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	endpoint := c.endpoint
 	request.URL = &endpoint
 	request.Host = endpoint.Host
-	// 最后设置，避免 SDK 自带的 User-Agent 覆盖系统配置。
-	request.Header.Set("User-Agent", c.userAgent)
+	// 不发送 SDK 或 net/http 自动生成的 User-Agent。
+	request.Header["User-Agent"] = nil
 	return c.client.Do(request)
 }

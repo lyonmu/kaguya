@@ -158,6 +158,20 @@ func (_u *KaguyaSystemInfoUpdate) ClearGlobalAgentsPaths() *KaguyaSystemInfoUpda
 	return _u
 }
 
+// SetGlobalSystemPrompt sets the "global_system_prompt" field.
+func (_u *KaguyaSystemInfoUpdate) SetGlobalSystemPrompt(v string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetGlobalSystemPrompt(v)
+	return _u
+}
+
+// SetNillableGlobalSystemPrompt sets the "global_system_prompt" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableGlobalSystemPrompt(v *string) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetGlobalSystemPrompt(*v)
+	}
+	return _u
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (_u *KaguyaSystemInfoUpdate) SetSystemPrompt(v string) *KaguyaSystemInfoUpdate {
 	_u.mutation.SetSystemPrompt(v)
@@ -172,16 +186,140 @@ func (_u *KaguyaSystemInfoUpdate) SetNillableSystemPrompt(v *string) *KaguyaSyst
 	return _u
 }
 
-// SetUserAgent sets the "user_agent" field.
-func (_u *KaguyaSystemInfoUpdate) SetUserAgent(v string) *KaguyaSystemInfoUpdate {
-	_u.mutation.SetUserAgent(v)
+// SetModelSyncEnabled sets the "model_sync_enabled" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelSyncEnabled(v bool) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetModelSyncEnabled(v)
 	return _u
 }
 
-// SetNillableUserAgent sets the "user_agent" field if the given value is not nil.
-func (_u *KaguyaSystemInfoUpdate) SetNillableUserAgent(v *string) *KaguyaSystemInfoUpdate {
+// SetNillableModelSyncEnabled sets the "model_sync_enabled" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelSyncEnabled(v *bool) *KaguyaSystemInfoUpdate {
 	if v != nil {
-		_u.SetUserAgent(*v)
+		_u.SetModelSyncEnabled(*v)
+	}
+	return _u
+}
+
+// SetModelSyncURL sets the "model_sync_url" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelSyncURL(v string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetModelSyncURL(v)
+	return _u
+}
+
+// SetNillableModelSyncURL sets the "model_sync_url" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelSyncURL(v *string) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetModelSyncURL(*v)
+	}
+	return _u
+}
+
+// SetModelSyncIntervalHours sets the "model_sync_interval_hours" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelSyncIntervalHours(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetModelSyncIntervalHours()
+	_u.mutation.SetModelSyncIntervalHours(v)
+	return _u
+}
+
+// SetNillableModelSyncIntervalHours sets the "model_sync_interval_hours" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelSyncIntervalHours(v *int) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetModelSyncIntervalHours(*v)
+	}
+	return _u
+}
+
+// AddModelSyncIntervalHours adds value to the "model_sync_interval_hours" field.
+func (_u *KaguyaSystemInfoUpdate) AddModelSyncIntervalHours(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddModelSyncIntervalHours(v)
+	return _u
+}
+
+// SetModelCatalogJSON sets the "model_catalog_json" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelCatalogJSON(v string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetModelCatalogJSON(v)
+	return _u
+}
+
+// SetNillableModelCatalogJSON sets the "model_catalog_json" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelCatalogJSON(v *string) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetModelCatalogJSON(*v)
+	}
+	return _u
+}
+
+// SetModelCatalogCount sets the "model_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelCatalogCount(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetModelCatalogCount()
+	_u.mutation.SetModelCatalogCount(v)
+	return _u
+}
+
+// SetNillableModelCatalogCount sets the "model_catalog_count" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelCatalogCount(v *int) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetModelCatalogCount(*v)
+	}
+	return _u
+}
+
+// AddModelCatalogCount adds value to the "model_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdate) AddModelCatalogCount(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddModelCatalogCount(v)
+	return _u
+}
+
+// SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetModelSyncLastAttemptAt(v)
+	return _u
+}
+
+// SetNillableModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelSyncLastAttemptAt(v *time.Time) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetModelSyncLastAttemptAt(*v)
+	}
+	return _u
+}
+
+// ClearModelSyncLastAttemptAt clears the value of the "model_sync_last_attempt_at" field.
+func (_u *KaguyaSystemInfoUpdate) ClearModelSyncLastAttemptAt() *KaguyaSystemInfoUpdate {
+	_u.mutation.ClearModelSyncLastAttemptAt()
+	return _u
+}
+
+// SetModelSyncLastSuccessAt sets the "model_sync_last_success_at" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelSyncLastSuccessAt(v time.Time) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetModelSyncLastSuccessAt(v)
+	return _u
+}
+
+// SetNillableModelSyncLastSuccessAt sets the "model_sync_last_success_at" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelSyncLastSuccessAt(v *time.Time) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetModelSyncLastSuccessAt(*v)
+	}
+	return _u
+}
+
+// ClearModelSyncLastSuccessAt clears the value of the "model_sync_last_success_at" field.
+func (_u *KaguyaSystemInfoUpdate) ClearModelSyncLastSuccessAt() *KaguyaSystemInfoUpdate {
+	_u.mutation.ClearModelSyncLastSuccessAt()
+	return _u
+}
+
+// SetModelSyncLastError sets the "model_sync_last_error" field.
+func (_u *KaguyaSystemInfoUpdate) SetModelSyncLastError(v string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetModelSyncLastError(v)
+	return _u
+}
+
+// SetNillableModelSyncLastError sets the "model_sync_last_error" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableModelSyncLastError(v *string) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetModelSyncLastError(*v)
 	}
 	return _u
 }
@@ -283,9 +421,19 @@ func (_u *KaguyaSystemInfoUpdate) check() error {
 			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.UserAgent(); ok {
-		if err := kaguyasysteminfo.UserAgentValidator(v); err != nil {
-			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.user_agent": %w`, err)}
+	if v, ok := _u.mutation.ModelSyncURL(); ok {
+		if err := kaguyasysteminfo.ModelSyncURLValidator(v); err != nil {
+			return &ValidationError{Name: "model_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_url": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelSyncIntervalHours(); ok {
+		if err := kaguyasysteminfo.ModelSyncIntervalHoursValidator(v); err != nil {
+			return &ValidationError{Name: "model_sync_interval_hours", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_interval_hours": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelCatalogCount(); ok {
+		if err := kaguyasysteminfo.ModelCatalogCountValidator(v); err != nil {
+			return &ValidationError{Name: "model_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_catalog_count": %w`, err)}
 		}
 	}
 	return nil
@@ -353,11 +501,47 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.GlobalAgentsPathsCleared() {
 		_spec.ClearField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.GlobalSystemPrompt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldGlobalSystemPrompt, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.SystemPrompt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldSystemPrompt, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.UserAgent(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldUserAgent, field.TypeString, value)
+	if value, ok := _u.mutation.ModelSyncEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ModelSyncURL(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ModelSyncIntervalHours(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedModelSyncIntervalHours(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldModelSyncIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ModelCatalogJSON(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelCatalogJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ModelCatalogCount(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedModelCatalogCount(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ModelSyncLastAttemptAt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime, value)
+	}
+	if _u.mutation.ModelSyncLastAttemptAtCleared() {
+		_spec.ClearField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ModelSyncLastSuccessAt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastSuccessAt, field.TypeTime, value)
+	}
+	if _u.mutation.ModelSyncLastSuccessAtCleared() {
+		_spec.ClearField(kaguyasysteminfo.FieldModelSyncLastSuccessAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ModelSyncLastError(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastError, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DefaultModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldDefaultModelID, field.TypeString, value)
@@ -515,6 +699,20 @@ func (_u *KaguyaSystemInfoUpdateOne) ClearGlobalAgentsPaths() *KaguyaSystemInfoU
 	return _u
 }
 
+// SetGlobalSystemPrompt sets the "global_system_prompt" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetGlobalSystemPrompt(v string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetGlobalSystemPrompt(v)
+	return _u
+}
+
+// SetNillableGlobalSystemPrompt sets the "global_system_prompt" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableGlobalSystemPrompt(v *string) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetGlobalSystemPrompt(*v)
+	}
+	return _u
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (_u *KaguyaSystemInfoUpdateOne) SetSystemPrompt(v string) *KaguyaSystemInfoUpdateOne {
 	_u.mutation.SetSystemPrompt(v)
@@ -529,16 +727,140 @@ func (_u *KaguyaSystemInfoUpdateOne) SetNillableSystemPrompt(v *string) *KaguyaS
 	return _u
 }
 
-// SetUserAgent sets the "user_agent" field.
-func (_u *KaguyaSystemInfoUpdateOne) SetUserAgent(v string) *KaguyaSystemInfoUpdateOne {
-	_u.mutation.SetUserAgent(v)
+// SetModelSyncEnabled sets the "model_sync_enabled" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncEnabled(v bool) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetModelSyncEnabled(v)
 	return _u
 }
 
-// SetNillableUserAgent sets the "user_agent" field if the given value is not nil.
-func (_u *KaguyaSystemInfoUpdateOne) SetNillableUserAgent(v *string) *KaguyaSystemInfoUpdateOne {
+// SetNillableModelSyncEnabled sets the "model_sync_enabled" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelSyncEnabled(v *bool) *KaguyaSystemInfoUpdateOne {
 	if v != nil {
-		_u.SetUserAgent(*v)
+		_u.SetModelSyncEnabled(*v)
+	}
+	return _u
+}
+
+// SetModelSyncURL sets the "model_sync_url" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncURL(v string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetModelSyncURL(v)
+	return _u
+}
+
+// SetNillableModelSyncURL sets the "model_sync_url" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelSyncURL(v *string) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetModelSyncURL(*v)
+	}
+	return _u
+}
+
+// SetModelSyncIntervalHours sets the "model_sync_interval_hours" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncIntervalHours(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetModelSyncIntervalHours()
+	_u.mutation.SetModelSyncIntervalHours(v)
+	return _u
+}
+
+// SetNillableModelSyncIntervalHours sets the "model_sync_interval_hours" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelSyncIntervalHours(v *int) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetModelSyncIntervalHours(*v)
+	}
+	return _u
+}
+
+// AddModelSyncIntervalHours adds value to the "model_sync_interval_hours" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddModelSyncIntervalHours(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddModelSyncIntervalHours(v)
+	return _u
+}
+
+// SetModelCatalogJSON sets the "model_catalog_json" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelCatalogJSON(v string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetModelCatalogJSON(v)
+	return _u
+}
+
+// SetNillableModelCatalogJSON sets the "model_catalog_json" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelCatalogJSON(v *string) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetModelCatalogJSON(*v)
+	}
+	return _u
+}
+
+// SetModelCatalogCount sets the "model_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelCatalogCount(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetModelCatalogCount()
+	_u.mutation.SetModelCatalogCount(v)
+	return _u
+}
+
+// SetNillableModelCatalogCount sets the "model_catalog_count" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelCatalogCount(v *int) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetModelCatalogCount(*v)
+	}
+	return _u
+}
+
+// AddModelCatalogCount adds value to the "model_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddModelCatalogCount(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddModelCatalogCount(v)
+	return _u
+}
+
+// SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetModelSyncLastAttemptAt(v)
+	return _u
+}
+
+// SetNillableModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelSyncLastAttemptAt(v *time.Time) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetModelSyncLastAttemptAt(*v)
+	}
+	return _u
+}
+
+// ClearModelSyncLastAttemptAt clears the value of the "model_sync_last_attempt_at" field.
+func (_u *KaguyaSystemInfoUpdateOne) ClearModelSyncLastAttemptAt() *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ClearModelSyncLastAttemptAt()
+	return _u
+}
+
+// SetModelSyncLastSuccessAt sets the "model_sync_last_success_at" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncLastSuccessAt(v time.Time) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetModelSyncLastSuccessAt(v)
+	return _u
+}
+
+// SetNillableModelSyncLastSuccessAt sets the "model_sync_last_success_at" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelSyncLastSuccessAt(v *time.Time) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetModelSyncLastSuccessAt(*v)
+	}
+	return _u
+}
+
+// ClearModelSyncLastSuccessAt clears the value of the "model_sync_last_success_at" field.
+func (_u *KaguyaSystemInfoUpdateOne) ClearModelSyncLastSuccessAt() *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ClearModelSyncLastSuccessAt()
+	return _u
+}
+
+// SetModelSyncLastError sets the "model_sync_last_error" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncLastError(v string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetModelSyncLastError(v)
+	return _u
+}
+
+// SetNillableModelSyncLastError sets the "model_sync_last_error" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelSyncLastError(v *string) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetModelSyncLastError(*v)
 	}
 	return _u
 }
@@ -653,9 +975,19 @@ func (_u *KaguyaSystemInfoUpdateOne) check() error {
 			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.UserAgent(); ok {
-		if err := kaguyasysteminfo.UserAgentValidator(v); err != nil {
-			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.user_agent": %w`, err)}
+	if v, ok := _u.mutation.ModelSyncURL(); ok {
+		if err := kaguyasysteminfo.ModelSyncURLValidator(v); err != nil {
+			return &ValidationError{Name: "model_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_url": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelSyncIntervalHours(); ok {
+		if err := kaguyasysteminfo.ModelSyncIntervalHoursValidator(v); err != nil {
+			return &ValidationError{Name: "model_sync_interval_hours", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_interval_hours": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ModelCatalogCount(); ok {
+		if err := kaguyasysteminfo.ModelCatalogCountValidator(v); err != nil {
+			return &ValidationError{Name: "model_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_catalog_count": %w`, err)}
 		}
 	}
 	return nil
@@ -740,11 +1072,47 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	if _u.mutation.GlobalAgentsPathsCleared() {
 		_spec.ClearField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON)
 	}
+	if value, ok := _u.mutation.GlobalSystemPrompt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldGlobalSystemPrompt, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.SystemPrompt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldSystemPrompt, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.UserAgent(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldUserAgent, field.TypeString, value)
+	if value, ok := _u.mutation.ModelSyncEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ModelSyncURL(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ModelSyncIntervalHours(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedModelSyncIntervalHours(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldModelSyncIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ModelCatalogJSON(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelCatalogJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ModelCatalogCount(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedModelCatalogCount(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ModelSyncLastAttemptAt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime, value)
+	}
+	if _u.mutation.ModelSyncLastAttemptAtCleared() {
+		_spec.ClearField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ModelSyncLastSuccessAt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastSuccessAt, field.TypeTime, value)
+	}
+	if _u.mutation.ModelSyncLastSuccessAtCleared() {
+		_spec.ClearField(kaguyasysteminfo.FieldModelSyncLastSuccessAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ModelSyncLastError(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastError, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.DefaultModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldDefaultModelID, field.TypeString, value)

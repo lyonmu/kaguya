@@ -78,7 +78,8 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 		configIndex := min(i, 1)
-		config := dtosystem.SystemInfoSaveReq{SystemPrompt: fmt.Sprintf("自定义提示词-%d", configIndex), UserAgent: fmt.Sprintf("Agent/%d", configIndex), DefaultModelID: modelID, TaskModelID: modelID, GlobalAgentsPaths: []string{agentsPath}}
+		basePrompt := servicesystem.ChatSystemPrompt("You are Kaguya.", fmt.Sprintf("基础提示词-%d", configIndex))
+		config := dtosystem.SystemInfoSaveReq{GlobalSystemPrompt: &basePrompt, SystemPrompt: fmt.Sprintf("自定义提示词-%d", configIndex), DefaultModelID: modelID, TaskModelID: modelID, GlobalAgentsPaths: []string{agentsPath}}
 		// Removing the file cannot affect a saved conversation snapshot.
 		if i == 2 {
 			if err := os.Remove(agentsPath); err != nil {
@@ -108,19 +109,16 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 		wantModel := []string{"first-api", "second-api"}[configIndex]
 		select {
 		case req := <-requests:
-			if req.Agent != config.UserAgent || req.Model != wantModel {
+			if req.Agent != "" || req.Model != wantModel {
 				t.Fatalf("request=%+v", req)
 			}
 			instructionIndex := 0
 			if i == 3 {
 				instructionIndex = 3
 			}
-			wantPrompt := servicesystem.ChatSystemPrompt(config.SystemPrompt) + fmt.Sprintf("\n\nGlobal instructions from %s:\nlive file instructions-%d", agentsPath, instructionIndex)
+			wantPrompt := servicesystem.ChatSystemPrompt(*config.GlobalSystemPrompt, config.SystemPrompt) + fmt.Sprintf("\n\nGlobal instructions from %s:\nlive file instructions-%d", agentsPath, instructionIndex)
 			if len(req.Messages) == 0 || req.Messages[0].Role != "system" || req.Messages[0].Content != wantPrompt {
 				t.Fatalf("system prompt=%+v", req.Messages)
-			}
-			if !strings.Contains(req.Messages[0].Content, "fenced code blocks labeled mermaid") || !strings.Contains(req.Messages[0].Content, "does not host MCP Apps or Excalidraw widgets") {
-				t.Fatal("chat request omitted client diagram capabilities")
 			}
 			if i > 0 {
 				for _, msg := range req.Messages {
@@ -143,7 +141,7 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 		}
 		select {
 		case req := <-titles:
-			if req.Agent != config.UserAgent || req.Model != wantModel {
+			if req.Agent != "" || req.Model != wantModel {
 				t.Fatalf("title request=%+v", req)
 			}
 			if len(req.Messages) == 0 || req.Messages[0].Content != conversationTitlePrompt {

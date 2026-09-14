@@ -968,7 +968,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "默认模型及任务模型使用本地记录 ID，空字符串取消选择。User-Agent 必须为非空可打印 ASCII。保存后新发起的聊天和标题请求立即生效，不影响正在执行的请求。",
+                "description": "默认模型及任务模型使用本地记录 ID，空字符串取消选择。基础提示词和同步计划保存后对新请求或调度立即生效，不影响正在执行的请求。",
                 "tags": [
                     "System Info"
                 ],
@@ -1282,6 +1282,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/system/model/catalog": {
+            "get": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "查询已同步的 models.dev 模型目录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 10,
+                        "type": "integer",
+                        "default": 100,
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemModelCatalogListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/system/model/label": {
             "get": {
                 "tags": [
@@ -1373,6 +1425,34 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/system.SystemModelListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/model/sync": {
+            "post": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "立即从 models.dev 同步模型目录",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemModelSyncResp"
                                         }
                                     }
                                 }
@@ -2663,9 +2743,6 @@ const docTemplate = `{
         },
         "system.SystemInfoResp": {
             "type": "object",
-            "required": [
-                "user_agent"
-            ],
             "properties": {
                 "agent_max_steps": {
                     "type": "integer",
@@ -2698,8 +2775,32 @@ const docTemplate = `{
                     }
                 },
                 "global_system_prompt": {
-                    "description": "只读基础人设，与自定义提示词拼接后用于聊天",
+                    "type": "string",
+                    "maxLength": 20000
+                },
+                "model_sync_catalog_count": {
+                    "type": "integer"
+                },
+                "model_sync_enabled": {
+                    "type": "boolean"
+                },
+                "model_sync_interval_hours": {
+                    "type": "integer",
+                    "maximum": 720,
+                    "minimum": 1
+                },
+                "model_sync_last_attempt_at": {
                     "type": "string"
+                },
+                "model_sync_last_error": {
+                    "type": "string"
+                },
+                "model_sync_last_success_at": {
+                    "type": "string"
+                },
+                "model_sync_url": {
+                    "type": "string",
+                    "maxLength": 2048
                 },
                 "system_prompt": {
                     "type": "string",
@@ -2708,18 +2809,11 @@ const docTemplate = `{
                 "task_model_id": {
                     "type": "string",
                     "maxLength": 64
-                },
-                "user_agent": {
-                    "type": "string",
-                    "maxLength": 512
                 }
             }
         },
         "system.SystemInfoSaveReq": {
             "type": "object",
-            "required": [
-                "user_agent"
-            ],
             "properties": {
                 "agent_max_steps": {
                     "type": "integer",
@@ -2751,6 +2845,22 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "global_system_prompt": {
+                    "type": "string",
+                    "maxLength": 20000
+                },
+                "model_sync_enabled": {
+                    "type": "boolean"
+                },
+                "model_sync_interval_hours": {
+                    "type": "integer",
+                    "maximum": 720,
+                    "minimum": 1
+                },
+                "model_sync_url": {
+                    "type": "string",
+                    "maxLength": 2048
+                },
                 "system_prompt": {
                     "type": "string",
                     "maxLength": 20000
@@ -2758,10 +2868,6 @@ const docTemplate = `{
                 "task_model_id": {
                     "type": "string",
                     "maxLength": 64
-                },
-                "user_agent": {
-                    "type": "string",
-                    "maxLength": 512
                 }
             }
         },
@@ -2916,6 +3022,76 @@ const docTemplate = `{
             "properties": {
                 "enabled": {
                     "type": "boolean"
+                }
+            }
+        },
+        "system.SystemModelCatalogListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.SystemModelCatalogResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "system.SystemModelCatalogResp": {
+            "type": "object",
+            "properties": {
+                "capability_structured_output": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "capability_tool_use": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "capability_vision": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "family": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "input_modalities": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "lab": {
+                    "type": "string"
+                },
+                "last_updated": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "reasoning_enabled": {
+                    "$ref": "#/definitions/consts.Status"
+                },
+                "release_date": {
+                    "type": "string"
+                },
+                "token_context_window": {
+                    "type": "integer"
+                },
+                "token_max_output_tokens": {
+                    "type": "integer"
                 }
             }
         },
@@ -3094,6 +3270,17 @@ const docTemplate = `{
                 "token_max_output_tokens": {
                     "type": "integer",
                     "minimum": 0
+                }
+            }
+        },
+        "system.SystemModelSyncResp": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "synced_at": {
+                    "type": "string"
                 }
             }
         },

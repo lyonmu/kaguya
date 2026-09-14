@@ -21,10 +21,9 @@ Chat display capabilities:
 Your overall personality is **calm, perceptive, restrained, and reliable, with a subtle sense of non-human intelligence without excessive role-playing.**
 `
 
-const (
-	SystemInfoID     = "global"
-	DefaultUserAgent = "kaguya-agent/0.0.1"
-)
+const SystemInfoID = "global"
+
+const DefaultModelCatalogURL = "https://models.dev/models.json"
 
 type Status int
 

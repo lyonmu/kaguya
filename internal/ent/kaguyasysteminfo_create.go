@@ -127,6 +127,20 @@ func (_c *KaguyaSystemInfoCreate) SetGlobalAgentsPaths(v []string) *KaguyaSystem
 	return _c
 }
 
+// SetGlobalSystemPrompt sets the "global_system_prompt" field.
+func (_c *KaguyaSystemInfoCreate) SetGlobalSystemPrompt(v string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetGlobalSystemPrompt(v)
+	return _c
+}
+
+// SetNillableGlobalSystemPrompt sets the "global_system_prompt" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableGlobalSystemPrompt(v *string) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetGlobalSystemPrompt(*v)
+	}
+	return _c
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (_c *KaguyaSystemInfoCreate) SetSystemPrompt(v string) *KaguyaSystemInfoCreate {
 	_c.mutation.SetSystemPrompt(v)
@@ -141,16 +155,114 @@ func (_c *KaguyaSystemInfoCreate) SetNillableSystemPrompt(v *string) *KaguyaSyst
 	return _c
 }
 
-// SetUserAgent sets the "user_agent" field.
-func (_c *KaguyaSystemInfoCreate) SetUserAgent(v string) *KaguyaSystemInfoCreate {
-	_c.mutation.SetUserAgent(v)
+// SetModelSyncEnabled sets the "model_sync_enabled" field.
+func (_c *KaguyaSystemInfoCreate) SetModelSyncEnabled(v bool) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelSyncEnabled(v)
 	return _c
 }
 
-// SetNillableUserAgent sets the "user_agent" field if the given value is not nil.
-func (_c *KaguyaSystemInfoCreate) SetNillableUserAgent(v *string) *KaguyaSystemInfoCreate {
+// SetNillableModelSyncEnabled sets the "model_sync_enabled" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelSyncEnabled(v *bool) *KaguyaSystemInfoCreate {
 	if v != nil {
-		_c.SetUserAgent(*v)
+		_c.SetModelSyncEnabled(*v)
+	}
+	return _c
+}
+
+// SetModelSyncURL sets the "model_sync_url" field.
+func (_c *KaguyaSystemInfoCreate) SetModelSyncURL(v string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelSyncURL(v)
+	return _c
+}
+
+// SetNillableModelSyncURL sets the "model_sync_url" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelSyncURL(v *string) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetModelSyncURL(*v)
+	}
+	return _c
+}
+
+// SetModelSyncIntervalHours sets the "model_sync_interval_hours" field.
+func (_c *KaguyaSystemInfoCreate) SetModelSyncIntervalHours(v int) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelSyncIntervalHours(v)
+	return _c
+}
+
+// SetNillableModelSyncIntervalHours sets the "model_sync_interval_hours" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelSyncIntervalHours(v *int) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetModelSyncIntervalHours(*v)
+	}
+	return _c
+}
+
+// SetModelCatalogJSON sets the "model_catalog_json" field.
+func (_c *KaguyaSystemInfoCreate) SetModelCatalogJSON(v string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelCatalogJSON(v)
+	return _c
+}
+
+// SetNillableModelCatalogJSON sets the "model_catalog_json" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelCatalogJSON(v *string) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetModelCatalogJSON(*v)
+	}
+	return _c
+}
+
+// SetModelCatalogCount sets the "model_catalog_count" field.
+func (_c *KaguyaSystemInfoCreate) SetModelCatalogCount(v int) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelCatalogCount(v)
+	return _c
+}
+
+// SetNillableModelCatalogCount sets the "model_catalog_count" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelCatalogCount(v *int) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetModelCatalogCount(*v)
+	}
+	return _c
+}
+
+// SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
+func (_c *KaguyaSystemInfoCreate) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelSyncLastAttemptAt(v)
+	return _c
+}
+
+// SetNillableModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelSyncLastAttemptAt(v *time.Time) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetModelSyncLastAttemptAt(*v)
+	}
+	return _c
+}
+
+// SetModelSyncLastSuccessAt sets the "model_sync_last_success_at" field.
+func (_c *KaguyaSystemInfoCreate) SetModelSyncLastSuccessAt(v time.Time) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelSyncLastSuccessAt(v)
+	return _c
+}
+
+// SetNillableModelSyncLastSuccessAt sets the "model_sync_last_success_at" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelSyncLastSuccessAt(v *time.Time) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetModelSyncLastSuccessAt(*v)
+	}
+	return _c
+}
+
+// SetModelSyncLastError sets the "model_sync_last_error" field.
+func (_c *KaguyaSystemInfoCreate) SetModelSyncLastError(v string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetModelSyncLastError(v)
+	return _c
+}
+
+// SetNillableModelSyncLastError sets the "model_sync_last_error" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableModelSyncLastError(v *string) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetModelSyncLastError(*v)
 	}
 	return _c
 }
@@ -264,13 +376,37 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultChatMaxRetries
 		_c.mutation.SetChatMaxRetries(v)
 	}
+	if _, ok := _c.mutation.GlobalSystemPrompt(); !ok {
+		v := kaguyasysteminfo.DefaultGlobalSystemPrompt
+		_c.mutation.SetGlobalSystemPrompt(v)
+	}
 	if _, ok := _c.mutation.SystemPrompt(); !ok {
 		v := kaguyasysteminfo.DefaultSystemPrompt
 		_c.mutation.SetSystemPrompt(v)
 	}
-	if _, ok := _c.mutation.UserAgent(); !ok {
-		v := kaguyasysteminfo.DefaultUserAgent
-		_c.mutation.SetUserAgent(v)
+	if _, ok := _c.mutation.ModelSyncEnabled(); !ok {
+		v := kaguyasysteminfo.DefaultModelSyncEnabled
+		_c.mutation.SetModelSyncEnabled(v)
+	}
+	if _, ok := _c.mutation.ModelSyncURL(); !ok {
+		v := kaguyasysteminfo.DefaultModelSyncURL
+		_c.mutation.SetModelSyncURL(v)
+	}
+	if _, ok := _c.mutation.ModelSyncIntervalHours(); !ok {
+		v := kaguyasysteminfo.DefaultModelSyncIntervalHours
+		_c.mutation.SetModelSyncIntervalHours(v)
+	}
+	if _, ok := _c.mutation.ModelCatalogJSON(); !ok {
+		v := kaguyasysteminfo.DefaultModelCatalogJSON
+		_c.mutation.SetModelCatalogJSON(v)
+	}
+	if _, ok := _c.mutation.ModelCatalogCount(); !ok {
+		v := kaguyasysteminfo.DefaultModelCatalogCount
+		_c.mutation.SetModelCatalogCount(v)
+	}
+	if _, ok := _c.mutation.ModelSyncLastError(); !ok {
+		v := kaguyasysteminfo.DefaultModelSyncLastError
+		_c.mutation.SetModelSyncLastError(v)
 	}
 	if _, ok := _c.mutation.DefaultModelID(); !ok {
 		v := kaguyasysteminfo.DefaultDefaultModelID
@@ -327,16 +463,44 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.GlobalSystemPrompt(); !ok {
+		return &ValidationError{Name: "global_system_prompt", err: errors.New(`ent: missing required field "KaguyaSystemInfo.global_system_prompt"`)}
+	}
 	if _, ok := _c.mutation.SystemPrompt(); !ok {
 		return &ValidationError{Name: "system_prompt", err: errors.New(`ent: missing required field "KaguyaSystemInfo.system_prompt"`)}
 	}
-	if _, ok := _c.mutation.UserAgent(); !ok {
-		return &ValidationError{Name: "user_agent", err: errors.New(`ent: missing required field "KaguyaSystemInfo.user_agent"`)}
+	if _, ok := _c.mutation.ModelSyncEnabled(); !ok {
+		return &ValidationError{Name: "model_sync_enabled", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_sync_enabled"`)}
 	}
-	if v, ok := _c.mutation.UserAgent(); ok {
-		if err := kaguyasysteminfo.UserAgentValidator(v); err != nil {
-			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.user_agent": %w`, err)}
+	if _, ok := _c.mutation.ModelSyncURL(); !ok {
+		return &ValidationError{Name: "model_sync_url", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_sync_url"`)}
+	}
+	if v, ok := _c.mutation.ModelSyncURL(); ok {
+		if err := kaguyasysteminfo.ModelSyncURLValidator(v); err != nil {
+			return &ValidationError{Name: "model_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_url": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.ModelSyncIntervalHours(); !ok {
+		return &ValidationError{Name: "model_sync_interval_hours", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_sync_interval_hours"`)}
+	}
+	if v, ok := _c.mutation.ModelSyncIntervalHours(); ok {
+		if err := kaguyasysteminfo.ModelSyncIntervalHoursValidator(v); err != nil {
+			return &ValidationError{Name: "model_sync_interval_hours", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_interval_hours": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ModelCatalogJSON(); !ok {
+		return &ValidationError{Name: "model_catalog_json", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_catalog_json"`)}
+	}
+	if _, ok := _c.mutation.ModelCatalogCount(); !ok {
+		return &ValidationError{Name: "model_catalog_count", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_catalog_count"`)}
+	}
+	if v, ok := _c.mutation.ModelCatalogCount(); ok {
+		if err := kaguyasysteminfo.ModelCatalogCountValidator(v); err != nil {
+			return &ValidationError{Name: "model_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_catalog_count": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ModelSyncLastError(); !ok {
+		return &ValidationError{Name: "model_sync_last_error", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_sync_last_error"`)}
 	}
 	if _, ok := _c.mutation.DefaultModelID(); !ok {
 		return &ValidationError{Name: "default_model_id", err: errors.New(`ent: missing required field "KaguyaSystemInfo.default_model_id"`)}
@@ -417,13 +581,45 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 		_spec.SetField(kaguyasysteminfo.FieldGlobalAgentsPaths, field.TypeJSON, value)
 		_node.GlobalAgentsPaths = value
 	}
+	if value, ok := _c.mutation.GlobalSystemPrompt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldGlobalSystemPrompt, field.TypeString, value)
+		_node.GlobalSystemPrompt = value
+	}
 	if value, ok := _c.mutation.SystemPrompt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldSystemPrompt, field.TypeString, value)
 		_node.SystemPrompt = value
 	}
-	if value, ok := _c.mutation.UserAgent(); ok {
-		_spec.SetField(kaguyasysteminfo.FieldUserAgent, field.TypeString, value)
-		_node.UserAgent = value
+	if value, ok := _c.mutation.ModelSyncEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncEnabled, field.TypeBool, value)
+		_node.ModelSyncEnabled = value
+	}
+	if value, ok := _c.mutation.ModelSyncURL(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncURL, field.TypeString, value)
+		_node.ModelSyncURL = value
+	}
+	if value, ok := _c.mutation.ModelSyncIntervalHours(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncIntervalHours, field.TypeInt, value)
+		_node.ModelSyncIntervalHours = value
+	}
+	if value, ok := _c.mutation.ModelCatalogJSON(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelCatalogJSON, field.TypeString, value)
+		_node.ModelCatalogJSON = value
+	}
+	if value, ok := _c.mutation.ModelCatalogCount(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
+		_node.ModelCatalogCount = value
+	}
+	if value, ok := _c.mutation.ModelSyncLastAttemptAt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime, value)
+		_node.ModelSyncLastAttemptAt = &value
+	}
+	if value, ok := _c.mutation.ModelSyncLastSuccessAt(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastSuccessAt, field.TypeTime, value)
+		_node.ModelSyncLastSuccessAt = &value
+	}
+	if value, ok := _c.mutation.ModelSyncLastError(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastError, field.TypeString, value)
+		_node.ModelSyncLastError = value
 	}
 	if value, ok := _c.mutation.DefaultModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldDefaultModelID, field.TypeString, value)
@@ -605,6 +801,18 @@ func (u *KaguyaSystemInfoUpsert) ClearGlobalAgentsPaths() *KaguyaSystemInfoUpser
 	return u
 }
 
+// SetGlobalSystemPrompt sets the "global_system_prompt" field.
+func (u *KaguyaSystemInfoUpsert) SetGlobalSystemPrompt(v string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldGlobalSystemPrompt, v)
+	return u
+}
+
+// UpdateGlobalSystemPrompt sets the "global_system_prompt" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateGlobalSystemPrompt() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldGlobalSystemPrompt)
+	return u
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (u *KaguyaSystemInfoUpsert) SetSystemPrompt(v string) *KaguyaSystemInfoUpsert {
 	u.Set(kaguyasysteminfo.FieldSystemPrompt, v)
@@ -617,15 +825,123 @@ func (u *KaguyaSystemInfoUpsert) UpdateSystemPrompt() *KaguyaSystemInfoUpsert {
 	return u
 }
 
-// SetUserAgent sets the "user_agent" field.
-func (u *KaguyaSystemInfoUpsert) SetUserAgent(v string) *KaguyaSystemInfoUpsert {
-	u.Set(kaguyasysteminfo.FieldUserAgent, v)
+// SetModelSyncEnabled sets the "model_sync_enabled" field.
+func (u *KaguyaSystemInfoUpsert) SetModelSyncEnabled(v bool) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelSyncEnabled, v)
 	return u
 }
 
-// UpdateUserAgent sets the "user_agent" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsert) UpdateUserAgent() *KaguyaSystemInfoUpsert {
-	u.SetExcluded(kaguyasysteminfo.FieldUserAgent)
+// UpdateModelSyncEnabled sets the "model_sync_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelSyncEnabled() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelSyncEnabled)
+	return u
+}
+
+// SetModelSyncURL sets the "model_sync_url" field.
+func (u *KaguyaSystemInfoUpsert) SetModelSyncURL(v string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelSyncURL, v)
+	return u
+}
+
+// UpdateModelSyncURL sets the "model_sync_url" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelSyncURL() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelSyncURL)
+	return u
+}
+
+// SetModelSyncIntervalHours sets the "model_sync_interval_hours" field.
+func (u *KaguyaSystemInfoUpsert) SetModelSyncIntervalHours(v int) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelSyncIntervalHours, v)
+	return u
+}
+
+// UpdateModelSyncIntervalHours sets the "model_sync_interval_hours" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelSyncIntervalHours() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelSyncIntervalHours)
+	return u
+}
+
+// AddModelSyncIntervalHours adds v to the "model_sync_interval_hours" field.
+func (u *KaguyaSystemInfoUpsert) AddModelSyncIntervalHours(v int) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldModelSyncIntervalHours, v)
+	return u
+}
+
+// SetModelCatalogJSON sets the "model_catalog_json" field.
+func (u *KaguyaSystemInfoUpsert) SetModelCatalogJSON(v string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelCatalogJSON, v)
+	return u
+}
+
+// UpdateModelCatalogJSON sets the "model_catalog_json" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelCatalogJSON() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelCatalogJSON)
+	return u
+}
+
+// SetModelCatalogCount sets the "model_catalog_count" field.
+func (u *KaguyaSystemInfoUpsert) SetModelCatalogCount(v int) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelCatalogCount, v)
+	return u
+}
+
+// UpdateModelCatalogCount sets the "model_catalog_count" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelCatalogCount() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelCatalogCount)
+	return u
+}
+
+// AddModelCatalogCount adds v to the "model_catalog_count" field.
+func (u *KaguyaSystemInfoUpsert) AddModelCatalogCount(v int) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldModelCatalogCount, v)
+	return u
+}
+
+// SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
+func (u *KaguyaSystemInfoUpsert) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelSyncLastAttemptAt, v)
+	return u
+}
+
+// UpdateModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelSyncLastAttemptAt() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelSyncLastAttemptAt)
+	return u
+}
+
+// ClearModelSyncLastAttemptAt clears the value of the "model_sync_last_attempt_at" field.
+func (u *KaguyaSystemInfoUpsert) ClearModelSyncLastAttemptAt() *KaguyaSystemInfoUpsert {
+	u.SetNull(kaguyasysteminfo.FieldModelSyncLastAttemptAt)
+	return u
+}
+
+// SetModelSyncLastSuccessAt sets the "model_sync_last_success_at" field.
+func (u *KaguyaSystemInfoUpsert) SetModelSyncLastSuccessAt(v time.Time) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelSyncLastSuccessAt, v)
+	return u
+}
+
+// UpdateModelSyncLastSuccessAt sets the "model_sync_last_success_at" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelSyncLastSuccessAt() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelSyncLastSuccessAt)
+	return u
+}
+
+// ClearModelSyncLastSuccessAt clears the value of the "model_sync_last_success_at" field.
+func (u *KaguyaSystemInfoUpsert) ClearModelSyncLastSuccessAt() *KaguyaSystemInfoUpsert {
+	u.SetNull(kaguyasysteminfo.FieldModelSyncLastSuccessAt)
+	return u
+}
+
+// SetModelSyncLastError sets the "model_sync_last_error" field.
+func (u *KaguyaSystemInfoUpsert) SetModelSyncLastError(v string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldModelSyncLastError, v)
+	return u
+}
+
+// UpdateModelSyncLastError sets the "model_sync_last_error" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateModelSyncLastError() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldModelSyncLastError)
 	return u
 }
 
@@ -844,6 +1160,20 @@ func (u *KaguyaSystemInfoUpsertOne) ClearGlobalAgentsPaths() *KaguyaSystemInfoUp
 	})
 }
 
+// SetGlobalSystemPrompt sets the "global_system_prompt" field.
+func (u *KaguyaSystemInfoUpsertOne) SetGlobalSystemPrompt(v string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetGlobalSystemPrompt(v)
+	})
+}
+
+// UpdateGlobalSystemPrompt sets the "global_system_prompt" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateGlobalSystemPrompt() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateGlobalSystemPrompt()
+	})
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (u *KaguyaSystemInfoUpsertOne) SetSystemPrompt(v string) *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
@@ -858,17 +1188,143 @@ func (u *KaguyaSystemInfoUpsertOne) UpdateSystemPrompt() *KaguyaSystemInfoUpsert
 	})
 }
 
-// SetUserAgent sets the "user_agent" field.
-func (u *KaguyaSystemInfoUpsertOne) SetUserAgent(v string) *KaguyaSystemInfoUpsertOne {
+// SetModelSyncEnabled sets the "model_sync_enabled" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelSyncEnabled(v bool) *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.SetUserAgent(v)
+		s.SetModelSyncEnabled(v)
 	})
 }
 
-// UpdateUserAgent sets the "user_agent" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsertOne) UpdateUserAgent() *KaguyaSystemInfoUpsertOne {
+// UpdateModelSyncEnabled sets the "model_sync_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelSyncEnabled() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.UpdateUserAgent()
+		s.UpdateModelSyncEnabled()
+	})
+}
+
+// SetModelSyncURL sets the "model_sync_url" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelSyncURL(v string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncURL(v)
+	})
+}
+
+// UpdateModelSyncURL sets the "model_sync_url" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelSyncURL() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncURL()
+	})
+}
+
+// SetModelSyncIntervalHours sets the "model_sync_interval_hours" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelSyncIntervalHours(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncIntervalHours(v)
+	})
+}
+
+// AddModelSyncIntervalHours adds v to the "model_sync_interval_hours" field.
+func (u *KaguyaSystemInfoUpsertOne) AddModelSyncIntervalHours(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddModelSyncIntervalHours(v)
+	})
+}
+
+// UpdateModelSyncIntervalHours sets the "model_sync_interval_hours" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelSyncIntervalHours() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncIntervalHours()
+	})
+}
+
+// SetModelCatalogJSON sets the "model_catalog_json" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelCatalogJSON(v string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelCatalogJSON(v)
+	})
+}
+
+// UpdateModelCatalogJSON sets the "model_catalog_json" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelCatalogJSON() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelCatalogJSON()
+	})
+}
+
+// SetModelCatalogCount sets the "model_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelCatalogCount(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelCatalogCount(v)
+	})
+}
+
+// AddModelCatalogCount adds v to the "model_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertOne) AddModelCatalogCount(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddModelCatalogCount(v)
+	})
+}
+
+// UpdateModelCatalogCount sets the "model_catalog_count" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelCatalogCount() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelCatalogCount()
+	})
+}
+
+// SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncLastAttemptAt(v)
+	})
+}
+
+// UpdateModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelSyncLastAttemptAt() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncLastAttemptAt()
+	})
+}
+
+// ClearModelSyncLastAttemptAt clears the value of the "model_sync_last_attempt_at" field.
+func (u *KaguyaSystemInfoUpsertOne) ClearModelSyncLastAttemptAt() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.ClearModelSyncLastAttemptAt()
+	})
+}
+
+// SetModelSyncLastSuccessAt sets the "model_sync_last_success_at" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelSyncLastSuccessAt(v time.Time) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncLastSuccessAt(v)
+	})
+}
+
+// UpdateModelSyncLastSuccessAt sets the "model_sync_last_success_at" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelSyncLastSuccessAt() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncLastSuccessAt()
+	})
+}
+
+// ClearModelSyncLastSuccessAt clears the value of the "model_sync_last_success_at" field.
+func (u *KaguyaSystemInfoUpsertOne) ClearModelSyncLastSuccessAt() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.ClearModelSyncLastSuccessAt()
+	})
+}
+
+// SetModelSyncLastError sets the "model_sync_last_error" field.
+func (u *KaguyaSystemInfoUpsertOne) SetModelSyncLastError(v string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncLastError(v)
+	})
+}
+
+// UpdateModelSyncLastError sets the "model_sync_last_error" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateModelSyncLastError() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncLastError()
 	})
 }
 
@@ -1258,6 +1714,20 @@ func (u *KaguyaSystemInfoUpsertBulk) ClearGlobalAgentsPaths() *KaguyaSystemInfoU
 	})
 }
 
+// SetGlobalSystemPrompt sets the "global_system_prompt" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetGlobalSystemPrompt(v string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetGlobalSystemPrompt(v)
+	})
+}
+
+// UpdateGlobalSystemPrompt sets the "global_system_prompt" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateGlobalSystemPrompt() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateGlobalSystemPrompt()
+	})
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (u *KaguyaSystemInfoUpsertBulk) SetSystemPrompt(v string) *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
@@ -1272,17 +1742,143 @@ func (u *KaguyaSystemInfoUpsertBulk) UpdateSystemPrompt() *KaguyaSystemInfoUpser
 	})
 }
 
-// SetUserAgent sets the "user_agent" field.
-func (u *KaguyaSystemInfoUpsertBulk) SetUserAgent(v string) *KaguyaSystemInfoUpsertBulk {
+// SetModelSyncEnabled sets the "model_sync_enabled" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelSyncEnabled(v bool) *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.SetUserAgent(v)
+		s.SetModelSyncEnabled(v)
 	})
 }
 
-// UpdateUserAgent sets the "user_agent" field to the value that was provided on create.
-func (u *KaguyaSystemInfoUpsertBulk) UpdateUserAgent() *KaguyaSystemInfoUpsertBulk {
+// UpdateModelSyncEnabled sets the "model_sync_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelSyncEnabled() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
-		s.UpdateUserAgent()
+		s.UpdateModelSyncEnabled()
+	})
+}
+
+// SetModelSyncURL sets the "model_sync_url" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelSyncURL(v string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncURL(v)
+	})
+}
+
+// UpdateModelSyncURL sets the "model_sync_url" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelSyncURL() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncURL()
+	})
+}
+
+// SetModelSyncIntervalHours sets the "model_sync_interval_hours" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelSyncIntervalHours(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncIntervalHours(v)
+	})
+}
+
+// AddModelSyncIntervalHours adds v to the "model_sync_interval_hours" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddModelSyncIntervalHours(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddModelSyncIntervalHours(v)
+	})
+}
+
+// UpdateModelSyncIntervalHours sets the "model_sync_interval_hours" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelSyncIntervalHours() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncIntervalHours()
+	})
+}
+
+// SetModelCatalogJSON sets the "model_catalog_json" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelCatalogJSON(v string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelCatalogJSON(v)
+	})
+}
+
+// UpdateModelCatalogJSON sets the "model_catalog_json" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelCatalogJSON() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelCatalogJSON()
+	})
+}
+
+// SetModelCatalogCount sets the "model_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelCatalogCount(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelCatalogCount(v)
+	})
+}
+
+// AddModelCatalogCount adds v to the "model_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddModelCatalogCount(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddModelCatalogCount(v)
+	})
+}
+
+// UpdateModelCatalogCount sets the "model_catalog_count" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelCatalogCount() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelCatalogCount()
+	})
+}
+
+// SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncLastAttemptAt(v)
+	})
+}
+
+// UpdateModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelSyncLastAttemptAt() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncLastAttemptAt()
+	})
+}
+
+// ClearModelSyncLastAttemptAt clears the value of the "model_sync_last_attempt_at" field.
+func (u *KaguyaSystemInfoUpsertBulk) ClearModelSyncLastAttemptAt() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.ClearModelSyncLastAttemptAt()
+	})
+}
+
+// SetModelSyncLastSuccessAt sets the "model_sync_last_success_at" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelSyncLastSuccessAt(v time.Time) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncLastSuccessAt(v)
+	})
+}
+
+// UpdateModelSyncLastSuccessAt sets the "model_sync_last_success_at" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelSyncLastSuccessAt() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncLastSuccessAt()
+	})
+}
+
+// ClearModelSyncLastSuccessAt clears the value of the "model_sync_last_success_at" field.
+func (u *KaguyaSystemInfoUpsertBulk) ClearModelSyncLastSuccessAt() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.ClearModelSyncLastSuccessAt()
+	})
+}
+
+// SetModelSyncLastError sets the "model_sync_last_error" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetModelSyncLastError(v string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetModelSyncLastError(v)
+	})
+}
+
+// UpdateModelSyncLastError sets the "model_sync_last_error" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateModelSyncLastError() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateModelSyncLastError()
 	})
 }
 

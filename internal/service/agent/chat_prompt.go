@@ -39,7 +39,11 @@ func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingt
 	if err != nil {
 		return nil, err
 	}
-	prompt := &chatPrompt{instructions: instructions, system: servicesystem.ChatSystemPrompt(target.info.SystemPrompt) + instructions}
+	basePrompt := ""
+	if target.info.GlobalSystemPrompt != nil {
+		basePrompt = *target.info.GlobalSystemPrompt
+	}
+	prompt := &chatPrompt{instructions: instructions, system: servicesystem.ChatSystemPrompt(basePrompt, target.info.SystemPrompt) + instructions}
 	if toolset != nil {
 		toolset.SetCommandTimeout(time.Duration(*target.info.CommandTimeoutSeconds) * time.Second)
 		prompt.tools = toolset.CodingTools()

@@ -30,10 +30,26 @@ const (
 	FieldChatMaxRetries = "chat_max_retries"
 	// FieldGlobalAgentsPaths holds the string denoting the global_agents_paths field in the database.
 	FieldGlobalAgentsPaths = "global_agents_paths"
+	// FieldGlobalSystemPrompt holds the string denoting the global_system_prompt field in the database.
+	FieldGlobalSystemPrompt = "global_system_prompt"
 	// FieldSystemPrompt holds the string denoting the system_prompt field in the database.
 	FieldSystemPrompt = "system_prompt"
-	// FieldUserAgent holds the string denoting the user_agent field in the database.
-	FieldUserAgent = "user_agent"
+	// FieldModelSyncEnabled holds the string denoting the model_sync_enabled field in the database.
+	FieldModelSyncEnabled = "model_sync_enabled"
+	// FieldModelSyncURL holds the string denoting the model_sync_url field in the database.
+	FieldModelSyncURL = "model_sync_url"
+	// FieldModelSyncIntervalHours holds the string denoting the model_sync_interval_hours field in the database.
+	FieldModelSyncIntervalHours = "model_sync_interval_hours"
+	// FieldModelCatalogJSON holds the string denoting the model_catalog_json field in the database.
+	FieldModelCatalogJSON = "model_catalog_json"
+	// FieldModelCatalogCount holds the string denoting the model_catalog_count field in the database.
+	FieldModelCatalogCount = "model_catalog_count"
+	// FieldModelSyncLastAttemptAt holds the string denoting the model_sync_last_attempt_at field in the database.
+	FieldModelSyncLastAttemptAt = "model_sync_last_attempt_at"
+	// FieldModelSyncLastSuccessAt holds the string denoting the model_sync_last_success_at field in the database.
+	FieldModelSyncLastSuccessAt = "model_sync_last_success_at"
+	// FieldModelSyncLastError holds the string denoting the model_sync_last_error field in the database.
+	FieldModelSyncLastError = "model_sync_last_error"
 	// FieldDefaultModelID holds the string denoting the default_model_id field in the database.
 	FieldDefaultModelID = "default_model_id"
 	// FieldTaskModelID holds the string denoting the task_model_id field in the database.
@@ -53,8 +69,16 @@ var Columns = []string{
 	FieldCommandTimeoutSeconds,
 	FieldChatMaxRetries,
 	FieldGlobalAgentsPaths,
+	FieldGlobalSystemPrompt,
 	FieldSystemPrompt,
-	FieldUserAgent,
+	FieldModelSyncEnabled,
+	FieldModelSyncURL,
+	FieldModelSyncIntervalHours,
+	FieldModelCatalogJSON,
+	FieldModelCatalogCount,
+	FieldModelSyncLastAttemptAt,
+	FieldModelSyncLastSuccessAt,
+	FieldModelSyncLastError,
 	FieldDefaultModelID,
 	FieldTaskModelID,
 }
@@ -98,12 +122,28 @@ var (
 	DefaultChatMaxRetries int
 	// ChatMaxRetriesValidator is a validator for the "chat_max_retries" field. It is called by the builders before save.
 	ChatMaxRetriesValidator func(int) error
+	// DefaultGlobalSystemPrompt holds the default value on creation for the "global_system_prompt" field.
+	DefaultGlobalSystemPrompt string
 	// DefaultSystemPrompt holds the default value on creation for the "system_prompt" field.
 	DefaultSystemPrompt string
-	// DefaultUserAgent holds the default value on creation for the "user_agent" field.
-	DefaultUserAgent string
-	// UserAgentValidator is a validator for the "user_agent" field. It is called by the builders before save.
-	UserAgentValidator func(string) error
+	// DefaultModelSyncEnabled holds the default value on creation for the "model_sync_enabled" field.
+	DefaultModelSyncEnabled bool
+	// DefaultModelSyncURL holds the default value on creation for the "model_sync_url" field.
+	DefaultModelSyncURL string
+	// ModelSyncURLValidator is a validator for the "model_sync_url" field. It is called by the builders before save.
+	ModelSyncURLValidator func(string) error
+	// DefaultModelSyncIntervalHours holds the default value on creation for the "model_sync_interval_hours" field.
+	DefaultModelSyncIntervalHours int
+	// ModelSyncIntervalHoursValidator is a validator for the "model_sync_interval_hours" field. It is called by the builders before save.
+	ModelSyncIntervalHoursValidator func(int) error
+	// DefaultModelCatalogJSON holds the default value on creation for the "model_catalog_json" field.
+	DefaultModelCatalogJSON string
+	// DefaultModelCatalogCount holds the default value on creation for the "model_catalog_count" field.
+	DefaultModelCatalogCount int
+	// ModelCatalogCountValidator is a validator for the "model_catalog_count" field. It is called by the builders before save.
+	ModelCatalogCountValidator func(int) error
+	// DefaultModelSyncLastError holds the default value on creation for the "model_sync_last_error" field.
+	DefaultModelSyncLastError string
 	// DefaultDefaultModelID holds the default value on creation for the "default_model_id" field.
 	DefaultDefaultModelID string
 	// DefaultTaskModelID holds the default value on creation for the "task_model_id" field.
@@ -157,14 +197,54 @@ func ByChatMaxRetries(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldChatMaxRetries, opts...).ToFunc()
 }
 
+// ByGlobalSystemPrompt orders the results by the global_system_prompt field.
+func ByGlobalSystemPrompt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGlobalSystemPrompt, opts...).ToFunc()
+}
+
 // BySystemPrompt orders the results by the system_prompt field.
 func BySystemPrompt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSystemPrompt, opts...).ToFunc()
 }
 
-// ByUserAgent orders the results by the user_agent field.
-func ByUserAgent(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldUserAgent, opts...).ToFunc()
+// ByModelSyncEnabled orders the results by the model_sync_enabled field.
+func ByModelSyncEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelSyncEnabled, opts...).ToFunc()
+}
+
+// ByModelSyncURL orders the results by the model_sync_url field.
+func ByModelSyncURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelSyncURL, opts...).ToFunc()
+}
+
+// ByModelSyncIntervalHours orders the results by the model_sync_interval_hours field.
+func ByModelSyncIntervalHours(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelSyncIntervalHours, opts...).ToFunc()
+}
+
+// ByModelCatalogJSON orders the results by the model_catalog_json field.
+func ByModelCatalogJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelCatalogJSON, opts...).ToFunc()
+}
+
+// ByModelCatalogCount orders the results by the model_catalog_count field.
+func ByModelCatalogCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelCatalogCount, opts...).ToFunc()
+}
+
+// ByModelSyncLastAttemptAt orders the results by the model_sync_last_attempt_at field.
+func ByModelSyncLastAttemptAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelSyncLastAttemptAt, opts...).ToFunc()
+}
+
+// ByModelSyncLastSuccessAt orders the results by the model_sync_last_success_at field.
+func ByModelSyncLastSuccessAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelSyncLastSuccessAt, opts...).ToFunc()
+}
+
+// ByModelSyncLastError orders the results by the model_sync_last_error field.
+func ByModelSyncLastError(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldModelSyncLastError, opts...).ToFunc()
 }
 
 // ByDefaultModelID orders the results by the default_model_id field.

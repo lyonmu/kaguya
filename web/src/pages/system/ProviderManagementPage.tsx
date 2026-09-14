@@ -36,6 +36,7 @@ import {
   deleteModel,
   deleteProvider,
   fetchProviderAPIKey,
+  fetchModelCatalog,
   fetchProviderLabels,
   updateModel,
   updateProvider,
@@ -44,6 +45,7 @@ import type {
   AIModel,
   AIProvider,
   LabelOption,
+  ModelCatalogItem,
   ModelPayload,
   ProviderPayload,
   ProviderProtocol,
@@ -79,7 +81,7 @@ export function ProviderManagementPage() {
   const { message } = App.useApp()
   const [filterForm] = Form.useForm<FilterValues>()
   const [providerForm] = Form.useForm<ProviderPayload>()
-  const [modelForm] = Form.useForm<ModelPayload>()
+  const [modelForm] = Form.useForm<ModelPayload & { catalog_model_id?: string }>()
   const { data, error, loading, query, reload, setQuery } = useProviders()
   const [providerModalOpen, setProviderModalOpen] = useState(false)
   const [editingProvider, setEditingProvider] = useState<AIProvider>()
@@ -91,6 +93,8 @@ export function ProviderManagementPage() {
   const [providerLabels, setProviderLabels] = useState<LabelOption[]>([])
   const [revealingID, setRevealingID] = useState<string>()
   const [revealedKey, setRevealedKey] = useState<{ name: string; value: string }>()
+  const [modelCatalog, setModelCatalog] = useState<ModelCatalogItem[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
 
   const selectedProvider = useMemo(
     () => data.items.find((item) => item.id === selectedProviderID),
@@ -104,6 +108,17 @@ export function ProviderManagementPage() {
       .catch(() => undefined)
     return () => controller.abort()
   }, [data.items])
+
+  useEffect(() => {
+    if (!selectedProviderID) return
+    const controller = new AbortController()
+    setCatalogLoading(true)
+    fetchModelCatalog('', controller.signal)
+      .then(result => setModelCatalog(result.items ?? []))
+      .catch(() => setModelCatalog([]))
+      .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false) })
+    return () => controller.abort()
+  }, [selectedProviderID])
 
   const showCreateProvider = () => {
     setEditingProvider(undefined)
@@ -179,12 +194,13 @@ export function ProviderManagementPage() {
     setEditingModel(undefined)
     modelForm.setFieldsValue({
       provider_id: selectedProvider.id,
+      catalog_model_id: undefined,
       model_name: "",
       model_id: "",
       reasoning_enabled: 1,
       reasoning_effort: "medium",
-      token_context_window: 1000000,
-      token_max_output_tokens: 272000,
+      token_context_window: 0,
+      token_max_output_tokens: 0,
       capability_tool_use: 1,
       capability_vision: 1,
       capability_structured_output: 1,
@@ -211,7 +227,7 @@ export function ProviderManagementPage() {
 
   const saveModel = async () => {
     try {
-      const values = await modelForm.validateFields()
+      const { catalog_model_id: _, ...values } = await modelForm.validateFields()
       setModelSaving(true)
       if (editingModel) {
         await updateModel(editingModel.id, values)
@@ -227,6 +243,22 @@ export function ProviderManagementPage() {
     } finally {
       setModelSaving(false)
     }
+  }
+
+  const selectCatalogModel = (id: string) => {
+    const item = modelCatalog.find(model => model.id === id)
+    if (!item) return
+    modelForm.setFieldsValue({
+      model_name: item.name,
+      model_id: item.id,
+      reasoning_enabled: item.reasoning_enabled,
+      reasoning_effort: 'medium',
+      token_context_window: item.token_context_window,
+      token_max_output_tokens: item.token_max_output_tokens,
+      capability_tool_use: item.capability_tool_use,
+      capability_vision: item.capability_vision,
+      capability_structured_output: item.capability_structured_output,
+    })
   }
 
   const removeModel = async (model: AIModel) => {
@@ -563,6 +595,17 @@ export function ProviderManagementPage() {
       >
         <Form className="pt-3" form={modelForm} layout="vertical" requiredMark={false}>
           <div className="grid grid-cols-2 gap-x-4 max-[620px]:grid-cols-1">
+            {!editingModel ? <Form.Item className="col-span-2 max-[620px]:col-span-1" label="从已同步目录选择" name="catalog_model_id" tooltip="来自 models.dev；选择后自动填充下方信息。目录不保证当前提供商一定开放该模型。">
+              <Select
+                allowClear
+                loading={catalogLoading}
+                onChange={selectCatalogModel}
+                optionFilterProp="label"
+                options={modelCatalog.map(model => ({ label: `${model.name} · ${model.id}`, value: model.id }))}
+                placeholder={modelCatalog.length ? '搜索模型名称或标识' : '请先在系统配置中同步模型目录'}
+                showSearch
+              />
+            </Form.Item> : null}
             <Form.Item label="所属提供商" name="provider_id" rules={[{ required: true, message: '请选择提供商' }]}>
               <Select disabled={!editingModel} options={providerLabels} />
             </Form.Item>

@@ -42,10 +42,10 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 	if row.SystemPrompt != wantSystemPrompt {
 		t.Fatalf("system prompt=%q, want %q", row.SystemPrompt, wantSystemPrompt)
 	}
-	if row.UserAgent != consts.DefaultUserAgent || row.DefaultModelID != "" || row.TaskModelID != "" {
+	if row.GlobalSystemPrompt != consts.GlobalSystemPrompt || row.DefaultModelID != "" || row.TaskModelID != "" {
 		t.Fatalf("defaults=%+v", row)
 	}
-	before, err := client.KaguyaSystemInfo.UpdateOne(row).SetUserAgent("custom/1").SetSystemPrompt("custom prompt").SetDefaultModelID("saved-default").SetTaskModelID("saved-task").Save(ctx)
+	before, err := client.KaguyaSystemInfo.UpdateOne(row).SetGlobalSystemPrompt("custom base").SetSystemPrompt("custom prompt").SetDefaultModelID("saved-default").SetTaskModelID("saved-task").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if after.UserAgent != before.UserAgent || after.SystemPrompt != before.SystemPrompt || after.DefaultModelID != before.DefaultModelID || after.TaskModelID != before.TaskModelID || !after.UpdatedAt.Equal(before.UpdatedAt) {
+	if after.GlobalSystemPrompt != before.GlobalSystemPrompt || after.SystemPrompt != before.SystemPrompt || after.DefaultModelID != before.DefaultModelID || after.TaskModelID != before.TaskModelID || !after.UpdatedAt.Equal(before.UpdatedAt) {
 		t.Fatalf("initialization overwrote config: %+v", after)
 	}
 	if count, err := client.KaguyaSystemInfo.Query().Count(ctx); err != nil || count != 1 {

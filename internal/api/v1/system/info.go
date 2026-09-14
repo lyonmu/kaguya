@@ -29,7 +29,7 @@ func (b *SystemApiV1Group) SystemInfo(c *gin.Context) {
 // SystemInfoUpdate
 // @Tags System Info
 // @Summary 保存全局系统配置
-// @Description 默认模型及任务模型使用本地记录 ID，空字符串取消选择。User-Agent 必须为非空可打印 ASCII。保存后新发起的聊天和标题请求立即生效，不影响正在执行的请求。
+// @Description 默认模型及任务模型使用本地记录 ID，空字符串取消选择。基础提示词和同步计划保存后对新请求或调度立即生效，不影响正在执行的请求。
 // @Param data body dtosystem.SystemInfoSaveReq true "系统配置"
 // @Success 200 {object} dtocode.Response{data=dtosystem.SystemInfoResp}
 // @Router /v1/system/info [put]

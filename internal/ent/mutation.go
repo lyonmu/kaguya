@@ -9627,8 +9627,18 @@ type KaguyaSystemInfoMutation struct {
 	addchat_max_retries           *int
 	global_agents_paths           *[]string
 	appendglobal_agents_paths     []string
+	global_system_prompt          *string
 	system_prompt                 *string
-	user_agent                    *string
+	model_sync_enabled            *bool
+	model_sync_url                *string
+	model_sync_interval_hours     *int
+	addmodel_sync_interval_hours  *int
+	model_catalog_json            *string
+	model_catalog_count           *int
+	addmodel_catalog_count        *int
+	model_sync_last_attempt_at    *time.Time
+	model_sync_last_success_at    *time.Time
+	model_sync_last_error         *string
 	default_model_id              *string
 	task_model_id                 *string
 	clearedFields                 map[string]struct{}
@@ -10151,6 +10161,42 @@ func (m *KaguyaSystemInfoMutation) ResetGlobalAgentsPaths() {
 	delete(m.clearedFields, kaguyasysteminfo.FieldGlobalAgentsPaths)
 }
 
+// SetGlobalSystemPrompt sets the "global_system_prompt" field.
+func (m *KaguyaSystemInfoMutation) SetGlobalSystemPrompt(s string) {
+	m.global_system_prompt = &s
+}
+
+// GlobalSystemPrompt returns the value of the "global_system_prompt" field in the mutation.
+func (m *KaguyaSystemInfoMutation) GlobalSystemPrompt() (r string, exists bool) {
+	v := m.global_system_prompt
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGlobalSystemPrompt returns the old "global_system_prompt" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldGlobalSystemPrompt(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGlobalSystemPrompt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGlobalSystemPrompt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGlobalSystemPrompt: %w", err)
+	}
+	return oldValue.GlobalSystemPrompt, nil
+}
+
+// ResetGlobalSystemPrompt resets all changes to the "global_system_prompt" field.
+func (m *KaguyaSystemInfoMutation) ResetGlobalSystemPrompt() {
+	m.global_system_prompt = nil
+}
+
 // SetSystemPrompt sets the "system_prompt" field.
 func (m *KaguyaSystemInfoMutation) SetSystemPrompt(s string) {
 	m.system_prompt = &s
@@ -10187,40 +10233,358 @@ func (m *KaguyaSystemInfoMutation) ResetSystemPrompt() {
 	m.system_prompt = nil
 }
 
-// SetUserAgent sets the "user_agent" field.
-func (m *KaguyaSystemInfoMutation) SetUserAgent(s string) {
-	m.user_agent = &s
+// SetModelSyncEnabled sets the "model_sync_enabled" field.
+func (m *KaguyaSystemInfoMutation) SetModelSyncEnabled(b bool) {
+	m.model_sync_enabled = &b
 }
 
-// UserAgent returns the value of the "user_agent" field in the mutation.
-func (m *KaguyaSystemInfoMutation) UserAgent() (r string, exists bool) {
-	v := m.user_agent
+// ModelSyncEnabled returns the value of the "model_sync_enabled" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncEnabled() (r bool, exists bool) {
+	v := m.model_sync_enabled
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldUserAgent returns the old "user_agent" field's value of the KaguyaSystemInfo entity.
+// OldModelSyncEnabled returns the old "model_sync_enabled" field's value of the KaguyaSystemInfo entity.
 // If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *KaguyaSystemInfoMutation) OldUserAgent(ctx context.Context) (v string, err error) {
+func (m *KaguyaSystemInfoMutation) OldModelSyncEnabled(ctx context.Context) (v bool, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldUserAgent is only allowed on UpdateOne operations")
+		return v, errors.New("OldModelSyncEnabled is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldUserAgent requires an ID field in the mutation")
+		return v, errors.New("OldModelSyncEnabled requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldUserAgent: %w", err)
+		return v, fmt.Errorf("querying old value for OldModelSyncEnabled: %w", err)
 	}
-	return oldValue.UserAgent, nil
+	return oldValue.ModelSyncEnabled, nil
 }
 
-// ResetUserAgent resets all changes to the "user_agent" field.
-func (m *KaguyaSystemInfoMutation) ResetUserAgent() {
-	m.user_agent = nil
+// ResetModelSyncEnabled resets all changes to the "model_sync_enabled" field.
+func (m *KaguyaSystemInfoMutation) ResetModelSyncEnabled() {
+	m.model_sync_enabled = nil
+}
+
+// SetModelSyncURL sets the "model_sync_url" field.
+func (m *KaguyaSystemInfoMutation) SetModelSyncURL(s string) {
+	m.model_sync_url = &s
+}
+
+// ModelSyncURL returns the value of the "model_sync_url" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncURL() (r string, exists bool) {
+	v := m.model_sync_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelSyncURL returns the old "model_sync_url" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldModelSyncURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelSyncURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelSyncURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelSyncURL: %w", err)
+	}
+	return oldValue.ModelSyncURL, nil
+}
+
+// ResetModelSyncURL resets all changes to the "model_sync_url" field.
+func (m *KaguyaSystemInfoMutation) ResetModelSyncURL() {
+	m.model_sync_url = nil
+}
+
+// SetModelSyncIntervalHours sets the "model_sync_interval_hours" field.
+func (m *KaguyaSystemInfoMutation) SetModelSyncIntervalHours(i int) {
+	m.model_sync_interval_hours = &i
+	m.addmodel_sync_interval_hours = nil
+}
+
+// ModelSyncIntervalHours returns the value of the "model_sync_interval_hours" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncIntervalHours() (r int, exists bool) {
+	v := m.model_sync_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelSyncIntervalHours returns the old "model_sync_interval_hours" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldModelSyncIntervalHours(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelSyncIntervalHours is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelSyncIntervalHours requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelSyncIntervalHours: %w", err)
+	}
+	return oldValue.ModelSyncIntervalHours, nil
+}
+
+// AddModelSyncIntervalHours adds i to the "model_sync_interval_hours" field.
+func (m *KaguyaSystemInfoMutation) AddModelSyncIntervalHours(i int) {
+	if m.addmodel_sync_interval_hours != nil {
+		*m.addmodel_sync_interval_hours += i
+	} else {
+		m.addmodel_sync_interval_hours = &i
+	}
+}
+
+// AddedModelSyncIntervalHours returns the value that was added to the "model_sync_interval_hours" field in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedModelSyncIntervalHours() (r int, exists bool) {
+	v := m.addmodel_sync_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetModelSyncIntervalHours resets all changes to the "model_sync_interval_hours" field.
+func (m *KaguyaSystemInfoMutation) ResetModelSyncIntervalHours() {
+	m.model_sync_interval_hours = nil
+	m.addmodel_sync_interval_hours = nil
+}
+
+// SetModelCatalogJSON sets the "model_catalog_json" field.
+func (m *KaguyaSystemInfoMutation) SetModelCatalogJSON(s string) {
+	m.model_catalog_json = &s
+}
+
+// ModelCatalogJSON returns the value of the "model_catalog_json" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelCatalogJSON() (r string, exists bool) {
+	v := m.model_catalog_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelCatalogJSON returns the old "model_catalog_json" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldModelCatalogJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelCatalogJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelCatalogJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelCatalogJSON: %w", err)
+	}
+	return oldValue.ModelCatalogJSON, nil
+}
+
+// ResetModelCatalogJSON resets all changes to the "model_catalog_json" field.
+func (m *KaguyaSystemInfoMutation) ResetModelCatalogJSON() {
+	m.model_catalog_json = nil
+}
+
+// SetModelCatalogCount sets the "model_catalog_count" field.
+func (m *KaguyaSystemInfoMutation) SetModelCatalogCount(i int) {
+	m.model_catalog_count = &i
+	m.addmodel_catalog_count = nil
+}
+
+// ModelCatalogCount returns the value of the "model_catalog_count" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelCatalogCount() (r int, exists bool) {
+	v := m.model_catalog_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelCatalogCount returns the old "model_catalog_count" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldModelCatalogCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelCatalogCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelCatalogCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelCatalogCount: %w", err)
+	}
+	return oldValue.ModelCatalogCount, nil
+}
+
+// AddModelCatalogCount adds i to the "model_catalog_count" field.
+func (m *KaguyaSystemInfoMutation) AddModelCatalogCount(i int) {
+	if m.addmodel_catalog_count != nil {
+		*m.addmodel_catalog_count += i
+	} else {
+		m.addmodel_catalog_count = &i
+	}
+}
+
+// AddedModelCatalogCount returns the value that was added to the "model_catalog_count" field in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedModelCatalogCount() (r int, exists bool) {
+	v := m.addmodel_catalog_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetModelCatalogCount resets all changes to the "model_catalog_count" field.
+func (m *KaguyaSystemInfoMutation) ResetModelCatalogCount() {
+	m.model_catalog_count = nil
+	m.addmodel_catalog_count = nil
+}
+
+// SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
+func (m *KaguyaSystemInfoMutation) SetModelSyncLastAttemptAt(t time.Time) {
+	m.model_sync_last_attempt_at = &t
+}
+
+// ModelSyncLastAttemptAt returns the value of the "model_sync_last_attempt_at" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncLastAttemptAt() (r time.Time, exists bool) {
+	v := m.model_sync_last_attempt_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelSyncLastAttemptAt returns the old "model_sync_last_attempt_at" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldModelSyncLastAttemptAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelSyncLastAttemptAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelSyncLastAttemptAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelSyncLastAttemptAt: %w", err)
+	}
+	return oldValue.ModelSyncLastAttemptAt, nil
+}
+
+// ClearModelSyncLastAttemptAt clears the value of the "model_sync_last_attempt_at" field.
+func (m *KaguyaSystemInfoMutation) ClearModelSyncLastAttemptAt() {
+	m.model_sync_last_attempt_at = nil
+	m.clearedFields[kaguyasysteminfo.FieldModelSyncLastAttemptAt] = struct{}{}
+}
+
+// ModelSyncLastAttemptAtCleared returns if the "model_sync_last_attempt_at" field was cleared in this mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncLastAttemptAtCleared() bool {
+	_, ok := m.clearedFields[kaguyasysteminfo.FieldModelSyncLastAttemptAt]
+	return ok
+}
+
+// ResetModelSyncLastAttemptAt resets all changes to the "model_sync_last_attempt_at" field.
+func (m *KaguyaSystemInfoMutation) ResetModelSyncLastAttemptAt() {
+	m.model_sync_last_attempt_at = nil
+	delete(m.clearedFields, kaguyasysteminfo.FieldModelSyncLastAttemptAt)
+}
+
+// SetModelSyncLastSuccessAt sets the "model_sync_last_success_at" field.
+func (m *KaguyaSystemInfoMutation) SetModelSyncLastSuccessAt(t time.Time) {
+	m.model_sync_last_success_at = &t
+}
+
+// ModelSyncLastSuccessAt returns the value of the "model_sync_last_success_at" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncLastSuccessAt() (r time.Time, exists bool) {
+	v := m.model_sync_last_success_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelSyncLastSuccessAt returns the old "model_sync_last_success_at" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldModelSyncLastSuccessAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelSyncLastSuccessAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelSyncLastSuccessAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelSyncLastSuccessAt: %w", err)
+	}
+	return oldValue.ModelSyncLastSuccessAt, nil
+}
+
+// ClearModelSyncLastSuccessAt clears the value of the "model_sync_last_success_at" field.
+func (m *KaguyaSystemInfoMutation) ClearModelSyncLastSuccessAt() {
+	m.model_sync_last_success_at = nil
+	m.clearedFields[kaguyasysteminfo.FieldModelSyncLastSuccessAt] = struct{}{}
+}
+
+// ModelSyncLastSuccessAtCleared returns if the "model_sync_last_success_at" field was cleared in this mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncLastSuccessAtCleared() bool {
+	_, ok := m.clearedFields[kaguyasysteminfo.FieldModelSyncLastSuccessAt]
+	return ok
+}
+
+// ResetModelSyncLastSuccessAt resets all changes to the "model_sync_last_success_at" field.
+func (m *KaguyaSystemInfoMutation) ResetModelSyncLastSuccessAt() {
+	m.model_sync_last_success_at = nil
+	delete(m.clearedFields, kaguyasysteminfo.FieldModelSyncLastSuccessAt)
+}
+
+// SetModelSyncLastError sets the "model_sync_last_error" field.
+func (m *KaguyaSystemInfoMutation) SetModelSyncLastError(s string) {
+	m.model_sync_last_error = &s
+}
+
+// ModelSyncLastError returns the value of the "model_sync_last_error" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ModelSyncLastError() (r string, exists bool) {
+	v := m.model_sync_last_error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelSyncLastError returns the old "model_sync_last_error" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldModelSyncLastError(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelSyncLastError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelSyncLastError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelSyncLastError: %w", err)
+	}
+	return oldValue.ModelSyncLastError, nil
+}
+
+// ResetModelSyncLastError resets all changes to the "model_sync_last_error" field.
+func (m *KaguyaSystemInfoMutation) ResetModelSyncLastError() {
+	m.model_sync_last_error = nil
 }
 
 // SetDefaultModelID sets the "default_model_id" field.
@@ -10329,7 +10693,7 @@ func (m *KaguyaSystemInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaSystemInfoMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 20)
 	if m.created_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
 	}
@@ -10354,11 +10718,35 @@ func (m *KaguyaSystemInfoMutation) Fields() []string {
 	if m.global_agents_paths != nil {
 		fields = append(fields, kaguyasysteminfo.FieldGlobalAgentsPaths)
 	}
+	if m.global_system_prompt != nil {
+		fields = append(fields, kaguyasysteminfo.FieldGlobalSystemPrompt)
+	}
 	if m.system_prompt != nil {
 		fields = append(fields, kaguyasysteminfo.FieldSystemPrompt)
 	}
-	if m.user_agent != nil {
-		fields = append(fields, kaguyasysteminfo.FieldUserAgent)
+	if m.model_sync_enabled != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncEnabled)
+	}
+	if m.model_sync_url != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncURL)
+	}
+	if m.model_sync_interval_hours != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncIntervalHours)
+	}
+	if m.model_catalog_json != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelCatalogJSON)
+	}
+	if m.model_catalog_count != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelCatalogCount)
+	}
+	if m.model_sync_last_attempt_at != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncLastAttemptAt)
+	}
+	if m.model_sync_last_success_at != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncLastSuccessAt)
+	}
+	if m.model_sync_last_error != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncLastError)
 	}
 	if m.default_model_id != nil {
 		fields = append(fields, kaguyasysteminfo.FieldDefaultModelID)
@@ -10390,10 +10778,26 @@ func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.ChatMaxRetries()
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		return m.GlobalAgentsPaths()
+	case kaguyasysteminfo.FieldGlobalSystemPrompt:
+		return m.GlobalSystemPrompt()
 	case kaguyasysteminfo.FieldSystemPrompt:
 		return m.SystemPrompt()
-	case kaguyasysteminfo.FieldUserAgent:
-		return m.UserAgent()
+	case kaguyasysteminfo.FieldModelSyncEnabled:
+		return m.ModelSyncEnabled()
+	case kaguyasysteminfo.FieldModelSyncURL:
+		return m.ModelSyncURL()
+	case kaguyasysteminfo.FieldModelSyncIntervalHours:
+		return m.ModelSyncIntervalHours()
+	case kaguyasysteminfo.FieldModelCatalogJSON:
+		return m.ModelCatalogJSON()
+	case kaguyasysteminfo.FieldModelCatalogCount:
+		return m.ModelCatalogCount()
+	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
+		return m.ModelSyncLastAttemptAt()
+	case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
+		return m.ModelSyncLastSuccessAt()
+	case kaguyasysteminfo.FieldModelSyncLastError:
+		return m.ModelSyncLastError()
 	case kaguyasysteminfo.FieldDefaultModelID:
 		return m.DefaultModelID()
 	case kaguyasysteminfo.FieldTaskModelID:
@@ -10423,10 +10827,26 @@ func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldChatMaxRetries(ctx)
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		return m.OldGlobalAgentsPaths(ctx)
+	case kaguyasysteminfo.FieldGlobalSystemPrompt:
+		return m.OldGlobalSystemPrompt(ctx)
 	case kaguyasysteminfo.FieldSystemPrompt:
 		return m.OldSystemPrompt(ctx)
-	case kaguyasysteminfo.FieldUserAgent:
-		return m.OldUserAgent(ctx)
+	case kaguyasysteminfo.FieldModelSyncEnabled:
+		return m.OldModelSyncEnabled(ctx)
+	case kaguyasysteminfo.FieldModelSyncURL:
+		return m.OldModelSyncURL(ctx)
+	case kaguyasysteminfo.FieldModelSyncIntervalHours:
+		return m.OldModelSyncIntervalHours(ctx)
+	case kaguyasysteminfo.FieldModelCatalogJSON:
+		return m.OldModelCatalogJSON(ctx)
+	case kaguyasysteminfo.FieldModelCatalogCount:
+		return m.OldModelCatalogCount(ctx)
+	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
+		return m.OldModelSyncLastAttemptAt(ctx)
+	case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
+		return m.OldModelSyncLastSuccessAt(ctx)
+	case kaguyasysteminfo.FieldModelSyncLastError:
+		return m.OldModelSyncLastError(ctx)
 	case kaguyasysteminfo.FieldDefaultModelID:
 		return m.OldDefaultModelID(ctx)
 	case kaguyasysteminfo.FieldTaskModelID:
@@ -10496,6 +10916,13 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetGlobalAgentsPaths(v)
 		return nil
+	case kaguyasysteminfo.FieldGlobalSystemPrompt:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGlobalSystemPrompt(v)
+		return nil
 	case kaguyasysteminfo.FieldSystemPrompt:
 		v, ok := value.(string)
 		if !ok {
@@ -10503,12 +10930,61 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetSystemPrompt(v)
 		return nil
-	case kaguyasysteminfo.FieldUserAgent:
+	case kaguyasysteminfo.FieldModelSyncEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelSyncEnabled(v)
+		return nil
+	case kaguyasysteminfo.FieldModelSyncURL:
 		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetUserAgent(v)
+		m.SetModelSyncURL(v)
+		return nil
+	case kaguyasysteminfo.FieldModelSyncIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelSyncIntervalHours(v)
+		return nil
+	case kaguyasysteminfo.FieldModelCatalogJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelCatalogJSON(v)
+		return nil
+	case kaguyasysteminfo.FieldModelCatalogCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelCatalogCount(v)
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelSyncLastAttemptAt(v)
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelSyncLastSuccessAt(v)
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastError:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelSyncLastError(v)
 		return nil
 	case kaguyasysteminfo.FieldDefaultModelID:
 		v, ok := value.(string)
@@ -10544,6 +11020,12 @@ func (m *KaguyaSystemInfoMutation) AddedFields() []string {
 	if m.addchat_max_retries != nil {
 		fields = append(fields, kaguyasysteminfo.FieldChatMaxRetries)
 	}
+	if m.addmodel_sync_interval_hours != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncIntervalHours)
+	}
+	if m.addmodel_catalog_count != nil {
+		fields = append(fields, kaguyasysteminfo.FieldModelCatalogCount)
+	}
 	return fields
 }
 
@@ -10560,6 +11042,10 @@ func (m *KaguyaSystemInfoMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCommandTimeoutSeconds()
 	case kaguyasysteminfo.FieldChatMaxRetries:
 		return m.AddedChatMaxRetries()
+	case kaguyasysteminfo.FieldModelSyncIntervalHours:
+		return m.AddedModelSyncIntervalHours()
+	case kaguyasysteminfo.FieldModelCatalogCount:
+		return m.AddedModelCatalogCount()
 	}
 	return nil, false
 }
@@ -10597,6 +11083,20 @@ func (m *KaguyaSystemInfoMutation) AddField(name string, value ent.Value) error 
 		}
 		m.AddChatMaxRetries(v)
 		return nil
+	case kaguyasysteminfo.FieldModelSyncIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddModelSyncIntervalHours(v)
+		return nil
+	case kaguyasysteminfo.FieldModelCatalogCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddModelCatalogCount(v)
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaSystemInfo numeric field %s", name)
 }
@@ -10610,6 +11110,12 @@ func (m *KaguyaSystemInfoMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(kaguyasysteminfo.FieldGlobalAgentsPaths) {
 		fields = append(fields, kaguyasysteminfo.FieldGlobalAgentsPaths)
+	}
+	if m.FieldCleared(kaguyasysteminfo.FieldModelSyncLastAttemptAt) {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncLastAttemptAt)
+	}
+	if m.FieldCleared(kaguyasysteminfo.FieldModelSyncLastSuccessAt) {
+		fields = append(fields, kaguyasysteminfo.FieldModelSyncLastSuccessAt)
 	}
 	return fields
 }
@@ -10630,6 +11136,12 @@ func (m *KaguyaSystemInfoMutation) ClearField(name string) error {
 		return nil
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		m.ClearGlobalAgentsPaths()
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
+		m.ClearModelSyncLastAttemptAt()
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
+		m.ClearModelSyncLastSuccessAt()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaSystemInfo nullable field %s", name)
@@ -10663,11 +11175,35 @@ func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
 	case kaguyasysteminfo.FieldGlobalAgentsPaths:
 		m.ResetGlobalAgentsPaths()
 		return nil
+	case kaguyasysteminfo.FieldGlobalSystemPrompt:
+		m.ResetGlobalSystemPrompt()
+		return nil
 	case kaguyasysteminfo.FieldSystemPrompt:
 		m.ResetSystemPrompt()
 		return nil
-	case kaguyasysteminfo.FieldUserAgent:
-		m.ResetUserAgent()
+	case kaguyasysteminfo.FieldModelSyncEnabled:
+		m.ResetModelSyncEnabled()
+		return nil
+	case kaguyasysteminfo.FieldModelSyncURL:
+		m.ResetModelSyncURL()
+		return nil
+	case kaguyasysteminfo.FieldModelSyncIntervalHours:
+		m.ResetModelSyncIntervalHours()
+		return nil
+	case kaguyasysteminfo.FieldModelCatalogJSON:
+		m.ResetModelCatalogJSON()
+		return nil
+	case kaguyasysteminfo.FieldModelCatalogCount:
+		m.ResetModelCatalogCount()
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
+		m.ResetModelSyncLastAttemptAt()
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
+		m.ResetModelSyncLastSuccessAt()
+		return nil
+	case kaguyasysteminfo.FieldModelSyncLastError:
+		m.ResetModelSyncLastError()
 		return nil
 	case kaguyasysteminfo.FieldDefaultModelID:
 		m.ResetDefaultModelID()

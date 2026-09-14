@@ -56,3 +56,10 @@ type SystemModelLabelReq struct {
 	ProviderID string `json:"provider_id,omitempty" form:"provider_id"`
 	Keyword    string `json:"keyword,omitempty" form:"keyword"`
 }
+
+// SystemModelCatalogReq 查询已同步的 models.dev 模型目录。
+type SystemModelCatalogReq struct {
+	Keyword  string `json:"keyword,omitempty" form:"keyword"`
+	Page     int    `json:"page,omitempty" form:"page" binding:"required,min=1" minimum:"1" default:"1"`
+	PageSize int    `json:"page_size,omitempty" form:"page_size" binding:"required,min=10,max=1000" minimum:"10" maximum:"1000" default:"100"`
+}

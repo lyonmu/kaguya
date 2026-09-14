@@ -21,7 +21,6 @@ import (
 
 // ProviderConfig 描述如何通过提供商协议构造底层模型。
 type ProviderConfig struct {
-	UserAgent      string                  // 出站请求 User-Agent，服务层从系统配置读取
 	Type           consts.ProviderType     // normal 使用标准协议；opencode-go 追加会话请求头
 	Name           string                  // 提供商名称（记录元数据用）
 	Protocol       consts.ProviderProtocol // 模型协议类型
@@ -171,7 +170,7 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 		err      error
 	)
 
-	client, err := newProviderHTTPClient(cfg.BaseURL, cfg.UserAgent)
+	client, err := newProviderHTTPClient(cfg.BaseURL)
 	if err != nil {
 		return nil, err
 	}

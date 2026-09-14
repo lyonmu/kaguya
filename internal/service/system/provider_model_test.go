@@ -152,7 +152,7 @@ func TestDefaultModelIsUniqueGlobally(t *testing.T) {
 		t.Fatalf("create second default model: %v", err)
 	}
 	for _, id := range []string{firstModel.ID, secondModel.ID, firstModel.ID} {
-		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "test", DefaultModelID: id}); err != nil {
+		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{DefaultModelID: id}); err != nil {
 			t.Fatal(err)
 		}
 		info, err := svc.Info(ctx)

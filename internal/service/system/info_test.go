@@ -23,14 +23,15 @@ func TestSystemInfoDoesNotSelectModelsImplicitly(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, err := svc.Info(ctx)
-	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" || info.UserAgent != consts.DefaultUserAgent || info.GlobalSystemPrompt != consts.GlobalSystemPrompt {
+	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" || info.GlobalSystemPrompt == nil || *info.GlobalSystemPrompt != consts.GlobalSystemPrompt || info.ModelSyncURL != consts.DefaultModelCatalogURL {
 		t.Fatalf("query selected a model implicitly: %+v %v", info, err)
 	}
-	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "agent/2", SystemPrompt: "custom"}); err != nil {
+	base := "new base"
+	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{GlobalSystemPrompt: &base, SystemPrompt: "custom"}); err != nil {
 		t.Fatal(err)
 	}
 	info, err = (&SystemSvc{}).Info(ctx)
-	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" || info.UserAgent != "agent/2" || info.SystemPrompt != "custom" {
+	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" || info.GlobalSystemPrompt == nil || *info.GlobalSystemPrompt != base || info.SystemPrompt != "custom" {
 		t.Fatalf("cleared config gained implicit selections: %+v %v", info, err)
 	}
 	if count, err := client.KaguyaSystemInfo.Query().Count(ctx); err != nil || count != 1 {
@@ -58,28 +59,33 @@ func TestSystemInfoValidationAndNoCache(t *testing.T) {
 	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" {
 		t.Fatalf("initial=%+v %v", info, err)
 	}
-	for _, agent := range []string{"", " ", "test\r\nInjected: true", "tab\t", "中文", strings.Repeat("a", 513)} {
-		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: agent}); !errors.Is(err, ErrInvalidSystemInfo) {
-			t.Fatalf("invalid UA %q: %v", agent, err)
-		}
-	}
-	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "ok", SystemPrompt: strings.Repeat("a", 20001)}); !errors.Is(err, ErrInvalidSystemInfo) {
+	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{SystemPrompt: strings.Repeat("a", 20001)}); !errors.Is(err, ErrInvalidSystemInfo) {
 		t.Fatalf("oversized prompt: %v", err)
 	}
-	for _, req := range []dtosystem.SystemInfoSaveReq{{UserAgent: "ok", DefaultModelID: "missing"}, {UserAgent: "ok", TaskModelID: "missing"}} {
+	oversizedBase := strings.Repeat("a", 20001)
+	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{GlobalSystemPrompt: &oversizedBase}); !errors.Is(err, ErrInvalidSystemInfo) {
+		t.Fatalf("oversized base prompt: %v", err)
+	}
+	for _, syncURL := range []string{"models.dev/models.json", "ftp://models.dev/models.json", "https://user:secret@models.dev/models.json", "https://models.dev/models.json#fragment", " https://models.dev/models.json"} {
+		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{ModelSyncURL: syncURL}); !errors.Is(err, ErrInvalidSystemInfo) {
+			t.Fatalf("accepted invalid sync URL %q: %v", syncURL, err)
+		}
+	}
+	for _, req := range []dtosystem.SystemInfoSaveReq{{DefaultModelID: "missing"}, {TaskModelID: "missing"}} {
 		if _, err := svc.InfoUpdate(ctx, &req); !errors.Is(err, ErrModelNotFound) {
 			t.Fatalf("invalid model: %v", err)
 		}
 	}
 	info, err = svc.Info(ctx)
-	if err != nil || info.UserAgent != consts.DefaultUserAgent {
+	if err != nil || info.GlobalSystemPrompt == nil || *info.GlobalSystemPrompt != consts.GlobalSystemPrompt {
 		t.Fatal("failed update modified config")
 	}
-	if err := db.EntClient.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetUserAgent("direct-update").Exec(ctx); err != nil {
+	direct := "direct update"
+	if err := db.EntClient.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetGlobalSystemPrompt(direct).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	info, err = svc.Info(ctx)
-	if err != nil || info.UserAgent != "direct-update" {
+	if err != nil || info.GlobalSystemPrompt == nil || *info.GlobalSystemPrompt != direct {
 		t.Fatal("config was cached")
 	}
 }
@@ -102,7 +108,7 @@ func TestSystemInfoRejectsDeletedModelsAndProviders(t *testing.T) {
 	if err != nil || info.DefaultModelID != "" || info.TaskModelID != "" {
 		t.Fatalf("imported deleted provider: %+v %v", info, err)
 	}
-	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "ok", DefaultModelID: m.ID}); !errors.Is(err, ErrModelNotFound) {
+	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{DefaultModelID: m.ID}); !errors.Is(err, ErrModelNotFound) {
 		t.Fatalf("deleted provider selected: %v", err)
 	}
 	if err := client.KaguyaProviderInfo.UpdateOne(p).ClearDeletedAt().Exec(ctx); err != nil {
@@ -111,19 +117,22 @@ func TestSystemInfoRejectsDeletedModelsAndProviders(t *testing.T) {
 	if err := svc.ModelDelete(ctx, m.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "ok", TaskModelID: m.ID}); !errors.Is(err, ErrModelNotFound) {
+	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{TaskModelID: m.ID}); !errors.Is(err, ErrModelNotFound) {
 		t.Fatalf("deleted model selected: %v", err)
 	}
 }
 
 func TestChatSystemPrompt(t *testing.T) {
 	for _, blank := range []string{"", " \n\t"} {
-		if got := ChatSystemPrompt(blank); got != consts.GlobalSystemPrompt {
+		if got := ChatSystemPrompt(consts.GlobalSystemPrompt, blank); got != strings.TrimSpace(consts.GlobalSystemPrompt) {
 			t.Fatalf("prompt=%q", got)
 		}
 	}
-	if got := ChatSystemPrompt("请使用中文"); got != consts.GlobalSystemPrompt+"\n\n请使用中文" {
+	if got := ChatSystemPrompt(consts.GlobalSystemPrompt, "请使用中文"); got != strings.TrimSpace(consts.GlobalSystemPrompt)+"\n\n请使用中文" {
 		t.Fatalf("prompt=%q", got)
+	}
+	if got := ChatSystemPrompt("", "custom"); got != "custom" {
+		t.Fatalf("empty base prompt=%q", got)
 	}
 }
 
@@ -139,18 +148,19 @@ func TestAgentSettingsPersistenceAndValidation(t *testing.T) {
 	if *info.ContextCompactionPercent != 90 {
 		t.Fatal("wrong default compaction percent")
 	}
-	req := &dtosystem.SystemInfoSaveReq{UserAgent: "test", AgentMaxSteps: &steps, CommandTimeoutSeconds: &timeout, ChatMaxRetries: &retries, GlobalAgentsPaths: []string{}, ContextCompactionPercent: &percent}
+	interval := 12
+	req := &dtosystem.SystemInfoSaveReq{AgentMaxSteps: &steps, CommandTimeoutSeconds: &timeout, ChatMaxRetries: &retries, GlobalAgentsPaths: []string{}, ContextCompactionPercent: &percent, ModelSyncEnabled: true, ModelSyncIntervalHours: &interval}
 	info, err = svc.InfoUpdate(ctx, req)
 	if err != nil || *info.AgentMaxSteps != 100 || *info.CommandTimeoutSeconds != 300 || *info.ChatMaxRetries != 7 || info.GlobalAgentsPaths == nil || len(info.GlobalAgentsPaths) != 0 {
 		t.Fatalf("saved=%+v %v", info, err)
 	}
-	info, err = svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "old-client"})
+	info, err = svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{})
 	if err != nil || *info.AgentMaxSteps != 100 || len(info.GlobalAgentsPaths) != 0 || *info.ContextCompactionPercent != 75 {
 		t.Fatalf("old client reset settings: %+v %v", info, err)
 	}
 	steps = -1
 	for _, invalid := range []int{0, 9, 96, 100} {
-		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{UserAgent: "ok", ContextCompactionPercent: &invalid}); !errors.Is(err, ErrInvalidSystemInfo) {
+		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{ContextCompactionPercent: &invalid}); !errors.Is(err, ErrInvalidSystemInfo) {
 			t.Fatalf("accepted percent %d", invalid)
 		}
 	}

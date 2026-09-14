@@ -68,18 +68,18 @@ func TestSystemInfoAPI(t *testing.T) {
 	}
 	ok, bad := dtocode.SystemSuccess.Code, dtocode.RequestParameterError.Code
 	info := request("GET", "", ok)
-	if info["user_agent"] != consts.DefaultUserAgent || info["global_system_prompt"] != consts.GlobalSystemPrompt {
+	if _, exists := info["user_agent"]; exists || info["global_system_prompt"] != consts.GlobalSystemPrompt || info["model_sync_url"] != consts.DefaultModelCatalogURL {
 		t.Fatalf("defaults=%+v", info)
 	}
-	request("PUT", `{}`, bad)
-	request("PUT", `{"user_agent":"bad\r\nHeader: value"}`, bad)
-	request("PUT", `{"user_agent":"agent","task_model_id":"missing"}`, dtocode.ModelNotFound.Code)
-	request("PUT", `{"system_prompt":"用中文回答","user_agent":"Agent/2","default_model_id":"m","task_model_id":"m","global_system_prompt":"cannot override"}`, ok)
+	request("PUT", `{"model_sync_interval_hours":0}`, bad)
+	request("PUT", `{"model_sync_url":"file:///tmp/models.json"}`, bad)
+	request("PUT", `{"task_model_id":"missing"}`, dtocode.ModelNotFound.Code)
+	request("PUT", `{"system_prompt":"用中文回答","default_model_id":"m","task_model_id":"m","global_system_prompt":"可编辑基础人设","model_sync_enabled":true,"model_sync_url":"https://mirror.example/models.json","model_sync_interval_hours":12}`, ok)
 	info = request("GET", "", ok)
-	if info["system_prompt"] != "用中文回答" || info["user_agent"] != "Agent/2" || info["default_model_id"] != "m" || info["task_model_id"] != "m" || info["global_system_prompt"] != consts.GlobalSystemPrompt {
+	if info["system_prompt"] != "用中文回答" || info["default_model_id"] != "m" || info["task_model_id"] != "m" || info["global_system_prompt"] != "可编辑基础人设" || info["model_sync_enabled"] != true || info["model_sync_url"] != "https://mirror.example/models.json" || info["model_sync_interval_hours"] != float64(12) {
 		t.Fatalf("saved=%+v", info)
 	}
-	request("PUT", `{"user_agent":"Agent/3"}`, ok)
+	request("PUT", `{}`, ok)
 	info = request("GET", "", ok)
 	if info["default_model_id"] != "" || info["task_model_id"] != "" {
 		t.Fatalf("clear=%+v", info)

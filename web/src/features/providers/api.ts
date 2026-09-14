@@ -5,6 +5,8 @@ import type {
   LabelOption,
   ModelPayload,
   ModelLabelOption,
+  ModelCatalogResponse,
+  ModelSyncResponse,
   ProviderAPIKeyResponse,
   ProviderPageResponse,
   ProviderPayload,
@@ -50,6 +52,18 @@ export function deleteProvider(id: string) {
 
 export function fetchModelLabels(signal?: AbortSignal) {
   return get<ModelLabelOption[]>(`${MODEL_PATH}/label`, undefined, signal)
+}
+
+export function fetchModelCatalog(keyword = '', signal?: AbortSignal) {
+  return get<ModelCatalogResponse>(`${MODEL_PATH}/catalog`, { keyword, page: 1, page_size: 1000 }, signal)
+}
+
+export function fetchModelCatalogPage(keyword: string, page: number, pageSize: number, signal?: AbortSignal) {
+  return get<ModelCatalogResponse>(`${MODEL_PATH}/catalog`, { keyword, page, page_size: pageSize }, signal)
+}
+
+export function syncModelCatalog() {
+  return post<ModelSyncResponse>(`${MODEL_PATH}/sync`, {})
 }
 
 export function createModel(payload: ModelPayload) {

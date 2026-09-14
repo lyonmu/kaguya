@@ -18,7 +18,7 @@ var (
 	ProviderUpdateFailure    = Response{Code: 106003, Message: "提供商更新失败"}
 	ProviderDeleteFailure    = Response{Code: 106004, Message: "提供商删除失败"}
 	ProviderNameAlreadyExist = Response{Code: 106005, Message: "提供商名称已存在"}
-	ProviderSecretInvalid   = Response{Code: 106006, Message: "API Key 加解密失败，请重新填写"}
+	ProviderSecretInvalid    = Response{Code: 106006, Message: "API Key 加解密失败，请重新填写"}
 
 	// MCP 管理相关
 	MCPFailure        = Response{Code: 105000, Message: "MCP 操作失败"}
@@ -28,10 +28,11 @@ var (
 	MCPConfigInvalid  = Response{Code: 105004, Message: "MCP 配置无效"}
 
 	// 模型管理相关
-	ModelQueryFailure   = Response{Code: 103000, Message: "模型查询失败"}
-	ModelNotFound       = Response{Code: 103001, Message: "模型不存在"}
-	ModelCreateFailure  = Response{Code: 103002, Message: "模型创建失败"}
-	ModelUpdateFailure  = Response{Code: 103003, Message: "模型更新失败"}
-	ModelDeleteFailure  = Response{Code: 103004, Message: "模型删除失败"}
-	ModelIDAlreadyExist = Response{Code: 103005, Message: "该提供商下模型标识已存在"}
+	ModelQueryFailure       = Response{Code: 103000, Message: "模型查询失败"}
+	ModelNotFound           = Response{Code: 103001, Message: "模型不存在"}
+	ModelCreateFailure      = Response{Code: 103002, Message: "模型创建失败"}
+	ModelUpdateFailure      = Response{Code: 103003, Message: "模型更新失败"}
+	ModelDeleteFailure      = Response{Code: 103004, Message: "模型删除失败"}
+	ModelIDAlreadyExist     = Response{Code: 103005, Message: "该提供商下模型标识已存在"}
+	ModelCatalogSyncFailure = Response{Code: 103006, Message: "模型目录同步失败"}
 )

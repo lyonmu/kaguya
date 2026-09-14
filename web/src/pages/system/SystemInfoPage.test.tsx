@@ -35,7 +35,7 @@ after(async () => {
 
 it('loads, edits and saves system config with local model record IDs', async () => {
   let saved: Record<string, unknown> | undefined
-  const config = { context_compaction_percent: 90, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', user_agent: 'kaguya', default_model_id: '', task_model_id: '', global_system_prompt: '只读基础人设' }
+  const config = { context_compaction_percent: 90, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: '可编辑基础人设', model_sync_enabled: false, model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, model_sync_last_error: '' }
   globalThis.fetch = (async (url, init) => {
     if (String(url).includes('/model/label')) return response([
       { label: '聊天模型', value: 'local-chat', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-chat', is_default: true },
@@ -45,10 +45,11 @@ it('loads, edits and saves system config with local model record IDs', async () 
     return response(config)
   }) as typeof fetch
   const view = render(<App><SystemInfoPage /></App>)
-  await waitFor(() => assert.ok(view.getByText('只读基础人设')))
+  await waitFor(() => assert.equal((view.getByLabelText('全局基础提示词') as HTMLTextAreaElement).value, '可编辑基础人设'))
   fireEvent.change(view.getByLabelText('会话压缩比例'), { target: { value: '75' } })
-  fireEvent.change(view.getByLabelText('User-Agent'), { target: { value: 'Configured/2' } })
-  fireEvent.change(view.getByLabelText('自定义系统提示词'), { target: { value: '请简洁回答' } })
+  fireEvent.change(view.getByLabelText('模型目录同步地址'), { target: { value: 'https://mirror.example/models.json' } })
+  fireEvent.change(view.getByLabelText('全局基础提示词'), { target: { value: '新的基础人设' } })
+  fireEvent.change(view.getByLabelText('附加系统提示词'), { target: { value: '请简洁回答' } })
   assert.equal(view.queryByText('模型选择统一在这里管理'), null)
   assert.equal(view.queryByText('用于服务端的聊天和标题生成请求，不修改浏览器请求头。'), null)
   for (const [label, provider, model] of [['默认对话模型', '提供商 A', '聊天模型'], ['后台任务模型', '提供商 B', '任务模型']]) {
@@ -63,8 +64,8 @@ it('loads, edits and saves system config with local model record IDs', async () 
     fireEvent.click(await within(popup).findByText(model))
   }
   fireEvent.click(view.getByRole('button', { name: /保存配置/ }))
-  await waitFor(() => assert.deepEqual(saved, { context_compaction_percent: 75, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: config.global_agents_paths, system_prompt: '请简洁回答', user_agent: 'Configured/2', default_model_id: 'local-chat', task_model_id: 'local-task' }))
-  assert.ok(view.getByText('只读基础人设'))
+  await waitFor(() => assert.deepEqual(saved, { context_compaction_percent: 75, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: config.global_agents_paths, global_system_prompt: '新的基础人设', system_prompt: '请简洁回答', model_sync_enabled: false, model_sync_url: 'https://mirror.example/models.json', model_sync_interval_hours: 24, default_model_id: 'local-chat', task_model_id: 'local-task' }))
+  assert.equal((view.getByLabelText('全局基础提示词') as HTMLTextAreaElement).value, '新的基础人设')
 })
 
 it('searches models by API ID, clears configuration and restores the chat default', async () => {
@@ -107,7 +108,7 @@ it('shows a config loading error instead of an editable empty form', async () =>
   assert.equal(view.queryByRole('button', { name: /保存配置/ }), null)
 })
 
-it('toggles the system sidebar and exposes system config in mobile navigation', async () => {
+it('toggles the system sidebar and exposes system config and model catalog in mobile navigation', async () => {
   let next = ''
   const view = render(<AppLayout colorMode="light" currentPage="ai-providers" onPageChange={value => { next = value }} onToggleColorMode={() => {}} />)
   fireEvent.click(view.getByLabelText('收起系统菜单'))
@@ -116,6 +117,7 @@ it('toggles the system sidebar and exposes system config in mobile navigation', 
   assert.equal(view.getByLabelText('收起系统菜单').getAttribute('aria-expanded'), 'true')
   fireEvent.click(view.getByLabelText('打开系统菜单'))
   const dialog = await waitFor(() => view.getByRole('dialog'))
+  assert.ok(Array.from(dialog.querySelectorAll('[role="menuitem"]')).some(item => item.textContent?.includes('模型目录')))
   const configItem = Array.from(dialog.querySelectorAll('[role="menuitem"]')).find(item => item.textContent?.includes('系统配置'))
   assert.ok(configItem)
   fireEvent.click(configItem)

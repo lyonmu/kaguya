@@ -117,3 +117,33 @@ type SystemModelLabelResp struct {
 	ModelID      string `json:"model_id"`
 	IsDefault    bool   `json:"is_default"`
 }
+
+// SystemModelCatalogResp 是 models.dev 目录中可用于填充本地模型配置的一项。
+type SystemModelCatalogResp struct {
+	ID                         string        `json:"id"`
+	Name                       string        `json:"name"`
+	Lab                        string        `json:"lab"`
+	Family                     string        `json:"family"`
+	Description                string        `json:"description"`
+	ReasoningEnabled           consts.Status `json:"reasoning_enabled"`
+	TokenContextWindow         int           `json:"token_context_window"`
+	TokenMaxOutputTokens       int           `json:"token_max_output_tokens"`
+	CapabilityToolUse          consts.Status `json:"capability_tool_use"`
+	CapabilityVision           consts.Status `json:"capability_vision"`
+	CapabilityStructuredOutput consts.Status `json:"capability_structured_output"`
+	InputModalities            []string      `json:"input_modalities"`
+	ReleaseDate                string        `json:"release_date"`
+	LastUpdated                string        `json:"last_updated"`
+}
+
+type SystemModelCatalogListResp struct {
+	Total    int                       `json:"total"`
+	Items    []*SystemModelCatalogResp `json:"items"`
+	Page     int                       `json:"page"`
+	PageSize int                       `json:"page_size"`
+}
+
+type SystemModelSyncResp struct {
+	Count    int       `json:"count"`
+	SyncedAt time.Time `json:"synced_at"`
+}

@@ -99,14 +99,56 @@ func ChatMaxRetries(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldChatMaxRetries, v))
 }
 
+// GlobalSystemPrompt applies equality check predicate on the "global_system_prompt" field. It's identical to GlobalSystemPromptEQ.
+func GlobalSystemPrompt(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldGlobalSystemPrompt, v))
+}
+
 // SystemPrompt applies equality check predicate on the "system_prompt" field. It's identical to SystemPromptEQ.
 func SystemPrompt(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldSystemPrompt, v))
 }
 
-// UserAgent applies equality check predicate on the "user_agent" field. It's identical to UserAgentEQ.
-func UserAgent(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldUserAgent, v))
+// ModelSyncEnabled applies equality check predicate on the "model_sync_enabled" field. It's identical to ModelSyncEnabledEQ.
+func ModelSyncEnabled(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncEnabled, v))
+}
+
+// ModelSyncURL applies equality check predicate on the "model_sync_url" field. It's identical to ModelSyncURLEQ.
+func ModelSyncURL(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncURL, v))
+}
+
+// ModelSyncIntervalHours applies equality check predicate on the "model_sync_interval_hours" field. It's identical to ModelSyncIntervalHoursEQ.
+func ModelSyncIntervalHours(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncIntervalHours, v))
+}
+
+// ModelCatalogJSON applies equality check predicate on the "model_catalog_json" field. It's identical to ModelCatalogJSONEQ.
+func ModelCatalogJSON(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogCount applies equality check predicate on the "model_catalog_count" field. It's identical to ModelCatalogCountEQ.
+func ModelCatalogCount(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelCatalogCount, v))
+}
+
+// ModelSyncLastAttemptAt applies equality check predicate on the "model_sync_last_attempt_at" field. It's identical to ModelSyncLastAttemptAtEQ.
+func ModelSyncLastAttemptAt(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncLastAttemptAt, vc))
+}
+
+// ModelSyncLastSuccessAt applies equality check predicate on the "model_sync_last_success_at" field. It's identical to ModelSyncLastSuccessAtEQ.
+func ModelSyncLastSuccessAt(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncLastSuccessAt, vc))
+}
+
+// ModelSyncLastError applies equality check predicate on the "model_sync_last_error" field. It's identical to ModelSyncLastErrorEQ.
+func ModelSyncLastError(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncLastError, v))
 }
 
 // DefaultModelID applies equality check predicate on the "default_model_id" field. It's identical to DefaultModelIDEQ.
@@ -419,6 +461,71 @@ func GlobalAgentsPathsNotNil() predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldNotNull(FieldGlobalAgentsPaths))
 }
 
+// GlobalSystemPromptEQ applies the EQ predicate on the "global_system_prompt" field.
+func GlobalSystemPromptEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptNEQ applies the NEQ predicate on the "global_system_prompt" field.
+func GlobalSystemPromptNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptIn applies the In predicate on the "global_system_prompt" field.
+func GlobalSystemPromptIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldGlobalSystemPrompt, vs...))
+}
+
+// GlobalSystemPromptNotIn applies the NotIn predicate on the "global_system_prompt" field.
+func GlobalSystemPromptNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldGlobalSystemPrompt, vs...))
+}
+
+// GlobalSystemPromptGT applies the GT predicate on the "global_system_prompt" field.
+func GlobalSystemPromptGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptGTE applies the GTE predicate on the "global_system_prompt" field.
+func GlobalSystemPromptGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptLT applies the LT predicate on the "global_system_prompt" field.
+func GlobalSystemPromptLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptLTE applies the LTE predicate on the "global_system_prompt" field.
+func GlobalSystemPromptLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptContains applies the Contains predicate on the "global_system_prompt" field.
+func GlobalSystemPromptContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptHasPrefix applies the HasPrefix predicate on the "global_system_prompt" field.
+func GlobalSystemPromptHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptHasSuffix applies the HasSuffix predicate on the "global_system_prompt" field.
+func GlobalSystemPromptHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptEqualFold applies the EqualFold predicate on the "global_system_prompt" field.
+func GlobalSystemPromptEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldGlobalSystemPrompt, v))
+}
+
+// GlobalSystemPromptContainsFold applies the ContainsFold predicate on the "global_system_prompt" field.
+func GlobalSystemPromptContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldGlobalSystemPrompt, v))
+}
+
 // SystemPromptEQ applies the EQ predicate on the "system_prompt" field.
 func SystemPromptEQ(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldSystemPrompt, v))
@@ -484,69 +591,417 @@ func SystemPromptContainsFold(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldSystemPrompt, v))
 }
 
-// UserAgentEQ applies the EQ predicate on the "user_agent" field.
-func UserAgentEQ(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldUserAgent, v))
+// ModelSyncEnabledEQ applies the EQ predicate on the "model_sync_enabled" field.
+func ModelSyncEnabledEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncEnabled, v))
 }
 
-// UserAgentNEQ applies the NEQ predicate on the "user_agent" field.
-func UserAgentNEQ(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldUserAgent, v))
+// ModelSyncEnabledNEQ applies the NEQ predicate on the "model_sync_enabled" field.
+func ModelSyncEnabledNEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelSyncEnabled, v))
 }
 
-// UserAgentIn applies the In predicate on the "user_agent" field.
-func UserAgentIn(vs ...string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldUserAgent, vs...))
+// ModelSyncURLEQ applies the EQ predicate on the "model_sync_url" field.
+func ModelSyncURLEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncURL, v))
 }
 
-// UserAgentNotIn applies the NotIn predicate on the "user_agent" field.
-func UserAgentNotIn(vs ...string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldUserAgent, vs...))
+// ModelSyncURLNEQ applies the NEQ predicate on the "model_sync_url" field.
+func ModelSyncURLNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelSyncURL, v))
 }
 
-// UserAgentGT applies the GT predicate on the "user_agent" field.
-func UserAgentGT(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldUserAgent, v))
+// ModelSyncURLIn applies the In predicate on the "model_sync_url" field.
+func ModelSyncURLIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldModelSyncURL, vs...))
 }
 
-// UserAgentGTE applies the GTE predicate on the "user_agent" field.
-func UserAgentGTE(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldUserAgent, v))
+// ModelSyncURLNotIn applies the NotIn predicate on the "model_sync_url" field.
+func ModelSyncURLNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldModelSyncURL, vs...))
 }
 
-// UserAgentLT applies the LT predicate on the "user_agent" field.
-func UserAgentLT(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldUserAgent, v))
+// ModelSyncURLGT applies the GT predicate on the "model_sync_url" field.
+func ModelSyncURLGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldModelSyncURL, v))
 }
 
-// UserAgentLTE applies the LTE predicate on the "user_agent" field.
-func UserAgentLTE(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldUserAgent, v))
+// ModelSyncURLGTE applies the GTE predicate on the "model_sync_url" field.
+func ModelSyncURLGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldModelSyncURL, v))
 }
 
-// UserAgentContains applies the Contains predicate on the "user_agent" field.
-func UserAgentContains(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldUserAgent, v))
+// ModelSyncURLLT applies the LT predicate on the "model_sync_url" field.
+func ModelSyncURLLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldModelSyncURL, v))
 }
 
-// UserAgentHasPrefix applies the HasPrefix predicate on the "user_agent" field.
-func UserAgentHasPrefix(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldUserAgent, v))
+// ModelSyncURLLTE applies the LTE predicate on the "model_sync_url" field.
+func ModelSyncURLLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelSyncURL, v))
 }
 
-// UserAgentHasSuffix applies the HasSuffix predicate on the "user_agent" field.
-func UserAgentHasSuffix(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldUserAgent, v))
+// ModelSyncURLContains applies the Contains predicate on the "model_sync_url" field.
+func ModelSyncURLContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldModelSyncURL, v))
 }
 
-// UserAgentEqualFold applies the EqualFold predicate on the "user_agent" field.
-func UserAgentEqualFold(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldUserAgent, v))
+// ModelSyncURLHasPrefix applies the HasPrefix predicate on the "model_sync_url" field.
+func ModelSyncURLHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldModelSyncURL, v))
 }
 
-// UserAgentContainsFold applies the ContainsFold predicate on the "user_agent" field.
-func UserAgentContainsFold(v string) predicate.KaguyaSystemInfo {
-	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldUserAgent, v))
+// ModelSyncURLHasSuffix applies the HasSuffix predicate on the "model_sync_url" field.
+func ModelSyncURLHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldModelSyncURL, v))
+}
+
+// ModelSyncURLEqualFold applies the EqualFold predicate on the "model_sync_url" field.
+func ModelSyncURLEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldModelSyncURL, v))
+}
+
+// ModelSyncURLContainsFold applies the ContainsFold predicate on the "model_sync_url" field.
+func ModelSyncURLContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldModelSyncURL, v))
+}
+
+// ModelSyncIntervalHoursEQ applies the EQ predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncIntervalHours, v))
+}
+
+// ModelSyncIntervalHoursNEQ applies the NEQ predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelSyncIntervalHours, v))
+}
+
+// ModelSyncIntervalHoursIn applies the In predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldModelSyncIntervalHours, vs...))
+}
+
+// ModelSyncIntervalHoursNotIn applies the NotIn predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldModelSyncIntervalHours, vs...))
+}
+
+// ModelSyncIntervalHoursGT applies the GT predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldModelSyncIntervalHours, v))
+}
+
+// ModelSyncIntervalHoursGTE applies the GTE predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldModelSyncIntervalHours, v))
+}
+
+// ModelSyncIntervalHoursLT applies the LT predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldModelSyncIntervalHours, v))
+}
+
+// ModelSyncIntervalHoursLTE applies the LTE predicate on the "model_sync_interval_hours" field.
+func ModelSyncIntervalHoursLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelSyncIntervalHours, v))
+}
+
+// ModelCatalogJSONEQ applies the EQ predicate on the "model_catalog_json" field.
+func ModelCatalogJSONEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONNEQ applies the NEQ predicate on the "model_catalog_json" field.
+func ModelCatalogJSONNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONIn applies the In predicate on the "model_catalog_json" field.
+func ModelCatalogJSONIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldModelCatalogJSON, vs...))
+}
+
+// ModelCatalogJSONNotIn applies the NotIn predicate on the "model_catalog_json" field.
+func ModelCatalogJSONNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldModelCatalogJSON, vs...))
+}
+
+// ModelCatalogJSONGT applies the GT predicate on the "model_catalog_json" field.
+func ModelCatalogJSONGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONGTE applies the GTE predicate on the "model_catalog_json" field.
+func ModelCatalogJSONGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONLT applies the LT predicate on the "model_catalog_json" field.
+func ModelCatalogJSONLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONLTE applies the LTE predicate on the "model_catalog_json" field.
+func ModelCatalogJSONLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONContains applies the Contains predicate on the "model_catalog_json" field.
+func ModelCatalogJSONContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONHasPrefix applies the HasPrefix predicate on the "model_catalog_json" field.
+func ModelCatalogJSONHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONHasSuffix applies the HasSuffix predicate on the "model_catalog_json" field.
+func ModelCatalogJSONHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONEqualFold applies the EqualFold predicate on the "model_catalog_json" field.
+func ModelCatalogJSONEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogJSONContainsFold applies the ContainsFold predicate on the "model_catalog_json" field.
+func ModelCatalogJSONContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldModelCatalogJSON, v))
+}
+
+// ModelCatalogCountEQ applies the EQ predicate on the "model_catalog_count" field.
+func ModelCatalogCountEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelCatalogCount, v))
+}
+
+// ModelCatalogCountNEQ applies the NEQ predicate on the "model_catalog_count" field.
+func ModelCatalogCountNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelCatalogCount, v))
+}
+
+// ModelCatalogCountIn applies the In predicate on the "model_catalog_count" field.
+func ModelCatalogCountIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldModelCatalogCount, vs...))
+}
+
+// ModelCatalogCountNotIn applies the NotIn predicate on the "model_catalog_count" field.
+func ModelCatalogCountNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldModelCatalogCount, vs...))
+}
+
+// ModelCatalogCountGT applies the GT predicate on the "model_catalog_count" field.
+func ModelCatalogCountGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldModelCatalogCount, v))
+}
+
+// ModelCatalogCountGTE applies the GTE predicate on the "model_catalog_count" field.
+func ModelCatalogCountGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldModelCatalogCount, v))
+}
+
+// ModelCatalogCountLT applies the LT predicate on the "model_catalog_count" field.
+func ModelCatalogCountLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldModelCatalogCount, v))
+}
+
+// ModelCatalogCountLTE applies the LTE predicate on the "model_catalog_count" field.
+func ModelCatalogCountLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelCatalogCount, v))
+}
+
+// ModelSyncLastAttemptAtEQ applies the EQ predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtEQ(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncLastAttemptAt, vc))
+}
+
+// ModelSyncLastAttemptAtNEQ applies the NEQ predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtNEQ(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelSyncLastAttemptAt, vc))
+}
+
+// ModelSyncLastAttemptAtIn applies the In predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtIn(vs ...time.Time) predicate.KaguyaSystemInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = time.Time(vs[i])
+	}
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldModelSyncLastAttemptAt, v...))
+}
+
+// ModelSyncLastAttemptAtNotIn applies the NotIn predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtNotIn(vs ...time.Time) predicate.KaguyaSystemInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = time.Time(vs[i])
+	}
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldModelSyncLastAttemptAt, v...))
+}
+
+// ModelSyncLastAttemptAtGT applies the GT predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtGT(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldModelSyncLastAttemptAt, vc))
+}
+
+// ModelSyncLastAttemptAtGTE applies the GTE predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtGTE(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldModelSyncLastAttemptAt, vc))
+}
+
+// ModelSyncLastAttemptAtLT applies the LT predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtLT(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldModelSyncLastAttemptAt, vc))
+}
+
+// ModelSyncLastAttemptAtLTE applies the LTE predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtLTE(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelSyncLastAttemptAt, vc))
+}
+
+// ModelSyncLastAttemptAtIsNil applies the IsNil predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtIsNil() predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIsNull(FieldModelSyncLastAttemptAt))
+}
+
+// ModelSyncLastAttemptAtNotNil applies the NotNil predicate on the "model_sync_last_attempt_at" field.
+func ModelSyncLastAttemptAtNotNil() predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotNull(FieldModelSyncLastAttemptAt))
+}
+
+// ModelSyncLastSuccessAtEQ applies the EQ predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtEQ(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncLastSuccessAt, vc))
+}
+
+// ModelSyncLastSuccessAtNEQ applies the NEQ predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtNEQ(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelSyncLastSuccessAt, vc))
+}
+
+// ModelSyncLastSuccessAtIn applies the In predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtIn(vs ...time.Time) predicate.KaguyaSystemInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = time.Time(vs[i])
+	}
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldModelSyncLastSuccessAt, v...))
+}
+
+// ModelSyncLastSuccessAtNotIn applies the NotIn predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtNotIn(vs ...time.Time) predicate.KaguyaSystemInfo {
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = time.Time(vs[i])
+	}
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldModelSyncLastSuccessAt, v...))
+}
+
+// ModelSyncLastSuccessAtGT applies the GT predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtGT(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldModelSyncLastSuccessAt, vc))
+}
+
+// ModelSyncLastSuccessAtGTE applies the GTE predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtGTE(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldModelSyncLastSuccessAt, vc))
+}
+
+// ModelSyncLastSuccessAtLT applies the LT predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtLT(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldModelSyncLastSuccessAt, vc))
+}
+
+// ModelSyncLastSuccessAtLTE applies the LTE predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtLTE(v time.Time) predicate.KaguyaSystemInfo {
+	vc := time.Time(v)
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelSyncLastSuccessAt, vc))
+}
+
+// ModelSyncLastSuccessAtIsNil applies the IsNil predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtIsNil() predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIsNull(FieldModelSyncLastSuccessAt))
+}
+
+// ModelSyncLastSuccessAtNotNil applies the NotNil predicate on the "model_sync_last_success_at" field.
+func ModelSyncLastSuccessAtNotNil() predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotNull(FieldModelSyncLastSuccessAt))
+}
+
+// ModelSyncLastErrorEQ applies the EQ predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorNEQ applies the NEQ predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorIn applies the In predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldModelSyncLastError, vs...))
+}
+
+// ModelSyncLastErrorNotIn applies the NotIn predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldModelSyncLastError, vs...))
+}
+
+// ModelSyncLastErrorGT applies the GT predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorGTE applies the GTE predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorLT applies the LT predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorLTE applies the LTE predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorContains applies the Contains predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorHasPrefix applies the HasPrefix predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorHasSuffix applies the HasSuffix predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorEqualFold applies the EqualFold predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldModelSyncLastError, v))
+}
+
+// ModelSyncLastErrorContainsFold applies the ContainsFold predicate on the "model_sync_last_error" field.
+func ModelSyncLastErrorContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldModelSyncLastError, v))
 }
 
 // DefaultModelIDEQ applies the EQ predicate on the "default_model_id" field.

@@ -36,9 +36,11 @@ type appRuntime struct {
 	logger  *zap.Logger
 	dbReady bool
 
-	gate        *pkg.Admission
-	restoreDone chan struct{}
-	restoreUp   bool
+	gate          *pkg.Admission
+	restoreDone   chan struct{}
+	restoreUp     bool
+	modelSyncDone chan struct{}
+	modelSyncUp   bool
 
 	closeOnce sync.Once
 }
@@ -46,10 +48,11 @@ type appRuntime struct {
 func newAppRuntime(parent context.Context) *appRuntime {
 	ctx, cancel := context.WithCancel(parent)
 	return &appRuntime{
-		ctx:         ctx,
-		cancel:      cancel,
-		gate:        pkg.NewAdmission(),
-		restoreDone: make(chan struct{}),
+		ctx:           ctx,
+		cancel:        cancel,
+		gate:          pkg.NewAdmission(),
+		restoreDone:   make(chan struct{}),
+		modelSyncDone: make(chan struct{}),
 	}
 }
 
@@ -126,7 +129,17 @@ func (rt *appRuntime) init() error {
 	}
 
 	rt.startMCPRestore()
+	rt.startModelCatalogSync()
 	return nil
+}
+
+// startModelCatalogSync 启动 models.dev 目录调度器；手动同步与它共享互斥控制。
+func (rt *appRuntime) startModelCatalogSync() {
+	rt.modelSyncUp = true
+	go func() {
+		defer close(rt.modelSyncDone)
+		servicesystem.DefaultModelCatalogSyncer.Run(rt.ctx)
+	}()
 }
 
 // startMCPRestore 异步恢复 MCP 连接；连接生命周期独立于单次请求，必须由
@@ -181,6 +194,9 @@ func (rt *appRuntime) close() {
 		rt.cancel()
 		if rt.restoreUp {
 			<-rt.restoreDone
+		}
+		if rt.modelSyncUp {
+			<-rt.modelSyncDone
 		}
 		agentmcp.Default.Close()
 		if rt.dbReady && db.EntClient != nil {

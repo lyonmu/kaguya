@@ -17,7 +17,7 @@ The project is oriented toward a cross-platform Desktop application. **The nativ
 
 1. Open `Kaguya.app`. When installing from a DMG, drag the application into `Applications`, then open it.
 2. Click **System management** (系统管理) at the bottom left. Under **AI configuration → Providers and models** (AI 配置 → 提供商与模型), add a provider with its protocol, full request URL, and API key.
-3. Open the provider's **Model management** (模型管理), add a model with its upstream identifier and display name, and enter its actual context window, maximum output, and other metadata.
+3. In **System configuration**, synchronize the [models.dev](https://models.dev/models.json) catalog manually or on a schedule. Search the local catalog under **Logs & audit → Model catalog** (newest release first), or open the provider's **Model management** and select a catalog model to fill its identifier, limits, and capabilities; the populated values remain editable for provider-specific differences.
 4. Select a default chat model in **System configuration** (系统配置). Configure a background-task model to generate conversation titles automatically.
 5. Return to **Conversation management** (对话管理) to chat, or switch to **Projects** (项目) and add a local directory for project work.
 
@@ -90,7 +90,7 @@ Open **System management → AI configuration → Providers and models** (系统
 
 Replace the example host with the actual provider address. **Include the complete endpoint path**; the application does not append `/chat/completions`, `/responses`, or `/messages`. Provider types include standard `normal` and `opencode-go`, which adds an OpenCode session header.
 
-Model configuration includes display name, upstream model identifier, reasoning level, context window, maximum output tokens, and Tool/Vision/JSON capability metadata. Enter the model's actual capabilities. Project and MCP tools require tool-calling support; reading images also requires vision support.
+Model configuration includes display name, upstream model identifier, reasoning level, context window, maximum output tokens, and Tool/Vision/JSON capability metadata. The synchronized models.dev catalog can populate these fields, but it does not guarantee that a configured provider exposes that model; verify provider availability and adjust metadata when needed. Project and MCP tools require tool-calling support; reading images also requires vision support.
 
 API keys are encrypted at rest and masked in lists; plaintext is returned only on explicit reveal. Leaving the key empty while editing preserves the existing value. Providers and models come from personal configuration; the application does not preselect a default chat or background-task model.
 
@@ -116,8 +116,6 @@ Tool timeouts range from **1–600 seconds**. HTTP authentication is configured 
 
 Open **System management → System configuration** (系统管理 → 系统配置).
 
-![System settings for models, steps, timeouts, retries, compaction, and instruction paths](images/screenshots/desktop-2026-09-13/settings.jpg)
-
 | Setting | Behavior |
 | --- | --- |
 | Default chat model | Used without a manual model choice |
@@ -127,14 +125,13 @@ Open **System management → System configuration** (系统管理 → 系统配�
 | Maximum chat request retries | Defaults to `5`, range `0–20`; retries transient errors such as rate limits and overload with backoff, but never after content has been emitted |
 | Context compaction percentage | Defaults to `90%`, range `10–95%`; the rest of the window is reserved for output |
 | Global AGENTS.md paths | Loads personal instructions in order; clear the list to disable global file loading |
-| User-Agent | Used for backend chat and title requests |
-| Custom system prompt | Appended to the read-only base prompt for chat |
+| Model catalog synchronization | Configure a complete HTTP(S) catalog URL (default `https://models.dev/models.json`), sync manually, or enable an interval from `1–720` hours; **Logs & audit → Model catalog** supports searching by name, identifier, lab, family, or description and sorts by release date newest first |
+| Global base prompt | Editable base persona used by new chat requests; it may be empty |
+| Additional system prompt | Appended to the base prompt for chat |
 
 Default global instruction paths are `~/.config/agents/AGENTS.md` and `~/.codex/AGENTS.md`. The project root's `AGENTS.md` is included automatically, with case-insensitive filenames. Instructions are saved as a snapshot with the conversation's first successful turn and reused across restarts and compaction. File or path changes apply to new conversations. Global and project instructions share a **256 KiB** limit.
 
 Other saved settings apply to new requests. The interface also provides light/dark themes and collapsible sidebars.
-
-![Lower settings section with the read-only base prompt and custom prompt](images/screenshots/desktop-2026-09-13/settings-prompts.jpg)
 
 ### Token usage analytics
 
