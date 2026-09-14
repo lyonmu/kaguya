@@ -12,6 +12,7 @@ import (
 
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 )
 
 func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
@@ -92,6 +93,68 @@ func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
 	resp, err := svc.ConversationTitleGenerate(ctx, "123")
 	if err != nil || resp.Title != manual || calls.Load() != 2 {
 		t.Fatalf("regenerated a completed/manual title: %+v %v calls=%d", resp, err, calls.Load())
+	}
+}
+
+func TestConversationTitleGenerateUsesFirstCompletedTurn(t *testing.T) {
+	ctx, client := setupChatTest(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Model    string `json:"model"`
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if body.Model != "background-model" {
+			t.Errorf("task model = %q", body.Model)
+		}
+		// 首轮失败后必须用最早的成功轮次作为标题依据。
+		if len(body.Messages) != 2 || !strings.Contains(body.Messages[1].Content, "第二轮提问") || strings.Contains(body.Messages[1].Content, "失败的提问") {
+			t.Errorf("title input must use the first completed turn: %+v", body)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"title","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"失败后补生成的标题"},"finish_reason":"stop"}]}`)
+	}))
+	defer server.Close()
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("background-model").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetTaskModelID(model.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// 首轮失败：保留 failed 占位行，占用 turn_index 1 但不作为标题依据。
+	failed, err := beginTurn(ctx, turnStart{ConversationID: "123", UserContent: "失败的提问", StartedAt: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := markTurnEnd(failed.ID, kaguyachatturn.StatusFailed, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	// 第二轮成功：把进行中的占位行补全为 completed。
+	running, err := beginTurn(ctx, turnStart{ConversationID: "123", UserContent: "第二轮提问", StartedAt: time.Now()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	turn := testCompletedTurn("123", 0)
+	turn.TurnID, turn.UserContent = running.ID, "第二轮提问"
+	if err := saveCompletedTurn(ctx, turn); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := (&AgentSvc{}).ConversationTitleGenerate(ctx, "123")
+	if err != nil || resp.Title != "失败后补生成的标题" {
+		t.Fatalf("title response: %+v %v", resp, err)
+	}
+	row, err := client.KaguyaConversation.Get(ctx, "123")
+	if err != nil || row.Title != "失败后补生成的标题" || row.TurnCount != 1 || row.DeletedAt != nil {
+		t.Fatalf("stored conversation: %+v %v", row, err)
 	}
 }
 

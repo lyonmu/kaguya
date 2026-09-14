@@ -102,7 +102,7 @@ func (b *ChatApiV1Group) ConversationTitleWait(c *gin.Context) {
 // ConversationTitleGenerate
 // @Tags Chat History
 // @Summary 默认标题生成或重试，并等待已保存标题
-// @Description 每轮成功结束且标题仍为“新对话”时调用一次。新会话创建后已立即并行启动同一任务（只用用户提问，不等回答），模型返回后直接条件写入标题；此处按需补生成或重试，使用全局任务模型根据已保存首轮问答生成标题。未配置任务模型返回 102007，提供商的 API Key 无法解密返回 102010。已有任务（含提前启动的）则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试。
+// @Description 每轮成功结束且标题仍为“新对话”时调用一次。新会话创建后已立即并行启动同一任务（只用用户提问，不等回答），模型返回后直接条件写入标题；此处按需补生成或重试，使用全局任务模型根据已保存的最早成功轮次问答生成标题（首轮失败时不会跳过后续成功轮次）。未配置任务模型返回 102007，提供商的 API Key 无法解密返回 102010。已有任务（含提前启动的）则等待，不覆盖非默认标题。最多等待30秒，生成失败或等待超时返回当前标题，不自动重试。
 // @Param id path string true "会话雪花 ID"
 // @Success 200 {object} dtocode.Response{data=dtochat.ConversationTitleResp}
 // @Router /v1/chat/conversation/{id}/title/wait [post]

@@ -90,16 +90,17 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 	done := conversationTitles.pending[id]
 	conversationTitles.Unlock()
 	if done == nil {
-		// 从已保存首轮恢复可见问答，不读取私有模型上下文；中断/进行中的轮次不能作为标题依据。
+		// 从最早的已完成轮次恢复可见问答（首轮失败时用后续成功轮次），
+		// 不读取私有模型上下文；中断/进行中的轮次不能作为标题依据。
 		turn, err := db.EntClient.KaguyaChatTurn.Query().Where(
-			kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.TurnIndexEQ(1),
+			kaguyachatturn.ConversationIDEQ(id),
 			kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted),
 		).Select(kaguyachatturn.FieldUserContent).
 			WithBlocks(func(q *ent.KaguyaChatBlockQuery) {
 				q.Where(kaguyachatblock.TypeEQ(kaguyachatblock.TypeText)).Order(kaguyachatblock.BySequence())
-			}).Only(ctx)
+			}).Order(kaguyachatturn.ByTurnIndex()).First(ctx)
 		if ent.IsNotFound(err) {
-			// 首轮仍在生成（或已失败尚未留存）：保留当前标题，等 done 后再次请求。
+			// 还没有任何完成轮次（首轮仍在生成或已失败）：保留当前标题，等 done 后再次请求。
 			return &dtochat.ConversationTitleResp{ID: conv.ID, Title: conv.Title}, nil
 		}
 		if err != nil {
