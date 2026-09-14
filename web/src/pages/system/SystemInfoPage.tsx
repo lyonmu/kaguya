@@ -53,7 +53,7 @@ export function SystemInfoPage() {
     setSyncing(true)
     try {
       const result = await syncModelCatalog()
-      void message.success(`已同步 ${result.count.toLocaleString()} 个模型`)
+      void message.success(`已同步 ${result.provider_count.toLocaleString()} 个提供商、${result.count.toLocaleString()} 个模型`)
       setRevision(value => value + 1)
     } catch (error) { void message.error(error instanceof Error ? error.message : '同步失败') }
     finally { setSyncing(false) }
@@ -79,14 +79,14 @@ export function SystemInfoPage() {
         </div>
         <Form.Item className="mb-3!" label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="会话首轮读取并保存快照，后续复用；路径修改仅影响新会话。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
         <div className="mb-3 rounded-lg border border-k-border-soft bg-k-canvas p-3">
-          <Form.Item className="mb-3!" label="模型目录同步地址" name="model_sync_url" rules={[{ required: true, whitespace: true, message: '请输入同步地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="手动与定时同步均使用此地址；修改后请先保存配置。">
-            <Input aria-label="模型目录同步地址" maxLength={2048} placeholder="https://models.dev/models.json" />
+          <Form.Item className="mb-3!" label="目录同步地址" name="model_sync_url" rules={[{ required: true, whitespace: true, message: '请输入同步地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="手动与定时同步均使用此地址，会同时更新提供商目录与模型目录；修改后请先保存配置。">
+            <Input aria-label="目录同步地址" maxLength={2048} placeholder="https://models.dev/api.json" />
           </Form.Item>
           <div className="grid grid-cols-[minmax(160px,0.5fr)_minmax(180px,0.6fr)_1fr_auto] items-end gap-3 max-[800px]:grid-cols-2 max-[620px]:grid-cols-1">
-            <Form.Item className="mb-0!" label="定时同步模型目录" name="model_sync_enabled" valuePropName="checked"><Switch /></Form.Item>
+            <Form.Item className="mb-0!" label="定时同步目录" name="model_sync_enabled" valuePropName="checked"><Switch /></Form.Item>
             <Form.Item className="mb-0!" label="同步间隔（小时）" name="model_sync_interval_hours" rules={[{ required: true }]}><InputNumber className="w-full" min={1} max={720} precision={0} /></Form.Item>
             <div className="pb-1 text-xs text-k-text-muted">
-              <div>目录 {info.model_sync_catalog_count.toLocaleString()} 项 · 最近成功：{formatTime(info.model_sync_last_success_at)}</div>
+              <div>提供商 {info.provider_catalog_count.toLocaleString()} 个 · 模型 {info.model_sync_catalog_count.toLocaleString()} 项 · 最近成功：{formatTime(info.model_sync_last_success_at)}</div>
               {info.model_sync_last_error ? <Typography.Text type="danger">最近失败：{info.model_sync_last_error}</Typography.Text> : null}
             </div>
             <Button icon={<SyncOutlined />} loading={syncing} onClick={syncNow}>立即同步</Button>

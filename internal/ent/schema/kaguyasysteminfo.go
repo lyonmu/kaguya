@@ -34,6 +34,8 @@ func (KaguyaSystemInfo) Fields() []ent.Field {
 		field.Int("model_sync_interval_hours").Default(24).Min(1).Max(720).Comment("模型目录同步间隔小时数"),
 		field.Text("model_catalog_json").Default("[]").Comment("models.dev 模型目录缓存，不通过系统配置接口返回"),
 		field.Int("model_catalog_count").Default(0).Min(0).Comment("已缓存的模型目录条目数"),
+		field.Text("provider_catalog_json").Default("[]").Comment("models.dev 提供商目录缓存，只包含有 api 字段的提供商"),
+		field.Int("provider_catalog_count").Default(0).Min(0).Comment("已缓存的提供商目录条目数"),
 		field.Time("model_sync_last_attempt_at").Optional().Nillable().GoType(time.Time{}),
 		field.Time("model_sync_last_success_at").Optional().Nillable().GoType(time.Time{}),
 		field.Text("model_sync_last_error").Default(""),

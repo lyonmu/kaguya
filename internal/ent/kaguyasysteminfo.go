@@ -48,6 +48,10 @@ type KaguyaSystemInfo struct {
 	ModelCatalogJSON string `json:"model_catalog_json,omitempty"`
 	// 已缓存的模型目录条目数
 	ModelCatalogCount int `json:"model_catalog_count,omitempty"`
+	// models.dev 提供商目录缓存，只包含有 api 字段的提供商
+	ProviderCatalogJSON string `json:"provider_catalog_json,omitempty"`
+	// 已缓存的提供商目录条目数
+	ProviderCatalogCount int `json:"provider_catalog_count,omitempty"`
 	// ModelSyncLastAttemptAt holds the value of the "model_sync_last_attempt_at" field.
 	ModelSyncLastAttemptAt *time.Time `json:"model_sync_last_attempt_at,omitempty"`
 	// ModelSyncLastSuccessAt holds the value of the "model_sync_last_success_at" field.
@@ -70,9 +74,9 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case kaguyasysteminfo.FieldModelSyncEnabled:
 			values[i] = new(sql.NullBool)
-		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelCatalogCount:
+		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount:
 			values[i] = new(sql.NullInt64)
-		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
+		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldProviderCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
 			values[i] = new(sql.NullString)
 		case kaguyasysteminfo.FieldCreatedAt, kaguyasysteminfo.FieldUpdatedAt, kaguyasysteminfo.FieldDeletedAt, kaguyasysteminfo.FieldModelSyncLastAttemptAt, kaguyasysteminfo.FieldModelSyncLastSuccessAt:
 			values[i] = new(sql.NullTime)
@@ -190,6 +194,18 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ModelCatalogCount = int(value.Int64)
 			}
+		case kaguyasysteminfo.FieldProviderCatalogJSON:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_catalog_json", values[i])
+			} else if value.Valid {
+				_m.ProviderCatalogJSON = value.String
+			}
+		case kaguyasysteminfo.FieldProviderCatalogCount:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_catalog_count", values[i])
+			} else if value.Valid {
+				_m.ProviderCatalogCount = int(value.Int64)
+			}
 		case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field model_sync_last_attempt_at", values[i])
@@ -304,6 +320,12 @@ func (_m *KaguyaSystemInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("model_catalog_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ModelCatalogCount))
+	builder.WriteString(", ")
+	builder.WriteString("provider_catalog_json=")
+	builder.WriteString(_m.ProviderCatalogJSON)
+	builder.WriteString(", ")
+	builder.WriteString("provider_catalog_count=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ProviderCatalogCount))
 	builder.WriteString(", ")
 	if v := _m.ModelSyncLastAttemptAt; v != nil {
 		builder.WriteString("model_sync_last_attempt_at=")

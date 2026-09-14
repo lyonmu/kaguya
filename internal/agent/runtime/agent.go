@@ -23,8 +23,8 @@ import (
 type ProviderConfig struct {
 	Type           consts.ProviderType     // normal 使用标准协议；opencode-go 追加会话请求头
 	Name           string                  // 提供商名称（记录元数据用）
-	Protocol       consts.ProviderProtocol // 模型协议类型
-	BaseURL        string                  // 必填完整请求 URL，原样使用，不补全路径
+	Protocol       consts.ProviderProtocol // 模型协议类型，决定根地址后追加的端点路径
+	BaseURL        string                  // 必填 API 版本根地址；端点路径由 Protocol 追加，不重复拼接
 	APIKey         string                  // API Key
 	ModelID        string                  // 调用 API 时使用的模型标识符
 	ConversationID string                  // 本地会话雪花 ID，通过 X-Conversation-ID 透传；不是上游托管会话 ID
@@ -170,7 +170,11 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 		err      error
 	)
 
-	client, err := newProviderHTTPClient(cfg.BaseURL)
+	endpoint, err := providerEndpoint(cfg.BaseURL, cfg.Protocol)
+	if err != nil {
+		return nil, err
+	}
+	client, err := newProviderHTTPClient(endpoint)
 	if err != nil {
 		return nil, err
 	}

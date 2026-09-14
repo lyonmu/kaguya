@@ -48,13 +48,15 @@ func TestProviderUsage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			wantPath := "/v1/chat/completions"
+			// 根地址只到版本段，最终路径由模型协议追加端点得到。
+			suffix := "/chat/completions"
 			switch tt.protocol {
 			case consts.ProtocolOpenAIResponses:
-				wantPath = "/v1/responses"
+				suffix = "/responses"
 			case consts.ProtocolAnthropic:
-				wantPath = "/v1/messages"
+				suffix = "/messages"
 			}
+			wantPath := "/v1" + suffix
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if got := r.Header.Get("X-Conversation-ID"); got != "123456789012345" {
 					t.Errorf("conversation header = %q", got)
@@ -71,7 +73,7 @@ func TestProviderUsage(t *testing.T) {
 			}))
 			defer server.Close()
 			recorder := &usageTestRecorder{}
-			a, err := New(WithProvider(ProviderConfig{Protocol: tt.protocol, BaseURL: server.URL + wantPath, APIKey: "test", ModelID: "test", ConversationID: "123456789012345"}), WithRecorder(recorder))
+			a, err := New(WithProvider(ProviderConfig{Protocol: tt.protocol, BaseURL: server.URL + "/v1", APIKey: "test", ModelID: "test", ConversationID: "123456789012345"}), WithRecorder(recorder))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -123,7 +125,7 @@ func TestRecordUsageFailureIsLogged(t *testing.T) {
 
 	wantErr := errors.New("usage sink unavailable")
 	a, err := New(
-		WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL + "/v1/chat/completions", APIKey: "test", ModelID: "test"}),
+		WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL + "/v1", APIKey: "test", ModelID: "test"}),
 		WithRecorder(failingUsageRecorder{err: wantErr}),
 	)
 	if err != nil {

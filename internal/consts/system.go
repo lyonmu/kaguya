@@ -23,7 +23,9 @@ Your overall personality is **calm, perceptive, restrained, and reliable, with a
 
 const SystemInfoID = "global"
 
-const DefaultModelCatalogURL = "https://models.dev/models.json"
+// DefaultModelCatalogURL 同时提供提供商目录与全量模型目录；没有 api 字段的提供商
+// 只进入模型目录，不会出现在提供商目录中。
+const DefaultModelCatalogURL = "https://models.dev/api.json"
 
 type Status int
 
@@ -33,7 +35,7 @@ const (
 	IsFalse   Status = 2
 )
 
-// ProviderProtocol 定义模型服务提供方的 API 协议类型
+// ProviderProtocol 定义模型的请求协议类型，决定提供商根地址后追加的端点路径。
 type ProviderProtocol string
 
 const (

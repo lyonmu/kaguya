@@ -63,7 +63,7 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 				// disconnect: 仅有部分内容，直接 EOF，没有正常 finish。
 			}))
 			defer server.Close()
-			p, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+			p, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -175,7 +175,7 @@ func TestChatRetriesTransientStreamOverload(t *testing.T) {
 		fmt.Fprint(w, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
 	}))
 	defer server.Close()
-	p, err := client.KaguyaProviderInfo.Create().SetProviderName("retry").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	p, err := client.KaguyaProviderInfo.Create().SetProviderName("retry").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

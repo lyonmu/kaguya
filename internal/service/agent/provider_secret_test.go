@@ -22,7 +22,7 @@ func seedProvider(t *testing.T, ctx context.Context, client *ent.Client, name, a
 		t.Fatal(err)
 	}
 	row, err := client.KaguyaProviderInfo.Create().
-		SetProviderName(name).SetAPIProtocol(consts.ProtocolOpenAIChat).
+		SetProviderName(name).
 		SetAPIKey(encrypted).SetBaseURL("https://api.example.com/v1/chat/completions").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -136,7 +136,7 @@ func TestProviderSecretSentinelIsNotOverBroad(t *testing.T) {
 	t.Cleanup(secret.Reset)
 	for name, apiKey := range map[string]string{"empty": "", "plaintext": "sk-legacy-plaintext"} {
 		row, err := client.KaguyaProviderInfo.Create().
-			SetProviderName(name).SetAPIProtocol(consts.ProtocolOpenAIChat).
+			SetProviderName(name).
 			SetAPIKey(apiKey).SetBaseURL("https://api.example.com/v1/chat/completions").Save(ctx)
 		if err != nil {
 			t.Fatal(err)

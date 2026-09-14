@@ -44,6 +44,10 @@ const (
 	FieldModelCatalogJSON = "model_catalog_json"
 	// FieldModelCatalogCount holds the string denoting the model_catalog_count field in the database.
 	FieldModelCatalogCount = "model_catalog_count"
+	// FieldProviderCatalogJSON holds the string denoting the provider_catalog_json field in the database.
+	FieldProviderCatalogJSON = "provider_catalog_json"
+	// FieldProviderCatalogCount holds the string denoting the provider_catalog_count field in the database.
+	FieldProviderCatalogCount = "provider_catalog_count"
 	// FieldModelSyncLastAttemptAt holds the string denoting the model_sync_last_attempt_at field in the database.
 	FieldModelSyncLastAttemptAt = "model_sync_last_attempt_at"
 	// FieldModelSyncLastSuccessAt holds the string denoting the model_sync_last_success_at field in the database.
@@ -76,6 +80,8 @@ var Columns = []string{
 	FieldModelSyncIntervalHours,
 	FieldModelCatalogJSON,
 	FieldModelCatalogCount,
+	FieldProviderCatalogJSON,
+	FieldProviderCatalogCount,
 	FieldModelSyncLastAttemptAt,
 	FieldModelSyncLastSuccessAt,
 	FieldModelSyncLastError,
@@ -142,6 +148,12 @@ var (
 	DefaultModelCatalogCount int
 	// ModelCatalogCountValidator is a validator for the "model_catalog_count" field. It is called by the builders before save.
 	ModelCatalogCountValidator func(int) error
+	// DefaultProviderCatalogJSON holds the default value on creation for the "provider_catalog_json" field.
+	DefaultProviderCatalogJSON string
+	// DefaultProviderCatalogCount holds the default value on creation for the "provider_catalog_count" field.
+	DefaultProviderCatalogCount int
+	// ProviderCatalogCountValidator is a validator for the "provider_catalog_count" field. It is called by the builders before save.
+	ProviderCatalogCountValidator func(int) error
 	// DefaultModelSyncLastError holds the default value on creation for the "model_sync_last_error" field.
 	DefaultModelSyncLastError string
 	// DefaultDefaultModelID holds the default value on creation for the "default_model_id" field.
@@ -230,6 +242,16 @@ func ByModelCatalogJSON(opts ...sql.OrderTermOption) OrderOption {
 // ByModelCatalogCount orders the results by the model_catalog_count field.
 func ByModelCatalogCount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModelCatalogCount, opts...).ToFunc()
+}
+
+// ByProviderCatalogJSON orders the results by the provider_catalog_json field.
+func ByProviderCatalogJSON(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProviderCatalogJSON, opts...).ToFunc()
+}
+
+// ByProviderCatalogCount orders the results by the provider_catalog_count field.
+func ByProviderCatalogCount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProviderCatalogCount, opts...).ToFunc()
 }
 
 // ByModelSyncLastAttemptAt orders the results by the model_sync_last_attempt_at field.

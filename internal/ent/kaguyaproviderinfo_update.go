@@ -71,26 +71,6 @@ func (_u *KaguyaProviderInfoUpdate) SetNillableProviderName(v *string) *KaguyaPr
 	return _u
 }
 
-// SetAPIProtocol sets the "api_protocol" field.
-func (_u *KaguyaProviderInfoUpdate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpdate {
-	_u.mutation.SetAPIProtocol(v)
-	return _u
-}
-
-// SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
-func (_u *KaguyaProviderInfoUpdate) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaProviderInfoUpdate {
-	if v != nil {
-		_u.SetAPIProtocol(*v)
-	}
-	return _u
-}
-
-// ClearAPIProtocol clears the value of the "api_protocol" field.
-func (_u *KaguyaProviderInfoUpdate) ClearAPIProtocol() *KaguyaProviderInfoUpdate {
-	_u.mutation.ClearAPIProtocol()
-	return _u
-}
-
 // SetProviderType sets the "provider_type" field.
 func (_u *KaguyaProviderInfoUpdate) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoUpdate {
 	_u.mutation.SetProviderType(v)
@@ -268,12 +248,6 @@ func (_u *KaguyaProviderInfoUpdate) sqlSave(ctx context.Context) (_node int, err
 	if value, ok := _u.mutation.ProviderName(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderName, field.TypeString, value)
 	}
-	if value, ok := _u.mutation.APIProtocol(); ok {
-		_spec.SetField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString, value)
-	}
-	if _u.mutation.APIProtocolCleared() {
-		_spec.ClearField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString)
-	}
 	if value, ok := _u.mutation.ProviderType(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderType, field.TypeString, value)
 	}
@@ -393,26 +367,6 @@ func (_u *KaguyaProviderInfoUpdateOne) SetNillableProviderName(v *string) *Kaguy
 	if v != nil {
 		_u.SetProviderName(*v)
 	}
-	return _u
-}
-
-// SetAPIProtocol sets the "api_protocol" field.
-func (_u *KaguyaProviderInfoUpdateOne) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpdateOne {
-	_u.mutation.SetAPIProtocol(v)
-	return _u
-}
-
-// SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
-func (_u *KaguyaProviderInfoUpdateOne) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaProviderInfoUpdateOne {
-	if v != nil {
-		_u.SetAPIProtocol(*v)
-	}
-	return _u
-}
-
-// ClearAPIProtocol clears the value of the "api_protocol" field.
-func (_u *KaguyaProviderInfoUpdateOne) ClearAPIProtocol() *KaguyaProviderInfoUpdateOne {
-	_u.mutation.ClearAPIProtocol()
 	return _u
 }
 
@@ -622,12 +576,6 @@ func (_u *KaguyaProviderInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	}
 	if value, ok := _u.mutation.ProviderName(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderName, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.APIProtocol(); ok {
-		_spec.SetField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString, value)
-	}
-	if _u.mutation.APIProtocolCleared() {
-		_spec.ClearField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString)
 	}
 	if value, ok := _u.mutation.ProviderType(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderType, field.TypeString, value)

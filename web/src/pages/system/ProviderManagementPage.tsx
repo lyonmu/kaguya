@@ -56,9 +56,9 @@ import {
 } from '../../features/providers/useProviders'
 
 const protocolOptions = [
-  { label: 'OpenAI Chat Completions', value: 'openai-chat' },
-  { label: 'Anthropic Messages', value: 'anthropic' },
-  { label: 'OpenAI Responses', value: 'openai-response' },
+  { label: 'Chat · /chat/completions', value: 'openai-chat' },
+  { label: 'Response · /responses', value: 'openai-response' },
+  { label: 'Message · /messages', value: 'anthropic' },
 ]
 
 const statusOptions = [
@@ -67,14 +67,19 @@ const statusOptions = [
 ]
 
 const protocolLabel: Record<ProviderProtocol, string> = {
-  'openai-chat': 'OpenAI Chat',
-  anthropic: 'Anthropic',
-  'openai-response': 'OpenAI Responses',
+  'openai-chat': 'Chat',
+  anthropic: 'Message',
+  'openai-response': 'Response',
+}
+
+const protocolSuffix: Record<ProviderProtocol, string> = {
+  'openai-chat': '/chat/completions',
+  'openai-response': '/responses',
+  anthropic: '/messages',
 }
 
 interface FilterValues {
   providerName?: string
-  apiProtocol?: ProviderProtocol
 }
 
 export function ProviderManagementPage() {
@@ -95,6 +100,8 @@ export function ProviderManagementPage() {
   const [revealedKey, setRevealedKey] = useState<{ name: string; value: string }>()
   const [modelCatalog, setModelCatalog] = useState<ModelCatalogItem[]>([])
   const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogKeyword, setCatalogKeyword] = useState('')
+  const watchedProtocol = Form.useWatch<ProviderProtocol>('api_protocol', modelForm)
 
   const selectedProvider = useMemo(
     () => data.items.find((item) => item.id === selectedProviderID),
@@ -112,20 +119,22 @@ export function ProviderManagementPage() {
   useEffect(() => {
     if (!selectedProviderID) return
     const controller = new AbortController()
-    setCatalogLoading(true)
-    fetchModelCatalog('', controller.signal)
-      .then(result => setModelCatalog(result.items ?? []))
-      .catch(() => setModelCatalog([]))
-      .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false) })
-    return () => controller.abort()
-  }, [selectedProviderID])
+    // 目录是全量同步的几千条模型，输入关键词后由服务端检索，不在前端全量拉取。
+    const timer = window.setTimeout(() => {
+      setCatalogLoading(true)
+      fetchModelCatalog(catalogKeyword, controller.signal)
+        .then(result => setModelCatalog(result.items ?? []))
+        .catch(() => setModelCatalog([]))
+        .finally(() => { if (!controller.signal.aborted) setCatalogLoading(false) })
+    }, 250)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [selectedProviderID, catalogKeyword])
 
   const showCreateProvider = () => {
     setEditingProvider(undefined)
     providerForm.setFieldsValue({
       provider_name: '',
       provider_type: 'normal',
-      api_protocol: 'openai-chat',
       api_key: '',
       base_url: '',
     })
@@ -137,7 +146,6 @@ export function ProviderManagementPage() {
     providerForm.setFieldsValue({
       provider_name: provider.provider_name,
       provider_type: provider.provider_type,
-      api_protocol: provider.api_protocol,
       // 后端只返回掩码，因此不预填；留空表示保留已存储的密钥。
       api_key: '',
       base_url: provider.base_url,
@@ -192,11 +200,14 @@ export function ProviderManagementPage() {
   const showCreateModel = () => {
     if (!selectedProvider) return
     setEditingModel(undefined)
+    // 重新打开时清空上一次的目录检索词，避免选项列表与空输入框不一致。
+    setCatalogKeyword('')
     modelForm.setFieldsValue({
       provider_id: selectedProvider.id,
       catalog_model_id: undefined,
       model_name: "",
       model_id: "",
+      api_protocol: 'openai-chat',
       reasoning_enabled: 1,
       reasoning_effort: "medium",
       token_context_window: 0,
@@ -214,6 +225,7 @@ export function ProviderManagementPage() {
       provider_id: model.provider_id,
       model_name: model.model_name,
       model_id: model.model_id,
+      api_protocol: model.api_protocol,
       reasoning_enabled: model.reasoning_enabled,
       reasoning_effort: model.reasoning_effort,
       token_context_window: model.token_context_window,
@@ -250,7 +262,8 @@ export function ProviderManagementPage() {
     if (!item) return
     modelForm.setFieldsValue({
       model_name: item.name,
-      model_id: item.id,
+      model_id: item.model_id,
+      api_protocol: item.api_protocol,
       reasoning_enabled: item.reasoning_enabled,
       reasoning_effort: 'medium',
       token_context_window: item.token_context_window,
@@ -291,15 +304,22 @@ export function ProviderManagementPage() {
       render: (value: string) => <Tag>{value === 'opencode-go' ? 'OpenCode Go' : '标准'}</Tag>,
     },
     {
-      title: 'API 协议',
-      dataIndex: 'api_protocol',
-      key: 'api_protocol',
-      width: 170,
-      render: (value: ProviderProtocol) => (
-        <Tag color={value === 'anthropic' ? 'orange' : 'blue'}>
-          {protocolLabel[value] ?? value}
-        </Tag>
-      ),
+      title: '模型协议',
+      key: 'model_protocols',
+      width: 180,
+      render: (_, provider) => {
+        const protocols = Array.from(new Set((provider.models ?? []).map(model => model.api_protocol)))
+        if (!protocols.length) return <span className="text-[11px] text-k-text-subtle">—</span>
+        return (
+          <Space size={[0, 4]} wrap>
+            {protocols.map(protocol => (
+              <Tag color={protocol === 'anthropic' ? 'orange' : 'blue'} key={protocol}>
+                {protocolLabel[protocol] ?? protocol}
+              </Tag>
+            ))}
+          </Space>
+        )
+      },
     },
     {
       title: '请求 URL',
@@ -399,6 +419,15 @@ export function ProviderManagementPage() {
       render: (value: string) => <Typography.Text copyable>{value}</Typography.Text>,
     },
     {
+      title: '协议',
+      dataIndex: 'api_protocol',
+      key: 'api_protocol',
+      width: 100,
+      render: (value: ProviderProtocol) => (
+        <Tag color={value === 'anthropic' ? 'orange' : 'blue'}>{protocolLabel[value] ?? value}</Tag>
+      ),
+    },
+    {
       title: '推理',
       key: 'reasoning',
       width: 110,
@@ -461,16 +490,12 @@ export function ProviderManagementPage() {
             page: 1,
             pageSize: query.pageSize,
             providerName: values.providerName?.trim() || undefined,
-            apiProtocol: values.apiProtocol,
           })}
           requiredMark={false}
         >
-          <div className="grid grid-cols-[minmax(220px,1fr)_minmax(220px,0.7fr)_auto] items-end gap-3.5 max-[800px]:grid-cols-1">
+          <div className="grid grid-cols-[minmax(220px,1fr)_auto] items-end gap-3.5 max-[800px]:grid-cols-1">
             <Form.Item className="mb-0!" label="提供商名称" name="providerName">
               <Input allowClear placeholder="搜索提供商" prefix={<SearchOutlined className="text-k-text-subtle" />} />
-            </Form.Item>
-            <Form.Item className="mb-0!" label="API 协议" name="apiProtocol">
-              <Select allowClear options={protocolOptions} placeholder="全部协议" />
             </Form.Item>
             <Space>
               <Button icon={<UndoOutlined />} onClick={() => {
@@ -531,14 +556,11 @@ export function ProviderManagementPage() {
           <Form.Item label="提供商名称" name="provider_name" rules={[{ required: true, message: '请输入提供商名称' }]}>
             <Input maxLength={100} placeholder="例如 OpenAI" prefix={<ApiOutlined />} />
           </Form.Item>
-          <Form.Item label="API 协议" name="api_protocol" rules={[{ required: true, message: '请选择 API 协议' }]}>
-            <Select options={protocolOptions} />
-          </Form.Item>
           <Form.Item label="提供商类型" name="provider_type" rules={[{ required: true }]} tooltip="OpenCode Go 会在请求头 x-opencode-session 中传入会话 ID。">
             <Select options={[{ label: '标准（normal）', value: 'normal' }, { label: 'OpenCode Go', value: 'opencode-go' }]} />
           </Form.Item>
-          <Form.Item label="完整请求 URL" name="base_url" rules={[{ required: true, message: '请输入包含实际端点的完整请求 URL' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="原样请求，不自动追加 /v1、/responses、/chat/completions 或 /messages。">
-            <Input placeholder="例如 https://api.example.com/v1/chat/completions" />
+          <Form.Item label="API 根地址" name="base_url" rules={[{ required: true, message: '请输入 API 版本根地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="只填到 API 版本段的根地址（如 /v1）；端点路径由模型的请求协议自动追加。">
+            <Input placeholder="例如 https://api.example.com/v1" />
           </Form.Item>
           <Form.Item label="API Key" name="api_key" tooltip={editingProvider ? '留空表示保留已存储的密钥；填写则覆盖。' : undefined}>
             <Input.Password autoComplete="new-password" placeholder={editingProvider ? '留空则不修改已存储的密钥' : '请输入 API Key'} />
@@ -598,11 +620,12 @@ export function ProviderManagementPage() {
             {!editingModel ? <Form.Item className="col-span-2 max-[620px]:col-span-1" label="从已同步目录选择" name="catalog_model_id" tooltip="来自 models.dev；选择后自动填充下方信息。目录不保证当前提供商一定开放该模型。">
               <Select
                 allowClear
+                filterOption={false}
                 loading={catalogLoading}
                 onChange={selectCatalogModel}
-                optionFilterProp="label"
-                options={modelCatalog.map(model => ({ label: `${model.name} · ${model.id}`, value: model.id }))}
-                placeholder={modelCatalog.length ? '搜索模型名称或标识' : '请先在系统配置中同步模型目录'}
+                onSearch={setCatalogKeyword}
+                options={modelCatalog.map(model => ({ label: `${model.name} · ${model.provider_name}/${model.model_id}`, value: model.id }))}
+                placeholder={modelCatalog.length ? '搜索模型名称或标识' : '请先在系统配置中同步目录'}
                 showSearch
               />
             </Form.Item> : null}
@@ -614,6 +637,16 @@ export function ProviderManagementPage() {
             </Form.Item>
             <Form.Item label="API 模型标识" name="model_id" rules={[{ required: true, message: '请输入模型标识' }]}>
               <Input className="font-mono" placeholder="例如 gpt-5" />
+            </Form.Item>
+            <Form.Item
+              label="请求协议"
+              name="api_protocol"
+              rules={[{ required: true, message: '请选择请求协议' }]}
+              extra={selectedProvider?.base_url ? (
+                <span className="text-[11px]">最终请求：<span className="font-mono">{`${selectedProvider.base_url.replace(/\/+$/, '')}${protocolSuffix[watchedProtocol ?? 'openai-chat']}`}</span></span>
+              ) : undefined}
+            >
+              <Select options={protocolOptions} />
             </Form.Item>
             <Form.Item label="推理模式" name="reasoning_enabled" rules={[{ required: true }]}>
               <Select options={statusOptions} />

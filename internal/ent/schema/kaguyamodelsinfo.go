@@ -25,6 +25,7 @@ func (KaguyaModelsInfo) Fields() []ent.Field {
 		field.String("provider_id").NotEmpty().Comment("提供商id"),
 		field.String("model_name").NotEmpty().Comment("模型显示名称"),
 		field.String("model_id").NotEmpty().Comment("调用 API 时使用的模型标识符"),
+		field.String("api_protocol").Optional().GoType(consts.ProviderProtocol("")).Default(string(consts.ProtocolOpenAIChat)).Comment("请求协议，决定提供商根地址后追加的端点路径"),
 		field.Int("reasoning_enabled").Optional().GoType(consts.Status(0)).Default(int(consts.IsTrue)).Comment("是否启用思考模式"),
 		field.String("reasoning_effort").Optional().GoType(consts.ReasoningEffort("")).Default(string(consts.ReasoningEffortMedium)).Comment("思考努力程度，影响推理深度和响应速度"),
 		field.Int("token_context_window").Optional().Comment("模型支持的最大上下文窗口大小（token 数）"),

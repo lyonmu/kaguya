@@ -614,6 +614,8 @@ definitions:
       model_sync_url:
         maxLength: 2048
         type: string
+      provider_catalog_count:
+        type: integer
       system_prompt:
         maxLength: 20000
         type: string
@@ -786,6 +788,8 @@ definitions:
     type: object
   system.SystemModelCatalogResp:
     properties:
+      api_protocol:
+        $ref: '#/definitions/consts.ProviderProtocol'
       capability_structured_output:
         $ref: '#/definitions/consts.Status'
       capability_tool_use:
@@ -806,7 +810,13 @@ definitions:
         type: string
       last_updated:
         type: string
+      model_id:
+        type: string
       name:
+        type: string
+      provider_id:
+        type: string
+      provider_name:
         type: string
       reasoning_enabled:
         $ref: '#/definitions/consts.Status'
@@ -847,6 +857,8 @@ definitions:
     type: object
   system.SystemModelResp:
     properties:
+      api_protocol:
+        $ref: '#/definitions/consts.ProviderProtocol'
       capability_structured_output:
         $ref: '#/definitions/consts.Status'
       capability_tool_use:
@@ -878,6 +890,14 @@ definitions:
     type: object
   system.SystemModelSaveReq:
     properties:
+      api_protocol:
+        allOf:
+        - $ref: '#/definitions/consts.ProviderProtocol'
+        description: 请求协议，决定提供商根地址后追加的端点路径
+        enum:
+        - openai-chat
+        - anthropic
+        - openai-response
       capability_structured_output:
         allOf:
         - $ref: '#/definitions/consts.Status'
@@ -922,6 +942,7 @@ definitions:
         minimum: 0
         type: integer
     required:
+    - api_protocol
     - capability_structured_output
     - capability_tool_use
     - capability_vision
@@ -935,6 +956,8 @@ definitions:
     properties:
       count:
         type: integer
+      provider_count:
+        type: integer
       synced_at:
         type: string
     type: object
@@ -943,6 +966,34 @@ definitions:
       api_key:
         type: string
       id:
+        type: string
+    type: object
+  system.SystemProviderCatalogListResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/system.SystemProviderCatalogResp'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  system.SystemProviderCatalogResp:
+    properties:
+      api:
+        type: string
+      doc:
+        type: string
+      id:
+        type: string
+      model_count:
+        type: integer
+      name:
+        type: string
+      npm:
         type: string
     type: object
   system.SystemProviderLabelResp:
@@ -971,8 +1022,6 @@ definitions:
         type: string
       api_key_set:
         type: boolean
-      api_protocol:
-        $ref: '#/definitions/consts.ProviderProtocol'
       base_url:
         type: string
       created_at:
@@ -995,16 +1044,8 @@ definitions:
       api_key:
         description: API Key
         type: string
-      api_protocol:
-        allOf:
-        - $ref: '#/definitions/consts.ProviderProtocol'
-        description: API 协议类型
-        enum:
-        - openai-chat
-        - anthropic
-        - openai-response
       base_url:
-        description: 完整请求 URL，必须包含实际端点；不补全或裁剪路径
+        description: API 版本根地址，由模型协议追加端点路径
         type: string
       provider_name:
         description: 提供商名称
@@ -1016,7 +1057,6 @@ definitions:
         - normal
         - opencode-go
     required:
-    - api_protocol
     - base_url
     - provider_name
     type: object
@@ -2137,6 +2177,38 @@ paths:
       summary: 查看提供商 API Key 明文（前端显式触发，不进入列表响应）
       tags:
       - System Provider
+  /v1/system/provider/catalog:
+    get:
+      parameters:
+      - in: query
+        name: keyword
+        type: string
+      - default: 1
+        in: query
+        minimum: 1
+        name: page
+        required: true
+        type: integer
+      - default: 100
+        in: query
+        maximum: 1000
+        minimum: 10
+        name: page_size
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemProviderCatalogListResp'
+              type: object
+      summary: 查询已同步的 models.dev 提供商目录
+      tags:
+      - System Provider
   /v1/system/provider/label:
     get:
       parameters:
@@ -2161,17 +2233,6 @@ paths:
   /v1/system/provider/page:
     get:
       parameters:
-      - enum:
-        - openai-chat
-        - anthropic
-        - openai-response
-        in: query
-        name: api_protocol
-        type: string
-        x-enum-varnames:
-        - ProtocolOpenAIChat
-        - ProtocolAnthropic
-        - ProtocolOpenAIResponses
       - default: 1
         in: query
         minimum: 1

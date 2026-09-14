@@ -24,8 +24,6 @@ const (
 	FieldDeletedAt = "deleted_at"
 	// FieldProviderName holds the string denoting the provider_name field in the database.
 	FieldProviderName = "provider_name"
-	// FieldAPIProtocol holds the string denoting the api_protocol field in the database.
-	FieldAPIProtocol = "api_protocol"
 	// FieldProviderType holds the string denoting the provider_type field in the database.
 	FieldProviderType = "provider_type"
 	// FieldAPIKey holds the string denoting the api_key field in the database.
@@ -52,7 +50,6 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldDeletedAt,
 	FieldProviderName,
-	FieldAPIProtocol,
 	FieldProviderType,
 	FieldAPIKey,
 	FieldBaseURL,
@@ -83,8 +80,6 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// ProviderNameValidator is a validator for the "provider_name" field. It is called by the builders before save.
 	ProviderNameValidator func(string) error
-	// DefaultAPIProtocol holds the default value on creation for the "api_protocol" field.
-	DefaultAPIProtocol consts.ProviderProtocol
 	// DefaultProviderType holds the default value on creation for the "provider_type" field.
 	DefaultProviderType consts.ProviderType
 	// DefaultID holds the default value on creation for the "id" field.
@@ -119,11 +114,6 @@ func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByProviderName orders the results by the provider_name field.
 func ByProviderName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProviderName, opts...).ToFunc()
-}
-
-// ByAPIProtocol orders the results by the api_protocol field.
-func ByAPIProtocol(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldAPIProtocol, opts...).ToFunc()
 }
 
 // ByProviderType orders the results by the provider_type field.

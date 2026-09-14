@@ -23,10 +23,9 @@ type KaguyaProviderInfo struct {
 func (KaguyaProviderInfo) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("provider_name").NotEmpty().Comment("提供商名称"),
-		field.String("api_protocol").Optional().GoType(consts.ProviderProtocol("")).Comment("API 协议类型").Default(string(consts.ProtocolOpenAIChat)),
 		field.String("provider_type").GoType(consts.ProviderType("")).Default(string(consts.ProviderTypeNormal)).Comment("提供商类型：normal 或 opencode-go"),
 		field.String("api_key").Optional().Comment("API Key"),
-		field.String("base_url").Optional().Comment("Base URL"),
+		field.String("base_url").Optional().Comment("API 版本根地址，请求路径由所属模型的协议追加"),
 	}
 
 }
@@ -56,7 +55,6 @@ func (KaguyaProviderInfo) Indexes() []ent.Index {
 	return []ent.Index{
 		// 唯一性只约束未删除提供商：软删除的行保留历史，不阻止同名重建。
 		index.Fields("provider_name").Unique().Annotations(entsql.IndexWhere("deleted_at IS NULL")),
-		index.Fields("api_protocol"),
 	}
 }
 

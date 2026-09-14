@@ -270,6 +270,41 @@ func (_u *KaguyaSystemInfoUpdate) AddModelCatalogCount(v int) *KaguyaSystemInfoU
 	return _u
 }
 
+// SetProviderCatalogJSON sets the "provider_catalog_json" field.
+func (_u *KaguyaSystemInfoUpdate) SetProviderCatalogJSON(v string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetProviderCatalogJSON(v)
+	return _u
+}
+
+// SetNillableProviderCatalogJSON sets the "provider_catalog_json" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableProviderCatalogJSON(v *string) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetProviderCatalogJSON(*v)
+	}
+	return _u
+}
+
+// SetProviderCatalogCount sets the "provider_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdate) SetProviderCatalogCount(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetProviderCatalogCount()
+	_u.mutation.SetProviderCatalogCount(v)
+	return _u
+}
+
+// SetNillableProviderCatalogCount sets the "provider_catalog_count" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableProviderCatalogCount(v *int) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetProviderCatalogCount(*v)
+	}
+	return _u
+}
+
+// AddProviderCatalogCount adds value to the "provider_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdate) AddProviderCatalogCount(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddProviderCatalogCount(v)
+	return _u
+}
+
 // SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
 func (_u *KaguyaSystemInfoUpdate) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoUpdate {
 	_u.mutation.SetModelSyncLastAttemptAt(v)
@@ -436,6 +471,11 @@ func (_u *KaguyaSystemInfoUpdate) check() error {
 			return &ValidationError{Name: "model_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_catalog_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ProviderCatalogCount(); ok {
+		if err := kaguyasysteminfo.ProviderCatalogCountValidator(v); err != nil {
+			return &ValidationError{Name: "provider_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_catalog_count": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -527,6 +567,15 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.AddedModelCatalogCount(); ok {
 		_spec.AddField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ProviderCatalogJSON(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderCatalogJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProviderCatalogCount(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProviderCatalogCount(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldProviderCatalogCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ModelSyncLastAttemptAt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime, value)
@@ -811,6 +860,41 @@ func (_u *KaguyaSystemInfoUpdateOne) AddModelCatalogCount(v int) *KaguyaSystemIn
 	return _u
 }
 
+// SetProviderCatalogJSON sets the "provider_catalog_json" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetProviderCatalogJSON(v string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetProviderCatalogJSON(v)
+	return _u
+}
+
+// SetNillableProviderCatalogJSON sets the "provider_catalog_json" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableProviderCatalogJSON(v *string) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetProviderCatalogJSON(*v)
+	}
+	return _u
+}
+
+// SetProviderCatalogCount sets the "provider_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetProviderCatalogCount(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetProviderCatalogCount()
+	_u.mutation.SetProviderCatalogCount(v)
+	return _u
+}
+
+// SetNillableProviderCatalogCount sets the "provider_catalog_count" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableProviderCatalogCount(v *int) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetProviderCatalogCount(*v)
+	}
+	return _u
+}
+
+// AddProviderCatalogCount adds value to the "provider_catalog_count" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddProviderCatalogCount(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddProviderCatalogCount(v)
+	return _u
+}
+
 // SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
 func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoUpdateOne {
 	_u.mutation.SetModelSyncLastAttemptAt(v)
@@ -990,6 +1074,11 @@ func (_u *KaguyaSystemInfoUpdateOne) check() error {
 			return &ValidationError{Name: "model_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_catalog_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ProviderCatalogCount(); ok {
+		if err := kaguyasysteminfo.ProviderCatalogCountValidator(v); err != nil {
+			return &ValidationError{Name: "provider_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_catalog_count": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -1098,6 +1187,15 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if value, ok := _u.mutation.AddedModelCatalogCount(); ok {
 		_spec.AddField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ProviderCatalogJSON(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderCatalogJSON, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ProviderCatalogCount(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderCatalogCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedProviderCatalogCount(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldProviderCatalogCount, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.ModelSyncLastAttemptAt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime, value)

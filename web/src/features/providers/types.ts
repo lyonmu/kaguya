@@ -9,6 +9,8 @@ export interface AIModel {
   provider_name: string
   model_name: string
   model_id: string
+  /** 请求协议，决定提供商根地址后追加的端点路径。 */
+  api_protocol: ProviderProtocol
   reasoning_enabled: Status
   reasoning_effort: ReasoningEffort
   token_context_window: number
@@ -24,10 +26,10 @@ export interface AIProvider {
   provider_type: ProviderType
   id: string
   provider_name: string
-  api_protocol: ProviderProtocol
   /** 后端只返回掩码，明文需调用 fetchProviderAPIKey 单独获取。 */
   api_key: string
   api_key_set: boolean
+  /** API 版本根地址；端点路径由模型协议追加。 */
   base_url: string
   models: AIModel[]
   created_at: string
@@ -48,7 +50,6 @@ export interface ProviderPageResponse {
 
 export interface ProviderQuery {
   providerName?: string
-  apiProtocol?: ProviderProtocol
   page: number
   pageSize: number
 }
@@ -56,9 +57,9 @@ export interface ProviderQuery {
 export interface ProviderPayload {
   provider_type: ProviderType
   provider_name: string
-  api_protocol: ProviderProtocol
   /** 留空表示保留已存储的密钥；后端不会回传明文供表单预填。 */
   api_key: string
+  /** API 版本根地址，例如 https://api.example.com/v1。 */
   base_url: string
 }
 
@@ -66,6 +67,7 @@ export interface ModelPayload {
   provider_id: string
   model_name: string
   model_id: string
+  api_protocol: ProviderProtocol
   reasoning_enabled: Status
   reasoning_effort: ReasoningEffort
   token_context_window: number
@@ -90,7 +92,13 @@ export interface LabelOption {
 }
 
 export interface ModelCatalogItem {
+  /** 目录内全局唯一键（提供商 ID + 模型标识）。 */
   id: string
+  provider_id: string
+  provider_name: string
+  /** 上游 API 模型标识，与 id 不同。 */
+  model_id: string
+  api_protocol: ProviderProtocol
   name: string
   lab: string
   family: string
@@ -115,5 +123,23 @@ export interface ModelCatalogResponse {
 
 export interface ModelSyncResponse {
   count: number
+  provider_count: number
   synced_at: string
+}
+
+/** models.dev 提供商目录项，用于预填新建提供商。 */
+export interface ProviderCatalogItem {
+  id: string
+  name: string
+  api: string
+  npm: string
+  doc: string
+  model_count: number
+}
+
+export interface ProviderCatalogResponse {
+  total: number
+  items: ProviderCatalogItem[]
+  page: number
+  page_size: number
 }

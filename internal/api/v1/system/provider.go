@@ -103,9 +103,12 @@ func (b *SystemApiV1Group) SystemProviderCreate(c *gin.Context) {
 	}
 	resp, err := systemsvc.ProviderCreate(c.Request.Context(), &req)
 	if err != nil {
-		if errors.Is(err, servicesystem.ErrProviderDuplicate) {
+		switch {
+		case errors.Is(err, servicesystem.ErrProviderDuplicate):
 			dtocode.ProviderNameAlreadyExist.Failure(c)
-		} else {
+		case errors.Is(err, servicesystem.ErrProviderBaseURL):
+			dtocode.RequestParameterError.Failure(c)
+		default:
 			dtocode.ProviderCreateFailure.Failure(c)
 		}
 		return
@@ -138,6 +141,8 @@ func (b *SystemApiV1Group) SystemProviderUpdate(c *gin.Context) {
 		switch {
 		case errors.Is(err, servicesystem.ErrProviderNotFound):
 			dtocode.ProviderNotFound.Failure(c)
+		case errors.Is(err, servicesystem.ErrProviderBaseURL):
+			dtocode.RequestParameterError.Failure(c)
 		case errors.Is(err, servicesystem.ErrProviderDuplicate):
 			dtocode.ProviderNameAlreadyExist.Failure(c)
 		default:
@@ -169,6 +174,27 @@ func (b *SystemApiV1Group) SystemProviderDelete(c *gin.Context) {
 		return
 	}
 	dtocode.SystemSuccess.Success(nil, c)
+}
+
+// SystemProviderCatalog
+// @Tags System Provider
+// @Summary 查询已同步的 models.dev 提供商目录
+// @Param data query dtosystem.SystemProviderCatalogReq true "请求参数"
+// @Success 200 {object} dtocode.Response{data=dtosystem.SystemProviderCatalogListResp}
+// @Router /v1/system/provider/catalog [get]
+func (b *SystemApiV1Group) SystemProviderCatalog(c *gin.Context) {
+	var req dtosystem.SystemProviderCatalogReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := systemsvc.ProviderCatalog(c.Request.Context(), &req)
+	if err != nil {
+		global.Logger.Sugar().Errorf("query provider catalog failed: %v", err)
+		dtocode.ProviderQueryFailure.Failure(c)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
 }
 
 // SystemProviderLabels

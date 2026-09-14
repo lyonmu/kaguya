@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtoproject "github.com/lyonmu/kaguya/internal/dto/project"
 	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
@@ -148,7 +147,7 @@ func TestChatExecutesCodingToolAndPersistsResult(t *testing.T) {
 		fmt.Fprint(w, "data: [DONE]\n\n")
 	}))
 	defer server.Close()
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -50,7 +50,7 @@ func chatProviderServer(t *testing.T, first string, started chan<- struct{}, rel
 
 func configureRunningChatProvider(t *testing.T, ctx context.Context, client *ent.Client, baseURL string) {
 	t.Helper()
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("running").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(baseURL).Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("running").SetAPIKey("test").SetBaseURL(baseURL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

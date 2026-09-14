@@ -85,6 +85,20 @@ func (_c *KaguyaModelsInfoCreate) SetModelID(v string) *KaguyaModelsInfoCreate {
 	return _c
 }
 
+// SetAPIProtocol sets the "api_protocol" field.
+func (_c *KaguyaModelsInfoCreate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaModelsInfoCreate {
+	_c.mutation.SetAPIProtocol(v)
+	return _c
+}
+
+// SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
+func (_c *KaguyaModelsInfoCreate) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaModelsInfoCreate {
+	if v != nil {
+		_c.SetAPIProtocol(*v)
+	}
+	return _c
+}
+
 // SetReasoningEnabled sets the "reasoning_enabled" field.
 func (_c *KaguyaModelsInfoCreate) SetReasoningEnabled(v consts.Status) *KaguyaModelsInfoCreate {
 	_c.mutation.SetReasoningEnabled(v)
@@ -253,6 +267,10 @@ func (_c *KaguyaModelsInfoCreate) defaults() error {
 		v := kaguyamodelsinfo.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.APIProtocol(); !ok {
+		v := kaguyamodelsinfo.DefaultAPIProtocol
+		_c.mutation.SetAPIProtocol(v)
+	}
 	if _, ok := _c.mutation.ReasoningEnabled(); !ok {
 		v := kaguyamodelsinfo.DefaultReasoningEnabled
 		_c.mutation.SetReasoningEnabled(v)
@@ -378,6 +396,10 @@ func (_c *KaguyaModelsInfoCreate) createSpec() (*KaguyaModelsInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.ModelID(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldModelID, field.TypeString, value)
 		_node.ModelID = value
+	}
+	if value, ok := _c.mutation.APIProtocol(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString, value)
+		_node.APIProtocol = value
 	}
 	if value, ok := _c.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)
@@ -539,6 +561,24 @@ func (u *KaguyaModelsInfoUpsert) SetModelID(v string) *KaguyaModelsInfoUpsert {
 // UpdateModelID sets the "model_id" field to the value that was provided on create.
 func (u *KaguyaModelsInfoUpsert) UpdateModelID() *KaguyaModelsInfoUpsert {
 	u.SetExcluded(kaguyamodelsinfo.FieldModelID)
+	return u
+}
+
+// SetAPIProtocol sets the "api_protocol" field.
+func (u *KaguyaModelsInfoUpsert) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaModelsInfoUpsert {
+	u.Set(kaguyamodelsinfo.FieldAPIProtocol, v)
+	return u
+}
+
+// UpdateAPIProtocol sets the "api_protocol" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsert) UpdateAPIProtocol() *KaguyaModelsInfoUpsert {
+	u.SetExcluded(kaguyamodelsinfo.FieldAPIProtocol)
+	return u
+}
+
+// ClearAPIProtocol clears the value of the "api_protocol" field.
+func (u *KaguyaModelsInfoUpsert) ClearAPIProtocol() *KaguyaModelsInfoUpsert {
+	u.SetNull(kaguyamodelsinfo.FieldAPIProtocol)
 	return u
 }
 
@@ -829,6 +869,27 @@ func (u *KaguyaModelsInfoUpsertOne) SetModelID(v string) *KaguyaModelsInfoUpsert
 func (u *KaguyaModelsInfoUpsertOne) UpdateModelID() *KaguyaModelsInfoUpsertOne {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.UpdateModelID()
+	})
+}
+
+// SetAPIProtocol sets the "api_protocol" field.
+func (u *KaguyaModelsInfoUpsertOne) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.SetAPIProtocol(v)
+	})
+}
+
+// UpdateAPIProtocol sets the "api_protocol" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsertOne) UpdateAPIProtocol() *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.UpdateAPIProtocol()
+	})
+}
+
+// ClearAPIProtocol clears the value of the "api_protocol" field.
+func (u *KaguyaModelsInfoUpsertOne) ClearAPIProtocol() *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.ClearAPIProtocol()
 	})
 }
 
@@ -1313,6 +1374,27 @@ func (u *KaguyaModelsInfoUpsertBulk) SetModelID(v string) *KaguyaModelsInfoUpser
 func (u *KaguyaModelsInfoUpsertBulk) UpdateModelID() *KaguyaModelsInfoUpsertBulk {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.UpdateModelID()
+	})
+}
+
+// SetAPIProtocol sets the "api_protocol" field.
+func (u *KaguyaModelsInfoUpsertBulk) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.SetAPIProtocol(v)
+	})
+}
+
+// UpdateAPIProtocol sets the "api_protocol" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsertBulk) UpdateAPIProtocol() *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.UpdateAPIProtocol()
+	})
+}
+
+// ClearAPIProtocol clears the value of the "api_protocol" field.
+func (u *KaguyaModelsInfoUpsertBulk) ClearAPIProtocol() *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.ClearAPIProtocol()
 	})
 }
 

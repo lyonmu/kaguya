@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/consts"
+	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/global"
 )
@@ -37,10 +37,10 @@ func pushChatError(ctx context.Context, dataChan chan *dtochat.ChatResp, convID 
 
 // startFrame 是本轮下发的第一条帧，携带会话 ID 与模型信息。
 func startFrame(exec chatExecution) *dtochat.ChatResp {
-	provider, model := exec.target.provider, exec.target.model
+	model := exec.target.model
 	return &dtochat.ChatResp{
 		Chat:        dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagStart},
-		APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
+		APIProtocol: consts.ProviderProtocol(model.APIProtocol),
 		Created:     time.Now().Unix(),
 		ModelID:     model.ModelID,
 		ModelName:   model.ModelName,
@@ -49,11 +49,11 @@ func startFrame(exec chatExecution) *dtochat.ChatResp {
 
 // doneFrame 是本轮唯一的成功终止帧，只在事务提交后下发。
 func doneFrame(exec chatExecution, outcome *chatOutcome) *dtochat.ChatResp {
-	provider, model, usage := exec.target.provider, exec.target.model, outcome.usage
+	model, usage := exec.target.model, outcome.usage
 	return &dtochat.ChatResp{
 		Chat:         dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagDone},
 		FinishReason: outcome.finishReason,
-		APIProtocol:  consts.ProviderProtocol(provider.APIProtocol),
+		APIProtocol:  consts.ProviderProtocol(model.APIProtocol),
 		Usage: dtochat.Usage{
 			InputTokens:     int(usage.InputTokens),
 			OutputTokens:    int(usage.OutputTokens),
@@ -78,11 +78,11 @@ func flushTurn(recorder *turnRecorder) {
 
 // Chat 执行一次流式对话。整体分为四步：
 //
-//	1. 解析目标模型与提供商；
-//	2. 建立会话身份（互斥 + 并发上限）并读取历史；
-//	3. 组装工作区、提示词与 Agent，写入 running 占位行并启动增量落库；
-//	4. 流式生成；连接中断/停止时保留已推送内容并标 interrupted，
-//	   成功后把占位行更新为 completed 再下发 done。
+//  1. 解析目标模型与提供商；
+//  2. 建立会话身份（互斥 + 并发上限）并读取历史；
+//  3. 组装工作区、提示词与 Agent，写入 running 占位行并启动增量落库；
+//  4. 流式生成；连接中断/停止时保留已推送内容并标 interrupted，
+//     成功后把占位行更新为 completed 再下发 done。
 //
 // SSE 连接就是本轮的生命周期：断联只意味着停止本轮，不表示后台续跑。
 // 切换会话不会关闭流式连接，因此各会话的轮次继续执行到完成。
@@ -179,7 +179,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	turnRow, err := beginTurn(ctx, turnStart{
 		ConversationID: convID, UserContent: req.Messages, StartedAt: startedAt,
 		ProviderID: target.provider.ID, ProviderName: target.provider.ProviderName,
-		ModelID: target.model.ModelID, ModelName: target.model.ModelName, APIProtocol: string(target.provider.APIProtocol),
+		ModelID: target.model.ModelID, ModelName: target.model.ModelName, APIProtocol: string(target.model.APIProtocol),
 	})
 	if err != nil {
 		global.Logger.Sugar().Errorf("begin turn failed: id=%s err=%v", convID, err)

@@ -99,6 +99,26 @@ func (_u *KaguyaModelsInfoUpdate) SetNillableModelID(v *string) *KaguyaModelsInf
 	return _u
 }
 
+// SetAPIProtocol sets the "api_protocol" field.
+func (_u *KaguyaModelsInfoUpdate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaModelsInfoUpdate {
+	_u.mutation.SetAPIProtocol(v)
+	return _u
+}
+
+// SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
+func (_u *KaguyaModelsInfoUpdate) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaModelsInfoUpdate {
+	if v != nil {
+		_u.SetAPIProtocol(*v)
+	}
+	return _u
+}
+
+// ClearAPIProtocol clears the value of the "api_protocol" field.
+func (_u *KaguyaModelsInfoUpdate) ClearAPIProtocol() *KaguyaModelsInfoUpdate {
+	_u.mutation.ClearAPIProtocol()
+	return _u
+}
+
 // SetReasoningEnabled sets the "reasoning_enabled" field.
 func (_u *KaguyaModelsInfoUpdate) SetReasoningEnabled(v consts.Status) *KaguyaModelsInfoUpdate {
 	_u.mutation.ResetReasoningEnabled()
@@ -395,6 +415,12 @@ func (_u *KaguyaModelsInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldModelID, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.APIProtocol(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString, value)
+	}
+	if _u.mutation.APIProtocolCleared() {
+		_spec.ClearField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString)
+	}
 	if value, ok := _u.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)
 	}
@@ -571,6 +597,26 @@ func (_u *KaguyaModelsInfoUpdateOne) SetNillableModelID(v *string) *KaguyaModels
 	if v != nil {
 		_u.SetModelID(*v)
 	}
+	return _u
+}
+
+// SetAPIProtocol sets the "api_protocol" field.
+func (_u *KaguyaModelsInfoUpdateOne) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaModelsInfoUpdateOne {
+	_u.mutation.SetAPIProtocol(v)
+	return _u
+}
+
+// SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
+func (_u *KaguyaModelsInfoUpdateOne) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaModelsInfoUpdateOne {
+	if v != nil {
+		_u.SetAPIProtocol(*v)
+	}
+	return _u
+}
+
+// ClearAPIProtocol clears the value of the "api_protocol" field.
+func (_u *KaguyaModelsInfoUpdateOne) ClearAPIProtocol() *KaguyaModelsInfoUpdateOne {
+	_u.mutation.ClearAPIProtocol()
 	return _u
 }
 
@@ -899,6 +945,12 @@ func (_u *KaguyaModelsInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if value, ok := _u.mutation.ModelID(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.APIProtocol(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString, value)
+	}
+	if _u.mutation.APIProtocolCleared() {
+		_spec.ClearField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString)
 	}
 	if value, ok := _u.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)

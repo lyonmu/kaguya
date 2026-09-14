@@ -28,6 +28,8 @@ const (
 	FieldModelName = "model_name"
 	// FieldModelID holds the string denoting the model_id field in the database.
 	FieldModelID = "model_id"
+	// FieldAPIProtocol holds the string denoting the api_protocol field in the database.
+	FieldAPIProtocol = "api_protocol"
 	// FieldReasoningEnabled holds the string denoting the reasoning_enabled field in the database.
 	FieldReasoningEnabled = "reasoning_enabled"
 	// FieldReasoningEffort holds the string denoting the reasoning_effort field in the database.
@@ -64,6 +66,7 @@ var Columns = []string{
 	FieldProviderID,
 	FieldModelName,
 	FieldModelID,
+	FieldAPIProtocol,
 	FieldReasoningEnabled,
 	FieldReasoningEffort,
 	FieldTokenContextWindow,
@@ -102,6 +105,8 @@ var (
 	ModelNameValidator func(string) error
 	// ModelIDValidator is a validator for the "model_id" field. It is called by the builders before save.
 	ModelIDValidator func(string) error
+	// DefaultAPIProtocol holds the default value on creation for the "api_protocol" field.
+	DefaultAPIProtocol consts.ProviderProtocol
 	// DefaultReasoningEnabled holds the default value on creation for the "reasoning_enabled" field.
 	DefaultReasoningEnabled consts.Status
 	// DefaultReasoningEffort holds the default value on creation for the "reasoning_effort" field.
@@ -154,6 +159,11 @@ func ByModelName(opts ...sql.OrderTermOption) OrderOption {
 // ByModelID orders the results by the model_id field.
 func ByModelID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModelID, opts...).ToFunc()
+}
+
+// ByAPIProtocol orders the results by the api_protocol field.
+func ByAPIProtocol(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAPIProtocol, opts...).ToFunc()
 }
 
 // ByReasoningEnabled orders the results by the reasoning_enabled field.

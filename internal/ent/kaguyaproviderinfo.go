@@ -27,13 +27,11 @@ type KaguyaProviderInfo struct {
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	// 提供商名称
 	ProviderName string `json:"provider_name,omitempty"`
-	// API 协议类型
-	APIProtocol consts.ProviderProtocol `json:"api_protocol,omitempty"`
 	// 提供商类型：normal 或 opencode-go
 	ProviderType consts.ProviderType `json:"provider_type,omitempty"`
 	// API Key
 	APIKey string `json:"api_key,omitempty"`
-	// Base URL
+	// API 版本根地址，请求路径由所属模型的协议追加
 	BaseURL string `json:"base_url,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the KaguyaProviderInfoQuery when eager-loading is set.
@@ -64,7 +62,7 @@ func (*KaguyaProviderInfo) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyaproviderinfo.FieldID, kaguyaproviderinfo.FieldProviderName, kaguyaproviderinfo.FieldAPIProtocol, kaguyaproviderinfo.FieldProviderType, kaguyaproviderinfo.FieldAPIKey, kaguyaproviderinfo.FieldBaseURL:
+		case kaguyaproviderinfo.FieldID, kaguyaproviderinfo.FieldProviderName, kaguyaproviderinfo.FieldProviderType, kaguyaproviderinfo.FieldAPIKey, kaguyaproviderinfo.FieldBaseURL:
 			values[i] = new(sql.NullString)
 		case kaguyaproviderinfo.FieldCreatedAt, kaguyaproviderinfo.FieldUpdatedAt, kaguyaproviderinfo.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -113,12 +111,6 @@ func (_m *KaguyaProviderInfo) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field provider_name", values[i])
 			} else if value.Valid {
 				_m.ProviderName = value.String
-			}
-		case kaguyaproviderinfo.FieldAPIProtocol:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field api_protocol", values[i])
-			} else if value.Valid {
-				_m.APIProtocol = consts.ProviderProtocol(value.String)
 			}
 		case kaguyaproviderinfo.FieldProviderType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -192,9 +184,6 @@ func (_m *KaguyaProviderInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("provider_name=")
 	builder.WriteString(_m.ProviderName)
-	builder.WriteString(", ")
-	builder.WriteString("api_protocol=")
-	builder.WriteString(fmt.Sprintf("%v", _m.APIProtocol))
 	builder.WriteString(", ")
 	builder.WriteString("provider_type=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ProviderType))

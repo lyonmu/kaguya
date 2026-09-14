@@ -49,7 +49,7 @@ export function ModelCatalogPage() {
     setSyncing(true)
     try {
       const result = await syncModelCatalog()
-      void message.success(`已同步 ${result.count.toLocaleString()} 个模型`)
+      void message.success(`已同步 ${result.provider_count.toLocaleString()} 个提供商、${result.count.toLocaleString()} 个模型`)
       setPage(1)
       setRevision(value => value + 1)
     } catch (error) {
@@ -69,8 +69,8 @@ export function ModelCatalogPage() {
       </div>,
     },
     {
-      title: '实验室', dataIndex: 'lab', key: 'lab', width: 130,
-      render: (lab: string, item: ModelCatalogItem) => <div><div>{lab || '—'}</div>{item.family && <Typography.Text type="secondary" className="text-xs!">{item.family}</Typography.Text>}</div>,
+      title: '提供商', dataIndex: 'provider_name', key: 'provider_name', width: 130,
+      render: (providerName: string, item: ModelCatalogItem) => <div><div>{providerName || item.lab || '—'}</div>{item.family && <Typography.Text type="secondary" className="text-xs!">{item.family}</Typography.Text>}</div>,
     },
     { title: '上下文', dataIndex: 'token_context_window', key: 'context', width: 105, align: 'right' as const, render: formatNumber },
     { title: '最大输出', dataIndex: 'token_max_output_tokens', key: 'output', width: 105, align: 'right' as const, render: formatNumber },
@@ -101,7 +101,7 @@ export function ModelCatalogPage() {
     {error && <Alert type="error" title={error} showIcon className="mb-3" action={<Button onClick={() => setRevision(value => value + 1)}>重试</Button>} />}
     <Card styles={{ body: { padding: 16 } }}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Input.Search aria-label="检索模型目录" allowClear className="max-w-[520px]" enterButton={<SearchOutlined />} placeholder="搜索模型名称、标识、实验室、系列或描述" value={draftKeyword} onChange={event => setDraftKeyword(event.target.value)} onSearch={search} />
+        <Input.Search aria-label="检索模型目录" allowClear className="max-w-[520px]" enterButton={<SearchOutlined />} placeholder="搜索模型名称、标识、提供商、系列或描述" value={draftKeyword} onChange={event => setDraftKeyword(event.target.value)} onSearch={search} />
         <div className="min-w-0 text-right text-xs text-k-text-muted">
           <div className="max-w-[620px] truncate" title={info?.model_sync_url}>来源：{info?.model_sync_url ?? '—'}</div>
           <div>共 {catalog.total.toLocaleString()} 项 · 最近同步：{formatTime(info?.model_sync_last_success_at)}</div>
@@ -133,7 +133,7 @@ export function ModelCatalogPage() {
           <Typography.Paragraph className="mt-3 mb-0! text-sm!" type="secondary">{selectedModel.description || '暂无模型描述'}</Typography.Paragraph>
         </div>
         <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small" title="基本信息">
-          <Descriptions.Item label="实验室">{selectedModel.lab || '—'}</Descriptions.Item>
+          <Descriptions.Item label="提供商">{selectedModel.provider_name || selectedModel.lab || '—'}</Descriptions.Item>
           <Descriptions.Item label="模型系列">{selectedModel.family || '—'}</Descriptions.Item>
           <Descriptions.Item label="发布日期">{selectedModel.release_date || '—'}</Descriptions.Item>
           <Descriptions.Item label="更新时间">{selectedModel.last_updated || '—'}</Descriptions.Item>

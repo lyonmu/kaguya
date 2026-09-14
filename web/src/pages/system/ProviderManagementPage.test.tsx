@@ -35,8 +35,8 @@ after(async () => {
 
 // 后端只会返回掩码，测试据此确认页面不再自行拼装或回填明文。
 const provider: AIProvider = {
-  id: 'p1', provider_name: '示例提供商', provider_type: 'normal', api_protocol: 'openai-chat',
-  api_key: 'sk-l••••7890', api_key_set: true, base_url: 'https://api.example.com/v1/chat/completions',
+  id: 'p1', provider_name: '示例提供商', provider_type: 'normal',
+  api_key: 'sk-l••••7890', api_key_set: true, base_url: 'https://api.example.com/v1',
   models: [], created_at: '2026-09-10T00:00:00Z', updated_at: '2026-09-10T00:00:00Z',
 }
 
@@ -101,8 +101,9 @@ it('fills a new provider model from the synchronized models.dev catalog', async 
     const path = new URL(String(url), 'http://localhost').pathname
     if (path.endsWith('/page')) return response({ total: 1, items: [provider], page: 1, page_size: 10 })
     if (path.endsWith('/provider/label')) return response([{ label: provider.provider_name, value: provider.id }])
-    if (path.endsWith('/model/catalog')) return response({ total: 1, page: 1, page_size: 1000, items: [{
-      id: 'openai/gpt-test', name: 'GPT Test', reasoning_enabled: 1,
+    if (path.endsWith('/model/catalog')) return response({ total: 1, page: 1, page_size: 50, items: [{
+      id: 'openai/gpt-test', provider_id: 'openai', provider_name: 'OpenAI', model_id: 'gpt-test', api_protocol: 'openai-chat',
+      name: 'GPT Test', reasoning_enabled: 1,
       token_context_window: 128000, token_max_output_tokens: 32000,
       capability_tool_use: 1, capability_vision: 2, capability_structured_output: 1,
       last_updated: '2026-09-01',
@@ -122,13 +123,13 @@ it('fills a new provider model from the synchronized models.dev catalog', async 
   const catalog = await waitFor(() => view.baseElement.querySelector<HTMLInputElement>('input#catalog_model_id'))
   assert.ok(catalog)
   fireEvent.mouseDown(catalog)
-  fireEvent.click(await view.findByText('GPT Test · openai/gpt-test'))
+  fireEvent.click(await view.findByText('GPT Test · OpenAI/gpt-test'))
   assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_name')?.value, 'GPT Test')
-  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_id')?.value, 'openai/gpt-test')
+  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_id')?.value, 'gpt-test')
   fireEvent.click(view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!)
   await waitFor(() => assert.ok(saved))
   assert.deepEqual(saved, {
-    provider_id: 'p1', model_name: 'GPT Test', model_id: 'openai/gpt-test',
+    provider_id: 'p1', model_name: 'GPT Test', model_id: 'gpt-test', api_protocol: 'openai-chat',
     reasoning_enabled: 1, reasoning_effort: 'medium', token_context_window: 128000,
     token_max_output_tokens: 32000, capability_tool_use: 1, capability_vision: 2,
     capability_structured_output: 1,

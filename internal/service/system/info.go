@@ -29,7 +29,7 @@ func (s *SystemSvc) Info(ctx context.Context) (*dtosystem.SystemInfoResp, error)
 			kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldGlobalAgentsPaths,
 			kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt,
 			kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelSyncIntervalHours,
-			kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldModelSyncLastAttemptAt,
+			kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount, kaguyasysteminfo.FieldModelSyncLastAttemptAt,
 			kaguyasysteminfo.FieldModelSyncLastSuccessAt, kaguyasysteminfo.FieldModelSyncLastError,
 			kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID,
 		).Only(ctx)
@@ -126,7 +126,8 @@ func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 			ModelSyncEnabled: row.ModelSyncEnabled, ModelSyncURL: row.ModelSyncURL, ModelSyncIntervalHours: &row.ModelSyncIntervalHours,
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
 		},
-		ModelSyncCatalogCount: row.ModelCatalogCount, ModelSyncLastAttemptAt: row.ModelSyncLastAttemptAt,
+		ModelSyncCatalogCount: row.ModelCatalogCount, ProviderCatalogCount: row.ProviderCatalogCount,
+		ModelSyncLastAttemptAt: row.ModelSyncLastAttemptAt,
 		ModelSyncLastSuccessAt: row.ModelSyncLastSuccessAt, ModelSyncLastError: row.ModelSyncLastError,
 	}
 }

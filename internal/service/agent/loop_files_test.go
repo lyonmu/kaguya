@@ -58,7 +58,7 @@ func TestLoopUnlimitedAndResumableLimit(t *testing.T) {
 				fmt.Fprintf(w, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":%q}]}\n\ndata: [DONE]\n\n", reason)
 			}))
 			defer server.Close()
-			provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetBaseURL(server.URL).SetAPIKey("test").Save(ctx)
+			provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetBaseURL(server.URL).SetAPIKey("test").Save(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}

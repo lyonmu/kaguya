@@ -12,7 +12,6 @@ const TokenUsagePage = lazy(() => import('./pages/system/TokenUsagePage').then(m
 const AIConfigurationPage = lazy(() => import('./pages/system/AIConfigurationPage').then(module => ({ default: module.AIConfigurationPage })))
 
 const SystemInfoPage = lazy(() => import('./pages/system/SystemInfoPage').then(module => ({ default: module.SystemInfoPage })))
-const ModelCatalogPage = lazy(() => import('./pages/system/ModelCatalogPage').then(module => ({ default: module.ModelCatalogPage })))
 
 function App() {
   const { colorMode, toggleColorMode } = useColorMode()
@@ -36,8 +35,6 @@ function App() {
             <TokenUsagePage />
           ) : currentPage === 'system-info' ? (
             <SystemInfoPage />
-          ) : currentPage === 'model-catalog' ? (
-            <ModelCatalogPage />
           ) : (
             <AIConfigurationPage />
           )}

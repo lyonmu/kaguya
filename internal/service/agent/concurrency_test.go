@@ -7,7 +7,6 @@ import (
 	"time"
 
 	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
-	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/global"
 )
@@ -15,7 +14,7 @@ import (
 // 占满槽位后 Chat 必须快速失败，不能继续查询历史或调用提供商。
 func TestChatRejectsWhenConcurrencyLimited(t *testing.T) {
 	ctx, client := setupChatTest(t)
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("limit").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL("http://127.0.0.1:1").Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("limit").SetAPIKey("test").SetBaseURL("http://127.0.0.1:1").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

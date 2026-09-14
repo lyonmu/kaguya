@@ -73,20 +73,6 @@ func (_c *KaguyaProviderInfoCreate) SetProviderName(v string) *KaguyaProviderInf
 	return _c
 }
 
-// SetAPIProtocol sets the "api_protocol" field.
-func (_c *KaguyaProviderInfoCreate) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoCreate {
-	_c.mutation.SetAPIProtocol(v)
-	return _c
-}
-
-// SetNillableAPIProtocol sets the "api_protocol" field if the given value is not nil.
-func (_c *KaguyaProviderInfoCreate) SetNillableAPIProtocol(v *consts.ProviderProtocol) *KaguyaProviderInfoCreate {
-	if v != nil {
-		_c.SetAPIProtocol(*v)
-	}
-	return _c
-}
-
 // SetProviderType sets the "provider_type" field.
 func (_c *KaguyaProviderInfoCreate) SetProviderType(v consts.ProviderType) *KaguyaProviderInfoCreate {
 	_c.mutation.SetProviderType(v)
@@ -209,10 +195,6 @@ func (_c *KaguyaProviderInfoCreate) defaults() error {
 		v := kaguyaproviderinfo.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
-	if _, ok := _c.mutation.APIProtocol(); !ok {
-		v := kaguyaproviderinfo.DefaultAPIProtocol
-		_c.mutation.SetAPIProtocol(v)
-	}
 	if _, ok := _c.mutation.ProviderType(); !ok {
 		v := kaguyaproviderinfo.DefaultProviderType
 		_c.mutation.SetProviderType(v)
@@ -302,10 +284,6 @@ func (_c *KaguyaProviderInfoCreate) createSpec() (*KaguyaProviderInfo, *sqlgraph
 	if value, ok := _c.mutation.ProviderName(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderName, field.TypeString, value)
 		_node.ProviderName = value
-	}
-	if value, ok := _c.mutation.APIProtocol(); ok {
-		_spec.SetField(kaguyaproviderinfo.FieldAPIProtocol, field.TypeString, value)
-		_node.APIProtocol = value
 	}
 	if value, ok := _c.mutation.ProviderType(); ok {
 		_spec.SetField(kaguyaproviderinfo.FieldProviderType, field.TypeString, value)
@@ -426,24 +404,6 @@ func (u *KaguyaProviderInfoUpsert) SetProviderName(v string) *KaguyaProviderInfo
 // UpdateProviderName sets the "provider_name" field to the value that was provided on create.
 func (u *KaguyaProviderInfoUpsert) UpdateProviderName() *KaguyaProviderInfoUpsert {
 	u.SetExcluded(kaguyaproviderinfo.FieldProviderName)
-	return u
-}
-
-// SetAPIProtocol sets the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsert) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpsert {
-	u.Set(kaguyaproviderinfo.FieldAPIProtocol, v)
-	return u
-}
-
-// UpdateAPIProtocol sets the "api_protocol" field to the value that was provided on create.
-func (u *KaguyaProviderInfoUpsert) UpdateAPIProtocol() *KaguyaProviderInfoUpsert {
-	u.SetExcluded(kaguyaproviderinfo.FieldAPIProtocol)
-	return u
-}
-
-// ClearAPIProtocol clears the value of the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsert) ClearAPIProtocol() *KaguyaProviderInfoUpsert {
-	u.SetNull(kaguyaproviderinfo.FieldAPIProtocol)
 	return u
 }
 
@@ -592,27 +552,6 @@ func (u *KaguyaProviderInfoUpsertOne) SetProviderName(v string) *KaguyaProviderI
 func (u *KaguyaProviderInfoUpsertOne) UpdateProviderName() *KaguyaProviderInfoUpsertOne {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.UpdateProviderName()
-	})
-}
-
-// SetAPIProtocol sets the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsertOne) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpsertOne {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.SetAPIProtocol(v)
-	})
-}
-
-// UpdateAPIProtocol sets the "api_protocol" field to the value that was provided on create.
-func (u *KaguyaProviderInfoUpsertOne) UpdateAPIProtocol() *KaguyaProviderInfoUpsertOne {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.UpdateAPIProtocol()
-	})
-}
-
-// ClearAPIProtocol clears the value of the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsertOne) ClearAPIProtocol() *KaguyaProviderInfoUpsertOne {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.ClearAPIProtocol()
 	})
 }
 
@@ -936,27 +875,6 @@ func (u *KaguyaProviderInfoUpsertBulk) SetProviderName(v string) *KaguyaProvider
 func (u *KaguyaProviderInfoUpsertBulk) UpdateProviderName() *KaguyaProviderInfoUpsertBulk {
 	return u.Update(func(s *KaguyaProviderInfoUpsert) {
 		s.UpdateProviderName()
-	})
-}
-
-// SetAPIProtocol sets the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsertBulk) SetAPIProtocol(v consts.ProviderProtocol) *KaguyaProviderInfoUpsertBulk {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.SetAPIProtocol(v)
-	})
-}
-
-// UpdateAPIProtocol sets the "api_protocol" field to the value that was provided on create.
-func (u *KaguyaProviderInfoUpsertBulk) UpdateAPIProtocol() *KaguyaProviderInfoUpsertBulk {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.UpdateAPIProtocol()
-	})
-}
-
-// ClearAPIProtocol clears the value of the "api_protocol" field.
-func (u *KaguyaProviderInfoUpsertBulk) ClearAPIProtocol() *KaguyaProviderInfoUpsertBulk {
-	return u.Update(func(s *KaguyaProviderInfoUpsert) {
-		s.ClearAPIProtocol()
 	})
 }
 

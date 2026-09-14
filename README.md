@@ -16,8 +16,8 @@ The project is oriented toward a cross-platform Desktop application. **The nativ
 ## Getting started
 
 1. Open `Kaguya.app`. When installing from a DMG, drag the application into `Applications`, then open it.
-2. Click **System management** (系统管理) at the bottom left. Under **AI configuration → Providers and models** (AI 配置 → 提供商与模型), add a provider with its protocol, full request URL, and API key.
-3. In **System configuration**, synchronize the [models.dev](https://models.dev/models.json) catalog manually or on a schedule. Search the local catalog under **Logs & audit → Model catalog** (newest release first), or open the provider's **Model management** and select a catalog model to fill its identifier, limits, and capabilities; the populated values remain editable for provider-specific differences.
+2. Click **System management** (系统管理) at the bottom left. Under **AI configuration → Providers and models** (AI 配置 → 提供商与模型), either define a custom provider name, API root URL, and API key, or pick a models.dev provider under **Provider catalog** (提供商目录) to prefill the form.
+3. In **System configuration**, synchronize the [models.dev](https://models.dev/api.json) catalog manually or on a schedule, or press Sync directly under **AI configuration → Provider catalog / Model catalog**. Both catalogs come from the same api.json: the provider catalog keeps only providers with an API root URL and sorts A→Z by name, while the model catalog is complete and sorts by release date newest first. Open a provider's **Model management** and select a catalog model to fill its identifier, protocol, limits, and capabilities; the populated values remain editable for provider-specific differences.
 4. Select a default chat model in **System configuration** (系统配置). Configure a background-task model to generate conversation titles automatically.
 5. Return to **Conversation management** (对话管理) to chat, or switch to **Projects** (项目) and add a local directory for project work.
 
@@ -76,21 +76,27 @@ File tools use `os.Root` to constrain project paths. **Bash and local MCP proces
 
 ### Providers and models
 
-Open **System management → AI configuration → Providers and models** (系统管理 → AI 配置 → 提供商与模型).
+Open **System management → AI configuration** (系统管理 → AI 配置), which holds the **Providers and models** (提供商与模型), **Provider catalog** (提供商目录), and **Model catalog** (模型目录) tabs.
+
+- **Providers and models**: create and edit providers and models; a provider stores only its name, API root URL, and API key.
+- **Provider catalog**: models.dev provider root URLs sorted A→Z by name, searchable by name, identifier, package, or API address; selecting one prefills the create form and the name remains editable.
+- **Model catalog**: the complete model catalog (including providers without an API root URL), sorted by release date newest first and searchable by name, identifier, provider, family, or description.
 
 ![Provider list filtered by name, with API keys masked](images/screenshots/desktop-2026-09-13/providers.jpg)
 
 ![Provider model management drawer](images/screenshots/desktop-2026-09-13/models.jpg)
 
-| Protocol | Configuration value | Example full request URL |
-| --- | --- | --- |
-| OpenAI Chat Completions | `openai-chat` | `https://api.example.com/v1/chat/completions` |
-| OpenAI Responses | `openai-response` | `https://api.example.com/v1/responses` |
-| Anthropic Messages | `anthropic` | `https://api.example.com/v1/messages` |
+The protocol lives on the **model**, so one provider can serve several protocols:
 
-Replace the example host with the actual provider address. **Include the complete endpoint path**; the application does not append `/chat/completions`, `/responses`, or `/messages`. Provider types include standard `normal` and `opencode-go`, which adds an OpenCode session header.
+| Model protocol | Configuration value | Appended path | Example final request URL |
+| --- | --- | --- | --- |
+| Chat | `openai-chat` | `/chat/completions` | `https://api.example.com/v1/chat/completions` |
+| Response | `openai-response` | `/responses` | `https://api.example.com/v1/responses` |
+| Message | `anthropic` | `/messages` | `https://api.example.com/v1/messages` |
 
-Model configuration includes display name, upstream model identifier, reasoning level, context window, maximum output tokens, and Tool/Vision/JSON capability metadata. The synchronized models.dev catalog can populate these fields, but it does not guarantee that a configured provider exposes that model; verify provider availability and adjust metadata when needed. Project and MCP tools require tool-calling support; reading images also requires vision support.
+A provider stores only the root URL up to the API version segment (for example `https://api.example.com/v1`); the application appends the endpoint path selected by the model protocol, without duplicating or omitting the version segment. Root URLs cannot contain a query or fragment. Provider types include standard `normal` and `opencode-go`, which adds an OpenCode session header.
+
+Model configuration includes display name, upstream model identifier, request protocol, reasoning level, context window, maximum output tokens, and Tool/Vision/JSON capability metadata. Selecting a model from the catalog preselects the protocol from its models.dev provider package (Anthropic packages → Message, OpenAI-compatible packages → Chat), but it does not guarantee that a configured provider exposes that model; verify provider availability and adjust metadata when needed. Project and MCP tools require tool-calling support; reading images also requires vision support.
 
 API keys are encrypted at rest and masked in lists; plaintext is returned only on explicit reveal. Leaving the key empty while editing preserves the existing value. Providers and models come from personal configuration; the application does not preselect a default chat or background-task model.
 
@@ -125,7 +131,7 @@ Open **System management → System configuration** (系统管理 → 系统配�
 | Maximum chat request retries | Defaults to `5`, range `0–20`; retries transient errors such as rate limits and overload with backoff, but never after content has been emitted |
 | Context compaction percentage | Defaults to `90%`, range `10–95%`; the rest of the window is reserved for output |
 | Global AGENTS.md paths | Loads personal instructions in order; clear the list to disable global file loading |
-| Model catalog synchronization | Configure a complete HTTP(S) catalog URL (default `https://models.dev/models.json`), sync manually, or enable an interval from `1–720` hours; **Logs & audit → Model catalog** supports searching by name, identifier, lab, family, or description and sorts by release date newest first |
+| Catalog synchronization | Configure a complete HTTP(S) catalog URL (default `https://models.dev/api.json`), sync manually, or enable an interval from `1–720` hours; one sync updates both the provider catalog and the complete model catalog. **AI configuration → Provider catalog** sorts A→Z by name, while **Model catalog** supports searching by name, identifier, provider, family, or description and sorts by release date newest first |
 | Global base prompt | Editable base persona used by new chat requests; it may be empty |
 | Additional system prompt | Appended to the base prompt for chat |
 

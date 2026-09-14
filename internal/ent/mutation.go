@@ -6624,6 +6624,7 @@ type KaguyaModelsInfoMutation struct {
 	deleted_at                      *time.Time
 	model_name                      *string
 	model_id                        *string
+	api_protocol                    *consts.ProviderProtocol
 	reasoning_enabled               *consts.Status
 	addreasoning_enabled            *consts.Status
 	reasoning_effort                *consts.ReasoningEffort
@@ -6976,6 +6977,55 @@ func (m *KaguyaModelsInfoMutation) OldModelID(ctx context.Context) (v string, er
 // ResetModelID resets all changes to the "model_id" field.
 func (m *KaguyaModelsInfoMutation) ResetModelID() {
 	m.model_id = nil
+}
+
+// SetAPIProtocol sets the "api_protocol" field.
+func (m *KaguyaModelsInfoMutation) SetAPIProtocol(cp consts.ProviderProtocol) {
+	m.api_protocol = &cp
+}
+
+// APIProtocol returns the value of the "api_protocol" field in the mutation.
+func (m *KaguyaModelsInfoMutation) APIProtocol() (r consts.ProviderProtocol, exists bool) {
+	v := m.api_protocol
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAPIProtocol returns the old "api_protocol" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldAPIProtocol(ctx context.Context) (v consts.ProviderProtocol, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAPIProtocol is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAPIProtocol requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAPIProtocol: %w", err)
+	}
+	return oldValue.APIProtocol, nil
+}
+
+// ClearAPIProtocol clears the value of the "api_protocol" field.
+func (m *KaguyaModelsInfoMutation) ClearAPIProtocol() {
+	m.api_protocol = nil
+	m.clearedFields[kaguyamodelsinfo.FieldAPIProtocol] = struct{}{}
+}
+
+// APIProtocolCleared returns if the "api_protocol" field was cleared in this mutation.
+func (m *KaguyaModelsInfoMutation) APIProtocolCleared() bool {
+	_, ok := m.clearedFields[kaguyamodelsinfo.FieldAPIProtocol]
+	return ok
+}
+
+// ResetAPIProtocol resets all changes to the "api_protocol" field.
+func (m *KaguyaModelsInfoMutation) ResetAPIProtocol() {
+	m.api_protocol = nil
+	delete(m.clearedFields, kaguyamodelsinfo.FieldAPIProtocol)
 }
 
 // SetReasoningEnabled sets the "reasoning_enabled" field.
@@ -7508,7 +7558,7 @@ func (m *KaguyaModelsInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaModelsInfoMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 14)
 	if m.created_at != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldCreatedAt)
 	}
@@ -7526,6 +7576,9 @@ func (m *KaguyaModelsInfoMutation) Fields() []string {
 	}
 	if m.model_id != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldModelID)
+	}
+	if m.api_protocol != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldAPIProtocol)
 	}
 	if m.reasoning_enabled != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
@@ -7568,6 +7621,8 @@ func (m *KaguyaModelsInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelName()
 	case kaguyamodelsinfo.FieldModelID:
 		return m.ModelID()
+	case kaguyamodelsinfo.FieldAPIProtocol:
+		return m.APIProtocol()
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		return m.ReasoningEnabled()
 	case kaguyamodelsinfo.FieldReasoningEffort:
@@ -7603,6 +7658,8 @@ func (m *KaguyaModelsInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldModelName(ctx)
 	case kaguyamodelsinfo.FieldModelID:
 		return m.OldModelID(ctx)
+	case kaguyamodelsinfo.FieldAPIProtocol:
+		return m.OldAPIProtocol(ctx)
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		return m.OldReasoningEnabled(ctx)
 	case kaguyamodelsinfo.FieldReasoningEffort:
@@ -7667,6 +7724,13 @@ func (m *KaguyaModelsInfoMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModelID(v)
+		return nil
+	case kaguyamodelsinfo.FieldAPIProtocol:
+		v, ok := value.(consts.ProviderProtocol)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAPIProtocol(v)
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		v, ok := value.(consts.Status)
@@ -7825,6 +7889,9 @@ func (m *KaguyaModelsInfoMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyamodelsinfo.FieldDeletedAt) {
 		fields = append(fields, kaguyamodelsinfo.FieldDeletedAt)
 	}
+	if m.FieldCleared(kaguyamodelsinfo.FieldAPIProtocol) {
+		fields = append(fields, kaguyamodelsinfo.FieldAPIProtocol)
+	}
 	if m.FieldCleared(kaguyamodelsinfo.FieldReasoningEnabled) {
 		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
 	}
@@ -7862,6 +7929,9 @@ func (m *KaguyaModelsInfoMutation) ClearField(name string) error {
 	switch name {
 	case kaguyamodelsinfo.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case kaguyamodelsinfo.FieldAPIProtocol:
+		m.ClearAPIProtocol()
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		m.ClearReasoningEnabled()
@@ -7909,6 +7979,9 @@ func (m *KaguyaModelsInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyamodelsinfo.FieldModelID:
 		m.ResetModelID()
+		return nil
+	case kaguyamodelsinfo.FieldAPIProtocol:
+		m.ResetAPIProtocol()
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		m.ResetReasoningEnabled()
@@ -8736,7 +8809,6 @@ type KaguyaProviderInfoMutation struct {
 	updated_at    *time.Time
 	deleted_at    *time.Time
 	provider_name *string
-	api_protocol  *consts.ProviderProtocol
 	provider_type *consts.ProviderType
 	api_key       *string
 	base_url      *string
@@ -9010,55 +9082,6 @@ func (m *KaguyaProviderInfoMutation) ResetProviderName() {
 	m.provider_name = nil
 }
 
-// SetAPIProtocol sets the "api_protocol" field.
-func (m *KaguyaProviderInfoMutation) SetAPIProtocol(cp consts.ProviderProtocol) {
-	m.api_protocol = &cp
-}
-
-// APIProtocol returns the value of the "api_protocol" field in the mutation.
-func (m *KaguyaProviderInfoMutation) APIProtocol() (r consts.ProviderProtocol, exists bool) {
-	v := m.api_protocol
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldAPIProtocol returns the old "api_protocol" field's value of the KaguyaProviderInfo entity.
-// If the KaguyaProviderInfo object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *KaguyaProviderInfoMutation) OldAPIProtocol(ctx context.Context) (v consts.ProviderProtocol, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldAPIProtocol is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldAPIProtocol requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldAPIProtocol: %w", err)
-	}
-	return oldValue.APIProtocol, nil
-}
-
-// ClearAPIProtocol clears the value of the "api_protocol" field.
-func (m *KaguyaProviderInfoMutation) ClearAPIProtocol() {
-	m.api_protocol = nil
-	m.clearedFields[kaguyaproviderinfo.FieldAPIProtocol] = struct{}{}
-}
-
-// APIProtocolCleared returns if the "api_protocol" field was cleared in this mutation.
-func (m *KaguyaProviderInfoMutation) APIProtocolCleared() bool {
-	_, ok := m.clearedFields[kaguyaproviderinfo.FieldAPIProtocol]
-	return ok
-}
-
-// ResetAPIProtocol resets all changes to the "api_protocol" field.
-func (m *KaguyaProviderInfoMutation) ResetAPIProtocol() {
-	m.api_protocol = nil
-	delete(m.clearedFields, kaguyaproviderinfo.FieldAPIProtocol)
-}
-
 // SetProviderType sets the "provider_type" field.
 func (m *KaguyaProviderInfoMutation) SetProviderType(ct consts.ProviderType) {
 	m.provider_type = &ct
@@ -9281,7 +9304,7 @@ func (m *KaguyaProviderInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaProviderInfoMutation) Fields() []string {
-	fields := make([]string, 0, 8)
+	fields := make([]string, 0, 7)
 	if m.created_at != nil {
 		fields = append(fields, kaguyaproviderinfo.FieldCreatedAt)
 	}
@@ -9293,9 +9316,6 @@ func (m *KaguyaProviderInfoMutation) Fields() []string {
 	}
 	if m.provider_name != nil {
 		fields = append(fields, kaguyaproviderinfo.FieldProviderName)
-	}
-	if m.api_protocol != nil {
-		fields = append(fields, kaguyaproviderinfo.FieldAPIProtocol)
 	}
 	if m.provider_type != nil {
 		fields = append(fields, kaguyaproviderinfo.FieldProviderType)
@@ -9322,8 +9342,6 @@ func (m *KaguyaProviderInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.DeletedAt()
 	case kaguyaproviderinfo.FieldProviderName:
 		return m.ProviderName()
-	case kaguyaproviderinfo.FieldAPIProtocol:
-		return m.APIProtocol()
 	case kaguyaproviderinfo.FieldProviderType:
 		return m.ProviderType()
 	case kaguyaproviderinfo.FieldAPIKey:
@@ -9347,8 +9365,6 @@ func (m *KaguyaProviderInfoMutation) OldField(ctx context.Context, name string) 
 		return m.OldDeletedAt(ctx)
 	case kaguyaproviderinfo.FieldProviderName:
 		return m.OldProviderName(ctx)
-	case kaguyaproviderinfo.FieldAPIProtocol:
-		return m.OldAPIProtocol(ctx)
 	case kaguyaproviderinfo.FieldProviderType:
 		return m.OldProviderType(ctx)
 	case kaguyaproviderinfo.FieldAPIKey:
@@ -9391,13 +9407,6 @@ func (m *KaguyaProviderInfoMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProviderName(v)
-		return nil
-	case kaguyaproviderinfo.FieldAPIProtocol:
-		v, ok := value.(consts.ProviderProtocol)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetAPIProtocol(v)
 		return nil
 	case kaguyaproviderinfo.FieldProviderType:
 		v, ok := value.(consts.ProviderType)
@@ -9453,9 +9462,6 @@ func (m *KaguyaProviderInfoMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyaproviderinfo.FieldDeletedAt) {
 		fields = append(fields, kaguyaproviderinfo.FieldDeletedAt)
 	}
-	if m.FieldCleared(kaguyaproviderinfo.FieldAPIProtocol) {
-		fields = append(fields, kaguyaproviderinfo.FieldAPIProtocol)
-	}
 	if m.FieldCleared(kaguyaproviderinfo.FieldAPIKey) {
 		fields = append(fields, kaguyaproviderinfo.FieldAPIKey)
 	}
@@ -9478,9 +9484,6 @@ func (m *KaguyaProviderInfoMutation) ClearField(name string) error {
 	switch name {
 	case kaguyaproviderinfo.FieldDeletedAt:
 		m.ClearDeletedAt()
-		return nil
-	case kaguyaproviderinfo.FieldAPIProtocol:
-		m.ClearAPIProtocol()
 		return nil
 	case kaguyaproviderinfo.FieldAPIKey:
 		m.ClearAPIKey()
@@ -9507,9 +9510,6 @@ func (m *KaguyaProviderInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyaproviderinfo.FieldProviderName:
 		m.ResetProviderName()
-		return nil
-	case kaguyaproviderinfo.FieldAPIProtocol:
-		m.ResetAPIProtocol()
 		return nil
 	case kaguyaproviderinfo.FieldProviderType:
 		m.ResetProviderType()
@@ -9636,6 +9636,9 @@ type KaguyaSystemInfoMutation struct {
 	model_catalog_json            *string
 	model_catalog_count           *int
 	addmodel_catalog_count        *int
+	provider_catalog_json         *string
+	provider_catalog_count        *int
+	addprovider_catalog_count     *int
 	model_sync_last_attempt_at    *time.Time
 	model_sync_last_success_at    *time.Time
 	model_sync_last_error         *string
@@ -10453,6 +10456,98 @@ func (m *KaguyaSystemInfoMutation) ResetModelCatalogCount() {
 	m.addmodel_catalog_count = nil
 }
 
+// SetProviderCatalogJSON sets the "provider_catalog_json" field.
+func (m *KaguyaSystemInfoMutation) SetProviderCatalogJSON(s string) {
+	m.provider_catalog_json = &s
+}
+
+// ProviderCatalogJSON returns the value of the "provider_catalog_json" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ProviderCatalogJSON() (r string, exists bool) {
+	v := m.provider_catalog_json
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderCatalogJSON returns the old "provider_catalog_json" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldProviderCatalogJSON(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderCatalogJSON is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderCatalogJSON requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderCatalogJSON: %w", err)
+	}
+	return oldValue.ProviderCatalogJSON, nil
+}
+
+// ResetProviderCatalogJSON resets all changes to the "provider_catalog_json" field.
+func (m *KaguyaSystemInfoMutation) ResetProviderCatalogJSON() {
+	m.provider_catalog_json = nil
+}
+
+// SetProviderCatalogCount sets the "provider_catalog_count" field.
+func (m *KaguyaSystemInfoMutation) SetProviderCatalogCount(i int) {
+	m.provider_catalog_count = &i
+	m.addprovider_catalog_count = nil
+}
+
+// ProviderCatalogCount returns the value of the "provider_catalog_count" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ProviderCatalogCount() (r int, exists bool) {
+	v := m.provider_catalog_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderCatalogCount returns the old "provider_catalog_count" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldProviderCatalogCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderCatalogCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderCatalogCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderCatalogCount: %w", err)
+	}
+	return oldValue.ProviderCatalogCount, nil
+}
+
+// AddProviderCatalogCount adds i to the "provider_catalog_count" field.
+func (m *KaguyaSystemInfoMutation) AddProviderCatalogCount(i int) {
+	if m.addprovider_catalog_count != nil {
+		*m.addprovider_catalog_count += i
+	} else {
+		m.addprovider_catalog_count = &i
+	}
+}
+
+// AddedProviderCatalogCount returns the value that was added to the "provider_catalog_count" field in this mutation.
+func (m *KaguyaSystemInfoMutation) AddedProviderCatalogCount() (r int, exists bool) {
+	v := m.addprovider_catalog_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProviderCatalogCount resets all changes to the "provider_catalog_count" field.
+func (m *KaguyaSystemInfoMutation) ResetProviderCatalogCount() {
+	m.provider_catalog_count = nil
+	m.addprovider_catalog_count = nil
+}
+
 // SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
 func (m *KaguyaSystemInfoMutation) SetModelSyncLastAttemptAt(t time.Time) {
 	m.model_sync_last_attempt_at = &t
@@ -10693,7 +10788,7 @@ func (m *KaguyaSystemInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaSystemInfoMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 22)
 	if m.created_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
 	}
@@ -10738,6 +10833,12 @@ func (m *KaguyaSystemInfoMutation) Fields() []string {
 	}
 	if m.model_catalog_count != nil {
 		fields = append(fields, kaguyasysteminfo.FieldModelCatalogCount)
+	}
+	if m.provider_catalog_json != nil {
+		fields = append(fields, kaguyasysteminfo.FieldProviderCatalogJSON)
+	}
+	if m.provider_catalog_count != nil {
+		fields = append(fields, kaguyasysteminfo.FieldProviderCatalogCount)
 	}
 	if m.model_sync_last_attempt_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldModelSyncLastAttemptAt)
@@ -10792,6 +10893,10 @@ func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelCatalogJSON()
 	case kaguyasysteminfo.FieldModelCatalogCount:
 		return m.ModelCatalogCount()
+	case kaguyasysteminfo.FieldProviderCatalogJSON:
+		return m.ProviderCatalogJSON()
+	case kaguyasysteminfo.FieldProviderCatalogCount:
+		return m.ProviderCatalogCount()
 	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
 		return m.ModelSyncLastAttemptAt()
 	case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
@@ -10841,6 +10946,10 @@ func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldModelCatalogJSON(ctx)
 	case kaguyasysteminfo.FieldModelCatalogCount:
 		return m.OldModelCatalogCount(ctx)
+	case kaguyasysteminfo.FieldProviderCatalogJSON:
+		return m.OldProviderCatalogJSON(ctx)
+	case kaguyasysteminfo.FieldProviderCatalogCount:
+		return m.OldProviderCatalogCount(ctx)
 	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
 		return m.OldModelSyncLastAttemptAt(ctx)
 	case kaguyasysteminfo.FieldModelSyncLastSuccessAt:
@@ -10965,6 +11074,20 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetModelCatalogCount(v)
 		return nil
+	case kaguyasysteminfo.FieldProviderCatalogJSON:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderCatalogJSON(v)
+		return nil
+	case kaguyasysteminfo.FieldProviderCatalogCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderCatalogCount(v)
+		return nil
 	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -11026,6 +11149,9 @@ func (m *KaguyaSystemInfoMutation) AddedFields() []string {
 	if m.addmodel_catalog_count != nil {
 		fields = append(fields, kaguyasysteminfo.FieldModelCatalogCount)
 	}
+	if m.addprovider_catalog_count != nil {
+		fields = append(fields, kaguyasysteminfo.FieldProviderCatalogCount)
+	}
 	return fields
 }
 
@@ -11046,6 +11172,8 @@ func (m *KaguyaSystemInfoMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedModelSyncIntervalHours()
 	case kaguyasysteminfo.FieldModelCatalogCount:
 		return m.AddedModelCatalogCount()
+	case kaguyasysteminfo.FieldProviderCatalogCount:
+		return m.AddedProviderCatalogCount()
 	}
 	return nil, false
 }
@@ -11096,6 +11224,13 @@ func (m *KaguyaSystemInfoMutation) AddField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddModelCatalogCount(v)
+		return nil
+	case kaguyasysteminfo.FieldProviderCatalogCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProviderCatalogCount(v)
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaSystemInfo numeric field %s", name)
@@ -11195,6 +11330,12 @@ func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyasysteminfo.FieldModelCatalogCount:
 		m.ResetModelCatalogCount()
+		return nil
+	case kaguyasysteminfo.FieldProviderCatalogJSON:
+		m.ResetProviderCatalogJSON()
+		return nil
+	case kaguyasysteminfo.FieldProviderCatalogCount:
+		m.ResetProviderCatalogCount()
 		return nil
 	case kaguyasysteminfo.FieldModelSyncLastAttemptAt:
 		m.ResetModelSyncLastAttemptAt()

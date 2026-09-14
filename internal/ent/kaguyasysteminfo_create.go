@@ -225,6 +225,34 @@ func (_c *KaguyaSystemInfoCreate) SetNillableModelCatalogCount(v *int) *KaguyaSy
 	return _c
 }
 
+// SetProviderCatalogJSON sets the "provider_catalog_json" field.
+func (_c *KaguyaSystemInfoCreate) SetProviderCatalogJSON(v string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetProviderCatalogJSON(v)
+	return _c
+}
+
+// SetNillableProviderCatalogJSON sets the "provider_catalog_json" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableProviderCatalogJSON(v *string) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetProviderCatalogJSON(*v)
+	}
+	return _c
+}
+
+// SetProviderCatalogCount sets the "provider_catalog_count" field.
+func (_c *KaguyaSystemInfoCreate) SetProviderCatalogCount(v int) *KaguyaSystemInfoCreate {
+	_c.mutation.SetProviderCatalogCount(v)
+	return _c
+}
+
+// SetNillableProviderCatalogCount sets the "provider_catalog_count" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableProviderCatalogCount(v *int) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetProviderCatalogCount(*v)
+	}
+	return _c
+}
+
 // SetModelSyncLastAttemptAt sets the "model_sync_last_attempt_at" field.
 func (_c *KaguyaSystemInfoCreate) SetModelSyncLastAttemptAt(v time.Time) *KaguyaSystemInfoCreate {
 	_c.mutation.SetModelSyncLastAttemptAt(v)
@@ -404,6 +432,14 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultModelCatalogCount
 		_c.mutation.SetModelCatalogCount(v)
 	}
+	if _, ok := _c.mutation.ProviderCatalogJSON(); !ok {
+		v := kaguyasysteminfo.DefaultProviderCatalogJSON
+		_c.mutation.SetProviderCatalogJSON(v)
+	}
+	if _, ok := _c.mutation.ProviderCatalogCount(); !ok {
+		v := kaguyasysteminfo.DefaultProviderCatalogCount
+		_c.mutation.SetProviderCatalogCount(v)
+	}
 	if _, ok := _c.mutation.ModelSyncLastError(); !ok {
 		v := kaguyasysteminfo.DefaultModelSyncLastError
 		_c.mutation.SetModelSyncLastError(v)
@@ -497,6 +533,17 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 	if v, ok := _c.mutation.ModelCatalogCount(); ok {
 		if err := kaguyasysteminfo.ModelCatalogCountValidator(v); err != nil {
 			return &ValidationError{Name: "model_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_catalog_count": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ProviderCatalogJSON(); !ok {
+		return &ValidationError{Name: "provider_catalog_json", err: errors.New(`ent: missing required field "KaguyaSystemInfo.provider_catalog_json"`)}
+	}
+	if _, ok := _c.mutation.ProviderCatalogCount(); !ok {
+		return &ValidationError{Name: "provider_catalog_count", err: errors.New(`ent: missing required field "KaguyaSystemInfo.provider_catalog_count"`)}
+	}
+	if v, ok := _c.mutation.ProviderCatalogCount(); ok {
+		if err := kaguyasysteminfo.ProviderCatalogCountValidator(v); err != nil {
+			return &ValidationError{Name: "provider_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_catalog_count": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.ModelSyncLastError(); !ok {
@@ -608,6 +655,14 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.ModelCatalogCount(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelCatalogCount, field.TypeInt, value)
 		_node.ModelCatalogCount = value
+	}
+	if value, ok := _c.mutation.ProviderCatalogJSON(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderCatalogJSON, field.TypeString, value)
+		_node.ProviderCatalogJSON = value
+	}
+	if value, ok := _c.mutation.ProviderCatalogCount(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderCatalogCount, field.TypeInt, value)
+		_node.ProviderCatalogCount = value
 	}
 	if value, ok := _c.mutation.ModelSyncLastAttemptAt(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncLastAttemptAt, field.TypeTime, value)
@@ -894,6 +949,36 @@ func (u *KaguyaSystemInfoUpsert) UpdateModelCatalogCount() *KaguyaSystemInfoUpse
 // AddModelCatalogCount adds v to the "model_catalog_count" field.
 func (u *KaguyaSystemInfoUpsert) AddModelCatalogCount(v int) *KaguyaSystemInfoUpsert {
 	u.Add(kaguyasysteminfo.FieldModelCatalogCount, v)
+	return u
+}
+
+// SetProviderCatalogJSON sets the "provider_catalog_json" field.
+func (u *KaguyaSystemInfoUpsert) SetProviderCatalogJSON(v string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldProviderCatalogJSON, v)
+	return u
+}
+
+// UpdateProviderCatalogJSON sets the "provider_catalog_json" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateProviderCatalogJSON() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldProviderCatalogJSON)
+	return u
+}
+
+// SetProviderCatalogCount sets the "provider_catalog_count" field.
+func (u *KaguyaSystemInfoUpsert) SetProviderCatalogCount(v int) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldProviderCatalogCount, v)
+	return u
+}
+
+// UpdateProviderCatalogCount sets the "provider_catalog_count" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateProviderCatalogCount() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldProviderCatalogCount)
+	return u
+}
+
+// AddProviderCatalogCount adds v to the "provider_catalog_count" field.
+func (u *KaguyaSystemInfoUpsert) AddProviderCatalogCount(v int) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldProviderCatalogCount, v)
 	return u
 }
 
@@ -1269,6 +1354,41 @@ func (u *KaguyaSystemInfoUpsertOne) AddModelCatalogCount(v int) *KaguyaSystemInf
 func (u *KaguyaSystemInfoUpsertOne) UpdateModelCatalogCount() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateModelCatalogCount()
+	})
+}
+
+// SetProviderCatalogJSON sets the "provider_catalog_json" field.
+func (u *KaguyaSystemInfoUpsertOne) SetProviderCatalogJSON(v string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetProviderCatalogJSON(v)
+	})
+}
+
+// UpdateProviderCatalogJSON sets the "provider_catalog_json" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateProviderCatalogJSON() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateProviderCatalogJSON()
+	})
+}
+
+// SetProviderCatalogCount sets the "provider_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertOne) SetProviderCatalogCount(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetProviderCatalogCount(v)
+	})
+}
+
+// AddProviderCatalogCount adds v to the "provider_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertOne) AddProviderCatalogCount(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddProviderCatalogCount(v)
+	})
+}
+
+// UpdateProviderCatalogCount sets the "provider_catalog_count" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateProviderCatalogCount() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateProviderCatalogCount()
 	})
 }
 
@@ -1823,6 +1943,41 @@ func (u *KaguyaSystemInfoUpsertBulk) AddModelCatalogCount(v int) *KaguyaSystemIn
 func (u *KaguyaSystemInfoUpsertBulk) UpdateModelCatalogCount() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateModelCatalogCount()
+	})
+}
+
+// SetProviderCatalogJSON sets the "provider_catalog_json" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetProviderCatalogJSON(v string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetProviderCatalogJSON(v)
+	})
+}
+
+// UpdateProviderCatalogJSON sets the "provider_catalog_json" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateProviderCatalogJSON() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateProviderCatalogJSON()
+	})
+}
+
+// SetProviderCatalogCount sets the "provider_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetProviderCatalogCount(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetProviderCatalogCount(v)
+	})
+}
+
+// AddProviderCatalogCount adds v to the "provider_catalog_count" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddProviderCatalogCount(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddProviderCatalogCount(v)
+	})
+}
+
+// UpdateProviderCatalogCount sets the "provider_catalog_count" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateProviderCatalogCount() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateProviderCatalogCount()
 	})
 }
 

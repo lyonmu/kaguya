@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 )
 
@@ -35,7 +34,7 @@ func TestChatIndependentConversationsRunConcurrently(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("parallel").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("parallel").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

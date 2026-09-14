@@ -8,20 +8,19 @@ type SystemIDReq struct {
 }
 
 // SystemProviderSaveReq 提供商新增/修改请求。
+// 协议不在这里：同一提供商可提供多个协议，由每个模型自己声明。
 type SystemProviderSaveReq struct {
-	ProviderType consts.ProviderType     `json:"provider_type" binding:"omitempty,oneof=normal opencode-go"`
-	ProviderName string                  `json:"provider_name" binding:"required"`                                            // 提供商名称
-	APIProtocol  consts.ProviderProtocol `json:"api_protocol" binding:"required,oneof=openai-chat anthropic openai-response"` // API 协议类型
-	APIKey       string                  `json:"api_key"`                                                                     // API Key
-	BaseURL      string                  `json:"base_url" binding:"required,http_url"`                                        // 完整请求 URL，必须包含实际端点；不补全或裁剪路径
+	ProviderType consts.ProviderType `json:"provider_type" binding:"omitempty,oneof=normal opencode-go"`
+	ProviderName string              `json:"provider_name" binding:"required"`     // 提供商名称
+	APIKey       string              `json:"api_key"`                              // API Key
+	BaseURL      string              `json:"base_url" binding:"required,http_url"` // API 版本根地址，由模型协议追加端点路径
 }
 
 // SystemProviderPageReq 提供商分页查询请求。
 type SystemProviderPageReq struct {
-	ProviderName string                  `json:"provider_name,omitempty" form:"provider_name"`
-	APIProtocol  consts.ProviderProtocol `json:"api_protocol,omitempty" form:"api_protocol" binding:"omitempty,oneof=openai-chat anthropic openai-response"`
-	Page         int                     `json:"page,omitempty" form:"page" binding:"required,min=1" minimum:"1" default:"1"`
-	PageSize     int                     `json:"page_size,omitempty" form:"page_size" binding:"required,min=10,max=1000" minimum:"10" maximum:"1000" default:"10"`
+	ProviderName string `json:"provider_name,omitempty" form:"provider_name"`
+	Page         int    `json:"page,omitempty" form:"page" binding:"required,min=1" minimum:"1" default:"1"`
+	PageSize     int    `json:"page_size,omitempty" form:"page_size" binding:"required,min=10,max=1000" minimum:"10" maximum:"1000" default:"10"`
 }
 
 // SystemProviderLabelReq 提供商下拉选项查询请求。
@@ -31,16 +30,17 @@ type SystemProviderLabelReq struct {
 
 // SystemModelSaveReq 模型新增/修改请求。
 type SystemModelSaveReq struct {
-	ProviderID                 string                 `json:"provider_id" binding:"required"`
-	ModelName                  string                 `json:"model_name" binding:"required"`
-	ModelID                    string                 `json:"model_id" binding:"required"`
-	ReasoningEnabled           consts.Status          `json:"reasoning_enabled" binding:"required,oneof=1 2"`
-	ReasoningEffort            consts.ReasoningEffort `json:"reasoning_effort" binding:"required,oneof=low medium high"`
-	TokenContextWindow         int                    `json:"token_context_window" binding:"min=0"`
-	TokenMaxOutputTokens       int                    `json:"token_max_output_tokens" binding:"min=0"`
-	CapabilityToolUse          consts.Status          `json:"capability_tool_use" binding:"required,oneof=1 2"`
-	CapabilityVision           consts.Status          `json:"capability_vision" binding:"required,oneof=1 2"`
-	CapabilityStructuredOutput consts.Status          `json:"capability_structured_output" binding:"required,oneof=1 2"`
+	ProviderID                 string                  `json:"provider_id" binding:"required"`
+	ModelName                  string                  `json:"model_name" binding:"required"`
+	ModelID                    string                  `json:"model_id" binding:"required"`
+	APIProtocol                consts.ProviderProtocol `json:"api_protocol" binding:"required,oneof=openai-chat anthropic openai-response"` // 请求协议，决定提供商根地址后追加的端点路径
+	ReasoningEnabled           consts.Status           `json:"reasoning_enabled" binding:"required,oneof=1 2"`
+	ReasoningEffort            consts.ReasoningEffort  `json:"reasoning_effort" binding:"required,oneof=low medium high"`
+	TokenContextWindow         int                     `json:"token_context_window" binding:"min=0"`
+	TokenMaxOutputTokens       int                     `json:"token_max_output_tokens" binding:"min=0"`
+	CapabilityToolUse          consts.Status           `json:"capability_tool_use" binding:"required,oneof=1 2"`
+	CapabilityVision           consts.Status           `json:"capability_vision" binding:"required,oneof=1 2"`
+	CapabilityStructuredOutput consts.Status           `json:"capability_structured_output" binding:"required,oneof=1 2"`
 }
 
 // SystemModelPageReq 模型分页查询请求。
@@ -59,6 +59,13 @@ type SystemModelLabelReq struct {
 
 // SystemModelCatalogReq 查询已同步的 models.dev 模型目录。
 type SystemModelCatalogReq struct {
+	Keyword  string `json:"keyword,omitempty" form:"keyword"`
+	Page     int    `json:"page,omitempty" form:"page" binding:"required,min=1" minimum:"1" default:"1"`
+	PageSize int    `json:"page_size,omitempty" form:"page_size" binding:"required,min=10,max=1000" minimum:"10" maximum:"1000" default:"100"`
+}
+
+// SystemProviderCatalogReq 查询已同步的 models.dev 提供商目录。
+type SystemProviderCatalogReq struct {
 	Keyword  string `json:"keyword,omitempty" form:"keyword"`
 	Page     int    `json:"page,omitempty" form:"page" binding:"required,min=1" minimum:"1" default:"1"`
 	PageSize int    `json:"page_size,omitempty" form:"page_size" binding:"required,min=10,max=1000" minimum:"10" maximum:"1000" default:"100"`

@@ -473,24 +473,28 @@ func init() {
 	kaguyamodelsinfoDescModelID := kaguyamodelsinfoFields[2].Descriptor()
 	// kaguyamodelsinfo.ModelIDValidator is a validator for the "model_id" field. It is called by the builders before save.
 	kaguyamodelsinfo.ModelIDValidator = kaguyamodelsinfoDescModelID.Validators[0].(func(string) error)
+	// kaguyamodelsinfoDescAPIProtocol is the schema descriptor for api_protocol field.
+	kaguyamodelsinfoDescAPIProtocol := kaguyamodelsinfoFields[3].Descriptor()
+	// kaguyamodelsinfo.DefaultAPIProtocol holds the default value on creation for the api_protocol field.
+	kaguyamodelsinfo.DefaultAPIProtocol = consts.ProviderProtocol(kaguyamodelsinfoDescAPIProtocol.Default.(string))
 	// kaguyamodelsinfoDescReasoningEnabled is the schema descriptor for reasoning_enabled field.
-	kaguyamodelsinfoDescReasoningEnabled := kaguyamodelsinfoFields[3].Descriptor()
+	kaguyamodelsinfoDescReasoningEnabled := kaguyamodelsinfoFields[4].Descriptor()
 	// kaguyamodelsinfo.DefaultReasoningEnabled holds the default value on creation for the reasoning_enabled field.
 	kaguyamodelsinfo.DefaultReasoningEnabled = consts.Status(kaguyamodelsinfoDescReasoningEnabled.Default.(int))
 	// kaguyamodelsinfoDescReasoningEffort is the schema descriptor for reasoning_effort field.
-	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[4].Descriptor()
+	kaguyamodelsinfoDescReasoningEffort := kaguyamodelsinfoFields[5].Descriptor()
 	// kaguyamodelsinfo.DefaultReasoningEffort holds the default value on creation for the reasoning_effort field.
 	kaguyamodelsinfo.DefaultReasoningEffort = consts.ReasoningEffort(kaguyamodelsinfoDescReasoningEffort.Default.(string))
 	// kaguyamodelsinfoDescCapabilityToolUse is the schema descriptor for capability_tool_use field.
-	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[7].Descriptor()
+	kaguyamodelsinfoDescCapabilityToolUse := kaguyamodelsinfoFields[8].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityToolUse holds the default value on creation for the capability_tool_use field.
 	kaguyamodelsinfo.DefaultCapabilityToolUse = consts.Status(kaguyamodelsinfoDescCapabilityToolUse.Default.(int))
 	// kaguyamodelsinfoDescCapabilityVision is the schema descriptor for capability_vision field.
-	kaguyamodelsinfoDescCapabilityVision := kaguyamodelsinfoFields[8].Descriptor()
+	kaguyamodelsinfoDescCapabilityVision := kaguyamodelsinfoFields[9].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityVision holds the default value on creation for the capability_vision field.
 	kaguyamodelsinfo.DefaultCapabilityVision = consts.Status(kaguyamodelsinfoDescCapabilityVision.Default.(int))
 	// kaguyamodelsinfoDescCapabilityStructuredOutput is the schema descriptor for capability_structured_output field.
-	kaguyamodelsinfoDescCapabilityStructuredOutput := kaguyamodelsinfoFields[9].Descriptor()
+	kaguyamodelsinfoDescCapabilityStructuredOutput := kaguyamodelsinfoFields[10].Descriptor()
 	// kaguyamodelsinfo.DefaultCapabilityStructuredOutput holds the default value on creation for the capability_structured_output field.
 	kaguyamodelsinfo.DefaultCapabilityStructuredOutput = consts.Status(kaguyamodelsinfoDescCapabilityStructuredOutput.Default.(int))
 	// kaguyamodelsinfoDescID is the schema descriptor for id field.
@@ -619,12 +623,8 @@ func init() {
 	kaguyaproviderinfoDescProviderName := kaguyaproviderinfoFields[0].Descriptor()
 	// kaguyaproviderinfo.ProviderNameValidator is a validator for the "provider_name" field. It is called by the builders before save.
 	kaguyaproviderinfo.ProviderNameValidator = kaguyaproviderinfoDescProviderName.Validators[0].(func(string) error)
-	// kaguyaproviderinfoDescAPIProtocol is the schema descriptor for api_protocol field.
-	kaguyaproviderinfoDescAPIProtocol := kaguyaproviderinfoFields[1].Descriptor()
-	// kaguyaproviderinfo.DefaultAPIProtocol holds the default value on creation for the api_protocol field.
-	kaguyaproviderinfo.DefaultAPIProtocol = consts.ProviderProtocol(kaguyaproviderinfoDescAPIProtocol.Default.(string))
 	// kaguyaproviderinfoDescProviderType is the schema descriptor for provider_type field.
-	kaguyaproviderinfoDescProviderType := kaguyaproviderinfoFields[2].Descriptor()
+	kaguyaproviderinfoDescProviderType := kaguyaproviderinfoFields[1].Descriptor()
 	// kaguyaproviderinfo.DefaultProviderType holds the default value on creation for the provider_type field.
 	kaguyaproviderinfo.DefaultProviderType = consts.ProviderType(kaguyaproviderinfoDescProviderType.Default.(string))
 	// kaguyaproviderinfoDescID is the schema descriptor for id field.
@@ -793,16 +793,26 @@ func init() {
 	kaguyasysteminfo.DefaultModelCatalogCount = kaguyasysteminfoDescModelCatalogCount.Default.(int)
 	// kaguyasysteminfo.ModelCatalogCountValidator is a validator for the "model_catalog_count" field. It is called by the builders before save.
 	kaguyasysteminfo.ModelCatalogCountValidator = kaguyasysteminfoDescModelCatalogCount.Validators[0].(func(int) error)
+	// kaguyasysteminfoDescProviderCatalogJSON is the schema descriptor for provider_catalog_json field.
+	kaguyasysteminfoDescProviderCatalogJSON := kaguyasysteminfoFields[13].Descriptor()
+	// kaguyasysteminfo.DefaultProviderCatalogJSON holds the default value on creation for the provider_catalog_json field.
+	kaguyasysteminfo.DefaultProviderCatalogJSON = kaguyasysteminfoDescProviderCatalogJSON.Default.(string)
+	// kaguyasysteminfoDescProviderCatalogCount is the schema descriptor for provider_catalog_count field.
+	kaguyasysteminfoDescProviderCatalogCount := kaguyasysteminfoFields[14].Descriptor()
+	// kaguyasysteminfo.DefaultProviderCatalogCount holds the default value on creation for the provider_catalog_count field.
+	kaguyasysteminfo.DefaultProviderCatalogCount = kaguyasysteminfoDescProviderCatalogCount.Default.(int)
+	// kaguyasysteminfo.ProviderCatalogCountValidator is a validator for the "provider_catalog_count" field. It is called by the builders before save.
+	kaguyasysteminfo.ProviderCatalogCountValidator = kaguyasysteminfoDescProviderCatalogCount.Validators[0].(func(int) error)
 	// kaguyasysteminfoDescModelSyncLastError is the schema descriptor for model_sync_last_error field.
-	kaguyasysteminfoDescModelSyncLastError := kaguyasysteminfoFields[15].Descriptor()
+	kaguyasysteminfoDescModelSyncLastError := kaguyasysteminfoFields[17].Descriptor()
 	// kaguyasysteminfo.DefaultModelSyncLastError holds the default value on creation for the model_sync_last_error field.
 	kaguyasysteminfo.DefaultModelSyncLastError = kaguyasysteminfoDescModelSyncLastError.Default.(string)
 	// kaguyasysteminfoDescDefaultModelID is the schema descriptor for default_model_id field.
-	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[16].Descriptor()
+	kaguyasysteminfoDescDefaultModelID := kaguyasysteminfoFields[18].Descriptor()
 	// kaguyasysteminfo.DefaultDefaultModelID holds the default value on creation for the default_model_id field.
 	kaguyasysteminfo.DefaultDefaultModelID = kaguyasysteminfoDescDefaultModelID.Default.(string)
 	// kaguyasysteminfoDescTaskModelID is the schema descriptor for task_model_id field.
-	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[17].Descriptor()
+	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[19].Descriptor()
 	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
 	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
 	// kaguyasysteminfoDescID is the schema descriptor for id field.

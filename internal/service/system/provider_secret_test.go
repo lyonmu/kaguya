@@ -24,8 +24,8 @@ func enableTestSecret(t *testing.T) {
 func providerSaveReq(name, apiKey string) *dto.SystemProviderSaveReq {
 	return &dto.SystemProviderSaveReq{
 		ProviderName: name, ProviderType: consts.ProviderTypeNormal,
-		APIProtocol: consts.ProtocolOpenAIChat, BaseURL: "https://api.example.com/v1/chat/completions",
-		APIKey: apiKey,
+		BaseURL: "https://api.example.com/v1",
+		APIKey:  apiKey,
 	}
 }
 

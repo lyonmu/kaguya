@@ -113,7 +113,7 @@ func buildChatAgent(exec chatExecution) (*agentruntime.Agent, error) {
 	}
 	return agentruntime.New(
 		agentruntime.WithProvider(agentruntime.ProviderConfig{
-			Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(provider.APIProtocol),
+			Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(exec.target.model.APIProtocol),
 			BaseURL: provider.BaseURL, APIKey: apiKey, ModelID: exec.target.model.ModelID,
 			ConversationID: exec.conversationID,
 		}),
@@ -126,7 +126,7 @@ func buildChatAgent(exec chatExecution) (*agentruntime.Agent, error) {
 // Fantasy 对临时提供商错误执行指数退避；每个 step 单独判断，当前 step 尚未输出时可安全
 // 重试，一旦输出过任何块便取消重试，避免正文重复。
 func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatResp, agent *agentruntime.Agent, exec chatExecution) (*chatOutcome, error) {
-	info, model, provider := exec.target.info, exec.target.model, exec.target.provider
+	info, model := exec.target.info, exec.target.model
 
 	streamCtx := token.WithConversationID(ctx, exec.conversationID)
 	retryCtx, cancelRetries := context.WithCancel(streamCtx)
@@ -141,7 +141,7 @@ func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatRe
 		}
 		if !send(ctx, dataChan, &dtochat.ChatResp{
 			Chat:        frame,
-			APIProtocol: consts.ProviderProtocol(provider.APIProtocol),
+			APIProtocol: consts.ProviderProtocol(model.APIProtocol),
 			Created:     time.Now().Unix(), ModelID: model.ModelID, ModelName: model.ModelName,
 		}) {
 			return ctx.Err()

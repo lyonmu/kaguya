@@ -49,7 +49,7 @@ func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 		UserContent: exec.userContent,
 		ProviderID:  target.provider.ID, ProviderName: target.provider.ProviderName,
 		ModelID: target.model.ModelID, ModelName: target.model.ModelName,
-		APIProtocol: string(target.provider.APIProtocol),
+		APIProtocol: string(target.model.APIProtocol),
 		StartedAt:   o.startedAt, FinishedAt: o.finishedAt, FinishReason: o.finishReason,
 		Usage: o.usage, Messages: o.conversationMessages(exec.prompt.requestPrompt), Blocks: o.trace.result(),
 		ContextMessages: o.compactor.snapshot(o.result), CompactionCount: o.compactor.count,

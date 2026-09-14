@@ -119,7 +119,7 @@ func TestChatConversationAndSingleDone(t *testing.T) {
 			close(titleGate)
 		}
 	}()
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestChatFailureKeepsStartedConversationAndTitle(t *testing.T) {
 		http.Error(w, "chat provider unavailable", http.StatusInternalServerError)
 	}))
 	defer server.Close()
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

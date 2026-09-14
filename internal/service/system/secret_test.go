@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	"github.com/lyonmu/kaguya/internal/secret"
 )
@@ -84,7 +83,7 @@ func TestInitSecretRejectsLegacyRecords(t *testing.T) {
 		"unknown v9": "enc:v9:AAAA",
 	} {
 		row, err := db.EntClient.KaguyaProviderInfo.Create().
-			SetProviderName(name).SetAPIProtocol(consts.ProtocolOpenAIChat).
+			SetProviderName(name).
 			SetAPIKey(value).SetBaseURL("https://api.example.com/v1").Save(ctx)
 		if err != nil {
 			t.Fatal(err)

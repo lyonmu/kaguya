@@ -1,10 +1,14 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
+
+	"github.com/lyonmu/kaguya/internal/consts"
 )
 
 // providerHeaderTimeout 限制连接建立后等待响应头的时间；流式正文的长时间静默
@@ -26,7 +30,32 @@ func newProviderTransport() http.RoundTripper {
 	return transport
 }
 
-// providerHTTPClient 使用配置的完整请求 URL，禁止 SDK 追加或修改端点路径。
+// protocolEndpointSuffix 是各协议在提供商根地址后追加的固定端点路径。
+var protocolEndpointSuffix = map[consts.ProviderProtocol]string{
+	consts.ProtocolOpenAIChat:      "/chat/completions",
+	consts.ProtocolOpenAIResponses: "/responses",
+	consts.ProtocolAnthropic:       "/messages",
+}
+
+// providerEndpoint 把只到 API 版本段的提供商根地址补成最终请求地址，
+// 端点路径由模型协议决定；根地址不能带查询或片段，未知协议直接报错。
+func providerEndpoint(baseURL string, protocol consts.ProviderProtocol) (string, error) {
+	suffix, ok := protocolEndpointSuffix[protocol]
+	if !ok {
+		return "", fmt.Errorf("unsupported provider protocol %q", protocol)
+	}
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("parse provider base URL: %w", err)
+	}
+	if u.RawQuery != "" || u.Fragment != "" {
+		return "", errors.New("provider base URL must not contain query or fragment")
+	}
+	u.Path = strings.TrimRight(u.Path, "/") + suffix
+	return u.String(), nil
+}
+
+// providerHTTPClient 使用根地址加协议端点后的最终请求 URL，禁止 SDK 追加或修改端点路径。
 // SDK 仍负责请求体、认证、流式解析；这里仅指定最终请求地址。
 type providerHTTPClient struct {
 	endpoint url.URL

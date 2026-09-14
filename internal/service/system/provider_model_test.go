@@ -54,7 +54,7 @@ func setupSystemServiceTest(t *testing.T) context.Context {
 
 func modelSaveReq(providerID, name, modelID string) *dtosystem.SystemModelSaveReq {
 	return &dtosystem.SystemModelSaveReq{
-		ProviderID: providerID, ModelName: name, ModelID: modelID,
+		ProviderID: providerID, ModelName: name, ModelID: modelID, APIProtocol: consts.ProtocolOpenAIChat,
 		ReasoningEnabled: consts.IsTrue, ReasoningEffort: consts.ReasoningEffortMedium,
 		TokenContextWindow: 128000, TokenMaxOutputTokens: 8192,
 		CapabilityToolUse: consts.IsTrue, CapabilityVision: consts.IsTrue,
@@ -67,15 +67,15 @@ func TestProviderAndModelCRUD(t *testing.T) {
 	svc := &SystemSvc{}
 
 	provider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{
-		ProviderName: "OpenAI", APIProtocol: consts.ProtocolOpenAIChat,
-		APIKey: "secret", BaseURL: "https://api.openai.com/v1",
+		ProviderName: "OpenAI",
+		APIKey:       "secret", BaseURL: "https://api.openai.com/v1",
 	})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
 	}
 	provider, err = svc.ProviderUpdate(ctx, provider.ID, &dtosystem.SystemProviderSaveReq{
-		ProviderName: "OpenAI Updated", APIProtocol: consts.ProtocolOpenAIResponses,
-		APIKey: "new-secret", BaseURL: "https://api.openai.com/v1",
+		ProviderName: "OpenAI Updated",
+		APIKey:       "new-secret", BaseURL: "https://api.openai.com/v1",
 	})
 	if err != nil || provider.ProviderName != "OpenAI Updated" {
 		t.Fatalf("update provider: resp=%+v err=%v", provider, err)
@@ -96,6 +96,9 @@ func TestProviderAndModelCRUD(t *testing.T) {
 	detail, err := svc.ProviderDetail(ctx, provider.ID)
 	if err != nil || len(detail.Models) != 2 {
 		t.Fatalf("provider relation was not loaded: detail=%+v err=%v", detail, err)
+	}
+	if detail.Models[0].APIProtocol != consts.ProtocolOpenAIChat {
+		t.Fatalf("model protocol not persisted: %+v", detail.Models[0])
 	}
 	labels, err := svc.ModelLabels(ctx, &dtosystem.SystemModelLabelReq{ProviderID: provider.ID})
 	if err != nil || len(labels) != 2 {
@@ -131,13 +134,13 @@ func TestDefaultModelIsUniqueGlobally(t *testing.T) {
 	svc := &SystemSvc{}
 
 	firstProvider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{
-		ProviderName: "OpenAI", APIProtocol: consts.ProtocolOpenAIChat,
+		ProviderName: "OpenAI",
 	})
 	if err != nil {
 		t.Fatalf("create first provider: %v", err)
 	}
 	secondProvider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{
-		ProviderName: "Anthropic", APIProtocol: consts.ProtocolAnthropic,
+		ProviderName: "Anthropic",
 	})
 	if err != nil {
 		t.Fatalf("create second provider: %v", err)
@@ -184,7 +187,7 @@ func TestDefaultModelIsUniqueGlobally(t *testing.T) {
 func TestProviderAndModelDuplicateValidation(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	svc := &SystemSvc{}
-	req := &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic", APIProtocol: consts.ProtocolAnthropic}
+	req := &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic"}
 	provider, err := svc.ProviderCreate(ctx, req)
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -206,7 +209,7 @@ func TestProviderAndModelDuplicateValidation(t *testing.T) {
 func TestDeletedProviderDoesNotBlockRecreate(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	svc := &SystemSvc{}
-	req := &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic", APIProtocol: consts.ProtocolAnthropic}
+	req := &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic"}
 	provider, err := svc.ProviderCreate(ctx, req)
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
@@ -231,7 +234,7 @@ func TestDeletedProviderDoesNotBlockRecreate(t *testing.T) {
 func TestDeletedModelDoesNotBlockRecreate(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	svc := &SystemSvc{}
-	provider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic", APIProtocol: consts.ProtocolAnthropic})
+	provider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "Anthropic"})
 	if err != nil {
 		t.Fatalf("create provider: %v", err)
 	}

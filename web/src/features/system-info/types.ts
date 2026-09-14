@@ -15,6 +15,7 @@ export interface SystemInfoPayload {
 
 export interface SystemInfo extends SystemInfoPayload {
   model_sync_catalog_count: number
+  provider_catalog_count: number
   model_sync_last_attempt_at?: string
   model_sync_last_success_at?: string
   model_sync_last_error: string

@@ -1605,6 +1605,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/system/provider/catalog": {
+            "get": {
+                "tags": [
+                    "System Provider"
+                ],
+                "summary": "查询已同步的 models.dev 提供商目录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "default": 1,
+                        "name": "page",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "maximum": 1000,
+                        "minimum": 10,
+                        "type": "integer",
+                        "default": 100,
+                        "name": "page_size",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemProviderCatalogListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/system/provider/label": {
             "get": {
                 "tags": [
@@ -1650,21 +1702,6 @@ const docTemplate = `{
                 ],
                 "summary": "获取提供商分页列表",
                 "parameters": [
-                    {
-                        "enum": [
-                            "openai-chat",
-                            "anthropic",
-                            "openai-response"
-                        ],
-                        "type": "string",
-                        "x-enum-varnames": [
-                            "ProtocolOpenAIChat",
-                            "ProtocolAnthropic",
-                            "ProtocolOpenAIResponses"
-                        ],
-                        "name": "api_protocol",
-                        "in": "query"
-                    },
                     {
                         "minimum": 1,
                         "type": "integer",
@@ -2802,6 +2839,9 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 2048
                 },
+                "provider_catalog_count": {
+                    "type": "integer"
+                },
                 "system_prompt": {
                     "type": "string",
                     "maxLength": 20000
@@ -3048,6 +3088,9 @@ const docTemplate = `{
         "system.SystemModelCatalogResp": {
             "type": "object",
             "properties": {
+                "api_protocol": {
+                    "$ref": "#/definitions/consts.ProviderProtocol"
+                },
                 "capability_structured_output": {
                     "$ref": "#/definitions/consts.Status"
                 },
@@ -3078,7 +3121,16 @@ const docTemplate = `{
                 "last_updated": {
                     "type": "string"
                 },
+                "model_id": {
+                    "type": "string"
+                },
                 "name": {
+                    "type": "string"
+                },
+                "provider_id": {
+                    "type": "string"
+                },
+                "provider_name": {
                     "type": "string"
                 },
                 "reasoning_enabled": {
@@ -3141,6 +3193,9 @@ const docTemplate = `{
         "system.SystemModelResp": {
             "type": "object",
             "properties": {
+                "api_protocol": {
+                    "$ref": "#/definitions/consts.ProviderProtocol"
+                },
                 "capability_structured_output": {
                     "$ref": "#/definitions/consts.Status"
                 },
@@ -3188,6 +3243,7 @@ const docTemplate = `{
         "system.SystemModelSaveReq": {
             "type": "object",
             "required": [
+                "api_protocol",
                 "capability_structured_output",
                 "capability_tool_use",
                 "capability_vision",
@@ -3198,6 +3254,19 @@ const docTemplate = `{
                 "reasoning_enabled"
             ],
             "properties": {
+                "api_protocol": {
+                    "description": "请求协议，决定提供商根地址后追加的端点路径",
+                    "enum": [
+                        "openai-chat",
+                        "anthropic",
+                        "openai-response"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/consts.ProviderProtocol"
+                        }
+                    ]
+                },
                 "capability_structured_output": {
                     "enum": [
                         1,
@@ -3279,6 +3348,9 @@ const docTemplate = `{
                 "count": {
                     "type": "integer"
                 },
+                "provider_count": {
+                    "type": "integer"
+                },
                 "synced_at": {
                     "type": "string"
                 }
@@ -3291,6 +3363,49 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemProviderCatalogListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/system.SystemProviderCatalogResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "system.SystemProviderCatalogResp": {
+            "type": "object",
+            "properties": {
+                "api": {
+                    "type": "string"
+                },
+                "doc": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "model_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "npm": {
                     "type": "string"
                 }
             }
@@ -3335,9 +3450,6 @@ const docTemplate = `{
                 "api_key_set": {
                     "type": "boolean"
                 },
-                "api_protocol": {
-                    "$ref": "#/definitions/consts.ProviderProtocol"
-                },
                 "base_url": {
                     "type": "string"
                 },
@@ -3367,7 +3479,6 @@ const docTemplate = `{
         "system.SystemProviderSaveReq": {
             "type": "object",
             "required": [
-                "api_protocol",
                 "base_url",
                 "provider_name"
             ],
@@ -3376,21 +3487,8 @@ const docTemplate = `{
                     "description": "API Key",
                     "type": "string"
                 },
-                "api_protocol": {
-                    "description": "API 协议类型",
-                    "enum": [
-                        "openai-chat",
-                        "anthropic",
-                        "openai-response"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/consts.ProviderProtocol"
-                        }
-                    ]
-                },
                 "base_url": {
-                    "description": "完整请求 URL，必须包含实际端点；不补全或裁剪路径",
+                    "description": "API 版本根地址，由模型协议追加端点路径",
                     "type": "string"
                 },
                 "provider_name": {

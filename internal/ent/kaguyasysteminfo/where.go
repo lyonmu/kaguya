@@ -134,6 +134,16 @@ func ModelCatalogCount(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelCatalogCount, v))
 }
 
+// ProviderCatalogJSON applies equality check predicate on the "provider_catalog_json" field. It's identical to ProviderCatalogJSONEQ.
+func ProviderCatalogJSON(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogCount applies equality check predicate on the "provider_catalog_count" field. It's identical to ProviderCatalogCountEQ.
+func ProviderCatalogCount(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldProviderCatalogCount, v))
+}
+
 // ModelSyncLastAttemptAt applies equality check predicate on the "model_sync_last_attempt_at" field. It's identical to ModelSyncLastAttemptAtEQ.
 func ModelSyncLastAttemptAt(v time.Time) predicate.KaguyaSystemInfo {
 	vc := time.Time(v)
@@ -809,6 +819,111 @@ func ModelCatalogCountLT(v int) predicate.KaguyaSystemInfo {
 // ModelCatalogCountLTE applies the LTE predicate on the "model_catalog_count" field.
 func ModelCatalogCountLTE(v int) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldModelCatalogCount, v))
+}
+
+// ProviderCatalogJSONEQ applies the EQ predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONNEQ applies the NEQ predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONIn applies the In predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldProviderCatalogJSON, vs...))
+}
+
+// ProviderCatalogJSONNotIn applies the NotIn predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldProviderCatalogJSON, vs...))
+}
+
+// ProviderCatalogJSONGT applies the GT predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONGTE applies the GTE predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONLT applies the LT predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONLTE applies the LTE predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONContains applies the Contains predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONHasPrefix applies the HasPrefix predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONHasSuffix applies the HasSuffix predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONEqualFold applies the EqualFold predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogJSONContainsFold applies the ContainsFold predicate on the "provider_catalog_json" field.
+func ProviderCatalogJSONContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldProviderCatalogJSON, v))
+}
+
+// ProviderCatalogCountEQ applies the EQ predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldProviderCatalogCount, v))
+}
+
+// ProviderCatalogCountNEQ applies the NEQ predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldProviderCatalogCount, v))
+}
+
+// ProviderCatalogCountIn applies the In predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldProviderCatalogCount, vs...))
+}
+
+// ProviderCatalogCountNotIn applies the NotIn predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldProviderCatalogCount, vs...))
+}
+
+// ProviderCatalogCountGT applies the GT predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldProviderCatalogCount, v))
+}
+
+// ProviderCatalogCountGTE applies the GTE predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldProviderCatalogCount, v))
+}
+
+// ProviderCatalogCountLT applies the LT predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldProviderCatalogCount, v))
+}
+
+// ProviderCatalogCountLTE applies the LTE predicate on the "provider_catalog_count" field.
+func ProviderCatalogCountLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldProviderCatalogCount, v))
 }
 
 // ModelSyncLastAttemptAtEQ applies the EQ predicate on the "model_sync_last_attempt_at" field.

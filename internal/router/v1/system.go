@@ -23,6 +23,7 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 
 		systemRouter.GET("provider/page", apiGroup.SystemProviderPage)
 		systemRouter.GET("provider/label", apiGroup.SystemProviderLabels)
+		systemRouter.GET("provider/catalog", apiGroup.SystemProviderCatalog)
 		systemRouter.GET("provider/:id", apiGroup.SystemProviderDetail)
 		systemRouter.GET("provider/:id/api-key", apiGroup.SystemProviderAPIKey)
 		systemRouter.POST("provider", apiGroup.SystemProviderCreate)

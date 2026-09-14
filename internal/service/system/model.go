@@ -99,6 +99,7 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 		SetProviderID(req.ProviderID).
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
+		SetAPIProtocol(req.APIProtocol).
 		SetReasoningEnabled(req.ReasoningEnabled).
 		SetReasoningEffort(req.ReasoningEffort).
 		SetTokenContextWindow(req.TokenContextWindow).
@@ -159,6 +160,7 @@ func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.S
 		SetProviderID(req.ProviderID).
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
+		SetAPIProtocol(req.APIProtocol).
 		SetReasoningEnabled(req.ReasoningEnabled).
 		SetReasoningEffort(req.ReasoningEffort).
 		SetTokenContextWindow(req.TokenContextWindow).

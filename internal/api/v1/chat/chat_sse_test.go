@@ -83,7 +83,7 @@ func TestChatSSEForwardsProjectAndFiles(t *testing.T) {
 			"data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
 	}))
 	defer providerServer.Close()
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("sse").SetAPIProtocol(consts.ProtocolOpenAIChat).SetAPIKey("test").SetBaseURL(providerServer.URL).Save(ctx)
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("sse").SetAPIKey("test").SetBaseURL(providerServer.URL).Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

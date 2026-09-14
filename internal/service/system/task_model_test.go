@@ -11,14 +11,14 @@ import (
 func TestTaskModelUniqueAndIndependent(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	svc := &SystemSvc{}
-	p1, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "first", APIProtocol: consts.ProtocolOpenAIChat})
+	p1, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "first"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if p1.ProviderType != consts.ProviderTypeNormal {
 		t.Fatal("missing normal default")
 	}
-	p2, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "second", APIProtocol: consts.ProtocolOpenAIChat, ProviderType: consts.ProviderTypeOpenCodeGo})
+	p2, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "second", ProviderType: consts.ProviderTypeOpenCodeGo})
 	if err != nil {
 		t.Fatal(err)
 	}

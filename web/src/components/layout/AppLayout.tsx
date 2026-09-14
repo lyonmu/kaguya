@@ -2,7 +2,6 @@ import { useState, type PropsWithChildren } from 'react'
 import {
   ApiOutlined,
   BarChartOutlined,
-  DatabaseOutlined,
   MenuOutlined,
   RobotOutlined,
   RightOutlined,
@@ -16,7 +15,7 @@ import { kaguyaAvatar } from '../../assets/avatars'
 
 const { Content, Header, Sider } = Layout
 
-export type SystemPage = 'chat' | 'ai-providers' | 'system-info' | 'model-catalog' | 'token-usage'
+export type SystemPage = 'chat' | 'ai-providers' | 'system-info' | 'token-usage'
 
 interface AppLayoutProps extends PropsWithChildren {
   colorMode: ColorMode
@@ -91,7 +90,6 @@ export function AppLayout({
             <Menu
               className="border-0! bg-transparent!"
               items={[
-                { key: 'model-catalog', icon: <DatabaseOutlined />, label: '模型目录' },
                 { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' },
               ]}
               mode="inline"
@@ -120,7 +118,6 @@ export function AppLayout({
         <Drawer title="系统管理" placement="left" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
           <Menu selectedKeys={[currentPage]} items={[
             ...configurationItems,
-            { key: 'model-catalog', icon: <DatabaseOutlined />, label: '模型目录' },
             { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' },
           ]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
         </Drawer>
@@ -132,7 +129,7 @@ export function AppLayout({
             <Breadcrumb
               items={[
                 { title: '系统管理' },
-                { title: currentPage === 'ai-providers' ? 'AI 配置' : currentPage === 'system-info' ? '系统配置' : currentPage === 'model-catalog' ? '模型目录' : '用量分析' },
+                { title: currentPage === 'ai-providers' ? 'AI 配置' : currentPage === 'system-info' ? '系统配置' : '用量分析' },
               ]}
               separator={<RightOutlined className="text-[8px]" />}
             />

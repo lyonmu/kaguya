@@ -8,6 +8,7 @@ import type {
   ModelCatalogResponse,
   ModelSyncResponse,
   ProviderAPIKeyResponse,
+  ProviderCatalogResponse,
   ProviderPageResponse,
   ProviderPayload,
   ProviderQuery,
@@ -21,7 +22,6 @@ export function fetchProviders(query: ProviderQuery, signal?: AbortSignal) {
     `${PROVIDER_PATH}/page`,
     {
       provider_name: query.providerName,
-      api_protocol: query.apiProtocol,
       page: query.page,
       page_size: query.pageSize,
     },
@@ -31,6 +31,10 @@ export function fetchProviders(query: ProviderQuery, signal?: AbortSignal) {
 
 export function fetchProviderLabels(signal?: AbortSignal) {
   return get<LabelOption[]>(`${PROVIDER_PATH}/label`, undefined, signal)
+}
+
+export function fetchProviderCatalogPage(keyword: string, page: number, pageSize: number, signal?: AbortSignal) {
+  return get<ProviderCatalogResponse>(`${PROVIDER_PATH}/catalog`, { keyword, page, page_size: pageSize }, signal)
 }
 
 export function createProvider(payload: ProviderPayload) {
@@ -55,7 +59,8 @@ export function fetchModelLabels(signal?: AbortSignal) {
 }
 
 export function fetchModelCatalog(keyword = '', signal?: AbortSignal) {
-  return get<ModelCatalogResponse>(`${MODEL_PATH}/catalog`, { keyword, page: 1, page_size: 1000 }, signal)
+  // 目录是全量的几千条模型，弹窗内只预载一页，输入关键词后再由服务端检索。
+  return get<ModelCatalogResponse>(`${MODEL_PATH}/catalog`, { keyword, page: 1, page_size: 50 }, signal)
 }
 
 export function fetchModelCatalogPage(keyword: string, page: number, pageSize: number, signal?: AbortSignal) {

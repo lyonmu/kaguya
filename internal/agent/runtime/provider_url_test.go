@@ -5,25 +5,25 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"charm.land/fantasy"
 	"github.com/lyonmu/kaguya/internal/consts"
 )
 
-// 使用真实 SDK 验证最终 HTTP 请求，不能仅测试传给 SDK 的 BaseURL。
+// 使用真实 SDK 验证最终 HTTP 请求：根地址按模型协议追加端点，不能仅测试传给 SDK 的 BaseURL。
 func TestProviderRequestURL(t *testing.T) {
+	suffixes := map[consts.ProviderProtocol]string{
+		consts.ProtocolOpenAIChat:      "/chat/completions",
+		consts.ProtocolOpenAIResponses: "/responses",
+		consts.ProtocolAnthropic:       "/messages",
+	}
 	for _, protocol := range []consts.ProviderProtocol{consts.ProtocolOpenAIChat, consts.ProtocolOpenAIResponses, consts.ProtocolAnthropic} {
-		for _, path := range []string{
-			"", "/", "/v1", "/v1/", "/v1/responses", "/v1/chat/completions", "/v1/messages",
-			"/go/v1/chat/completions", "/custom/endpoint/", "/gateway//endpoint",
-			"/custom%2Fendpoint?version=1&key=a%2Fb&key=c",
-		} {
-			t.Run(string(protocol)+path, func(t *testing.T) {
-				want := path
-				if want == "" {
-					want = "/"
-				} // HTTP 的空路径仅表示根路径，不自动补端点。
+		suffix := suffixes[protocol]
+		for _, root := range []string{"", "/", "/v1", "/v1/", "/go/v1", "/gateway//endpoint"} {
+			t.Run(string(protocol)+root, func(t *testing.T) {
+				want := strings.TrimRight(root, "/") + suffix
 				calls := 0
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					calls++
@@ -62,7 +62,7 @@ func TestProviderRequestURL(t *testing.T) {
 					_, _ = w.Write([]byte(`{"error":{"type":"invalid_request_error","message":"test"}}`))
 				}))
 				defer server.Close()
-				a, err := New(WithProvider(ProviderConfig{Protocol: protocol, Type: consts.ProviderTypeOpenCodeGo, BaseURL: server.URL + path, APIKey: "test", ModelID: "test", ConversationID: "123"}))
+				a, err := New(WithProvider(ProviderConfig{Protocol: protocol, Type: consts.ProviderTypeOpenCodeGo, BaseURL: server.URL + root, APIKey: "test", ModelID: "test", ConversationID: "123"}))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -103,9 +103,18 @@ func TestProviderTransportConfiguration(t *testing.T) {
 }
 
 func TestProviderRequestURLRequired(t *testing.T) {
-	for _, input := range []string{"", "example.com", "/v1/responses", "ftp://example.com", "https://", "https://%", " https://example.com/v1/responses", "https://user:secret@example.com/api", "https://example.com/api#fragment"} {
+	for _, input := range []string{"", "example.com", "/v1/responses", "ftp://example.com", "https://", "https://%", " https://example.com/v1/responses", "https://user:secret@example.com/api", "https://example.com/api#fragment", "https://example.com/v1?key=a"} {
 		if _, err := New(WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: input, APIKey: "test", ModelID: "test"})); err == nil {
 			t.Errorf("expected invalid URL error for %q", input)
+		}
+	}
+}
+
+// 协议缺失或未知时必须在组装阶段报错，不能退回默认端点。
+func TestProviderProtocolRequired(t *testing.T) {
+	for _, protocol := range []consts.ProviderProtocol{"", "unknown"} {
+		if _, err := New(WithProvider(ProviderConfig{Protocol: protocol, BaseURL: "https://example.com/v1", APIKey: "test", ModelID: "test"})); err == nil {
+			t.Errorf("expected unsupported protocol error for %q", protocol)
 		}
 	}
 }
