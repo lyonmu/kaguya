@@ -11,6 +11,8 @@ import './token-usage.css'
 const compact = (value: number) => new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 // 热力图分档颜色：由浅到深，最低档也保持不透明，确保有使用的日期不会看起来像空白。
 const activityColors = ['#c6ddff', '#82b8ff', '#448cef', '#245aca']
+// Token 构成图最多 10 个类目，按数量预留绘图区宽度，避免类目名拥挤；85 是 grid 左右留白（left 65 + right 20），92 是每个类目的宽度（标签限宽 84）。
+const compositionMinWidth = (count: number) => Math.max(720, 85 + count * 92)
 
 export function TokenUsagePage() {
   const { token } = theme.useToken()
@@ -61,18 +63,19 @@ export function TokenUsagePage() {
     }
   }, [data, mode, token])
 
+  const compositionRows = useMemo(() => data ? (dimension === 'model' ? data.models : data.providers) : [], [data, dimension])
   const composition = useMemo<EChartsCoreOption>(() => {
-    const rows = (dimension === 'model' ? data?.models : data?.providers) ?? []
+    const rows = compositionRows
     return {
       aria: { enabled: true }, color: ['#80b2fa', '#2862ce', '#4a8de5', '#c2dbff'],
       tooltip: { trigger: 'axis', renderMode: 'richText', axisPointer: { type: 'shadow' }, backgroundColor: token.colorBgElevated, textStyle: { color: token.colorText } },
       legend: { top: 0, textStyle: { color: token.colorTextSecondary }, icon: 'roundRect' },
       grid: { left: 65, right: 20, top: 45, bottom: 80 },
-      xAxis: { type: 'category', data: rows.map(row => dimension === 'model' ? `${row.provider_name}\n${row.name || row.id}` : row.name || row.id), axisTick: { show: false }, axisLine: { lineStyle: { color: token.colorBorderSecondary } }, axisLabel: { interval: 0, width: 110, overflow: 'truncate', color: token.colorTextSecondary } },
+      xAxis: { type: 'category', data: rows.map(row => row.name || row.id), axisTick: { show: false }, axisLine: { lineStyle: { color: token.colorBorderSecondary } }, axisLabel: { interval: 0, fontSize: 11, width: 84, overflow: 'truncate', color: token.colorTextSecondary } },
       yAxis: { type: 'value', axisLabel: { formatter: compact, color: token.colorTextSecondary }, splitLine: { lineStyle: { color: token.colorBorderSecondary, type: 'dashed' } } },
-      series: ([['输入', 'input_tokens'], ['输出', 'output_tokens'], ['思考', 'reasoning_tokens'], ['缓存', 'cached_tokens']] as const).map(([name, key]) => ({ name, type: 'bar', stack: 'tokens', barMaxWidth: 64, data: rows.map(row => row[key]) })),
+      series: ([['输入', 'input_tokens'], ['输出', 'output_tokens'], ['思考', 'reasoning_tokens'], ['缓存', 'cached_tokens']] as const).map(([name, key]) => ({ name, type: 'bar', stack: 'tokens', barMaxWidth: 36, data: rows.map(row => row[key]) })),
     }
-  }, [data, dimension, token])
+  }, [compositionRows, token])
   const stats = data ? [
     ['累计 Token 数', data.total_tokens, '所选时间段内全部模型累计使用量'],
     ['日峰值 Token 数', data.peak_tokens, data.peak_tokens_date || '暂无活动'],
@@ -91,7 +94,7 @@ export function TokenUsagePage() {
         <div className="token-usage-chart-scroll"><div className="token-usage-activity"><UsageChart option={activity} height={240} label="Token 活动热力图" /></div></div>
       </Card>
       <Card title={<div>Token 构成 <small>全部历史 · 用量最高的 10 项</small></div>} extra={<Segmented value={dimension} options={[{ label: '按模型', value: 'model' }, { label: '按厂商', value: 'provider' }]} onChange={setDimension} />}>
-        {(dimension === 'model' ? data.models : data.providers).length ? <div className="token-usage-chart-scroll"><div className="token-usage-composition"><UsageChart option={composition} height={360} label="Token 构成堆叠柱状图" /></div></div> : <Empty description="暂无用量记录" />}
+        {compositionRows.length ? <div className="token-usage-chart-scroll"><div className="token-usage-composition" style={{ minWidth: compositionMinWidth(compositionRows.length) }}><UsageChart option={composition} height={360} label="Token 构成堆叠柱状图" /></div></div> : <Empty description="暂无用量记录" />}
         <p className="token-usage-note">输入含缓存写入，输出不含思考；四类 Token 不重复计数。仅统计成功保存的聊天轮次（含已删除会话），不含标题任务及失败、取消的调用。</p>
       </Card>
     </>}

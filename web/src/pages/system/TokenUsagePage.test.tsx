@@ -64,4 +64,22 @@ it('renders the activity calendar on the fixed window instead of the selected ra
   assert.ok(page.getByText(/最近一年 2025-09-13 — 2026-09-12/))
   assert.ok(page.getByText(/全部历史 · 用量最高的 10 项/))
   assert.ok(page.getByText('所选时间段内全部模型累计使用量'))
+  // Token 构成按模型分布只显示模型名（不含厂商），标签缩小字号并限宽截断，柱子收窄避免类目变多后互相挤占。
+  const composition = options.find(option => option.series?.[0]?.type === 'bar')
+  assert.deepEqual(composition?.xAxis.data, ['model'])
+  assert.equal(composition?.xAxis.axisLabel.fontSize, 11)
+  assert.equal(composition?.xAxis.axisLabel.width, 84)
+  assert.equal(composition?.series[0].barMaxWidth, 36)
+  assert.equal(page.container.querySelector<HTMLElement>('.token-usage-composition')?.style.minWidth, '720px')
+})
+
+it('widens the composition chart with the category count so labels stay readable', async () => {
+  const models = Array.from({ length: 10 }, (_, index) => ({ ...usage.models[0], id: `m${index}`, name: `model-${index}` }))
+  globalThis.fetch = (async () => Response.json({ code: 100000, data: { ...usage, models } })) as typeof fetch
+  const page = render(<TokenUsagePage />)
+  await waitFor(() => assert.ok(options.find(option => option.series?.[0]?.type === 'bar')))
+  const composition = options.find(option => option.series?.[0]?.type === 'bar')
+  assert.deepEqual(composition?.xAxis.data, models.map(model => model.name))
+  // 10 个类目预留 85 + 10 * 92 像素，保证每个标签有 84 像素限宽所需的间距；窗口更窄时横向滚动。
+  assert.equal(page.container.querySelector<HTMLElement>('.token-usage-composition')?.style.minWidth, '1005px')
 })
