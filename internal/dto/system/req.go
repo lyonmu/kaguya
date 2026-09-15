@@ -36,7 +36,7 @@ type SystemModelSaveReq struct {
 	APIProtocol                consts.ProviderProtocol `json:"api_protocol" binding:"required,oneof=openai-chat anthropic openai-response"` // 请求协议，决定运行时使用哪套请求实现
 	RequestPath                string                  `json:"request_path" binding:"required"`                                             // 模型请求路径，与提供商 BaseURL 拼接成最终请求地址
 	ReasoningEnabled           consts.Status           `json:"reasoning_enabled" binding:"required,oneof=1 2"`
-	ReasoningEffort            consts.ReasoningEffort  `json:"reasoning_effort" binding:"required,oneof=low medium high"`
+	ReasoningEffort            consts.ReasoningEffort  `json:"reasoning_effort" binding:"required,oneof=minimal low medium high xhigh max"`
 	TokenContextWindow         int                     `json:"token_context_window" binding:"min=0"`
 	TokenMaxOutputTokens       int                     `json:"token_max_output_tokens" binding:"min=0"`
 	CapabilityToolUse          consts.Status           `json:"capability_tool_use" binding:"required,oneof=1 2"`

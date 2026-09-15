@@ -1,7 +1,7 @@
 export type ProviderProtocol = 'openai-chat' | 'anthropic' | 'openai-response'
 export type ProviderType = 'normal' | 'opencode-go'
 export type Status = 1 | 2
-export type ReasoningEffort = 'low' | 'medium' | 'high'
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 export interface AIModel {
   id: string

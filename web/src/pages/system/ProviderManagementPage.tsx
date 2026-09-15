@@ -780,7 +780,10 @@ export function ProviderManagementPage() {
               <Select options={statusOptions} />
             </Form.Item>
             <Form.Item label="推理强度" name="reasoning_effort" rules={[{ required: true }]}>
-              <Select options={[{ label: 'Low', value: 'low' }, { label: 'Medium', value: 'medium' }, { label: 'High', value: 'high' }]} />
+              <Select options={[
+                { label: 'Minimal', value: 'minimal' }, { label: 'Low', value: 'low' }, { label: 'Medium', value: 'medium' },
+                { label: 'High', value: 'high' }, { label: 'XHigh', value: 'xhigh' }, { label: 'Max', value: 'max' },
+              ]} />
             </Form.Item>
             <Form.Item label="上下文窗口（Token）" name="token_context_window" rules={[{ required: true }]}>
               <InputNumber className="w-full" min={0} />

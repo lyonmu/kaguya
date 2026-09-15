@@ -62,6 +62,54 @@ func modelSaveReq(providerID, name, modelID string) *dtosystem.SystemModelSaveRe
 	}
 }
 
+// 扩展后的思考强度都能写入并读回；未设置时数据库默认值仍是 medium。
+func TestModelReasoningEffortPersistence(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	svc := &SystemSvc{}
+	provider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{
+		ProviderName: "OpenAI", APIKey: "secret", BaseURL: "https://api.openai.com/v1",
+	})
+	if err != nil {
+		t.Fatalf("create provider: %v", err)
+	}
+
+	create := func(name string, effort consts.ReasoningEffort) *ent.KaguyaModelsInfo {
+		t.Helper()
+		builder := db.EntClient.KaguyaModelsInfo.Create().
+			SetProviderID(provider.ID).SetModelName(name).SetModelID(name)
+		if effort != "" {
+			builder.SetReasoningEffort(effort)
+		}
+		row, err := builder.Save(ctx)
+		if err != nil {
+			t.Fatalf("create model %q: %v", name, err)
+		}
+		return row
+	}
+
+	defaultRow, err := db.EntClient.KaguyaModelsInfo.Get(ctx, create("default-effort", "").ID)
+	if err != nil {
+		t.Fatalf("reload default model: %v", err)
+	}
+	if defaultRow.ReasoningEffort != consts.ReasoningEffortMedium {
+		t.Fatalf("default reasoning effort = %q, want %q", defaultRow.ReasoningEffort, consts.ReasoningEffortMedium)
+	}
+
+	for _, effort := range []consts.ReasoningEffort{
+		consts.ReasoningEffortMinimal, consts.ReasoningEffortLow, consts.ReasoningEffortMedium,
+		consts.ReasoningEffortHigh, consts.ReasoningEffortXHigh, consts.ReasoningEffortMax,
+	} {
+		created := create(string(effort), effort)
+		stored, err := db.EntClient.KaguyaModelsInfo.Get(ctx, created.ID)
+		if err != nil {
+			t.Fatalf("reload model %q: %v", effort, err)
+		}
+		if stored.ReasoningEffort != effort {
+			t.Fatalf("reasoning effort = %q, want %q", stored.ReasoningEffort, effort)
+		}
+	}
+}
+
 func TestProviderAndModelCRUD(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
 	svc := &SystemSvc{}

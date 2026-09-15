@@ -29,6 +29,9 @@ type ProviderConfig struct {
 	APIKey         string                  // API Key
 	ModelID        string                  // 调用 API 时使用的模型标识符
 	ConversationID string                  // 本地会话雪花 ID，通过 X-Conversation-ID 透传；不是上游托管会话 ID
+
+	ReasoningEnabled consts.Status          // 是否启用思考，按协议映射为明确的开关参数
+	ReasoningEffort  consts.ReasoningEffort // 思考强度，仅在启用思考时参与映射
 }
 
 // Option 配置 Agent 的可选参数。
@@ -88,12 +91,19 @@ func New(opts ...Option) (*Agent, error) {
 	}
 	lm = withRetryableStreamErrors(withIdleStreamTimeout(lm, providerIdleTimeout))
 
-	agentOpts := make([]fantasy.AgentOption, 0, 2)
+	agentOpts := make([]fantasy.AgentOption, 0, 3)
 	if a.systemPrompt != "" {
 		agentOpts = append(agentOpts, fantasy.WithSystemPrompt(a.systemPrompt))
 	}
 	if len(a.tools) > 0 {
 		agentOpts = append(agentOpts, fantasy.WithTools(a.tools...))
+	}
+	providerOptions, err := reasoningProviderOptions(a.providerCfg)
+	if err != nil {
+		return nil, err
+	}
+	if len(providerOptions) > 0 {
+		agentOpts = append(agentOpts, fantasy.WithProviderOptions(providerOptions))
 	}
 	a.inner = fantasy.NewAgent(lm, agentOpts...)
 

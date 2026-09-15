@@ -386,14 +386,20 @@ definitions:
     - ProviderTypeOpenCodeGo
   consts.ReasoningEffort:
     enum:
+    - minimal
     - low
     - medium
     - high
+    - xhigh
+    - max
     type: string
     x-enum-varnames:
+    - ReasoningEffortMinimal
     - ReasoningEffortLow
     - ReasoningEffortMedium
     - ReasoningEffortHigh
+    - ReasoningEffortXHigh
+    - ReasoningEffortMax
   consts.Status:
     enum:
     - -1
@@ -930,9 +936,12 @@ definitions:
         allOf:
         - $ref: '#/definitions/consts.ReasoningEffort'
         enum:
+        - minimal
         - low
         - medium
         - high
+        - xhigh
+        - max
       reasoning_enabled:
         allOf:
         - $ref: '#/definitions/consts.Status'

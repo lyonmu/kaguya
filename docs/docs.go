@@ -2542,14 +2542,20 @@ const docTemplate = `{
         "consts.ReasoningEffort": {
             "type": "string",
             "enum": [
+                "minimal",
                 "low",
                 "medium",
-                "high"
+                "high",
+                "xhigh",
+                "max"
             ],
             "x-enum-varnames": [
+                "ReasoningEffortMinimal",
                 "ReasoningEffortLow",
                 "ReasoningEffortMedium",
-                "ReasoningEffortHigh"
+                "ReasoningEffortHigh",
+                "ReasoningEffortXHigh",
+                "ReasoningEffortMax"
             ]
         },
         "consts.Status": {
@@ -3356,9 +3362,12 @@ const docTemplate = `{
                 },
                 "reasoning_effort": {
                     "enum": [
+                        "minimal",
                         "low",
                         "medium",
-                        "high"
+                        "high",
+                        "xhigh",
+                        "max"
                     ],
                     "allOf": [
                         {

@@ -30,6 +30,34 @@ func TestProviderBaseURLRequired(t *testing.T) {
 	}
 }
 
+// reasoning_effort 接受 minimal/low/medium/high/xhigh/max，其他取值在绑定阶段被拒绝。
+func TestModelReasoningEffortValidation(t *testing.T) {
+	base := func() SystemModelSaveReq {
+		return SystemModelSaveReq{
+			ProviderID: "p", ModelName: "test", ModelID: "test", APIProtocol: consts.ProtocolOpenAIChat, RequestPath: "/v1/chat/completions",
+			ReasoningEnabled: consts.IsTrue, ReasoningEffort: consts.ReasoningEffortMedium,
+			CapabilityToolUse: consts.IsTrue, CapabilityVision: consts.IsTrue, CapabilityStructuredOutput: consts.IsTrue,
+		}
+	}
+	for _, effort := range []consts.ReasoningEffort{
+		consts.ReasoningEffortMinimal, consts.ReasoningEffortLow, consts.ReasoningEffortMedium,
+		consts.ReasoningEffortHigh, consts.ReasoningEffortXHigh, consts.ReasoningEffortMax,
+	} {
+		req := base()
+		req.ReasoningEffort = effort
+		if err := binding.Validator.ValidateStruct(req); err != nil {
+			t.Errorf("reasoning effort %q: %v", effort, err)
+		}
+	}
+	for _, effort := range []consts.ReasoningEffort{"ultra", ""} {
+		req := base()
+		req.ReasoningEffort = effort
+		if err := binding.Validator.ValidateStruct(req); err == nil {
+			t.Errorf("reasoning effort %q must be rejected", effort)
+		}
+	}
+}
+
 func TestModelNoLongerRequiresSelectionFlags(t *testing.T) {
 	req := SystemModelSaveReq{
 		ProviderID: "p", ModelName: "test", ModelID: "test", APIProtocol: consts.ProtocolOpenAIChat, RequestPath: "/v1/chat/completions",

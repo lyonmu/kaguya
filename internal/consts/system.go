@@ -73,14 +73,20 @@ const (
 	ProviderTypeOpenCodeGo ProviderType = "opencode-go"
 )
 
-// ReasoningEffort 定义模型思考/推理的努力程度
+// ReasoningEffort 定义模型思考/推理的努力程度。
 type ReasoningEffort string
 
 const (
-	// ReasoningEffortLow 低强度思考，响应更快但推理深度较浅
+	// ReasoningEffortMinimal 最低强度思考，尽可能减少推理开销。
+	ReasoningEffortMinimal ReasoningEffort = "minimal"
+	// ReasoningEffortLow 低强度思考，响应更快但推理深度较浅。
 	ReasoningEffortLow ReasoningEffort = "low"
-	// ReasoningEffortMedium 中等强度思考，平衡速度与推理深度
+	// ReasoningEffortMedium 中等强度思考，平衡速度与推理深度。
 	ReasoningEffortMedium ReasoningEffort = "medium"
-	// ReasoningEffortHigh 高强度思考，推理更深入但响应较慢
+	// ReasoningEffortHigh 高强度思考，推理更深入但响应较慢。
 	ReasoningEffortHigh ReasoningEffort = "high"
+	// ReasoningEffortXHigh 超高强度思考，用于需要更深入推理的任务。
+	ReasoningEffortXHigh ReasoningEffort = "xhigh"
+	// ReasoningEffortMax 最大强度思考，允许模型使用最高支持的推理强度。
+	ReasoningEffortMax ReasoningEffort = "max"
 )
