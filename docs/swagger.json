@@ -1459,6 +1459,45 @@
                 }
             }
         },
+        "/v1/system/model/test": {
+            "post": {
+                "tags": [
+                    "System Model"
+                ],
+                "summary": "用待保存的模型配置发起一次真实调用，测试提供商与模型是否可用",
+                "parameters": [
+                    {
+                        "description": "请求参数",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.SystemModelSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemModelTestResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/system/model/{id}": {
             "get": {
                 "tags": [
@@ -3359,6 +3398,17 @@
                     "type": "integer"
                 },
                 "synced_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "system.SystemModelTestResp": {
+            "type": "object",
+            "properties": {
+                "duration_ms": {
+                    "type": "integer"
+                },
+                "reply": {
                     "type": "string"
                 }
             }

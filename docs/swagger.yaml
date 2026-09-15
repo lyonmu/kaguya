@@ -969,6 +969,13 @@ definitions:
       synced_at:
         type: string
     type: object
+  system.SystemModelTestResp:
+    properties:
+      duration_ms:
+        type: integer
+      reply:
+        type: string
+    type: object
   system.SystemProviderAPIKeyResp:
     properties:
       api_key:
@@ -2078,6 +2085,28 @@ paths:
                   $ref: '#/definitions/system.SystemModelSyncResp'
               type: object
       summary: 立即从 models.dev 同步模型目录
+      tags:
+      - System Model
+  /v1/system/model/test:
+    post:
+      parameters:
+      - description: 请求参数
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.SystemModelSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.SystemModelTestResp'
+              type: object
+      summary: 用待保存的模型配置发起一次真实调用，测试提供商与模型是否可用
       tags:
       - System Model
   /v1/system/provider:

@@ -2,10 +2,14 @@ package system
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
+	"charm.land/fantasy"
 	"entgo.io/ent/dialect/sql"
+	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
@@ -13,7 +17,19 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
+	"github.com/lyonmu/kaguya/internal/secret"
 )
+
+const (
+	// modelTestPrompt 是连接测试发送的唯一用户消息。
+	modelTestPrompt = "Hi!"
+	// modelTestTimeout 限制一次连接测试的总时长，避免提供商无响应时长期占用请求。
+	modelTestTimeout = 60 * time.Second
+)
+
+// ErrModelTest 表示用待保存的模型配置发起真实调用失败；面向用户的文案由错误原文组成，
+// 便于直接看出是鉴权、地址还是模型标识的问题。
+var ErrModelTest = errors.New("模型测试失败")
 
 func modelQuery(client *ent.Client) *ent.KaguyaModelsInfoQuery {
 	return client.KaguyaModelsInfo.Query().
@@ -137,6 +153,60 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 	resp := &dtosystem.SystemModelResp{}
 	resp.LoadDb(row)
 	resp.ProviderName = provider.ProviderName
+	return resp, nil
+}
+
+// ModelTest 用待保存的模型配置组装一次真实调用（只发送 "Hi!"），验证提供商与模型是否可用。
+// 配置不落库，也不计入用量：新增与修改都先用请求中的字段测试。
+func (s *SystemSvc) ModelTest(ctx context.Context, req *dtosystem.SystemModelSaveReq) (*dtosystem.SystemModelTestResp, error) {
+	if err := validateRequestPath(req.RequestPath); err != nil {
+		return nil, err
+	}
+	provider, err := providerQuery(db.EntClient).Where(kaguyaproviderinfo.IDEQ(req.ProviderID)).Only(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			global.Logger.Sugar().Warnf("provider not found for model test: provider_id=%s", req.ProviderID)
+			return nil, ErrProviderNotFound
+		}
+		global.Logger.Sugar().Errorf("query provider before model test failed: provider_id=%s, err=%v", req.ProviderID, err)
+		return nil, err
+	}
+	apiKey, err := secret.Decrypt(provider.APIKey)
+	if err != nil {
+		global.Logger.Sugar().Errorf("decrypt provider api key for model test failed: provider_id=%s, err=%v", provider.ID, err)
+		return nil, ErrProviderSecret
+	}
+	// 测试不属于任何会话，生成一次性 ID 透传，保持与真实对话一致的请求头。
+	id, err := global.Id.GenID()
+	if err != nil {
+		global.Logger.Sugar().Errorf("generate model test conversation id failed: provider_id=%s, err=%v", req.ProviderID, err)
+		return nil, err
+	}
+
+	testCtx, cancel := context.WithTimeout(ctx, modelTestTimeout)
+	defer cancel()
+	ag, err := agentruntime.New(agentruntime.WithProvider(agentruntime.ProviderConfig{
+		Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(req.APIProtocol),
+		BaseURL: provider.BaseURL, RequestPath: req.RequestPath, APIKey: apiKey, ModelID: req.ModelID,
+		ConversationID: fmt.Sprintf("%d", id),
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrModelTest, err)
+	}
+
+	// 配置错误要尽快反馈：不做重试，一次失败直接返回提供商返回的原因。
+	maxRetries := 0
+	startedAt := time.Now()
+	result, err := ag.Generate(testCtx, fantasy.AgentCall{Prompt: modelTestPrompt, MaxRetries: &maxRetries})
+	if err != nil {
+		global.Logger.Sugar().Warnf("model test call failed: provider_id=%s, model_id=%s, err=%v", req.ProviderID, req.ModelID, err)
+		return nil, fmt.Errorf("%w: %s", ErrModelTest, err)
+	}
+	resp := &dtosystem.SystemModelTestResp{DurationMS: time.Since(startedAt).Milliseconds()}
+	if result != nil {
+		resp.Reply = strings.TrimSpace(result.Response.Content.Text())
+	}
+	global.Logger.Sugar().Infof("model test succeeded: provider_id=%s, model_id=%s", req.ProviderID, req.ModelID)
 	return resp, nil
 }
 

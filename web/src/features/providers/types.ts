@@ -80,6 +80,12 @@ export interface ModelPayload {
   capability_structured_output: Status
 }
 
+/** 模型测试结果：reply 是模型应答原文，duration_ms 是本次请求耗时。 */
+export interface ModelTestResponse {
+  reply: string
+  duration_ms: number
+}
+
 export interface ModelLabelOption {
   label: string
   value: string

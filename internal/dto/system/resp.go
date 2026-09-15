@@ -111,6 +111,12 @@ type SystemModelListResp struct {
 	PageSize int                `json:"page_size"`
 }
 
+// SystemModelTestResp 模型测试结果：直接回传模型的应答原文与耗时。
+type SystemModelTestResp struct {
+	Reply      string `json:"reply"`
+	DurationMS int64  `json:"duration_ms"`
+}
+
 type SystemModelLabelResp struct {
 	ProviderName string `json:"provider_name"`
 	Label        string `json:"label"`

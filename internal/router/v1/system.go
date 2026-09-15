@@ -36,6 +36,7 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 		systemRouter.POST("model/sync", apiGroup.SystemModelSync)
 		systemRouter.GET("model/:id", apiGroup.SystemModelDetail)
 		systemRouter.POST("model", apiGroup.SystemModelCreate)
+		systemRouter.POST("model/test", apiGroup.SystemModelTest)
 		systemRouter.PUT("model/:id", apiGroup.SystemModelUpdate)
 		systemRouter.DELETE("model/:id", apiGroup.SystemModelDelete)
 	}

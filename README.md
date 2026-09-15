@@ -98,6 +98,8 @@ A provider base URL is stored as a plain string (usually taken directly from the
 
 Model configuration includes display name, upstream model identifier, request protocol, request path, reasoning level, context window, maximum output tokens, and Tool/Vision/JSON capability metadata. Selecting a model from the catalog fills the name, identifier, and capability metadata, and the request path comes from protocol defaults; the catalog does not guarantee that a configured provider exposes that model, so verify availability and adjust metadata when needed. Project and MCP tools require tool-calling support; reading images also requires vision support.
 
+Verify a new or edited model with the **测试** button in the dialog first: the backend sends one `Hi!` request with the current form values, and saving stays disabled until that test passes. Changing the provider, model identifier, request protocol, or request path requires a new test.
+
 API keys are encrypted at rest and masked in lists; plaintext is returned only on explicit reveal. Leaving the key empty while editing preserves the existing value. Providers and models come from personal configuration; the application does not preselect a default chat or background-task model.
 
 ### MCP tools

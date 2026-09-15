@@ -121,6 +121,39 @@ func (b *SystemApiV1Group) SystemModelCreate(c *gin.Context) {
 	dtocode.SystemSuccess.Success(resp, c)
 }
 
+// SystemModelTest
+// @Tags System Model
+// @Summary 用待保存的模型配置发起一次真实调用，测试提供商与模型是否可用
+// @Param data body dtosystem.SystemModelSaveReq true "请求参数"
+// @Success 200 {object} dtocode.Response{data=dtosystem.SystemModelTestResp}
+// @Router /v1/system/model/test [post]
+func (b *SystemApiV1Group) SystemModelTest(c *gin.Context) {
+	var req dtosystem.SystemModelSaveReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		global.Logger.Sugar().Warnf("bind model test request failed: %v", err)
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := systemsvc.ModelTest(c.Request.Context(), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, servicesystem.ErrProviderNotFound):
+			dtocode.ProviderNotFound.Failure(c)
+		case errors.Is(err, servicesystem.ErrProviderSecret):
+			dtocode.ProviderSecretInvalid.Failure(c)
+		case errors.Is(err, servicesystem.ErrModelRequestPath):
+			dtocode.RequestParameterError.Failure(c)
+		case errors.Is(err, servicesystem.ErrModelTest):
+			// 回传提供商或运行时的原始错误，便于直接定位配置问题。
+			dtocode.Response{Code: dtocode.ModelTestFailure.Code, Message: err.Error()}.Failure(c)
+		default:
+			dtocode.ModelTestFailure.Failure(c)
+		}
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
 // SystemModelUpdate
 // @Tags System Model
 // @Summary 修改模型

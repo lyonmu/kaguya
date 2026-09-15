@@ -7,6 +7,7 @@ import type {
   ModelLabelOption,
   ModelCatalogResponse,
   ModelSyncResponse,
+  ModelTestResponse,
   ProviderAPIKeyResponse,
   ProviderCatalogResponse,
   ProviderPageResponse,
@@ -73,6 +74,11 @@ export function syncModelCatalog() {
 
 export function createModel(payload: ModelPayload) {
   return post<AIModel>(MODEL_PATH, payload)
+}
+
+/** 用弹窗中待保存的配置发起一次真实调用，配置不落库。 */
+export function testModel(payload: ModelPayload) {
+  return post<ModelTestResponse>(`${MODEL_PATH}/test`, payload)
 }
 
 export function updateModel(id: string, payload: ModelPayload) {

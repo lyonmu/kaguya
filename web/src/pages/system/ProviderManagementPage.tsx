@@ -3,6 +3,7 @@ import {
   ApiOutlined,
   DeleteOutlined,
   EditOutlined,
+  ExperimentOutlined,
   EyeOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -39,6 +40,7 @@ import {
   fetchModelCatalog,
   fetchProviderCatalogPage,
   fetchProviderLabels,
+  testModel,
   updateModel,
   updateProvider,
 } from '../../features/providers/api'
@@ -85,6 +87,16 @@ const protocolDefaultPath: Record<ProviderProtocol, string> = {
 const joinRequestURL = (baseURL: string, requestPath: string) =>
   `${baseURL.replace(/\/+$/, '')}/${requestPath.replace(/^\/+/, '')}`
 
+// modelTestKey 只包含决定真实请求的字段：测试通过后其中任一字段改动，
+// 之前的结论都不再成立，需要重新测试。
+const modelTestKey = (values: Partial<ModelPayload>) =>
+  JSON.stringify([
+    values.provider_id ?? '',
+    values.model_id ?? '',
+    values.api_protocol ?? '',
+    values.request_path ?? '',
+  ])
+
 interface FilterValues {
   providerName?: string
 }
@@ -101,6 +113,9 @@ export function ProviderManagementPage() {
   const [modelModalOpen, setModelModalOpen] = useState(false)
   const [editingModel, setEditingModel] = useState<AIModel>()
   const [modelSaving, setModelSaving] = useState(false)
+  const [modelTesting, setModelTesting] = useState(false)
+  // 已通过测试的配置指纹：为空表示当前配置没有测试结论，不能保存。
+  const [testedModelKey, setTestedModelKey] = useState<string>()
   const [selectedProviderID, setSelectedProviderID] = useState<string>()
   const [providerLabels, setProviderLabels] = useState<LabelOption[]>([])
   const [revealingID, setRevealingID] = useState<string>()
@@ -113,6 +128,8 @@ export function ProviderManagementPage() {
   const [providerCatalogKeyword, setProviderCatalogKeyword] = useState('')
   const watchedProtocol = Form.useWatch<ProviderProtocol>('api_protocol', modelForm)
   const watchedPath = Form.useWatch<string>('request_path', modelForm)
+  const watchedModel = Form.useWatch<Partial<ModelPayload> | undefined>([], modelForm)
+  const modelTested = testedModelKey !== undefined && testedModelKey === modelTestKey(watchedModel ?? {})
 
   const selectedProvider = useMemo(
     () => data.items.find((item) => item.id === selectedProviderID),
@@ -235,6 +252,8 @@ export function ProviderManagementPage() {
   const showCreateModel = () => {
     if (!selectedProvider) return
     setEditingModel(undefined)
+    // 每次打开都重新测试：上一次的结论不能用于新配置。
+    setTestedModelKey(undefined)
     // 重新打开时清空上一次的目录检索词，避免选项列表与空输入框不一致。
     setCatalogKeyword('')
     modelForm.setFieldsValue({
@@ -257,6 +276,7 @@ export function ProviderManagementPage() {
 
   const showEditModel = (model: AIModel) => {
     setEditingModel(model)
+    setTestedModelKey(undefined)
     modelForm.setFieldsValue({
       provider_id: model.provider_id,
       model_name: model.model_name,
@@ -272,6 +292,24 @@ export function ProviderManagementPage() {
       capability_structured_output: model.capability_structured_output,
     })
     setModelModalOpen(true)
+  }
+
+  // 测试与保存使用同一份表单值：后端用待保存的配置真实调用一次提供商模型。
+  const checkModel = async () => {
+    try {
+      const { catalog_model_id: _, ...values } = await modelForm.validateFields()
+      setModelTesting(true)
+      const result = await testModel(values)
+      setTestedModelKey(modelTestKey(values))
+      const reply = (result?.reply ?? '').replace(/\s+/g, ' ').trim()
+      message.success(`模型测试通过（${result?.duration_ms ?? 0} ms）${reply ? `：${reply.slice(0, 40)}` : ''}`)
+    } catch (testError) {
+      // 失败或改动配置后不保留结论，保存按钮保持不可用。
+      setTestedModelKey(undefined)
+      if (testError instanceof Error) message.error(testError.message)
+    } finally {
+      setModelTesting(false)
+    }
   }
 
   const saveModel = async () => {
@@ -671,11 +709,26 @@ export function ProviderManagementPage() {
       </Drawer>
 
       <Modal
-        confirmLoading={modelSaving}
         destroyOnHidden
-        okText={editingModel ? '保存' : '创建'}
+        footer={
+          <Space>
+            <Button onClick={() => setModelModalOpen(false)}>取消</Button>
+            <Tooltip title="向该模型发送 Hi! 验证提供商配置；测试通过后才能保存。">
+              <Button icon={<ExperimentOutlined />} loading={modelTesting} onClick={checkModel}>
+                测试
+              </Button>
+            </Tooltip>
+            {/* 禁用态按钮不触发鼠标事件，用 span 包裹才能显示提示。 */}
+            <Tooltip title={modelTested ? undefined : '请先测试通过'}>
+              <span>
+                <Button disabled={!modelTested} loading={modelSaving} onClick={saveModel} type="primary">
+                  {editingModel ? '保存' : '创建'}
+                </Button>
+              </span>
+            </Tooltip>
+          </Space>
+        }
         onCancel={() => setModelModalOpen(false)}
-        onOk={saveModel}
         open={modelModalOpen}
         title={editingModel ? '编辑模型' : '新增模型'}
         width={720}

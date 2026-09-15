@@ -35,4 +35,5 @@ var (
 	ModelDeleteFailure      = Response{Code: 103004, Message: "模型删除失败"}
 	ModelIDAlreadyExist     = Response{Code: 103005, Message: "该提供商下模型标识已存在"}
 	ModelCatalogSyncFailure = Response{Code: 103006, Message: "模型目录同步失败"}
+	ModelTestFailure        = Response{Code: 103007, Message: "模型测试失败，请检查提供商与模型配置"}
 )

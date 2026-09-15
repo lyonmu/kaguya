@@ -97,6 +97,7 @@ it('keeps the stored key when editing without entering a new one', async () => {
 
 it('fills a new provider model from the synchronized models.dev catalog', async () => {
   let saved: Record<string, unknown> | undefined
+  let tested: Record<string, unknown> | undefined
   globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = new URL(String(url), 'http://localhost').pathname
     if (path.endsWith('/page')) return response({ total: 1, items: [provider], page: 1, page_size: 10 })
@@ -108,6 +109,10 @@ it('fills a new provider model from the synchronized models.dev catalog', async 
       capability_tool_use: 1, capability_vision: 2, capability_structured_output: 1,
       last_updated: '2026-09-01',
     }] })
+    if (path.endsWith('/model/test') && init?.method === 'POST') {
+      tested = JSON.parse(String(init.body))
+      return response({ reply: 'Hi there', duration_ms: 120 })
+    }
     if (path.endsWith('/model') && init?.method === 'POST') {
       saved = JSON.parse(String(init.body))
       return response({ id: 'm1', provider_name: provider.provider_name, ...saved })
@@ -126,7 +131,18 @@ it('fills a new provider model from the synchronized models.dev catalog', async 
   fireEvent.click(await view.findByText('GPT Test · OpenAI/gpt-test'))
   assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_name')?.value, 'GPT Test')
   assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_id')?.value, 'gpt-test')
-  fireEvent.click(view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!)
+  const confirm = () => view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!
+  // 未测试前不允许保存，测试按钮提交的是弹窗中待保存的配置。
+  assert.equal(confirm().disabled, true)
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: /测\s*试/ })) })
+  await waitFor(() => assert.equal(confirm().disabled, false))
+  assert.deepEqual(tested, {
+    provider_id: 'p1', model_name: 'GPT Test', model_id: 'gpt-test', api_protocol: 'openai-chat', request_path: '/chat/completions',
+    reasoning_enabled: 1, reasoning_effort: 'medium', token_context_window: 128000,
+    token_max_output_tokens: 32000, capability_tool_use: 1, capability_vision: 2,
+    capability_structured_output: 1,
+  })
+  fireEvent.click(confirm())
   await waitFor(() => assert.ok(saved))
   // 协议默认 Chat，请求路径由协议默认值带出。
   assert.deepEqual(saved, {
@@ -135,6 +151,38 @@ it('fills a new provider model from the synchronized models.dev catalog', async 
     token_max_output_tokens: 32000, capability_tool_use: 1, capability_vision: 2,
     capability_structured_output: 1,
   })
+})
+
+it('keeps the save button disabled while the model test fails', async () => {
+  const savedPaths: string[] = []
+  globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url), 'http://localhost').pathname
+    if (path.endsWith('/page')) return response({ total: 1, items: [provider], page: 1, page_size: 10 })
+    if (path.endsWith('/provider/label')) return response([{ label: provider.provider_name, value: provider.id }])
+    if (path.endsWith('/model/test')) return Response.json({ code: 103007, message: '模型测试失败: invalid api key' })
+    if (path.endsWith('/model') && init?.method === 'POST') {
+      savedPaths.push(path)
+      return response({ id: 'm1' })
+    }
+    return response([])
+  }) as typeof fetch
+
+  const view = render(<App><ProviderManagementPage /></App>)
+  await waitFor(() => assert.ok(view.getByText('示例提供商')))
+  fireEvent.click(view.getByText('模型管理'))
+  await waitFor(() => assert.ok(view.baseElement.querySelector('.ant-drawer-open')))
+  fireEvent.click(view.getByRole('button', { name: /新增模型/ }))
+  const name = await waitFor(() => view.baseElement.querySelector<HTMLInputElement>('input#model_name')!)
+  fireEvent.change(name, { target: { value: 'GPT Test' } })
+  fireEvent.change(view.baseElement.querySelector<HTMLInputElement>('input#model_id')!, { target: { value: 'gpt-test' } })
+
+  const confirm = () => view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!
+  assert.equal(confirm().disabled, true)
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: /测\s*试/ })) })
+  // 失败原因直接来自后端，保存入口保持不可用。
+  await waitFor(() => assert.ok(view.getByText(/invalid api key/)))
+  assert.equal(confirm().disabled, true)
+  assert.deepEqual(savedPaths, [])
 })
 
 it('prefills a new provider from the synchronized catalog', async () => {
