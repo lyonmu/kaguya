@@ -77,6 +77,19 @@ func (s *Set) searchPath(path string) (string, string, error) {
 	}
 	return rel, abs, nil
 }
+
+// inGitRepository 报告搜索根是否位于 git 仓库内（.git 可以是目录或 worktree 文件）。
+// 搜索工具据此决定是否追加 --no-require-git，让 .gitignore 在非仓库目录同样生效。
+func inGitRepository(path string) bool {
+	for p := path; ; p = filepath.Dir(p) {
+		if _, err := os.Stat(filepath.Join(p, ".git")); err == nil {
+			return true
+		}
+		if filepath.Dir(p) == p {
+			return false
+		}
+	}
+}
 func listResponse(lines []string, limit int, empty string) fantasy.ToolResponse {
 	if len(lines) == 0 {
 		return fantasy.NewTextResponse(empty)
@@ -232,17 +245,7 @@ func (s *Set) find(ctx context.Context, in FindInput) (fantasy.ToolResponse, err
 		return fantasy.ToolResponse{}, err
 	}
 	args := []string{"--glob", "--color=never", "--hidden", "--print0", "--max-results", strconv.Itoa(limit + 1), "--exclude", ".kaguya/tool-output"}
-	inRepo := false
-	for p := path; ; p = filepath.Dir(p) {
-		if _, err := os.Stat(filepath.Join(p, ".git")); err == nil {
-			inRepo = true
-			break
-		}
-		if filepath.Dir(p) == p {
-			break
-		}
-	}
-	if !inRepo {
+	if !inGitRepository(path) {
 		args = append(args, "--no-require-git")
 	}
 	pattern := in.Pattern
@@ -301,6 +304,9 @@ func (s *Set) grep(ctx context.Context, in GrepInput) (fantasy.ToolResponse, err
 		return fantasy.ToolResponse{}, err
 	}
 	args := []string{"--json", "--line-number", "--color=never", "--hidden", "--glob", "!.kaguya/tool-output/**"}
+	if !inGitRepository(path) {
+		args = append(args, "--no-require-git")
+	}
 	if in.IgnoreCase {
 		args = append(args, "--ignore-case")
 	}
@@ -366,6 +372,11 @@ func (s *Set) grep(ctx context.Context, in GrepInput) (fantasy.ToolResponse, err
 		}
 		lines = append(lines, fmt.Sprintf("%s%s%d%s %s", p, separator, line, separator, text))
 	}
+	// 同一文件的匹配通常连续出现，这里按路径缓存已切分的行，避免每个匹配重读整份文件；
+	// 缓存总量设上限，避免多个大文件同时驻留内存。
+	const contextCacheBytes = 32 << 20
+	contexts := map[string][]string{}
+	cachedBytes := 0
 	for _, m := range matches {
 		if ctx.Err() != nil {
 			return fantasy.ToolResponse{}, ctx.Err()
@@ -385,11 +396,18 @@ func (s *Set) grep(ctx context.Context, in GrepInput) (fantasy.ToolResponse, err
 		if err != nil {
 			return fantasy.ToolResponse{}, err
 		}
-		data, err := s.readBytes(ctx, p)
-		if err != nil {
-			return fantasy.ToolResponse{}, err
+		all, cached := contexts[m.path]
+		if !cached {
+			data, readErr := s.readBytes(ctx, p)
+			if readErr != nil {
+				return fantasy.ToolResponse{}, readErr
+			}
+			all = strings.Split(normalizeLF(string(data)), "\n")
+			if cachedBytes+len(data) <= contextCacheBytes {
+				contexts[m.path] = all
+				cachedBytes += len(data)
+			}
 		}
-		all := strings.Split(normalizeLF(string(data)), "\n")
 		for i := max(1, m.line-in.Context); i <= min(len(all), m.line+in.Context); i++ {
 			emit(filepath.ToSlash(display), i, all[i-1], i == m.line)
 		}

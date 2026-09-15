@@ -46,7 +46,7 @@ These screenshots were captured from the locally installed `Kaguya.app` on **202
 
 Under **Projects**, search projects by name prefix and choose an existing directory inside the current user's home. Edit its name, path, and description, and create multiple conversations within it. Ordinary and project conversations have separate lists. Project paths must be unique. Deleting a project preserves its conversations as ordinary conversations and leaves host files intact.
 
-Project conversations enable four built-in tools, using the project directory as their working directory:
+Project conversations enable seven built-in tools, using the project directory as their working directory:
 
 | Tool | Purpose |
 | --- | --- |
@@ -54,6 +54,11 @@ Project conversations enable four built-in tools, using the project directory as
 | `bash` | Execute host commands with combined stdout/stderr, timeouts, and cancellation |
 | `edit` | Locate and replace file content, returning a diff |
 | `write` | Create or overwrite files and create parent directories as needed |
+| `grep` | Search file contents with host ripgrep, with optional glob, case, literal, and context options |
+| `find` | Find paths recursively by glob through host fd |
+| `ls` | List the direct children of one directory |
+
+`grep`, `find`, and `ls` are read-only and use host `rg` / `fd`; both honor `.gitignore` and include hidden files.
 
 Type **@** in the composer to search project files, use ↑/↓ to select, Enter to add, and Esc to dismiss. Files appear as removable reference cards; their text is read when sending. Each message supports up to **8** files, **2000 lines / 50 KiB** per file, and **256 KiB** in total.
 

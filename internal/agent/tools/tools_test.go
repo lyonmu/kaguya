@@ -427,6 +427,55 @@ func TestSearchTools(t *testing.T) {
 	}
 }
 
+// 非 git 仓库目录下 rg 默认不读 .gitignore，grep 与 find 必须都显式要求。
+func TestSearchToolsHonorGitignoreOutsideRepository(t *testing.T) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		t.Skip("ripgrep is required")
+	}
+	if _, err := exec.LookPath("fd"); err != nil {
+		t.Skip("fd is required")
+	}
+	s := setup(t)
+	if inGitRepository(s.cwd) {
+		t.Skip("workspace is inside a git repository")
+	}
+	requireOK(t, run(t, s.WriteTool(), WriteInput{Path: ".gitignore", Content: "ignored.txt\n"}))
+	requireOK(t, run(t, s.WriteTool(), WriteInput{Path: "ignored.txt", Content: "alpha"}))
+	requireOK(t, run(t, s.WriteTool(), WriteInput{Path: "kept.txt", Content: "alpha"}))
+	r := run(t, s.GrepTool(), GrepInput{Pattern: "alpha"})
+	requireOK(t, r)
+	if strings.Contains(r.Content, "ignored.txt") || !strings.Contains(r.Content, "kept.txt") {
+		t.Fatalf("grep ignored .gitignore outside a repository: %s", r.Content)
+	}
+	r = run(t, s.FindTool(), FindInput{Pattern: "*.txt"})
+	requireOK(t, r)
+	if strings.Contains(r.Content, "ignored.txt") || !strings.Contains(r.Content, "kept.txt") {
+		t.Fatalf("find ignored .gitignore outside a repository: %s", r.Content)
+	}
+}
+
+// 上下文行按文件复用一份内容，同一文件的多个匹配必须都带上各自的上下文。
+func TestGrepContextCoversEveryMatchInOneFile(t *testing.T) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		t.Skip("ripgrep is required")
+	}
+	s := setup(t)
+	requireOK(t, run(t, s.WriteTool(), WriteInput{Path: "multi.txt", Content: "one\nalpha two\nthree\nfour\nalpha five\nsix\n"}))
+	r := run(t, s.GrepTool(), GrepInput{Pattern: "alpha", Context: 1})
+	requireOK(t, r)
+	want := strings.Join([]string{
+		"multi.txt-1- one",
+		"multi.txt:2: alpha two",
+		"multi.txt-3- three",
+		"multi.txt-4- four",
+		"multi.txt:5: alpha five",
+		"multi.txt-6- six",
+	}, "\n")
+	if strings.TrimSpace(r.Content) != want {
+		t.Fatalf("context output mismatch:\n%s", r.Content)
+	}
+}
+
 func TestConfiguredCommandTimeout(t *testing.T) {
 	s, err := New(t.TempDir(), "timeout-conversation", zap.NewNop())
 	if err != nil {

@@ -106,7 +106,7 @@ func TestChatExecutesCodingToolAndPersistsResult(t *testing.T) {
 				}
 			}
 		}
-		if !reflect.DeepEqual(names, []string{"read", "bash", "edit", "write"}) {
+		if !reflect.DeepEqual(names, []string{"read", "bash", "edit", "write", "grep", "find", "ls"}) {
 			t.Errorf("tools=%v", names)
 		}
 		if !strings.Contains(string(body.Messages), home) {

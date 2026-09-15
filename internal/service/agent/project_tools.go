@@ -35,6 +35,6 @@ func (s *AgentSvc) projectTools(ctx context.Context, conversationID, requestedPr
 	if err != nil {
 		return nil, err
 	}
-	global.Logger.Info("project coding tools registered", zap.String("conversation_id", conversationID), zap.String("project_id", projectID), zap.Strings("tools", []string{"read", "bash", "edit", "write"}))
+	global.Logger.Info("project coding tools registered", zap.String("conversation_id", conversationID), zap.String("project_id", projectID), zap.Strings("tools", []string{"read", "bash", "edit", "write", "grep", "find", "ls"}))
 	return set, nil
 }

@@ -5,11 +5,41 @@ import { copyText, desktopApiBase, isDesktopLocation, parseDesktopApiPrefix } fr
 
 const originalFetch = globalThis.fetch
 const originalLocation = Object.getOwnPropertyDescriptor(globalThis, 'location')
+const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
 afterEach(() => {
   globalThis.fetch = originalFetch
-  if (originalLocation) Object.defineProperty(globalThis, 'location', originalLocation)
-  else Reflect.deleteProperty(globalThis, 'location')
+  for (const [key, descriptor] of [['location', originalLocation], ['navigator', originalNavigator], ['document', originalDocument]] as const) {
+    if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+    else Reflect.deleteProperty(globalThis, key)
+  }
 })
+
+/** useInsecureContext 模拟以 IP 打开的 Web 模式：没有异步剪贴板，只有选区复制。 */
+function useInsecureContext(execCommand: (command: string) => boolean) {
+  Reflect.deleteProperty(globalThis, 'location')
+  const area = {
+    value: '',
+    setAttribute() { /* 隐藏 textarea 不可编辑 */ },
+    style: {} as Record<string, string>,
+    select() { area.selected = area.value },
+    remove() { area.removed = true },
+    selected: '',
+    removed: false,
+  }
+  const commands: string[] = []
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {} })
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      body: { appendChild() { /* 不校验节点插入 */ } },
+      createElement: () => area,
+      getSelection: () => ({ rangeCount: 0, removeAllRanges() { /* 无原选区 */ }, addRange() { /* 无原选区 */ } }),
+      execCommand: (command: string) => { commands.push(command); return execCommand(command) },
+    },
+  })
+  return { area, commands }
+}
 
 function useDesktopLocation(hash = '#api-prefix=%2Fkaguya%2Fapi') {
   Object.defineProperty(globalThis, 'location', {
@@ -96,5 +126,19 @@ describe('desktop host detection', () => {
     })
     await copyText('web')
     assert.equal(copied, 'web')
+  })
+
+  it('copies with the selection fallback when the page is not a secure context', async () => {
+    const { area, commands } = useInsecureContext(() => true)
+    await copyText('以 IP 打开的页面')
+    assert.equal(area.selected, '以 IP 打开的页面')
+    assert.deepEqual(commands, ['copy'])
+    assert.equal(area.removed, true)
+  })
+
+  it('reports a failure when the selection fallback cannot copy', async () => {
+    const { area } = useInsecureContext(() => false)
+    await assert.rejects(copyText('x'), /无法写入剪贴板/)
+    assert.equal(area.removed, true)
   })
 })

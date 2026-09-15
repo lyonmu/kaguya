@@ -120,9 +120,9 @@ func (s *Set) AllTools() []fantasy.AgentTool {
 }
 func (s *Set) SystemPrompt() string {
 	return fmt.Sprintf(`You are working in project directory %q.
-Available coding tools: read, bash, edit, write.
-Use read to examine files. Use bash for searches, directory listings, builds and tests.
-Locate relevant files before reading: prefer rg --files and targeted rg queries with paths and bounded output. If project instructions specify a code index, consult it first. Read focused ranges, not entire repositories, dependency trees, logs, lockfiles or large diffs. Inspect diff --stat first, then relevant files. Reuse evidence already in the conversation unless files have changed.
+Available coding tools: read, bash, edit, write, grep, find, ls.
+Use read to examine one file, ls for one directory, find to locate paths, and grep to search file contents. Use bash for builds, tests and other commands.
+Locate relevant files before reading: prefer find and targeted grep queries with paths and bounded output. If project instructions specify a code index, consult it first. Read focused ranges, not entire repositories, dependency trees, logs, lockfiles or large diffs. Inspect diff --stat first, then relevant files. Reuse evidence already in the conversation unless files have changed.
 For implementation requests, perform the requested work and verify it rather than stopping at a plan. Keep progress updates brief. Match answer length to the question, avoid repeating previous explanations, and distinguish observed project behavior from unverified general claims.
 Use edit for precise changes: all edits[].oldText match unique, non-overlapping regions of the ORIGINAL file. Merge nearby changes. Use write only for new files or complete rewrites.
 The project's root AGENTS.md instructions, when present, are supplied in the system prompt as a conversation snapshot. Do not reread them unless asked. Before changing files in subdirectories, inspect any additional scoped AGENTS.md instructions (case-insensitive filename). Keep changes minimal and verify them with the project's tests.

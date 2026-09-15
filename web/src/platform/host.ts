@@ -78,13 +78,47 @@ async function postNative(path: string, body: unknown): Promise<void> {
   if (!response.ok) throw new Error('系统操作失败')
 }
 
-/** copyText 在 Desktop 调用宿主剪贴板，Web 继续使用浏览器剪贴板。 */
+/**
+ * copyText 在 Desktop 调用宿主剪贴板，Web 使用浏览器剪贴板。
+ *
+ * 异步剪贴板只在安全上下文存在：以 http://<IP>:<port> 打开 Web 模式时
+ * navigator.clipboard 未定义，此时回退到选区复制，而不是直接报错。
+ */
 export async function copyText(text: string): Promise<void> {
-  if (!isDesktop()) {
-    await navigator.clipboard.writeText(text)
+  if (isDesktop()) {
+    await postNative('clipboard', { text })
     return
   }
-  await postNative('clipboard', { text })
+  const clipboard: Clipboard | undefined = globalThis.navigator?.clipboard
+  if (clipboard) {
+    await clipboard.writeText(text)
+    return
+  }
+  if (!copySelection(text)) throw new Error('当前环境无法写入剪贴板')
+}
+
+/** copySelection 用隐藏 textarea 与 execCommand 复制，供没有异步剪贴板的环境使用。 */
+function copySelection(text: string): boolean {
+  const area = document.createElement('textarea')
+  area.value = text
+  area.setAttribute('readonly', '')
+  // 固定定位避免复制时页面滚动；复制结束后恢复用户原有选区。
+  area.style.cssText = 'position: fixed; top: 0; left: -9999px; opacity: 0;'
+  document.body.appendChild(area)
+  const selection = document.getSelection()
+  const previous = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : undefined
+  let copied = false
+  try {
+    area.select()
+    copied = document.execCommand('copy')
+  } finally {
+    area.remove()
+    if (selection && previous) {
+      selection.removeAllRanges()
+      selection.addRange(previous)
+    }
+  }
+  return copied
 }
 
 /** openExternal 在 Desktop 交给系统浏览器打开，Web 使用新标签页。 */

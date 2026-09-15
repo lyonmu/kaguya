@@ -13,7 +13,7 @@
 - Desktop 宿主在 `internal/desktop/`：同一个 Gin 由 Wails 原生 scheme 直接调用，不生成本地监听端口；两张窄接口仅用于系统剪贴板与外部链接。Web 与 Desktop 共享同一初始化和关停流程，不注册业务 Binding。
 - 聊天编排、历史、标题、指令快照与上下文压缩在 `internal/service/agent/`；模型执行基于 `charm.land/fantasy`，位于 `internal/agent/runtime/`；配置与用量分析在 `internal/service/system/`；项目管理、文件树和 Git 差异在 `internal/service/project/`。
 - `web/src/pages/chat/` 与 `web/src/features/chat/` 承载聊天界面、并发会话状态、SSE 和内容块；项目界面在 `web/src/features/project/`。`web/src/pages/system/` 包含 AI 配置（提供商与模型、MCP 管理）、系统配置和用量分析。模型弹出层保持“提供商 → 模型”，收起显示真实模型名；API 使用本地模型记录 ID。
-- `internal/agent/tools/` 提供七个工具工厂，项目聊天默认通过 `WithTools` 注册 `read/bash/edit/write`；`grep/find/ls` 不在默认注册列表。普通对话不注册内置文件/命令工具，但普通与项目对话都可使用已启用的 MCP 工具；标题任务不使用工具。续聊目录必须来自数据库项目归属，不接受请求覆盖。
+- `internal/agent/tools/` 提供七个工具工厂，项目聊天默认通过 `WithTools` 注册 `read/bash/edit/write/grep/find/ls`；`grep/find/ls` 依赖主机 `rg` 与 `fd`，只读且不在普通对话注册。普通对话不注册内置文件/命令工具，但普通与项目对话都可使用已启用的 MCP 工具；标题任务不使用工具。续聊目录必须来自数据库项目归属，不接受请求覆盖。
 - 项目路径限制在运行用户主目录内，规范化后唯一；删除项目只解除会话归属，不删除历史或主机文件。项目 `@` 文件引用、内容预览和 Git 差异必须复用服务端路径校验、忽略规则和大小限制，不信任前端路径。
 - MCP 运行时位于 `internal/agent/mcp/`，配置与动态启停在 `internal/service/system/mcp.go`。支持 `stdio/streamable-http/sse`；新配置默认停用，启用时发现工具，修改启用服务先验证替代连接。停用/删除需关闭连接并取消请求；HTTP 请求保持配置 URL 同源，拒绝跨源重定向与 HTTPS 降级。列表不返回环境变量和认证头，编辑详情含原值，禁止写入日志。
 - 文件工具用 `os.Root` 限制工作区；bash 以服务进程权限运行，工作目录不是沙箱。工具副作用立即生效，不随对话取消或数据库回滚而撤销。保持取消/超时终止进程组、输出截断和同文件修改串行；日志不要记录原始命令或文件内容。

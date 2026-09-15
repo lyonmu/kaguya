@@ -31,7 +31,7 @@ type ReadInput struct {
 const binarySniffBytes = 8 << 10
 
 func (s *Set) ReadTool() fantasy.AgentTool {
-	return tool(s, "read", `Read one existing text file or image inside the project workspace, or a temporary bash output path returned during this conversation. Other paths outside the workspace are rejected. To list/search paths, use bash instead. Text returns at most 2000 lines or 50KB; follow the returned next offset when truncated. offset and limit are 1-based start line and line count, not a range string. Images (jpg/png/gif/webp/bmp) are returned as attachments; omit offset/limit for images. Example: {"path":"src/main.go","offset":20,"limit":80}.`, s.read)
+	return tool(s, "read", `Read one existing text file or image inside the project workspace, or a temporary bash output path returned during this conversation. Other paths outside the workspace are rejected. To list or search paths, use ls, find or grep. Text returns at most 2000 lines or 50KB; follow the returned next offset when truncated. offset and limit are 1-based start line and line count, not a range string. Images (jpg/png/gif/webp/bmp) are returned as attachments; omit offset/limit for images. Example: {"path":"src/main.go","offset":20,"limit":80}.`, s.read)
 }
 
 func readRootBytes(ctx context.Context, root *os.Root, path string, maxBytes int64) ([]byte, error) {
