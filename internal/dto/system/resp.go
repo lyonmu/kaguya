@@ -71,6 +71,7 @@ type SystemModelResp struct {
 	ModelName                  string                  `json:"model_name"`
 	ModelID                    string                  `json:"model_id"`
 	APIProtocol                consts.ProviderProtocol `json:"api_protocol"`
+	RequestPath                string                  `json:"request_path"`
 	ReasoningEnabled           consts.Status           `json:"reasoning_enabled"`
 	ReasoningEffort            consts.ReasoningEffort  `json:"reasoning_effort"`
 	TokenContextWindow         int                     `json:"token_context_window"`
@@ -88,6 +89,7 @@ func (r *SystemModelResp) LoadDb(e *ent.KaguyaModelsInfo) {
 	r.ModelName = e.ModelName
 	r.ModelID = e.ModelID
 	r.APIProtocol = e.APIProtocol
+	r.RequestPath = e.RequestPath
 	r.ReasoningEnabled = e.ReasoningEnabled
 	r.ReasoningEffort = e.ReasoningEffort
 	r.TokenContextWindow = e.TokenContextWindow
@@ -118,27 +120,25 @@ type SystemModelLabelResp struct {
 	IsDefault    bool   `json:"is_default"`
 }
 
-// SystemModelCatalogResp 是 models.dev 目录中可用于填充本地模型配置的一项。
-// ID 是目录内的全局唯一键（提供商 ID + 模型标识）；ModelID 才是上游 API 模型标识。
+// SystemModelCatalogResp 是 models.dev models.json 中的一项，已按模型去重；
+// ID 是目录键（提供商前缀 + 模型标识），ModelID 才是上游 API 模型标识。
 type SystemModelCatalogResp struct {
-	ID                         string                  `json:"id"`
-	ProviderID                 string                  `json:"provider_id"`
-	ProviderName               string                  `json:"provider_name"`
-	ModelID                    string                  `json:"model_id"`
-	APIProtocol                consts.ProviderProtocol `json:"api_protocol"`
-	Name                       string                  `json:"name"`
-	Lab                        string                  `json:"lab"`
-	Family                     string                  `json:"family"`
-	Description                string                  `json:"description"`
-	ReasoningEnabled           consts.Status           `json:"reasoning_enabled"`
-	TokenContextWindow         int                     `json:"token_context_window"`
-	TokenMaxOutputTokens       int                     `json:"token_max_output_tokens"`
-	CapabilityToolUse          consts.Status           `json:"capability_tool_use"`
-	CapabilityVision           consts.Status           `json:"capability_vision"`
-	CapabilityStructuredOutput consts.Status           `json:"capability_structured_output"`
-	InputModalities            []string                `json:"input_modalities"`
-	ReleaseDate                string                  `json:"release_date"`
-	LastUpdated                string                  `json:"last_updated"`
+	ID                         string        `json:"id"`
+	ProviderID                 string        `json:"provider_id"`
+	ProviderName               string        `json:"provider_name"`
+	ModelID                    string        `json:"model_id"`
+	Name                       string        `json:"name"`
+	Family                     string        `json:"family"`
+	Description                string        `json:"description"`
+	ReasoningEnabled           consts.Status `json:"reasoning_enabled"`
+	TokenContextWindow         int           `json:"token_context_window"`
+	TokenMaxOutputTokens       int           `json:"token_max_output_tokens"`
+	CapabilityToolUse          consts.Status `json:"capability_tool_use"`
+	CapabilityVision           consts.Status `json:"capability_vision"`
+	CapabilityStructuredOutput consts.Status `json:"capability_structured_output"`
+	InputModalities            []string      `json:"input_modalities"`
+	ReleaseDate                string        `json:"release_date"`
+	LastUpdated                string        `json:"last_updated"`
 }
 
 type SystemModelCatalogListResp struct {

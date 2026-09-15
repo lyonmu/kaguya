@@ -23,8 +23,9 @@ import (
 type ProviderConfig struct {
 	Type           consts.ProviderType     // normal 使用标准协议；opencode-go 追加会话请求头
 	Name           string                  // 提供商名称（记录元数据用）
-	Protocol       consts.ProviderProtocol // 模型协议类型，决定根地址后追加的端点路径
-	BaseURL        string                  // 必填 API 版本根地址；端点路径由 Protocol 追加，不重复拼接
+	Protocol       consts.ProviderProtocol // 模型协议类型，决定运行时使用哪套请求实现
+	BaseURL        string                  // 提供商 BaseURL，按字符串原样与 RequestPath 拼接
+	RequestPath    string                  // 模型请求路径，与 BaseURL 拼接成最终请求地址
 	APIKey         string                  // API Key
 	ModelID        string                  // 调用 API 时使用的模型标识符
 	ConversationID string                  // 本地会话雪花 ID，通过 X-Conversation-ID 透传；不是上游托管会话 ID
@@ -170,14 +171,11 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 		err      error
 	)
 
-	endpoint, err := providerEndpoint(cfg.BaseURL, cfg.Protocol)
+	request, err := newProviderRequest(cfg.BaseURL, cfg.RequestPath, cfg.Protocol)
 	if err != nil {
 		return nil, err
 	}
-	client, err := newProviderHTTPClient(endpoint)
-	if err != nil {
-		return nil, err
-	}
+	client := newProviderHTTPClient(request.endpoint)
 
 	headers := map[string]string{}
 	if cfg.ConversationID != "" {
@@ -196,14 +194,14 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 	case consts.ProtocolOpenAIChat:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
-			openai.WithBaseURL(cfg.BaseURL),
+			openai.WithBaseURL(request.sdkBaseURL),
 			openai.WithHTTPClient(client),
 			openai.WithHeaders(headers),
 		)
 	case consts.ProtocolOpenAIResponses:
 		provider, err = openai.New(
 			openai.WithAPIKey(cfg.APIKey),
-			openai.WithBaseURL(cfg.BaseURL),
+			openai.WithBaseURL(request.sdkBaseURL),
 			openai.WithHTTPClient(client),
 			openai.WithHeaders(headers),
 			openai.WithUseResponsesAPI(),
@@ -213,7 +211,7 @@ func buildLanguageModel(ctx context.Context, cfg ProviderConfig) (fantasy.Langua
 	case consts.ProtocolAnthropic:
 		provider, err = anthropic.New(
 			anthropic.WithAPIKey(cfg.APIKey),
-			anthropic.WithBaseURL(cfg.BaseURL),
+			anthropic.WithBaseURL(request.sdkBaseURL),
 			anthropic.WithHTTPClient(client),
 			anthropic.WithHeaders(headers),
 		)

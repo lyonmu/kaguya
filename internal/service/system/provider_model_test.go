@@ -54,7 +54,7 @@ func setupSystemServiceTest(t *testing.T) context.Context {
 
 func modelSaveReq(providerID, name, modelID string) *dtosystem.SystemModelSaveReq {
 	return &dtosystem.SystemModelSaveReq{
-		ProviderID: providerID, ModelName: name, ModelID: modelID, APIProtocol: consts.ProtocolOpenAIChat,
+		ProviderID: providerID, ModelName: name, ModelID: modelID, APIProtocol: consts.ProtocolOpenAIChat, RequestPath: "/v1/chat/completions",
 		ReasoningEnabled: consts.IsTrue, ReasoningEffort: consts.ReasoningEffortMedium,
 		TokenContextWindow: 128000, TokenMaxOutputTokens: 8192,
 		CapabilityToolUse: consts.IsTrue, CapabilityVision: consts.IsTrue,
@@ -272,5 +272,35 @@ func TestDeletedModelDoesNotBlockRecreate(t *testing.T) {
 	}
 	if _, err = svc.ModelCreate(ctx, modelSaveReq(provider.ID, "Claude Reborn", "claude-second")); err != nil {
 		t.Fatalf("recreate deleted model id: %v", err)
+	}
+}
+
+// request_path 必须能直接拼在 BaseURL 之后：非空、以 / 开头且不含空白、查询与片段。
+func TestModelRequestPathValidation(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	svc := &SystemSvc{}
+	provider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{ProviderName: "path-check", BaseURL: "https://api.example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"", "v1/chat/completions", "/v1/chat completions", "/v1/chat/completions?x=1", "/v1/chat/completions#frag"} {
+		req := modelSaveReq(provider.ID, "test", "test")
+		req.RequestPath = path
+		if _, err := svc.ModelCreate(ctx, req); !errors.Is(err, ErrModelRequestPath) {
+			t.Errorf("request path %q: %v", path, err)
+		}
+	}
+	req := modelSaveReq(provider.ID, "test", "test")
+	req.RequestPath = "/anthropic/v1/messages"
+	created, err := svc.ModelCreate(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.RequestPath != "/anthropic/v1/messages" {
+		t.Fatalf("request path=%q", created.RequestPath)
+	}
+	req.APIProtocol = consts.ProtocolAnthropic
+	if _, err := svc.ModelUpdate(ctx, created.ID, req); err != nil {
+		t.Fatal(err)
 	}
 }

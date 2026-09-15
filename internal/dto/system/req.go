@@ -11,9 +11,9 @@ type SystemIDReq struct {
 // 协议不在这里：同一提供商可提供多个协议，由每个模型自己声明。
 type SystemProviderSaveReq struct {
 	ProviderType consts.ProviderType `json:"provider_type" binding:"omitempty,oneof=normal opencode-go"`
-	ProviderName string              `json:"provider_name" binding:"required"`     // 提供商名称
-	APIKey       string              `json:"api_key"`                              // API Key
-	BaseURL      string              `json:"base_url" binding:"required,http_url"` // API 版本根地址，由模型协议追加端点路径
+	ProviderName string              `json:"provider_name" binding:"required"` // 提供商名称
+	APIKey       string              `json:"api_key"`                          // API Key
+	BaseURL      string              `json:"base_url" binding:"required"`      // 提供商 BaseURL，请求时与模型的 request_path 拼接
 }
 
 // SystemProviderPageReq 提供商分页查询请求。
@@ -33,7 +33,8 @@ type SystemModelSaveReq struct {
 	ProviderID                 string                  `json:"provider_id" binding:"required"`
 	ModelName                  string                  `json:"model_name" binding:"required"`
 	ModelID                    string                  `json:"model_id" binding:"required"`
-	APIProtocol                consts.ProviderProtocol `json:"api_protocol" binding:"required,oneof=openai-chat anthropic openai-response"` // 请求协议，决定提供商根地址后追加的端点路径
+	APIProtocol                consts.ProviderProtocol `json:"api_protocol" binding:"required,oneof=openai-chat anthropic openai-response"` // 请求协议，决定运行时使用哪套请求实现
+	RequestPath                string                  `json:"request_path" binding:"required"`                                             // 模型请求路径，与提供商 BaseURL 拼接成最终请求地址
 	ReasoningEnabled           consts.Status           `json:"reasoning_enabled" binding:"required,oneof=1 2"`
 	ReasoningEffort            consts.ReasoningEffort  `json:"reasoning_effort" binding:"required,oneof=low medium high"`
 	TokenContextWindow         int                     `json:"token_context_window" binding:"min=0"`

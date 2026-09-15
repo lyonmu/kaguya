@@ -200,6 +200,20 @@ func (_u *KaguyaSystemInfoUpdate) SetNillableModelSyncEnabled(v *bool) *KaguyaSy
 	return _u
 }
 
+// SetProviderSyncURL sets the "provider_sync_url" field.
+func (_u *KaguyaSystemInfoUpdate) SetProviderSyncURL(v string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetProviderSyncURL(v)
+	return _u
+}
+
+// SetNillableProviderSyncURL sets the "provider_sync_url" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableProviderSyncURL(v *string) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetProviderSyncURL(*v)
+	}
+	return _u
+}
+
 // SetModelSyncURL sets the "model_sync_url" field.
 func (_u *KaguyaSystemInfoUpdate) SetModelSyncURL(v string) *KaguyaSystemInfoUpdate {
 	_u.mutation.SetModelSyncURL(v)
@@ -456,6 +470,11 @@ func (_u *KaguyaSystemInfoUpdate) check() error {
 			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ProviderSyncURL(); ok {
+		if err := kaguyasysteminfo.ProviderSyncURLValidator(v); err != nil {
+			return &ValidationError{Name: "provider_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_sync_url": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ModelSyncURL(); ok {
 		if err := kaguyasysteminfo.ModelSyncURLValidator(v); err != nil {
 			return &ValidationError{Name: "model_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_url": %w`, err)}
@@ -549,6 +568,9 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.ModelSyncEnabled(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ProviderSyncURL(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderSyncURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ModelSyncURL(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncURL, field.TypeString, value)
@@ -786,6 +808,20 @@ func (_u *KaguyaSystemInfoUpdateOne) SetModelSyncEnabled(v bool) *KaguyaSystemIn
 func (_u *KaguyaSystemInfoUpdateOne) SetNillableModelSyncEnabled(v *bool) *KaguyaSystemInfoUpdateOne {
 	if v != nil {
 		_u.SetModelSyncEnabled(*v)
+	}
+	return _u
+}
+
+// SetProviderSyncURL sets the "provider_sync_url" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetProviderSyncURL(v string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetProviderSyncURL(v)
+	return _u
+}
+
+// SetNillableProviderSyncURL sets the "provider_sync_url" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableProviderSyncURL(v *string) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetProviderSyncURL(*v)
 	}
 	return _u
 }
@@ -1059,6 +1095,11 @@ func (_u *KaguyaSystemInfoUpdateOne) check() error {
 			return &ValidationError{Name: "chat_max_retries", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.chat_max_retries": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ProviderSyncURL(); ok {
+		if err := kaguyasysteminfo.ProviderSyncURLValidator(v); err != nil {
+			return &ValidationError{Name: "provider_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_sync_url": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ModelSyncURL(); ok {
 		if err := kaguyasysteminfo.ModelSyncURLValidator(v); err != nil {
 			return &ValidationError{Name: "model_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.model_sync_url": %w`, err)}
@@ -1169,6 +1210,9 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if value, ok := _u.mutation.ModelSyncEnabled(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ProviderSyncURL(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderSyncURL, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ModelSyncURL(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncURL, field.TypeString, value)

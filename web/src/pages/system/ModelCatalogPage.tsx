@@ -70,7 +70,7 @@ export function ModelCatalogPage() {
     },
     {
       title: '提供商', dataIndex: 'provider_name', key: 'provider_name', width: 130,
-      render: (providerName: string, item: ModelCatalogItem) => <div><div>{providerName || item.lab || '—'}</div>{item.family && <Typography.Text type="secondary" className="text-xs!">{item.family}</Typography.Text>}</div>,
+      render: (providerName: string, item: ModelCatalogItem) => <div><div>{providerName || '—'}</div>{item.family && <Typography.Text type="secondary" className="text-xs!">{item.family}</Typography.Text>}</div>,
     },
     { title: '上下文', dataIndex: 'token_context_window', key: 'context', width: 105, align: 'right' as const, render: formatNumber },
     { title: '最大输出', dataIndex: 'token_max_output_tokens', key: 'output', width: 105, align: 'right' as const, render: formatNumber },
@@ -92,7 +92,7 @@ export function ModelCatalogPage() {
 
   return <div className="mx-auto w-full max-w-[1480px] px-6 py-5 max-[620px]:px-3.5">
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="m-0 text-[20px] font-semibold text-k-text">模型目录</h2><p className="mt-1 mb-0 text-sm text-k-text-muted">检索已同步到本地的模型信息，默认按发布日期从新到旧排列</p></div>
+      <div><h2 className="m-0 text-[20px] font-semibold text-k-text">模型目录</h2><p className="mt-1 mb-0 text-sm text-k-text-muted">来自 models.dev 模型目录（models.json），已按模型去重，默认按发布日期从新到旧排列</p></div>
       <Space wrap>
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => setRevision(value => value + 1)}>重新加载</Button>
         <Button icon={<SyncOutlined />} loading={syncing} onClick={syncNow}>立即同步</Button>
@@ -133,7 +133,7 @@ export function ModelCatalogPage() {
           <Typography.Paragraph className="mt-3 mb-0! text-sm!" type="secondary">{selectedModel.description || '暂无模型描述'}</Typography.Paragraph>
         </div>
         <Descriptions bordered column={{ xs: 1, sm: 2 }} size="small" title="基本信息">
-          <Descriptions.Item label="提供商">{selectedModel.provider_name || selectedModel.lab || '—'}</Descriptions.Item>
+          <Descriptions.Item label="提供商">{selectedModel.provider_name || '—'}</Descriptions.Item>
           <Descriptions.Item label="模型系列">{selectedModel.family || '—'}</Descriptions.Item>
           <Descriptions.Item label="发布日期">{selectedModel.release_date || '—'}</Descriptions.Item>
           <Descriptions.Item label="更新时间">{selectedModel.last_updated || '—'}</Descriptions.Item>

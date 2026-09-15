@@ -114,6 +114,11 @@ func ModelSyncEnabled(v bool) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncEnabled, v))
 }
 
+// ProviderSyncURL applies equality check predicate on the "provider_sync_url" field. It's identical to ProviderSyncURLEQ.
+func ProviderSyncURL(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldProviderSyncURL, v))
+}
+
 // ModelSyncURL applies equality check predicate on the "model_sync_url" field. It's identical to ModelSyncURLEQ.
 func ModelSyncURL(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldModelSyncURL, v))
@@ -609,6 +614,71 @@ func ModelSyncEnabledEQ(v bool) predicate.KaguyaSystemInfo {
 // ModelSyncEnabledNEQ applies the NEQ predicate on the "model_sync_enabled" field.
 func ModelSyncEnabledNEQ(v bool) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldModelSyncEnabled, v))
+}
+
+// ProviderSyncURLEQ applies the EQ predicate on the "provider_sync_url" field.
+func ProviderSyncURLEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLNEQ applies the NEQ predicate on the "provider_sync_url" field.
+func ProviderSyncURLNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLIn applies the In predicate on the "provider_sync_url" field.
+func ProviderSyncURLIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldProviderSyncURL, vs...))
+}
+
+// ProviderSyncURLNotIn applies the NotIn predicate on the "provider_sync_url" field.
+func ProviderSyncURLNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldProviderSyncURL, vs...))
+}
+
+// ProviderSyncURLGT applies the GT predicate on the "provider_sync_url" field.
+func ProviderSyncURLGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLGTE applies the GTE predicate on the "provider_sync_url" field.
+func ProviderSyncURLGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLLT applies the LT predicate on the "provider_sync_url" field.
+func ProviderSyncURLLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLLTE applies the LTE predicate on the "provider_sync_url" field.
+func ProviderSyncURLLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLContains applies the Contains predicate on the "provider_sync_url" field.
+func ProviderSyncURLContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLHasPrefix applies the HasPrefix predicate on the "provider_sync_url" field.
+func ProviderSyncURLHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLHasSuffix applies the HasSuffix predicate on the "provider_sync_url" field.
+func ProviderSyncURLHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLEqualFold applies the EqualFold predicate on the "provider_sync_url" field.
+func ProviderSyncURLEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldProviderSyncURL, v))
+}
+
+// ProviderSyncURLContainsFold applies the ContainsFold predicate on the "provider_sync_url" field.
+func ProviderSyncURLContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldProviderSyncURL, v))
 }
 
 // ModelSyncURLEQ applies the EQ predicate on the "model_sync_url" field.

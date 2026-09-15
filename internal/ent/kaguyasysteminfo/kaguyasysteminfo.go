@@ -36,6 +36,8 @@ const (
 	FieldSystemPrompt = "system_prompt"
 	// FieldModelSyncEnabled holds the string denoting the model_sync_enabled field in the database.
 	FieldModelSyncEnabled = "model_sync_enabled"
+	// FieldProviderSyncURL holds the string denoting the provider_sync_url field in the database.
+	FieldProviderSyncURL = "provider_sync_url"
 	// FieldModelSyncURL holds the string denoting the model_sync_url field in the database.
 	FieldModelSyncURL = "model_sync_url"
 	// FieldModelSyncIntervalHours holds the string denoting the model_sync_interval_hours field in the database.
@@ -76,6 +78,7 @@ var Columns = []string{
 	FieldGlobalSystemPrompt,
 	FieldSystemPrompt,
 	FieldModelSyncEnabled,
+	FieldProviderSyncURL,
 	FieldModelSyncURL,
 	FieldModelSyncIntervalHours,
 	FieldModelCatalogJSON,
@@ -134,6 +137,10 @@ var (
 	DefaultSystemPrompt string
 	// DefaultModelSyncEnabled holds the default value on creation for the "model_sync_enabled" field.
 	DefaultModelSyncEnabled bool
+	// DefaultProviderSyncURL holds the default value on creation for the "provider_sync_url" field.
+	DefaultProviderSyncURL string
+	// ProviderSyncURLValidator is a validator for the "provider_sync_url" field. It is called by the builders before save.
+	ProviderSyncURLValidator func(string) error
 	// DefaultModelSyncURL holds the default value on creation for the "model_sync_url" field.
 	DefaultModelSyncURL string
 	// ModelSyncURLValidator is a validator for the "model_sync_url" field. It is called by the builders before save.
@@ -222,6 +229,11 @@ func BySystemPrompt(opts ...sql.OrderTermOption) OrderOption {
 // ByModelSyncEnabled orders the results by the model_sync_enabled field.
 func ByModelSyncEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldModelSyncEnabled, opts...).ToFunc()
+}
+
+// ByProviderSyncURL orders the results by the provider_sync_url field.
+func ByProviderSyncURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProviderSyncURL, opts...).ToFunc()
 }
 
 // ByModelSyncURL orders the results by the model_sync_url field.

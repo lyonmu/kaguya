@@ -32,8 +32,10 @@ type KaguyaModelsInfo struct {
 	ModelName string `json:"model_name,omitempty"`
 	// 调用 API 时使用的模型标识符
 	ModelID string `json:"model_id,omitempty"`
-	// 请求协议，决定提供商根地址后追加的端点路径
+	// 请求协议，决定运行时使用哪套请求实现
 	APIProtocol consts.ProviderProtocol `json:"api_protocol,omitempty"`
+	// 模型请求路径，与提供商 BaseURL 拼接成最终请求地址
+	RequestPath string `json:"request_path,omitempty"`
 	// 是否启用思考模式
 	ReasoningEnabled consts.Status `json:"reasoning_enabled,omitempty"`
 	// 思考努力程度，影响推理深度和响应速度
@@ -81,7 +83,7 @@ func (*KaguyaModelsInfo) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyamodelsinfo.FieldReasoningEnabled, kaguyamodelsinfo.FieldTokenContextWindow, kaguyamodelsinfo.FieldTokenMaxOutputTokens, kaguyamodelsinfo.FieldCapabilityToolUse, kaguyamodelsinfo.FieldCapabilityVision, kaguyamodelsinfo.FieldCapabilityStructuredOutput:
 			values[i] = new(sql.NullInt64)
-		case kaguyamodelsinfo.FieldID, kaguyamodelsinfo.FieldProviderID, kaguyamodelsinfo.FieldModelName, kaguyamodelsinfo.FieldModelID, kaguyamodelsinfo.FieldAPIProtocol, kaguyamodelsinfo.FieldReasoningEffort:
+		case kaguyamodelsinfo.FieldID, kaguyamodelsinfo.FieldProviderID, kaguyamodelsinfo.FieldModelName, kaguyamodelsinfo.FieldModelID, kaguyamodelsinfo.FieldAPIProtocol, kaguyamodelsinfo.FieldRequestPath, kaguyamodelsinfo.FieldReasoningEffort:
 			values[i] = new(sql.NullString)
 		case kaguyamodelsinfo.FieldCreatedAt, kaguyamodelsinfo.FieldUpdatedAt, kaguyamodelsinfo.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -148,6 +150,12 @@ func (_m *KaguyaModelsInfo) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field api_protocol", values[i])
 			} else if value.Valid {
 				_m.APIProtocol = consts.ProviderProtocol(value.String)
+			}
+		case kaguyamodelsinfo.FieldRequestPath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field request_path", values[i])
+			} else if value.Valid {
+				_m.RequestPath = value.String
 			}
 		case kaguyamodelsinfo.FieldReasoningEnabled:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -254,6 +262,9 @@ func (_m *KaguyaModelsInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("api_protocol=")
 	builder.WriteString(fmt.Sprintf("%v", _m.APIProtocol))
+	builder.WriteString(", ")
+	builder.WriteString("request_path=")
+	builder.WriteString(_m.RequestPath)
 	builder.WriteString(", ")
 	builder.WriteString("reasoning_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReasoningEnabled))

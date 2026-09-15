@@ -38,9 +38,11 @@ type KaguyaSystemInfo struct {
 	GlobalSystemPrompt string `json:"global_system_prompt,omitempty"`
 	// 追加到全局人设后的自定义提示词
 	SystemPrompt string `json:"system_prompt,omitempty"`
-	// 是否定时同步 models.dev 模型目录
+	// 是否定时同步 models.dev 目录
 	ModelSyncEnabled bool `json:"model_sync_enabled,omitempty"`
-	// 模型目录同步地址
+	// 提供商目录同步地址（api.json）
+	ProviderSyncURL string `json:"provider_sync_url,omitempty"`
+	// 模型目录同步地址（models.json）
 	ModelSyncURL string `json:"model_sync_url,omitempty"`
 	// 模型目录同步间隔小时数
 	ModelSyncIntervalHours int `json:"model_sync_interval_hours,omitempty"`
@@ -76,7 +78,7 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount:
 			values[i] = new(sql.NullInt64)
-		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldProviderCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
+		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldProviderSyncURL, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldProviderCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
 			values[i] = new(sql.NullString)
 		case kaguyasysteminfo.FieldCreatedAt, kaguyasysteminfo.FieldUpdatedAt, kaguyasysteminfo.FieldDeletedAt, kaguyasysteminfo.FieldModelSyncLastAttemptAt, kaguyasysteminfo.FieldModelSyncLastSuccessAt:
 			values[i] = new(sql.NullTime)
@@ -169,6 +171,12 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field model_sync_enabled", values[i])
 			} else if value.Valid {
 				_m.ModelSyncEnabled = value.Bool
+			}
+		case kaguyasysteminfo.FieldProviderSyncURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field provider_sync_url", values[i])
+			} else if value.Valid {
+				_m.ProviderSyncURL = value.String
 			}
 		case kaguyasysteminfo.FieldModelSyncURL:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -308,6 +316,9 @@ func (_m *KaguyaSystemInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("model_sync_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ModelSyncEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("provider_sync_url=")
+	builder.WriteString(_m.ProviderSyncURL)
 	builder.WriteString(", ")
 	builder.WriteString("model_sync_url=")
 	builder.WriteString(_m.ModelSyncURL)

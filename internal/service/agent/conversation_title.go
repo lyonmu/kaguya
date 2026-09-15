@@ -149,7 +149,7 @@ func resolveTitleConfig(ctx context.Context, client *ent.Client, conversationID 
 	}
 	return agentruntime.ProviderConfig{
 		Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(model.APIProtocol),
-		BaseURL: provider.BaseURL, APIKey: apiKey, ModelID: model.ModelID, ConversationID: conversationID,
+		BaseURL: provider.BaseURL, RequestPath: model.RequestPath, APIKey: apiKey, ModelID: model.ModelID, ConversationID: conversationID,
 	}, nil
 }
 

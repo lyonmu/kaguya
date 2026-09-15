@@ -48,7 +48,7 @@ func TestProviderUsage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// 根地址只到版本段，最终路径由模型协议追加端点得到。
+			// 最终路径由 BaseURL 与模型的 request_path 拼接得到。
 			suffix := "/chat/completions"
 			switch tt.protocol {
 			case consts.ProtocolOpenAIResponses:
@@ -73,7 +73,7 @@ func TestProviderUsage(t *testing.T) {
 			}))
 			defer server.Close()
 			recorder := &usageTestRecorder{}
-			a, err := New(WithProvider(ProviderConfig{Protocol: tt.protocol, BaseURL: server.URL + "/v1", APIKey: "test", ModelID: "test", ConversationID: "123456789012345"}), WithRecorder(recorder))
+			a, err := New(WithProvider(ProviderConfig{Protocol: tt.protocol, BaseURL: server.URL, RequestPath: wantPath, APIKey: "test", ModelID: "test", ConversationID: "123456789012345"}), WithRecorder(recorder))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -125,7 +125,7 @@ func TestRecordUsageFailureIsLogged(t *testing.T) {
 
 	wantErr := errors.New("usage sink unavailable")
 	a, err := New(
-		WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL + "/v1", APIKey: "test", ModelID: "test"}),
+		WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL, RequestPath: "/v1/chat/completions", APIKey: "test", ModelID: "test"}),
 		WithRecorder(failingUsageRecorder{err: wantErr}),
 	)
 	if err != nil {

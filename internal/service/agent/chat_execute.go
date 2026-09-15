@@ -114,7 +114,7 @@ func buildChatAgent(exec chatExecution) (*agentruntime.Agent, error) {
 	return agentruntime.New(
 		agentruntime.WithProvider(agentruntime.ProviderConfig{
 			Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(exec.target.model.APIProtocol),
-			BaseURL: provider.BaseURL, APIKey: apiKey, ModelID: exec.target.model.ModelID,
+			BaseURL: provider.BaseURL, RequestPath: exec.target.model.RequestPath, APIKey: apiKey, ModelID: exec.target.model.ModelID,
 			ConversationID: exec.conversationID,
 		}),
 		agentruntime.WithSystemPrompt(exec.prompt.system),

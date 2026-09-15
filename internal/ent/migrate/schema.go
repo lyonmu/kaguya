@@ -291,7 +291,8 @@ var (
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "model_name", Type: field.TypeString, Comment: "模型显示名称"},
 		{Name: "model_id", Type: field.TypeString, Comment: "调用 API 时使用的模型标识符"},
-		{Name: "api_protocol", Type: field.TypeString, Nullable: true, Comment: "请求协议，决定提供商根地址后追加的端点路径", Default: "openai-chat"},
+		{Name: "api_protocol", Type: field.TypeString, Nullable: true, Comment: "请求协议，决定运行时使用哪套请求实现", Default: "openai-chat"},
+		{Name: "request_path", Type: field.TypeString, Comment: "模型请求路径，与提供商 BaseURL 拼接成最终请求地址", Default: ""},
 		{Name: "reasoning_enabled", Type: field.TypeInt, Nullable: true, Comment: "是否启用思考模式", Default: 1},
 		{Name: "reasoning_effort", Type: field.TypeString, Nullable: true, Comment: "思考努力程度，影响推理深度和响应速度", Default: "medium"},
 		{Name: "token_context_window", Type: field.TypeInt, Nullable: true, Comment: "模型支持的最大上下文窗口大小（token 数）"},
@@ -310,7 +311,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_models_info_kaguya_provider_info_models",
-				Columns:    []*schema.Column{KaguyaModelsInfoColumns[14]},
+				Columns:    []*schema.Column{KaguyaModelsInfoColumns[15]},
 				RefColumns: []*schema.Column{KaguyaProviderInfoColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -339,7 +340,7 @@ var (
 			{
 				Name:    "kaguyamodelsinfo_provider_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaModelsInfoColumns[14]},
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[15]},
 			},
 			{
 				Name:    "kaguyamodelsinfo_model_id",
@@ -349,7 +350,7 @@ var (
 			{
 				Name:    "kaguyamodelsinfo_provider_id_model_id",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaModelsInfoColumns[14], KaguyaModelsInfoColumns[5]},
+				Columns: []*schema.Column{KaguyaModelsInfoColumns[15], KaguyaModelsInfoColumns[5]},
 				Annotation: &entsql.IndexAnnotation{
 					Where: "deleted_at IS NULL",
 				},
@@ -469,8 +470,9 @@ var (
 		{Name: "global_agents_paths", Type: field.TypeJSON, Nullable: true},
 		{Name: "global_system_prompt", Type: field.TypeString, Size: 2147483647, Comment: "可编辑的全局基础提示词", Default: "You are **Kaguya**, a calm, rational, and professional intelligent assistant.\n\nYour role is to understand the user's needs, analyze problems, and provide accurate, clear, and useful responses.\n\nFollow these principles:\n\n* Be concise, accurate, and direct. Prioritize the conclusion.\n* Do not fabricate facts, results, or unknown information.\n* When information is insufficient, state it clearly instead of making unsupported assumptions.\n* Maintain independent judgment and do not agree with incorrect claims simply to please the user.\n* Prefer simple, reliable, and actionable suggestions.\n* Communicate in Chinese by default. Keep code, commands, API names, configuration keys, and error messages in their original form when appropriate.\n\nChat display capabilities:\n* The chat renders Markdown and fenced code blocks labeled mermaid as diagrams. For architecture, flow, and sequence diagrams, include the complete Mermaid code in your answer in the same turn, unless the user requests another format.\n* MCP tools execute on the server. This chat does not host MCP Apps or Excalidraw widgets. A tool message such as \"Diagram displayed\" or a checkpoint ID does not mean the user can see a diagram here. Include a Mermaid diagram in the answer when appropriate; never claim a widget is visible based only on a tool's success message.\n\nYour overall personality is **calm, perceptive, restrained, and reliable, with a subtle sense of non-human intelligence without excessive role-playing.**\n"},
 		{Name: "system_prompt", Type: field.TypeString, Size: 2147483647, Comment: "追加到全局人设后的自定义提示词", Default: ""},
-		{Name: "model_sync_enabled", Type: field.TypeBool, Comment: "是否定时同步 models.dev 模型目录", Default: false},
-		{Name: "model_sync_url", Type: field.TypeString, Size: 2048, Comment: "模型目录同步地址", Default: "https://models.dev/api.json"},
+		{Name: "model_sync_enabled", Type: field.TypeBool, Comment: "是否定时同步 models.dev 目录", Default: false},
+		{Name: "provider_sync_url", Type: field.TypeString, Size: 2048, Comment: "提供商目录同步地址（api.json）", Default: "https://models.dev/api.json"},
+		{Name: "model_sync_url", Type: field.TypeString, Size: 2048, Comment: "模型目录同步地址（models.json）", Default: "https://models.dev/models.json"},
 		{Name: "model_sync_interval_hours", Type: field.TypeInt, Comment: "模型目录同步间隔小时数", Default: 24},
 		{Name: "model_catalog_json", Type: field.TypeString, Size: 2147483647, Comment: "models.dev 模型目录缓存，不通过系统配置接口返回", Default: "[]"},
 		{Name: "model_catalog_count", Type: field.TypeInt, Comment: "已缓存的模型目录条目数", Default: 0},

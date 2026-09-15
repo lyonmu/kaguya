@@ -70,6 +70,17 @@ func TestSystemInfoValidationAndNoCache(t *testing.T) {
 		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{ModelSyncURL: syncURL}); !errors.Is(err, ErrInvalidSystemInfo) {
 			t.Fatalf("accepted invalid sync URL %q: %v", syncURL, err)
 		}
+		if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{ProviderSyncURL: syncURL}); !errors.Is(err, ErrInvalidSystemInfo) {
+			t.Fatalf("accepted invalid provider sync URL %q: %v", syncURL, err)
+		}
+	}
+	// 两个目录地址相互独立，保存后都按原值返回。
+	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{ModelSyncURL: "https://models.dev/models.json", ProviderSyncURL: "https://models.dev/api.json"}); err != nil {
+		t.Fatal(err)
+	}
+	info, err = svc.Info(ctx)
+	if err != nil || info.ModelSyncURL != "https://models.dev/models.json" || info.ProviderSyncURL != "https://models.dev/api.json" {
+		t.Fatalf("sync URLs=%q / %q err=%v", info.ModelSyncURL, info.ProviderSyncURL, err)
 	}
 	for _, req := range []dtosystem.SystemInfoSaveReq{{DefaultModelID: "missing"}, {TaskModelID: "missing"}} {
 		if _, err := svc.InfoUpdate(ctx, &req); !errors.Is(err, ErrModelNotFound) {

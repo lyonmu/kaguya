@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"entgo.io/ent/dialect/sql"
@@ -76,8 +77,19 @@ func (s *SystemSvc) ModelDetail(ctx context.Context, id string) (*dtosystem.Syst
 	return resp, nil
 }
 
+// validateRequestPath 只做拼接所需的最低校验：以 / 开头且不含空白、查询或片段。
+func validateRequestPath(raw string) error {
+	if raw == "" || raw[0] != '/' || strings.ContainsAny(raw, " \t\r\n?#") {
+		return ErrModelRequestPath
+	}
+	return nil
+}
+
 // ModelCreate 只创建模型，默认/任务模型统一由系统配置管理。
 func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelSaveReq) (*dtosystem.SystemModelResp, error) {
+	if err := validateRequestPath(req.RequestPath); err != nil {
+		return nil, err
+	}
 	tx, err := db.EntClient.Tx(ctx)
 	if err != nil {
 		global.Logger.Sugar().Errorf("start model create transaction failed: err=%v", err)
@@ -100,6 +112,7 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
 		SetAPIProtocol(req.APIProtocol).
+		SetRequestPath(req.RequestPath).
 		SetReasoningEnabled(req.ReasoningEnabled).
 		SetReasoningEffort(req.ReasoningEffort).
 		SetTokenContextWindow(req.TokenContextWindow).
@@ -129,6 +142,9 @@ func (s *SystemSvc) ModelCreate(ctx context.Context, req *dtosystem.SystemModelS
 
 // ModelUpdate 修改模型信息，不改变系统配置中的模型选择。
 func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.SystemModelSaveReq) (*dtosystem.SystemModelResp, error) {
+	if err := validateRequestPath(req.RequestPath); err != nil {
+		return nil, err
+	}
 	tx, err := db.EntClient.Tx(ctx)
 	if err != nil {
 		global.Logger.Sugar().Errorf("start model update transaction failed: id=%s, err=%v", id, err)
@@ -161,6 +177,7 @@ func (s *SystemSvc) ModelUpdate(ctx context.Context, id string, req *dtosystem.S
 		SetModelName(req.ModelName).
 		SetModelID(req.ModelID).
 		SetAPIProtocol(req.APIProtocol).
+		SetRequestPath(req.RequestPath).
 		SetReasoningEnabled(req.ReasoningEnabled).
 		SetReasoningEffort(req.ReasoningEffort).
 		SetTokenContextWindow(req.TokenContextWindow).

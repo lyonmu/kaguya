@@ -2842,6 +2842,10 @@ const docTemplate = `{
                 "provider_catalog_count": {
                     "type": "integer"
                 },
+                "provider_sync_url": {
+                    "type": "string",
+                    "maxLength": 2048
+                },
                 "system_prompt": {
                     "type": "string",
                     "maxLength": 20000
@@ -2898,6 +2902,10 @@ const docTemplate = `{
                     "minimum": 1
                 },
                 "model_sync_url": {
+                    "type": "string",
+                    "maxLength": 2048
+                },
+                "provider_sync_url": {
                     "type": "string",
                     "maxLength": 2048
                 },
@@ -3088,9 +3096,6 @@ const docTemplate = `{
         "system.SystemModelCatalogResp": {
             "type": "object",
             "properties": {
-                "api_protocol": {
-                    "$ref": "#/definitions/consts.ProviderProtocol"
-                },
                 "capability_structured_output": {
                     "$ref": "#/definitions/consts.Status"
                 },
@@ -3114,9 +3119,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                },
-                "lab": {
-                    "type": "string"
                 },
                 "last_updated": {
                     "type": "string"
@@ -3229,6 +3231,9 @@ const docTemplate = `{
                 "reasoning_enabled": {
                     "$ref": "#/definitions/consts.Status"
                 },
+                "request_path": {
+                    "type": "string"
+                },
                 "token_context_window": {
                     "type": "integer"
                 },
@@ -3251,11 +3256,12 @@ const docTemplate = `{
                 "model_name",
                 "provider_id",
                 "reasoning_effort",
-                "reasoning_enabled"
+                "reasoning_enabled",
+                "request_path"
             ],
             "properties": {
                 "api_protocol": {
-                    "description": "请求协议，决定提供商根地址后追加的端点路径",
+                    "description": "请求协议，决定运行时使用哪套请求实现",
                     "enum": [
                         "openai-chat",
                         "anthropic",
@@ -3331,6 +3337,10 @@ const docTemplate = `{
                             "$ref": "#/definitions/consts.Status"
                         }
                     ]
+                },
+                "request_path": {
+                    "description": "模型请求路径，与提供商 BaseURL 拼接成最终请求地址",
+                    "type": "string"
                 },
                 "token_context_window": {
                     "type": "integer",
@@ -3488,7 +3498,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "base_url": {
-                    "description": "API 版本根地址，由模型协议追加端点路径",
+                    "description": "提供商 BaseURL，请求时与模型的 request_path 拼接",
                     "type": "string"
                 },
                 "provider_name": {

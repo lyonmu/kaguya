@@ -34,40 +34,21 @@ after(() => {
 const openai = { id: 'openai', name: 'OpenAI', api: 'https://api.openai.com/v1', npm: '@ai-sdk/openai', doc: 'https://platform.openai.com/docs', model_count: 120 }
 const anthropic = { id: 'anthropic', name: 'Anthropic', api: 'https://api.anthropic.com/v1', npm: '@ai-sdk/anthropic', doc: '', model_count: 30 }
 
-it('adds a provider from the catalog with prefilled name and root URL', async () => {
-  const bodies: Record<string, unknown>[] = []
-  globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+it('browses the catalog without add actions', async () => {
+  globalThis.fetch = (async (url: RequestInfo | URL) => {
     const target = new URL(String(url), 'http://localhost')
     if (target.pathname.endsWith('/provider/catalog')) {
-      const keyword = target.searchParams.get('keyword') ?? ''
-      const items = keyword ? [openai] : [openai, anthropic]
-      return Response.json({ code: 100000, data: { total: items.length, items, page: 1, page_size: 20 } })
-    }
-    if (target.pathname.endsWith('/provider/label')) return Response.json({ code: 100000, data: [{ label: 'OpenAI', value: 'p1' }] })
-    if (target.pathname.endsWith('/provider') && init?.method === 'POST') {
-      bodies.push(JSON.parse(String(init.body)))
-      return Response.json({ code: 100000, data: {} })
+      return Response.json({ code: 100000, data: { total: 2, items: [openai, anthropic], page: 1, page_size: 20 } })
     }
     return Response.json({ code: 100000, data: {} })
   }) as typeof fetch
 
   const view = render(<App><ProviderCatalogPage /></App>)
   await waitFor(() => assert.ok(view.getByText('Anthropic')))
-  // 已添加的提供商只展示标记，不再提供添加按钮。
-  assert.ok(view.getByText('已添加'))
-
-  fireEvent.click(view.getByRole('button', { name: /添\s*加/ }))
-  await waitFor(() => assert.ok(view.baseElement.querySelector<HTMLInputElement>('input#provider_name')))
-  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#provider_name')?.value, 'Anthropic')
-  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#base_url')?.value, 'https://api.anthropic.com/v1')
-
-  await act(async () => {
-    fireEvent.click(view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!)
-  })
-  await waitFor(() => assert.equal(bodies.length, 1))
-  assert.deepEqual(bodies[0], {
-    provider_type: 'normal', provider_name: 'Anthropic', base_url: 'https://api.anthropic.com/v1', api_key: '',
-  })
+  // 添加入口统一在「提供商与模型」页，这里不再提供添加按钮。
+  assert.equal(view.queryByRole('button', { name: /添\s*加/ }), null)
+  assert.ok(view.getByText('@ai-sdk/anthropic'))
+  assert.ok(view.getByText('https://api.anthropic.com/v1'))
 })
 
 it('searches the catalog through the API and reports the synced counts', async () => {
@@ -80,7 +61,6 @@ it('searches the catalog through the API and reports the synced counts', async (
       const items = keyword ? [anthropic] : [openai, anthropic]
       return Response.json({ code: 100000, data: { total: items.length, items, page: 1, page_size: 20 } })
     }
-    if (target.pathname.endsWith('/provider/label')) return Response.json({ code: 100000, data: [] })
     if (target.pathname.endsWith('/model/sync') && init?.method === 'POST') {
       return Response.json({ code: 100000, data: { count: 3, provider_count: 2, synced_at: '2026-09-14T01:00:00Z' } })
     }

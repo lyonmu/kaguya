@@ -18,7 +18,7 @@ func TestChatRejectsWhenConcurrencyLimited(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("limit").SetModelID("limit").Save(ctx)
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("limit").SetModelID("limit").SetRequestPath("/v1/chat/completions").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

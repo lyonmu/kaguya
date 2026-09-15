@@ -9,8 +9,10 @@ export interface AIModel {
   provider_name: string
   model_name: string
   model_id: string
-  /** 请求协议，决定提供商根地址后追加的端点路径。 */
+  /** 请求协议，决定运行时使用哪套请求实现。 */
   api_protocol: ProviderProtocol
+  /** 模型请求路径，与提供商 base_url 拼接成最终请求地址。 */
+  request_path: string
   reasoning_enabled: Status
   reasoning_effort: ReasoningEffort
   token_context_window: number
@@ -29,7 +31,7 @@ export interface AIProvider {
   /** 后端只返回掩码，明文需调用 fetchProviderAPIKey 单独获取。 */
   api_key: string
   api_key_set: boolean
-  /** API 版本根地址；端点路径由模型协议追加。 */
+  /** 提供商 BaseURL，请求时与模型的 request_path 拼接。 */
   base_url: string
   models: AIModel[]
   created_at: string
@@ -59,7 +61,7 @@ export interface ProviderPayload {
   provider_name: string
   /** 留空表示保留已存储的密钥；后端不会回传明文供表单预填。 */
   api_key: string
-  /** API 版本根地址，例如 https://api.example.com/v1。 */
+  /** 提供商 BaseURL，例如 https://api.deepseek.com。 */
   base_url: string
 }
 
@@ -68,6 +70,7 @@ export interface ModelPayload {
   model_name: string
   model_id: string
   api_protocol: ProviderProtocol
+  request_path: string
   reasoning_enabled: Status
   reasoning_effort: ReasoningEffort
   token_context_window: number
@@ -92,15 +95,13 @@ export interface LabelOption {
 }
 
 export interface ModelCatalogItem {
-  /** 目录内全局唯一键（提供商 ID + 模型标识）。 */
+  /** 目录内全局唯一键（提供商前缀 + 模型标识）。 */
   id: string
   provider_id: string
   provider_name: string
-  /** 上游 API 模型标识，与 id 不同。 */
+  /** 去掉提供商前缀的模型标识。 */
   model_id: string
-  api_protocol: ProviderProtocol
   name: string
-  lab: string
   family: string
   description: string
   reasoning_enabled: Status

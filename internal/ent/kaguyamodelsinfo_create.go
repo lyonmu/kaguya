@@ -99,6 +99,20 @@ func (_c *KaguyaModelsInfoCreate) SetNillableAPIProtocol(v *consts.ProviderProto
 	return _c
 }
 
+// SetRequestPath sets the "request_path" field.
+func (_c *KaguyaModelsInfoCreate) SetRequestPath(v string) *KaguyaModelsInfoCreate {
+	_c.mutation.SetRequestPath(v)
+	return _c
+}
+
+// SetNillableRequestPath sets the "request_path" field if the given value is not nil.
+func (_c *KaguyaModelsInfoCreate) SetNillableRequestPath(v *string) *KaguyaModelsInfoCreate {
+	if v != nil {
+		_c.SetRequestPath(*v)
+	}
+	return _c
+}
+
 // SetReasoningEnabled sets the "reasoning_enabled" field.
 func (_c *KaguyaModelsInfoCreate) SetReasoningEnabled(v consts.Status) *KaguyaModelsInfoCreate {
 	_c.mutation.SetReasoningEnabled(v)
@@ -271,6 +285,10 @@ func (_c *KaguyaModelsInfoCreate) defaults() error {
 		v := kaguyamodelsinfo.DefaultAPIProtocol
 		_c.mutation.SetAPIProtocol(v)
 	}
+	if _, ok := _c.mutation.RequestPath(); !ok {
+		v := kaguyamodelsinfo.DefaultRequestPath
+		_c.mutation.SetRequestPath(v)
+	}
 	if _, ok := _c.mutation.ReasoningEnabled(); !ok {
 		v := kaguyamodelsinfo.DefaultReasoningEnabled
 		_c.mutation.SetReasoningEnabled(v)
@@ -332,6 +350,9 @@ func (_c *KaguyaModelsInfoCreate) check() error {
 		if err := kaguyamodelsinfo.ModelIDValidator(v); err != nil {
 			return &ValidationError{Name: "model_id", err: fmt.Errorf(`ent: validator failed for field "KaguyaModelsInfo.model_id": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.RequestPath(); !ok {
+		return &ValidationError{Name: "request_path", err: errors.New(`ent: missing required field "KaguyaModelsInfo.request_path"`)}
 	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := kaguyamodelsinfo.IDValidator(v); err != nil {
@@ -400,6 +421,10 @@ func (_c *KaguyaModelsInfoCreate) createSpec() (*KaguyaModelsInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.APIProtocol(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString, value)
 		_node.APIProtocol = value
+	}
+	if value, ok := _c.mutation.RequestPath(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldRequestPath, field.TypeString, value)
+		_node.RequestPath = value
 	}
 	if value, ok := _c.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)
@@ -579,6 +604,18 @@ func (u *KaguyaModelsInfoUpsert) UpdateAPIProtocol() *KaguyaModelsInfoUpsert {
 // ClearAPIProtocol clears the value of the "api_protocol" field.
 func (u *KaguyaModelsInfoUpsert) ClearAPIProtocol() *KaguyaModelsInfoUpsert {
 	u.SetNull(kaguyamodelsinfo.FieldAPIProtocol)
+	return u
+}
+
+// SetRequestPath sets the "request_path" field.
+func (u *KaguyaModelsInfoUpsert) SetRequestPath(v string) *KaguyaModelsInfoUpsert {
+	u.Set(kaguyamodelsinfo.FieldRequestPath, v)
+	return u
+}
+
+// UpdateRequestPath sets the "request_path" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsert) UpdateRequestPath() *KaguyaModelsInfoUpsert {
+	u.SetExcluded(kaguyamodelsinfo.FieldRequestPath)
 	return u
 }
 
@@ -890,6 +927,20 @@ func (u *KaguyaModelsInfoUpsertOne) UpdateAPIProtocol() *KaguyaModelsInfoUpsertO
 func (u *KaguyaModelsInfoUpsertOne) ClearAPIProtocol() *KaguyaModelsInfoUpsertOne {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.ClearAPIProtocol()
+	})
+}
+
+// SetRequestPath sets the "request_path" field.
+func (u *KaguyaModelsInfoUpsertOne) SetRequestPath(v string) *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.SetRequestPath(v)
+	})
+}
+
+// UpdateRequestPath sets the "request_path" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsertOne) UpdateRequestPath() *KaguyaModelsInfoUpsertOne {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.UpdateRequestPath()
 	})
 }
 
@@ -1395,6 +1446,20 @@ func (u *KaguyaModelsInfoUpsertBulk) UpdateAPIProtocol() *KaguyaModelsInfoUpsert
 func (u *KaguyaModelsInfoUpsertBulk) ClearAPIProtocol() *KaguyaModelsInfoUpsertBulk {
 	return u.Update(func(s *KaguyaModelsInfoUpsert) {
 		s.ClearAPIProtocol()
+	})
+}
+
+// SetRequestPath sets the "request_path" field.
+func (u *KaguyaModelsInfoUpsertBulk) SetRequestPath(v string) *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.SetRequestPath(v)
+	})
+}
+
+// UpdateRequestPath sets the "request_path" field to the value that was provided on create.
+func (u *KaguyaModelsInfoUpsertBulk) UpdateRequestPath() *KaguyaModelsInfoUpsertBulk {
+	return u.Update(func(s *KaguyaModelsInfoUpsert) {
+		s.UpdateRequestPath()
 	})
 }
 

@@ -169,6 +169,20 @@ func (_c *KaguyaSystemInfoCreate) SetNillableModelSyncEnabled(v *bool) *KaguyaSy
 	return _c
 }
 
+// SetProviderSyncURL sets the "provider_sync_url" field.
+func (_c *KaguyaSystemInfoCreate) SetProviderSyncURL(v string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetProviderSyncURL(v)
+	return _c
+}
+
+// SetNillableProviderSyncURL sets the "provider_sync_url" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableProviderSyncURL(v *string) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetProviderSyncURL(*v)
+	}
+	return _c
+}
+
 // SetModelSyncURL sets the "model_sync_url" field.
 func (_c *KaguyaSystemInfoCreate) SetModelSyncURL(v string) *KaguyaSystemInfoCreate {
 	_c.mutation.SetModelSyncURL(v)
@@ -416,6 +430,10 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultModelSyncEnabled
 		_c.mutation.SetModelSyncEnabled(v)
 	}
+	if _, ok := _c.mutation.ProviderSyncURL(); !ok {
+		v := kaguyasysteminfo.DefaultProviderSyncURL
+		_c.mutation.SetProviderSyncURL(v)
+	}
 	if _, ok := _c.mutation.ModelSyncURL(); !ok {
 		v := kaguyasysteminfo.DefaultModelSyncURL
 		_c.mutation.SetModelSyncURL(v)
@@ -507,6 +525,14 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 	}
 	if _, ok := _c.mutation.ModelSyncEnabled(); !ok {
 		return &ValidationError{Name: "model_sync_enabled", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_sync_enabled"`)}
+	}
+	if _, ok := _c.mutation.ProviderSyncURL(); !ok {
+		return &ValidationError{Name: "provider_sync_url", err: errors.New(`ent: missing required field "KaguyaSystemInfo.provider_sync_url"`)}
+	}
+	if v, ok := _c.mutation.ProviderSyncURL(); ok {
+		if err := kaguyasysteminfo.ProviderSyncURLValidator(v); err != nil {
+			return &ValidationError{Name: "provider_sync_url", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_sync_url": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.ModelSyncURL(); !ok {
 		return &ValidationError{Name: "model_sync_url", err: errors.New(`ent: missing required field "KaguyaSystemInfo.model_sync_url"`)}
@@ -639,6 +665,10 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.ModelSyncEnabled(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncEnabled, field.TypeBool, value)
 		_node.ModelSyncEnabled = value
+	}
+	if value, ok := _c.mutation.ProviderSyncURL(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldProviderSyncURL, field.TypeString, value)
+		_node.ProviderSyncURL = value
 	}
 	if value, ok := _c.mutation.ModelSyncURL(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldModelSyncURL, field.TypeString, value)
@@ -889,6 +919,18 @@ func (u *KaguyaSystemInfoUpsert) SetModelSyncEnabled(v bool) *KaguyaSystemInfoUp
 // UpdateModelSyncEnabled sets the "model_sync_enabled" field to the value that was provided on create.
 func (u *KaguyaSystemInfoUpsert) UpdateModelSyncEnabled() *KaguyaSystemInfoUpsert {
 	u.SetExcluded(kaguyasysteminfo.FieldModelSyncEnabled)
+	return u
+}
+
+// SetProviderSyncURL sets the "provider_sync_url" field.
+func (u *KaguyaSystemInfoUpsert) SetProviderSyncURL(v string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldProviderSyncURL, v)
+	return u
+}
+
+// UpdateProviderSyncURL sets the "provider_sync_url" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateProviderSyncURL() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldProviderSyncURL)
 	return u
 }
 
@@ -1284,6 +1326,20 @@ func (u *KaguyaSystemInfoUpsertOne) SetModelSyncEnabled(v bool) *KaguyaSystemInf
 func (u *KaguyaSystemInfoUpsertOne) UpdateModelSyncEnabled() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateModelSyncEnabled()
+	})
+}
+
+// SetProviderSyncURL sets the "provider_sync_url" field.
+func (u *KaguyaSystemInfoUpsertOne) SetProviderSyncURL(v string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetProviderSyncURL(v)
+	})
+}
+
+// UpdateProviderSyncURL sets the "provider_sync_url" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateProviderSyncURL() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateProviderSyncURL()
 	})
 }
 
@@ -1873,6 +1929,20 @@ func (u *KaguyaSystemInfoUpsertBulk) SetModelSyncEnabled(v bool) *KaguyaSystemIn
 func (u *KaguyaSystemInfoUpsertBulk) UpdateModelSyncEnabled() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateModelSyncEnabled()
+	})
+}
+
+// SetProviderSyncURL sets the "provider_sync_url" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetProviderSyncURL(v string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetProviderSyncURL(v)
+	})
+}
+
+// UpdateProviderSyncURL sets the "provider_sync_url" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateProviderSyncURL() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateProviderSyncURL()
 	})
 }
 

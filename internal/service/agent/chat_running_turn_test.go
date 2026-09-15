@@ -54,7 +54,7 @@ func configureRunningChatProvider(t *testing.T, ctx context.Context, client *ent
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("running").SetModelID("running").Save(ctx)
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("running").SetModelID("running").SetRequestPath("/v1/chat/completions").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

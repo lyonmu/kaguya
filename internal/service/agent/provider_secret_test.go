@@ -78,7 +78,7 @@ func TestChatReportsUndecryptableProviderSecret(t *testing.T) {
 	if !secret.IsEncrypted(stored.APIKey) {
 		t.Fatalf("precondition: stored key must be ciphertext, got %q", stored.APIKey)
 	}
-	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("rotated").SetModelID("rotated").Save(ctx)
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("rotated").SetModelID("rotated").SetRequestPath("/v1/chat/completions").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestTitleGenerationReportsUndecryptableProviderSecret(t *testing.T) {
 	}
 	t.Cleanup(secret.Reset)
 	provider := seedProvider(t, ctx, client, "rotated", "sk-stale-value")
-	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("rotated").SetModelID("rotated").Save(ctx)
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("rotated").SetModelID("rotated").SetRequestPath("/v1/chat/completions").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

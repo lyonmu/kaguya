@@ -40,7 +40,7 @@ export function SystemInfoPage() {
         agent_max_steps: values.agent_max_steps, command_timeout_seconds: values.command_timeout_seconds, chat_max_retries: values.chat_max_retries,
         global_agents_paths: values.global_agents_paths ?? [],
         global_system_prompt: values.global_system_prompt ?? '', system_prompt: values.system_prompt ?? '',
-        model_sync_enabled: values.model_sync_enabled, model_sync_url: values.model_sync_url, model_sync_interval_hours: values.model_sync_interval_hours,
+        model_sync_enabled: values.model_sync_enabled, model_sync_url: values.model_sync_url, provider_sync_url: values.provider_sync_url, model_sync_interval_hours: values.model_sync_interval_hours,
         default_model_id: values.default_model_id || '', task_model_id: values.task_model_id || '',
       })
       setInfo(config)
@@ -79,8 +79,11 @@ export function SystemInfoPage() {
         </div>
         <Form.Item className="mb-3!" label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="会话首轮读取并保存快照，后续复用；路径修改仅影响新会话。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
         <div className="mb-3 rounded-lg border border-k-border-soft bg-k-canvas p-3">
-          <Form.Item className="mb-3!" label="目录同步地址" name="model_sync_url" rules={[{ required: true, whitespace: true, message: '请输入同步地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="手动与定时同步均使用此地址，会同时更新提供商目录与模型目录；修改后请先保存配置。">
-            <Input aria-label="目录同步地址" maxLength={2048} placeholder="https://models.dev/api.json" />
+          <Form.Item className="mb-3!" label="提供商目录同步地址" name="provider_sync_url" rules={[{ required: true, whitespace: true, message: '请输入同步地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="提供商目录（models.dev api.json），只用于列出可选提供商；修改后请先保存配置。">
+            <Input aria-label="提供商目录同步地址" maxLength={2048} placeholder="https://models.dev/api.json" />
+          </Form.Item>
+          <Form.Item className="mb-3!" label="模型目录同步地址" name="model_sync_url" rules={[{ required: true, whitespace: true, message: '请输入同步地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="模型目录（models.dev models.json），已按模型去重；修改后请先保存配置。">
+            <Input aria-label="模型目录同步地址" maxLength={2048} placeholder="https://models.dev/models.json" />
           </Form.Item>
           <div className="grid grid-cols-[minmax(160px,0.5fr)_minmax(180px,0.6fr)_1fr_auto] items-end gap-3 max-[800px]:grid-cols-2 max-[620px]:grid-cols-1">
             <Form.Item className="mb-0!" label="定时同步目录" name="model_sync_enabled" valuePropName="checked"><Switch /></Form.Item>

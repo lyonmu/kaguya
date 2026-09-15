@@ -111,6 +111,8 @@ func (b *SystemApiV1Group) SystemModelCreate(c *gin.Context) {
 			dtocode.ProviderNotFound.Failure(c)
 		case errors.Is(err, servicesystem.ErrModelDuplicate):
 			dtocode.ModelIDAlreadyExist.Failure(c)
+		case errors.Is(err, servicesystem.ErrModelRequestPath):
+			dtocode.RequestParameterError.Failure(c)
 		default:
 			dtocode.ModelCreateFailure.Failure(c)
 		}
@@ -147,6 +149,8 @@ func (b *SystemApiV1Group) SystemModelUpdate(c *gin.Context) {
 			dtocode.ProviderNotFound.Failure(c)
 		case errors.Is(err, servicesystem.ErrModelDuplicate):
 			dtocode.ModelIDAlreadyExist.Failure(c)
+		case errors.Is(err, servicesystem.ErrModelRequestPath):
+			dtocode.RequestParameterError.Failure(c)
 		default:
 			dtocode.ModelUpdateFailure.Failure(c)
 		}

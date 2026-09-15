@@ -106,8 +106,6 @@ func (b *SystemApiV1Group) SystemProviderCreate(c *gin.Context) {
 		switch {
 		case errors.Is(err, servicesystem.ErrProviderDuplicate):
 			dtocode.ProviderNameAlreadyExist.Failure(c)
-		case errors.Is(err, servicesystem.ErrProviderBaseURL):
-			dtocode.RequestParameterError.Failure(c)
 		default:
 			dtocode.ProviderCreateFailure.Failure(c)
 		}
@@ -141,8 +139,6 @@ func (b *SystemApiV1Group) SystemProviderUpdate(c *gin.Context) {
 		switch {
 		case errors.Is(err, servicesystem.ErrProviderNotFound):
 			dtocode.ProviderNotFound.Failure(c)
-		case errors.Is(err, servicesystem.ErrProviderBaseURL):
-			dtocode.RequestParameterError.Failure(c)
 		case errors.Is(err, servicesystem.ErrProviderDuplicate):
 			dtocode.ProviderNameAlreadyExist.Failure(c)
 		default:

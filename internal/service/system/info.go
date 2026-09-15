@@ -28,7 +28,7 @@ func (s *SystemSvc) Info(ctx context.Context) (*dtosystem.SystemInfoResp, error)
 			kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds,
 			kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldGlobalAgentsPaths,
 			kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt,
-			kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelSyncIntervalHours,
+			kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldProviderSyncURL, kaguyasysteminfo.FieldModelSyncIntervalHours,
 			kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount, kaguyasysteminfo.FieldModelSyncLastAttemptAt,
 			kaguyasysteminfo.FieldModelSyncLastSuccessAt, kaguyasysteminfo.FieldModelSyncLastError,
 			kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID,
@@ -49,7 +49,7 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || req.ChatMaxRetries != nil && (*req.ChatMaxRetries < 0 || *req.ChatMaxRetries > 20) || req.ModelSyncIntervalHours != nil && (*req.ModelSyncIntervalHours < 1 || *req.ModelSyncIntervalHours > 720) || len(req.GlobalAgentsPaths) > 32 {
 		return nil, ErrInvalidSystemInfo
 	}
-	if req.ModelSyncURL != "" && validateModelSyncURL(req.ModelSyncURL) != nil {
+	if (req.ModelSyncURL != "" && validateModelSyncURL(req.ModelSyncURL) != nil) || (req.ProviderSyncURL != "" && validateModelSyncURL(req.ProviderSyncURL) != nil) {
 		return nil, ErrInvalidSystemInfo
 	}
 	for _, path := range req.GlobalAgentsPaths {
@@ -78,6 +78,9 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	}
 	if req.ModelSyncURL != "" {
 		update.SetModelSyncURL(req.ModelSyncURL)
+	}
+	if req.ProviderSyncURL != "" {
+		update.SetProviderSyncURL(req.ProviderSyncURL)
 	}
 	if req.AgentMaxSteps != nil {
 		update.SetAgentMaxSteps(*req.AgentMaxSteps)
@@ -123,7 +126,7 @@ func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 			ContextCompactionPercent: &row.ContextCompactionPercent,
 			GlobalSystemPrompt:       &row.GlobalSystemPrompt, SystemPrompt: row.SystemPrompt,
 			AgentMaxSteps: &row.AgentMaxSteps, CommandTimeoutSeconds: &row.CommandTimeoutSeconds, ChatMaxRetries: &row.ChatMaxRetries, GlobalAgentsPaths: defaultAgentsPaths(row.GlobalAgentsPaths),
-			ModelSyncEnabled: row.ModelSyncEnabled, ModelSyncURL: row.ModelSyncURL, ModelSyncIntervalHours: &row.ModelSyncIntervalHours,
+			ModelSyncEnabled: row.ModelSyncEnabled, ModelSyncURL: row.ModelSyncURL, ProviderSyncURL: row.ProviderSyncURL, ModelSyncIntervalHours: &row.ModelSyncIntervalHours,
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
 		},
 		ModelSyncCatalogCount: row.ModelCatalogCount, ProviderCatalogCount: row.ProviderCatalogCount,

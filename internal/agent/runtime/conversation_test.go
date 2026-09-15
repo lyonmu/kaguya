@@ -19,7 +19,8 @@ import (
 const (
 	flowProviderName = ""                        // 提供商名称（仅用于运行信息记录）
 	flowProtocol     = consts.ProtocolOpenAIChat // 协议：openai-chat / openai-response / anthropic
-	flowBaseURL      = ""                        // 必填 API 版本根地址，例如 https://api.openai.com/v1
+	flowBaseURL      = ""                        // 必填提供商 BaseURL，例如 https://api.openai.com
+	flowRequestPath  = ""                        // 必填模型请求路径，例如 /v1/chat/completions
 	flowAPIKey       = ""                        // API Key
 	flowModelID      = ""                        // 模型 ID，例如 gpt-4o-mini
 )
@@ -48,11 +49,12 @@ func TestProviderConversationFlow(t *testing.T) {
 
 	a, err := New(
 		WithProvider(ProviderConfig{
-			Name:     flowProviderName,
-			Protocol: flowProtocol,
-			BaseURL:  flowBaseURL,
-			APIKey:   flowAPIKey,
-			ModelID:  flowModelID,
+			Name:        flowProviderName,
+			Protocol:    flowProtocol,
+			BaseURL:     flowBaseURL,
+			RequestPath: flowRequestPath,
+			APIKey:      flowAPIKey,
+			ModelID:     flowModelID,
 		}),
 		WithSystemPrompt("你是一个乐于助人的 AI 助手。"),
 		WithRecorder(&flowRecorder{t: t}),

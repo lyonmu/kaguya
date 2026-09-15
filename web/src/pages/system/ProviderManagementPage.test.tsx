@@ -102,7 +102,7 @@ it('fills a new provider model from the synchronized models.dev catalog', async 
     if (path.endsWith('/page')) return response({ total: 1, items: [provider], page: 1, page_size: 10 })
     if (path.endsWith('/provider/label')) return response([{ label: provider.provider_name, value: provider.id }])
     if (path.endsWith('/model/catalog')) return response({ total: 1, page: 1, page_size: 50, items: [{
-      id: 'openai/gpt-test', provider_id: 'openai', provider_name: 'OpenAI', model_id: 'gpt-test', api_protocol: 'openai-chat',
+      id: 'openai/gpt-test', provider_id: 'openai', provider_name: 'OpenAI', model_id: 'gpt-test',
       name: 'GPT Test', reasoning_enabled: 1,
       token_context_window: 128000, token_max_output_tokens: 32000,
       capability_tool_use: 1, capability_vision: 2, capability_structured_output: 1,
@@ -128,10 +128,44 @@ it('fills a new provider model from the synchronized models.dev catalog', async 
   assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#model_id')?.value, 'gpt-test')
   fireEvent.click(view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!)
   await waitFor(() => assert.ok(saved))
+  // 协议默认 Chat，请求路径由协议默认值带出。
   assert.deepEqual(saved, {
-    provider_id: 'p1', model_name: 'GPT Test', model_id: 'gpt-test', api_protocol: 'openai-chat',
+    provider_id: 'p1', model_name: 'GPT Test', model_id: 'gpt-test', api_protocol: 'openai-chat', request_path: '/chat/completions',
     reasoning_enabled: 1, reasoning_effort: 'medium', token_context_window: 128000,
     token_max_output_tokens: 32000, capability_tool_use: 1, capability_vision: 2,
     capability_structured_output: 1,
+  })
+})
+
+it('prefills a new provider from the synchronized catalog', async () => {
+  let saved: Record<string, unknown> | undefined
+  globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
+    const path = new URL(String(url), 'http://localhost').pathname
+    if (path.endsWith('/page')) return response({ total: 0, items: [], page: 1, page_size: 10 })
+    if (path.endsWith('/provider/catalog')) return response({ total: 1, page: 1, page_size: 50, items: [{
+      id: 'deepseek', name: 'DeepSeek', api: 'https://api.deepseek.com', npm: '@ai-sdk/openai-compatible', doc: '', model_count: 4,
+    }] })
+    if (path.endsWith('/provider') && init?.method === 'POST') {
+      saved = JSON.parse(String(init.body))
+      return response({ id: 'p9', ...saved })
+    }
+    return response([])
+  }) as typeof fetch
+
+  const view = render(<App><ProviderManagementPage /></App>)
+  await waitFor(() => assert.ok(view.getByText('暂无 AI 提供商')))
+  fireEvent.click(view.getByRole('button', { name: /新增提供商/ }))
+  const catalog = await waitFor(() => view.baseElement.querySelector<HTMLInputElement>('input#catalog_provider_id'))
+  assert.ok(catalog)
+  fireEvent.mouseDown(catalog)
+  fireEvent.click(await view.findByText('DeepSeek · https://api.deepseek.com'))
+  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#provider_name')?.value, 'DeepSeek')
+  assert.equal(view.baseElement.querySelector<HTMLInputElement>('input#base_url')?.value, 'https://api.deepseek.com')
+  await act(async () => {
+    fireEvent.click(view.baseElement.querySelector<HTMLButtonElement>('.ant-modal-footer .ant-btn-primary')!)
+  })
+  await waitFor(() => assert.ok(saved))
+  assert.deepEqual(saved, {
+    provider_type: 'normal', provider_name: 'DeepSeek', base_url: 'https://api.deepseek.com', api_key: '',
   })
 })

@@ -11,6 +11,11 @@ import (
 )
 
 func TestProviderTypeHeaders(t *testing.T) {
+	requestPaths := map[consts.ProviderProtocol]string{
+		consts.ProtocolOpenAIChat:      "/chat/completions",
+		consts.ProtocolOpenAIResponses: "/responses",
+		consts.ProtocolAnthropic:       "/v1/messages",
+	}
 	for _, protocol := range []consts.ProviderProtocol{consts.ProtocolOpenAIChat, consts.ProtocolOpenAIResponses, consts.ProtocolAnthropic} {
 		for _, kind := range []consts.ProviderType{"", consts.ProviderTypeNormal, consts.ProviderTypeOpenCodeGo} {
 			for _, session := range []string{"", "123456789012345"} {
@@ -33,7 +38,7 @@ func TestProviderTypeHeaders(t *testing.T) {
 						_, _ = w.Write([]byte(`{"error":{"type":"invalid_request_error","message":"test"}}`))
 					}))
 					defer server.Close()
-					a, err := New(WithProvider(ProviderConfig{Type: kind, Protocol: protocol, BaseURL: server.URL, APIKey: "test", ModelID: "test", ConversationID: session}))
+					a, err := New(WithProvider(ProviderConfig{Type: kind, Protocol: protocol, BaseURL: server.URL, RequestPath: requestPaths[protocol], APIKey: "test", ModelID: "test", ConversationID: session}))
 					if err != nil {
 						t.Fatal(err)
 					}

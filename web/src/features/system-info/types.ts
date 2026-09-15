@@ -8,6 +8,7 @@ export interface SystemInfoPayload {
   system_prompt: string
   model_sync_enabled: boolean
   model_sync_url: string
+  provider_sync_url: string
   model_sync_interval_hours?: number
   default_model_id: string
   task_model_id: string

@@ -30,7 +30,7 @@ const (
 
 var ErrModelCatalogSync = errors.New("model catalog sync failed")
 
-// catalogProviderSource 对应 models.dev api.json 顶层的单个提供商；模型内嵌在其 models 下。
+// catalogProviderSource 对应提供商目录 api.json 顶层的单个提供商；模型内嵌在其 models 下。
 type catalogProviderSource struct {
 	ID     string                        `json:"id"`
 	Name   string                        `json:"name"`
@@ -40,6 +40,7 @@ type catalogProviderSource struct {
 	Models map[string]modelCatalogSource `json:"models"`
 }
 
+// modelCatalogSource 对应模型目录 models.json 中的单个模型；键为 提供商/模型标识。
 type modelCatalogSource struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
@@ -151,74 +152,43 @@ func stopTimer(timer *time.Timer) {
 	}
 }
 
+// Sync 分别下载提供商目录（api.json）与模型目录（models.json），两个目录一旦有一边失败
+// 就整体失败，避免出现半新半旧的配置。
 func (s *ModelCatalogSyncer) Sync(ctx context.Context) (*dtosystem.SystemModelSyncResp, error) {
 	s.syncMu.Lock()
 	defer s.syncMu.Unlock()
 
 	attemptedAt := time.Now()
 	config, err := db.EntClient.KaguyaSystemInfo.Query().Where(kaguyasysteminfo.IDEQ(consts.SystemInfoID)).
-		Select(kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldModelSyncURL).
+		Select(kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldProviderSyncURL, kaguyasysteminfo.FieldModelSyncURL).
 		Only(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: query sync URL: %v", ErrModelCatalogSync, err)
 	}
-	if validateModelSyncURL(config.ModelSyncURL) != nil {
-		return nil, s.fail(ctx, attemptedAt, errors.New("invalid configured sync URL"))
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, config.ModelSyncURL, nil)
+	providerBody, err := s.download(ctx, config.ProviderSyncURL)
 	if err != nil {
-		return nil, s.fail(ctx, attemptedAt, err)
+		return nil, s.fail(ctx, attemptedAt, fmt.Errorf("provider catalog: %w", err))
 	}
-	// 显式抑制 net/http 默认值，模型目录同步同样不附加 User-Agent。
-	req.Header["User-Agent"] = nil
-	resp, err := s.client.Do(req)
+	modelBody, err := s.download(ctx, config.ModelSyncURL)
 	if err != nil {
-		return nil, s.fail(ctx, attemptedAt, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, s.fail(ctx, attemptedAt, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode))
+		return nil, s.fail(ctx, attemptedAt, fmt.Errorf("model catalog: %w", err))
 	}
 
-	limited := io.LimitReader(resp.Body, modelCatalogMaxBytes+1)
-	body, err := io.ReadAll(limited)
-	if err != nil {
-		return nil, s.fail(ctx, attemptedAt, err)
-	}
-	if len(body) > modelCatalogMaxBytes {
-		return nil, s.fail(ctx, attemptedAt, errors.New("response exceeds 8 MiB"))
-	}
 	var source map[string]catalogProviderSource
-	if err := json.Unmarshal(body, &source); err != nil {
+	if err := json.Unmarshal(providerBody, &source); err != nil {
 		return nil, s.fail(ctx, attemptedAt, err)
 	}
 	if len(source) == 0 || len(source) > providerCatalogMaxEntries {
 		return nil, s.fail(ctx, attemptedAt, fmt.Errorf("invalid provider count %d", len(source)))
 	}
-
 	providers := make([]*dtosystem.SystemProviderCatalogResp, 0, len(source))
-	models := make([]*dtosystem.SystemModelCatalogResp, 0, len(source))
+	providerNames := make(map[string]string, len(source))
 	for providerID, provider := range source {
 		if provider.ID != providerID || provider.Name == "" || len(provider.ID) > 256 || len(provider.Name) > 256 {
 			return nil, s.fail(ctx, attemptedAt, fmt.Errorf("invalid provider entry %q", providerID))
 		}
-		protocol := protocolFromNPM(provider.NPM)
-		for modelID, item := range provider.Models {
-			if item.ID == "" || item.Name == "" || item.ID != modelID || len(item.ID) > 256 || len(item.Name) > 256 || item.Limit.Context < 0 || item.Limit.Output < 0 {
-				return nil, s.fail(ctx, attemptedAt, fmt.Errorf("invalid model entry %q/%q", providerID, modelID))
-			}
-			models = append(models, &dtosystem.SystemModelCatalogResp{
-				ID: providerID + "/" + modelID, ProviderID: providerID, ProviderName: provider.Name,
-				ModelID: modelID, APIProtocol: protocol,
-				Name: item.Name, Lab: provider.Name, Family: item.Family, Description: item.Description,
-				ReasoningEnabled:   itemStatus(item.Reasoning),
-				TokenContextWindow: item.Limit.Context, TokenMaxOutputTokens: item.Limit.Output,
-				CapabilityToolUse: itemStatus(item.ToolCall), CapabilityVision: itemStatus(contains(item.Modalities.Input, "image")),
-				CapabilityStructuredOutput: itemStatus(item.StructuredOutput), InputModalities: item.Modalities.Input,
-				ReleaseDate: item.ReleaseDate, LastUpdated: item.LastUpdated,
-			})
-		}
-		// 没有 api 根地址的提供商无法用于本地配置，只保留其模型。
+		providerNames[providerID] = provider.Name
+		// 没有 api 根地址的提供商无法用于本地配置，只保留名称供模型目录使用。
 		if strings.TrimSpace(provider.API) == "" {
 			continue
 		}
@@ -227,8 +197,33 @@ func (s *ModelCatalogSyncer) Sync(ctx context.Context) (*dtosystem.SystemModelSy
 			ModelCount: len(provider.Models),
 		})
 	}
-	if len(models) == 0 || len(models) > modelCatalogMaxEntries {
-		return nil, s.fail(ctx, attemptedAt, fmt.Errorf("invalid model count %d", len(models)))
+
+	var modelSource map[string]modelCatalogSource
+	if err := json.Unmarshal(modelBody, &modelSource); err != nil {
+		return nil, s.fail(ctx, attemptedAt, err)
+	}
+	if len(modelSource) == 0 || len(modelSource) > modelCatalogMaxEntries {
+		return nil, s.fail(ctx, attemptedAt, fmt.Errorf("invalid model count %d", len(modelSource)))
+	}
+	models := make([]*dtosystem.SystemModelCatalogResp, 0, len(modelSource))
+	for key, item := range modelSource {
+		providerID, modelID, ok := strings.Cut(key, "/")
+		if !ok || providerID == "" || modelID == "" || item.ID != key || item.Name == "" || len(item.ID) > 256 || len(item.Name) > 256 || item.Limit.Context < 0 || item.Limit.Output < 0 {
+			return nil, s.fail(ctx, attemptedAt, fmt.Errorf("invalid model entry %q", key))
+		}
+		providerName := providerNames[providerID]
+		if providerName == "" {
+			providerName = providerID
+		}
+		models = append(models, &dtosystem.SystemModelCatalogResp{
+			ID: key, ProviderID: providerID, ProviderName: providerName, ModelID: modelID,
+			Name: item.Name, Family: item.Family, Description: item.Description,
+			ReasoningEnabled:   itemStatus(item.Reasoning),
+			TokenContextWindow: item.Limit.Context, TokenMaxOutputTokens: item.Limit.Output,
+			CapabilityToolUse: itemStatus(item.ToolCall), CapabilityVision: itemStatus(contains(item.Modalities.Input, "image")),
+			CapabilityStructuredOutput: itemStatus(item.StructuredOutput), InputModalities: item.Modalities.Input,
+			ReleaseDate: item.ReleaseDate, LastUpdated: item.LastUpdated,
+		})
 	}
 	sortModelCatalog(models)
 	sortProviderCatalog(providers)
@@ -254,6 +249,34 @@ func (s *ModelCatalogSyncer) Sync(ctx context.Context) (*dtosystem.SystemModelSy
 	}
 	global.Logger.Sugar().Infof("catalog synced: providers=%d models=%d", len(providers), len(models))
 	return &dtosystem.SystemModelSyncResp{Count: len(models), ProviderCount: len(providers), SyncedAt: syncedAt}, nil
+}
+
+// download 按配置地址下载一份目录 JSON，限制大小并抑制 User-Agent。
+func (s *ModelCatalogSyncer) download(ctx context.Context, rawURL string) ([]byte, error) {
+	if validateModelSyncURL(rawURL) != nil {
+		return nil, errors.New("invalid configured sync URL")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header["User-Agent"] = nil
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected HTTP status %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, modelCatalogMaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > modelCatalogMaxBytes {
+		return nil, errors.New("response exceeds 8 MiB")
+	}
+	return body, nil
 }
 
 func (s *ModelCatalogSyncer) fail(ctx context.Context, attemptedAt time.Time, cause error) error {
@@ -284,7 +307,7 @@ func (s *SystemSvc) ModelCatalog(ctx context.Context, req *dtosystem.SystemModel
 	keyword := strings.ToLower(strings.TrimSpace(req.Keyword))
 	items := make([]*dtosystem.SystemModelCatalogResp, 0, len(all))
 	for _, item := range all {
-		if keyword == "" || strings.Contains(strings.ToLower(item.Name), keyword) || strings.Contains(strings.ToLower(item.ID), keyword) || strings.Contains(strings.ToLower(item.Lab), keyword) || strings.Contains(strings.ToLower(item.Family), keyword) || strings.Contains(strings.ToLower(item.Description), keyword) {
+		if keyword == "" || strings.Contains(strings.ToLower(item.Name), keyword) || strings.Contains(strings.ToLower(item.ID), keyword) || strings.Contains(strings.ToLower(item.ProviderName), keyword) || strings.Contains(strings.ToLower(item.Family), keyword) || strings.Contains(strings.ToLower(item.Description), keyword) {
 			items = append(items, item)
 		}
 	}
@@ -336,15 +359,6 @@ func (s *SystemSvc) ProviderCatalog(ctx context.Context, req *dtosystem.SystemPr
 		end = total
 	}
 	return &dtosystem.SystemProviderCatalogListResp{Total: total, Items: items[start:end], Page: req.Page, PageSize: req.PageSize}, nil
-}
-
-// protocolFromNPM 从 models.dev 的 npm 包推断默认请求协议；未知包按 Chat 处理，
-// 用户可以在新增模型时改成 Response 或 Message。
-func protocolFromNPM(npm string) consts.ProviderProtocol {
-	if strings.Contains(npm, "anthropic") {
-		return consts.ProtocolAnthropic
-	}
-	return consts.ProtocolOpenAIChat
 }
 
 // sortProviderCatalog 按名称 A→Z 排序；名称相同再按 ID，保证顺序稳定。

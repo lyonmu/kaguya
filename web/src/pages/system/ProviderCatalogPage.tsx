@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  ApiOutlined,
-  CheckCircleOutlined,
   LinkOutlined,
-  PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
   SyncOutlined,
@@ -13,29 +10,18 @@ import {
   App,
   Button,
   Empty,
-  Form,
   Input,
-  Modal,
   Pagination,
-  Select,
   Space,
   Spin,
-  Tag,
   Tooltip,
   Typography,
 } from 'antd'
 import {
-  createProvider,
   fetchProviderCatalogPage,
-  fetchProviderLabels,
   syncModelCatalog,
 } from '../../features/providers/api'
-import type {
-  LabelOption,
-  ProviderCatalogItem,
-  ProviderCatalogResponse,
-  ProviderPayload,
-} from '../../features/providers/types'
+import type { ProviderCatalogResponse } from '../../features/providers/types'
 import { openExternal } from '../../platform/host'
 
 const PAGE_SIZE = 20
@@ -53,20 +39,14 @@ const bodyCellClass = 'border-b border-k-border-soft px-4 py-3 align-middle'
 
 export function ProviderCatalogPage() {
   const { message } = App.useApp()
-  const [addForm] = Form.useForm<ProviderPayload>()
   const [data, setData] = useState<ProviderCatalogResponse>(EMPTY_CATALOG)
-  const [labels, setLabels] = useState<LabelOption[]>([])
   const [draftKeyword, setDraftKeyword] = useState('')
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [selected, setSelected] = useState<ProviderCatalogItem>()
   const [revision, setRevision] = useState(0)
-
-  const existingNames = useMemo(() => new Set(labels.map(label => label.label)), [labels])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -80,15 +60,6 @@ export function ProviderCatalogPage() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [keyword, page, revision])
-
-  // 已添加标记按提供商名称判断，与服务端名称唯一约束保持一致。
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchProviderLabels(controller.signal)
-      .then(options => { if (!controller.signal.aborted) setLabels(options ?? []) })
-      .catch(() => undefined)
-    return () => controller.abort()
-  }, [revision])
 
   const search = () => {
     setPage(1)
@@ -109,38 +80,13 @@ export function ProviderCatalogPage() {
     }
   }
 
-  const showAdd = (item: ProviderCatalogItem) => {
-    setSelected(item)
-    addForm.setFieldsValue({
-      provider_type: 'normal',
-      provider_name: item.name,
-      base_url: item.api,
-      api_key: '',
-    })
-  }
-
-  const saveProvider = async () => {
-    try {
-      const values = await addForm.validateFields()
-      setSaving(true)
-      await createProvider(values)
-      void message.success('提供商已创建，可在「提供商与模型」中添加模型')
-      setSelected(undefined)
-      setRevision(value => value + 1)
-    } catch (saveError) {
-      if (saveError instanceof Error) message.error(saveError.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <div className="mx-auto w-full max-w-[1480px] px-6 py-5 max-[620px]:px-3.5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="m-0 text-[20px] font-semibold text-k-text">提供商目录</h2>
           <p className="mt-1 mb-0 text-sm text-k-text-muted">
-            来自 models.dev 的 API 根地址，按名称 A→Z 排列；选择后预填新建表单，也可以回到「提供商与模型」自定义
+            来自 models.dev 的提供商目录（api.json），按名称 A→Z 排列；新增提供商请在「提供商与模型」中搜索添加
           </p>
         </div>
         <Space wrap>
@@ -165,7 +111,7 @@ export function ProviderCatalogPage() {
       <div className="overflow-hidden rounded-xl border border-k-border bg-k-surface">
         <Spin spinning={loading}>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] table-fixed border-collapse text-[13px]">
+            <table className="w-full min-w-[860px] table-fixed border-collapse text-[13px]">
               <thead>
                 <tr>
                   <th className={`${headCellClass} w-[290px]`}>提供商</th>
@@ -173,66 +119,55 @@ export function ProviderCatalogPage() {
                   <th className={`${headCellClass} w-[240px]`}>包</th>
                   <th className={headCellClass}>API</th>
                   <th className={`${headCellClass} w-[80px] text-center`}>文档</th>
-                  <th className={`${headCellClass} w-[110px] text-right`}>操作</th>
                 </tr>
               </thead>
               <tbody className="[&>tr:last-child>td]:border-b-0">
-                {data.items.map(item => {
-                  const added = existingNames.has(item.name)
-                  return (
-                    <tr className="transition-colors hover:bg-k-selected/40" key={item.id}>
-                      <td className={bodyCellClass}>
-                        <div className="flex items-center gap-2.5">
-                          <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-k-border-soft bg-k-selected font-mono text-[11px] font-semibold uppercase text-k-primary">
-                            {providerInitial(item.name)}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium text-k-text" title={item.name}>{item.name}</span>
-                            <span className="mt-0.5 block truncate font-mono text-[10px] text-k-text-subtle">{item.id}</span>
-                          </span>
-                        </div>
-                      </td>
-                      <td className={bodyCellClass}>
-                        <span className="font-mono text-[12px] text-k-text-muted">{item.model_count.toLocaleString()}</span>
-                      </td>
-                      <td className={bodyCellClass}>
-                        <span className="block truncate font-mono text-[12px] text-k-text-muted" title={item.npm}>{item.npm || '—'}</span>
-                      </td>
-                      <td className={bodyCellClass}>
-                        <Typography.Text
-                          className="block! font-mono text-[12px]!"
-                          copyable={{ text: item.api }}
-                          ellipsis={{ tooltip: item.api }}
-                          type="secondary"
-                        >
-                          {item.api}
-                        </Typography.Text>
-                      </td>
-                      <td className={`${bodyCellClass} text-center`}>
-                        {item.doc ? (
-                          <Tooltip title={item.doc}>
-                            <Button
-                              aria-label={`打开 ${item.name} 文档`}
-                              icon={<LinkOutlined />}
-                              onClick={() => { void openExternal(item.doc).catch(() => { void message.error('打开文档失败') }) }}
-                              size="small"
-                              type="text"
-                            />
-                          </Tooltip>
-                        ) : (
-                          <span className="text-[11px] text-k-text-subtle">—</span>
-                        )}
-                      </td>
-                      <td className={`${bodyCellClass} text-right`}>
-                        {added ? (
-                          <Tag icon={<CheckCircleOutlined />}>已添加</Tag>
-                        ) : (
-                          <Button icon={<PlusOutlined />} onClick={() => showAdd(item)} size="small" type="link">添加</Button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
+                {data.items.map(item => (
+                  <tr className="transition-colors hover:bg-k-selected/40" key={item.id}>
+                    <td className={bodyCellClass}>
+                      <div className="flex items-center gap-2.5">
+                        <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-k-border-soft bg-k-selected font-mono text-[11px] font-semibold uppercase text-k-primary">
+                          {providerInitial(item.name)}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-k-text" title={item.name}>{item.name}</span>
+                          <span className="mt-0.5 block truncate font-mono text-[10px] text-k-text-subtle">{item.id}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td className={bodyCellClass}>
+                      <span className="font-mono text-[12px] text-k-text-muted">{item.model_count.toLocaleString()}</span>
+                    </td>
+                    <td className={bodyCellClass}>
+                      <span className="block truncate font-mono text-[12px] text-k-text-muted" title={item.npm}>{item.npm || '—'}</span>
+                    </td>
+                    <td className={bodyCellClass}>
+                      <Typography.Text
+                        className="block! font-mono text-[12px]!"
+                        copyable={{ text: item.api }}
+                        ellipsis={{ tooltip: item.api }}
+                        type="secondary"
+                      >
+                        {item.api}
+                      </Typography.Text>
+                    </td>
+                    <td className={`${bodyCellClass} text-center`}>
+                      {item.doc ? (
+                        <Tooltip title={item.doc}>
+                          <Button
+                            aria-label={`打开 ${item.name} 文档`}
+                            icon={<LinkOutlined />}
+                            onClick={() => { void openExternal(item.doc).catch(() => { void message.error('打开文档失败') }) }}
+                            size="small"
+                            type="text"
+                          />
+                        </Tooltip>
+                      ) : (
+                        <span className="text-[11px] text-k-text-subtle">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -257,36 +192,6 @@ export function ProviderCatalogPage() {
           </div>
         </Spin>
       </div>
-
-      <Modal
-        confirmLoading={saving}
-        destroyOnHidden
-        okText="创建"
-        onCancel={() => setSelected(undefined)}
-        onOk={saveProvider}
-        open={Boolean(selected)}
-        title={selected ? `添加 ${selected.name}` : '添加提供商'}
-      >
-        <Form className="pt-3" form={addForm} layout="vertical" requiredMark={false}>
-          <Form.Item label="提供商名称" name="provider_name" rules={[{ required: true, message: '请输入提供商名称' }]}>
-            <Input maxLength={100} placeholder="可自定义名称" prefix={<ApiOutlined />} />
-          </Form.Item>
-          <Form.Item label="提供商类型" name="provider_type" rules={[{ required: true }]} tooltip="OpenCode Go 会在请求头 x-opencode-session 中传入会话 ID。">
-            <Select options={[{ label: '标准（normal）', value: 'normal' }, { label: 'OpenCode Go', value: 'opencode-go' }]} />
-          </Form.Item>
-          <Form.Item
-            label="API 根地址"
-            name="base_url"
-            rules={[{ required: true, message: '请输入 API 版本根地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]}
-            tooltip="只填到 API 版本段的根地址（如 /v1）；端点路径由模型的请求协议自动追加。"
-          >
-            <Input placeholder="例如 https://api.example.com/v1" />
-          </Form.Item>
-          <Form.Item label="API Key" name="api_key">
-            <Input.Password autoComplete="new-password" placeholder="请输入 API Key" />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }

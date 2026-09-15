@@ -98,7 +98,7 @@ func TestConversationTitleBackgroundResult(t *testing.T) {
 					close(release)
 				}
 			}()
-			cfg := agentruntime.ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL, APIKey: "test", ModelID: "test", ConversationID: "123"}
+			cfg := agentruntime.ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL, RequestPath: "/v1/chat/completions", APIKey: "test", ModelID: "test", ConversationID: "123"}
 			result := startConversationTitle(client, zap.NewNop(), cfg, "首轮问题", "首轮回答")
 			select {
 			case <-started:
@@ -220,7 +220,7 @@ func TestGenerateConversationTitleTimeout(t *testing.T) {
 	defer close(release)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	_, err := generateConversationTitle(ctx, agentruntime.ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL, APIKey: "test", ModelID: "test"}, "问题", "回答")
+	_, err := generateConversationTitle(ctx, agentruntime.ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL, RequestPath: "/v1/chat/completions", APIKey: "test", ModelID: "test"}, "问题", "回答")
 	if err == nil {
 		t.Fatal("expected timeout")
 	}

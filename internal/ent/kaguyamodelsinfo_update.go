@@ -119,6 +119,20 @@ func (_u *KaguyaModelsInfoUpdate) ClearAPIProtocol() *KaguyaModelsInfoUpdate {
 	return _u
 }
 
+// SetRequestPath sets the "request_path" field.
+func (_u *KaguyaModelsInfoUpdate) SetRequestPath(v string) *KaguyaModelsInfoUpdate {
+	_u.mutation.SetRequestPath(v)
+	return _u
+}
+
+// SetNillableRequestPath sets the "request_path" field if the given value is not nil.
+func (_u *KaguyaModelsInfoUpdate) SetNillableRequestPath(v *string) *KaguyaModelsInfoUpdate {
+	if v != nil {
+		_u.SetRequestPath(*v)
+	}
+	return _u
+}
+
 // SetReasoningEnabled sets the "reasoning_enabled" field.
 func (_u *KaguyaModelsInfoUpdate) SetReasoningEnabled(v consts.Status) *KaguyaModelsInfoUpdate {
 	_u.mutation.ResetReasoningEnabled()
@@ -421,6 +435,9 @@ func (_u *KaguyaModelsInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.APIProtocolCleared() {
 		_spec.ClearField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString)
 	}
+	if value, ok := _u.mutation.RequestPath(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldRequestPath, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)
 	}
@@ -617,6 +634,20 @@ func (_u *KaguyaModelsInfoUpdateOne) SetNillableAPIProtocol(v *consts.ProviderPr
 // ClearAPIProtocol clears the value of the "api_protocol" field.
 func (_u *KaguyaModelsInfoUpdateOne) ClearAPIProtocol() *KaguyaModelsInfoUpdateOne {
 	_u.mutation.ClearAPIProtocol()
+	return _u
+}
+
+// SetRequestPath sets the "request_path" field.
+func (_u *KaguyaModelsInfoUpdateOne) SetRequestPath(v string) *KaguyaModelsInfoUpdateOne {
+	_u.mutation.SetRequestPath(v)
+	return _u
+}
+
+// SetNillableRequestPath sets the "request_path" field if the given value is not nil.
+func (_u *KaguyaModelsInfoUpdateOne) SetNillableRequestPath(v *string) *KaguyaModelsInfoUpdateOne {
+	if v != nil {
+		_u.SetRequestPath(*v)
+	}
 	return _u
 }
 
@@ -951,6 +982,9 @@ func (_u *KaguyaModelsInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if _u.mutation.APIProtocolCleared() {
 		_spec.ClearField(kaguyamodelsinfo.FieldAPIProtocol, field.TypeString)
+	}
+	if value, ok := _u.mutation.RequestPath(); ok {
+		_spec.SetField(kaguyamodelsinfo.FieldRequestPath, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ReasoningEnabled(); ok {
 		_spec.SetField(kaguyamodelsinfo.FieldReasoningEnabled, field.TypeInt, value)

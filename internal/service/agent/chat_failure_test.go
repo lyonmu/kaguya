@@ -67,7 +67,7 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			model, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("test").SetModelID("test").Save(ctx)
+			model, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("test").SetModelID("test").SetRequestPath("/v1/chat/completions").Save(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -179,7 +179,7 @@ func TestChatRetriesTransientStreamOverload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("retry").SetModelID("retry").Save(ctx)
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(p.ID).SetModelName("retry").SetModelID("retry").SetRequestPath("/v1/chat/completions").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

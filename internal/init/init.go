@@ -15,5 +15,11 @@ func Run(ctx context.Context, client *ent.Client) error {
 	if err := Info(ctx, client); err != nil {
 		return fmt.Errorf("initialize system info: %w", err)
 	}
+	if err := migrateCatalogSyncURLs(ctx, client); err != nil {
+		return fmt.Errorf("migrate catalog sync URLs: %w", err)
+	}
+	if err := backfillModelRequestPaths(ctx, client); err != nil {
+		return fmt.Errorf("backfill model request paths: %w", err)
+	}
 	return nil
 }

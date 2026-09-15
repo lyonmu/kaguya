@@ -2,7 +2,6 @@ package system
 
 import (
 	"context"
-	"net/url"
 	"strings"
 	"time"
 
@@ -19,16 +18,6 @@ import (
 
 func providerQuery(client *ent.Client) *ent.KaguyaProviderInfoQuery {
 	return client.KaguyaProviderInfo.Query().Where(kaguyaproviderinfo.DeletedAtIsNil())
-}
-
-// validateProviderBaseURL 要求填写到 API 版本段的根地址：端点路径由模型协议追加，
-// 带查询或片段的地址无法可靠拼接。
-func validateProviderBaseURL(raw string) error {
-	u, err := url.Parse(raw)
-	if err != nil || u.RawQuery != "" || u.Fragment != "" {
-		return ErrProviderBaseURL
-	}
-	return nil
 }
 
 func providerQueryWithModels(client *ent.Client) *ent.KaguyaProviderInfoQuery {
@@ -89,9 +78,6 @@ func (s *SystemSvc) ProviderCreate(ctx context.Context, req *dtosystem.SystemPro
 	if kind == "" {
 		kind = consts.ProviderTypeNormal
 	}
-	if err := validateProviderBaseURL(req.BaseURL); err != nil {
-		return nil, err
-	}
 	apiKey, err := secret.Encrypt(req.APIKey)
 	if err != nil {
 		global.Logger.Sugar().Errorf("encrypt provider api key failed: name=%s, err=%v", req.ProviderName, err)
@@ -122,9 +108,6 @@ func (s *SystemSvc) ProviderUpdate(ctx context.Context, id string, req *dtosyste
 	kind := req.ProviderType
 	if kind == "" {
 		kind = consts.ProviderTypeNormal
-	}
-	if err := validateProviderBaseURL(req.BaseURL); err != nil {
-		return nil, err
 	}
 	update := db.EntClient.KaguyaProviderInfo.UpdateOneID(id).
 		Where(kaguyaproviderinfo.DeletedAtIsNil()).

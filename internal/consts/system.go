@@ -23,9 +23,11 @@ Your overall personality is **calm, perceptive, restrained, and reliable, with a
 
 const SystemInfoID = "global"
 
-// DefaultModelCatalogURL 同时提供提供商目录与全量模型目录；没有 api 字段的提供商
-// 只进入模型目录，不会出现在提供商目录中。
-const DefaultModelCatalogURL = "https://models.dev/api.json"
+// DefaultProviderCatalogURL 是 models.dev 的提供商目录（api.json），只用于列出可选提供商。
+const DefaultProviderCatalogURL = "https://models.dev/api.json"
+
+// DefaultModelCatalogURL 是 models.dev 的模型目录（models.json），已按模型去重。
+const DefaultModelCatalogURL = "https://models.dev/models.json"
 
 type Status int
 
@@ -35,8 +37,24 @@ const (
 	IsFalse   Status = 2
 )
 
-// ProviderProtocol 定义模型的请求协议类型，决定提供商根地址后追加的端点路径。
+// ProviderProtocol 定义模型的请求协议类型，决定运行时使用哪套请求实现。
 type ProviderProtocol string
+
+// DefaultRequestPath 返回协议的默认请求路径（模型 request_path 的默认值）：
+// 由消费者按需拼到提供商 BaseURL 后面，不带 API 版本段。
+// 前端 ProviderManagementPage 的 protocolDefaultPath 与此保持一致。
+func (p ProviderProtocol) DefaultRequestPath() string {
+	switch p {
+	case ProtocolOpenAIChat:
+		return "/chat/completions"
+	case ProtocolOpenAIResponses:
+		return "/responses"
+	case ProtocolAnthropic:
+		return "/messages"
+	default:
+		return ""
+	}
+}
 
 const (
 	// ProtocolOpenAI 表示 OpenAI 的 Chat Completions API 协议

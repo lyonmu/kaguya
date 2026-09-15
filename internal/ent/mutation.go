@@ -6625,6 +6625,7 @@ type KaguyaModelsInfoMutation struct {
 	model_name                      *string
 	model_id                        *string
 	api_protocol                    *consts.ProviderProtocol
+	request_path                    *string
 	reasoning_enabled               *consts.Status
 	addreasoning_enabled            *consts.Status
 	reasoning_effort                *consts.ReasoningEffort
@@ -7026,6 +7027,42 @@ func (m *KaguyaModelsInfoMutation) APIProtocolCleared() bool {
 func (m *KaguyaModelsInfoMutation) ResetAPIProtocol() {
 	m.api_protocol = nil
 	delete(m.clearedFields, kaguyamodelsinfo.FieldAPIProtocol)
+}
+
+// SetRequestPath sets the "request_path" field.
+func (m *KaguyaModelsInfoMutation) SetRequestPath(s string) {
+	m.request_path = &s
+}
+
+// RequestPath returns the value of the "request_path" field in the mutation.
+func (m *KaguyaModelsInfoMutation) RequestPath() (r string, exists bool) {
+	v := m.request_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestPath returns the old "request_path" field's value of the KaguyaModelsInfo entity.
+// If the KaguyaModelsInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaModelsInfoMutation) OldRequestPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestPath: %w", err)
+	}
+	return oldValue.RequestPath, nil
+}
+
+// ResetRequestPath resets all changes to the "request_path" field.
+func (m *KaguyaModelsInfoMutation) ResetRequestPath() {
+	m.request_path = nil
 }
 
 // SetReasoningEnabled sets the "reasoning_enabled" field.
@@ -7558,7 +7595,7 @@ func (m *KaguyaModelsInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaModelsInfoMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldCreatedAt)
 	}
@@ -7579,6 +7616,9 @@ func (m *KaguyaModelsInfoMutation) Fields() []string {
 	}
 	if m.api_protocol != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldAPIProtocol)
+	}
+	if m.request_path != nil {
+		fields = append(fields, kaguyamodelsinfo.FieldRequestPath)
 	}
 	if m.reasoning_enabled != nil {
 		fields = append(fields, kaguyamodelsinfo.FieldReasoningEnabled)
@@ -7623,6 +7663,8 @@ func (m *KaguyaModelsInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelID()
 	case kaguyamodelsinfo.FieldAPIProtocol:
 		return m.APIProtocol()
+	case kaguyamodelsinfo.FieldRequestPath:
+		return m.RequestPath()
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		return m.ReasoningEnabled()
 	case kaguyamodelsinfo.FieldReasoningEffort:
@@ -7660,6 +7702,8 @@ func (m *KaguyaModelsInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldModelID(ctx)
 	case kaguyamodelsinfo.FieldAPIProtocol:
 		return m.OldAPIProtocol(ctx)
+	case kaguyamodelsinfo.FieldRequestPath:
+		return m.OldRequestPath(ctx)
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		return m.OldReasoningEnabled(ctx)
 	case kaguyamodelsinfo.FieldReasoningEffort:
@@ -7731,6 +7775,13 @@ func (m *KaguyaModelsInfoMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAPIProtocol(v)
+		return nil
+	case kaguyamodelsinfo.FieldRequestPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestPath(v)
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		v, ok := value.(consts.Status)
@@ -7982,6 +8033,9 @@ func (m *KaguyaModelsInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyamodelsinfo.FieldAPIProtocol:
 		m.ResetAPIProtocol()
+		return nil
+	case kaguyamodelsinfo.FieldRequestPath:
+		m.ResetRequestPath()
 		return nil
 	case kaguyamodelsinfo.FieldReasoningEnabled:
 		m.ResetReasoningEnabled()
@@ -9630,6 +9684,7 @@ type KaguyaSystemInfoMutation struct {
 	global_system_prompt          *string
 	system_prompt                 *string
 	model_sync_enabled            *bool
+	provider_sync_url             *string
 	model_sync_url                *string
 	model_sync_interval_hours     *int
 	addmodel_sync_interval_hours  *int
@@ -10272,6 +10327,42 @@ func (m *KaguyaSystemInfoMutation) ResetModelSyncEnabled() {
 	m.model_sync_enabled = nil
 }
 
+// SetProviderSyncURL sets the "provider_sync_url" field.
+func (m *KaguyaSystemInfoMutation) SetProviderSyncURL(s string) {
+	m.provider_sync_url = &s
+}
+
+// ProviderSyncURL returns the value of the "provider_sync_url" field in the mutation.
+func (m *KaguyaSystemInfoMutation) ProviderSyncURL() (r string, exists bool) {
+	v := m.provider_sync_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProviderSyncURL returns the old "provider_sync_url" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldProviderSyncURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProviderSyncURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProviderSyncURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProviderSyncURL: %w", err)
+	}
+	return oldValue.ProviderSyncURL, nil
+}
+
+// ResetProviderSyncURL resets all changes to the "provider_sync_url" field.
+func (m *KaguyaSystemInfoMutation) ResetProviderSyncURL() {
+	m.provider_sync_url = nil
+}
+
 // SetModelSyncURL sets the "model_sync_url" field.
 func (m *KaguyaSystemInfoMutation) SetModelSyncURL(s string) {
 	m.model_sync_url = &s
@@ -10788,7 +10879,7 @@ func (m *KaguyaSystemInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaSystemInfoMutation) Fields() []string {
-	fields := make([]string, 0, 22)
+	fields := make([]string, 0, 23)
 	if m.created_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
 	}
@@ -10821,6 +10912,9 @@ func (m *KaguyaSystemInfoMutation) Fields() []string {
 	}
 	if m.model_sync_enabled != nil {
 		fields = append(fields, kaguyasysteminfo.FieldModelSyncEnabled)
+	}
+	if m.provider_sync_url != nil {
+		fields = append(fields, kaguyasysteminfo.FieldProviderSyncURL)
 	}
 	if m.model_sync_url != nil {
 		fields = append(fields, kaguyasysteminfo.FieldModelSyncURL)
@@ -10885,6 +10979,8 @@ func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.SystemPrompt()
 	case kaguyasysteminfo.FieldModelSyncEnabled:
 		return m.ModelSyncEnabled()
+	case kaguyasysteminfo.FieldProviderSyncURL:
+		return m.ProviderSyncURL()
 	case kaguyasysteminfo.FieldModelSyncURL:
 		return m.ModelSyncURL()
 	case kaguyasysteminfo.FieldModelSyncIntervalHours:
@@ -10938,6 +11034,8 @@ func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldSystemPrompt(ctx)
 	case kaguyasysteminfo.FieldModelSyncEnabled:
 		return m.OldModelSyncEnabled(ctx)
+	case kaguyasysteminfo.FieldProviderSyncURL:
+		return m.OldProviderSyncURL(ctx)
 	case kaguyasysteminfo.FieldModelSyncURL:
 		return m.OldModelSyncURL(ctx)
 	case kaguyasysteminfo.FieldModelSyncIntervalHours:
@@ -11045,6 +11143,13 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetModelSyncEnabled(v)
+		return nil
+	case kaguyasysteminfo.FieldProviderSyncURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProviderSyncURL(v)
 		return nil
 	case kaguyasysteminfo.FieldModelSyncURL:
 		v, ok := value.(string)
@@ -11318,6 +11423,9 @@ func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyasysteminfo.FieldModelSyncEnabled:
 		m.ResetModelSyncEnabled()
+		return nil
+	case kaguyasysteminfo.FieldProviderSyncURL:
+		m.ResetProviderSyncURL()
 		return nil
 	case kaguyasysteminfo.FieldModelSyncURL:
 		m.ResetModelSyncURL()

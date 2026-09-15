@@ -13,6 +13,7 @@ type SystemInfoSaveReq struct {
 	SystemPrompt             string   `json:"system_prompt" binding:"max=20000"`
 	ModelSyncEnabled         bool     `json:"model_sync_enabled"`
 	ModelSyncURL             string   `json:"model_sync_url" binding:"omitempty,max=2048"`
+	ProviderSyncURL          string   `json:"provider_sync_url" binding:"omitempty,max=2048"`
 	ModelSyncIntervalHours   *int     `json:"model_sync_interval_hours,omitempty" binding:"omitempty,min=1,max=720"`
 	DefaultModelID           string   `json:"default_model_id" binding:"max=64"`
 	TaskModelID              string   `json:"task_model_id" binding:"max=64"`

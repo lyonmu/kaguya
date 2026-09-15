@@ -102,6 +102,11 @@ func APIProtocol(v consts.ProviderProtocol) predicate.KaguyaModelsInfo {
 	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldAPIProtocol, vc))
 }
 
+// RequestPath applies equality check predicate on the "request_path" field. It's identical to RequestPathEQ.
+func RequestPath(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldRequestPath, v))
+}
+
 // ReasoningEnabled applies equality check predicate on the "reasoning_enabled" field. It's identical to ReasoningEnabledEQ.
 func ReasoningEnabled(v consts.Status) predicate.KaguyaModelsInfo {
 	vc := int(v)
@@ -559,6 +564,71 @@ func APIProtocolEqualFold(v consts.ProviderProtocol) predicate.KaguyaModelsInfo 
 func APIProtocolContainsFold(v consts.ProviderProtocol) predicate.KaguyaModelsInfo {
 	vc := string(v)
 	return predicate.KaguyaModelsInfo(sql.FieldContainsFold(FieldAPIProtocol, vc))
+}
+
+// RequestPathEQ applies the EQ predicate on the "request_path" field.
+func RequestPathEQ(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldEQ(FieldRequestPath, v))
+}
+
+// RequestPathNEQ applies the NEQ predicate on the "request_path" field.
+func RequestPathNEQ(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldNEQ(FieldRequestPath, v))
+}
+
+// RequestPathIn applies the In predicate on the "request_path" field.
+func RequestPathIn(vs ...string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldIn(FieldRequestPath, vs...))
+}
+
+// RequestPathNotIn applies the NotIn predicate on the "request_path" field.
+func RequestPathNotIn(vs ...string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldNotIn(FieldRequestPath, vs...))
+}
+
+// RequestPathGT applies the GT predicate on the "request_path" field.
+func RequestPathGT(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldGT(FieldRequestPath, v))
+}
+
+// RequestPathGTE applies the GTE predicate on the "request_path" field.
+func RequestPathGTE(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldGTE(FieldRequestPath, v))
+}
+
+// RequestPathLT applies the LT predicate on the "request_path" field.
+func RequestPathLT(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldLT(FieldRequestPath, v))
+}
+
+// RequestPathLTE applies the LTE predicate on the "request_path" field.
+func RequestPathLTE(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldLTE(FieldRequestPath, v))
+}
+
+// RequestPathContains applies the Contains predicate on the "request_path" field.
+func RequestPathContains(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldContains(FieldRequestPath, v))
+}
+
+// RequestPathHasPrefix applies the HasPrefix predicate on the "request_path" field.
+func RequestPathHasPrefix(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldHasPrefix(FieldRequestPath, v))
+}
+
+// RequestPathHasSuffix applies the HasSuffix predicate on the "request_path" field.
+func RequestPathHasSuffix(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldHasSuffix(FieldRequestPath, v))
+}
+
+// RequestPathEqualFold applies the EqualFold predicate on the "request_path" field.
+func RequestPathEqualFold(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldEqualFold(FieldRequestPath, v))
+}
+
+// RequestPathContainsFold applies the ContainsFold predicate on the "request_path" field.
+func RequestPathContainsFold(v string) predicate.KaguyaModelsInfo {
+	return predicate.KaguyaModelsInfo(sql.FieldContainsFold(FieldRequestPath, v))
 }
 
 // ReasoningEnabledEQ applies the EQ predicate on the "reasoning_enabled" field.
