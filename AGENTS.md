@@ -28,7 +28,7 @@
 
 - 当前应用按 **macOS Desktop 默认 + 可选 HTTP 服务 + SQLCipher 单后端** 使用：macOS 无参数启动为原生窗口，`--web` 启动 HTTP 服务（`--host`／`--port`／`--trusted-host` 仅对 `--web` 生效）。`make install` 完整构建并安装二进制到 `~/.local/bin/<仓库目录名>`，须先创建目标目录；`make package-macos` 组装 `target/Kaguya.app`，`make dmg-macos` 打包 `target/Kaguya-<版本>.dmg`。主机须提供 Bash 和项目工具链，默认不构建或测试 Docker。
 - 默认数据与密钥在 `~/.kaguya/kaguya.db` / `~/.kaguya/kaguya.key`，不写入应用包。仅全新数据库且未指定密钥路径时自动生成默认密钥；已有数据缺密钥必须报错。备份须退出应用并保留数据库、剩余 WAL/SHM 和密钥，不同时以多个实例打开同一数据库。
-- Finder 启动时 `internal/desktop/environment_darwin.go` 尝试从登录 shell 补充 `PATH`（5 秒超时），只导入 PATH，不导入代理等其他环境变量；终端启动沿用已有环境。不要把主机目录或终端环境硬编码进应用。
+- Finder 启动时 `internal/desktop/environment_darwin.go` 尝试通过登录 shell 显式加载 `~/.zshrc`，并导入其中导出的完整环境（5 秒超时）；终端启动沿用已有环境。不要把主机目录或终端环境硬编码进应用。
 - `make native` 先在 `target/` 下构建固定版本的 C 依赖：macOS 构建 OpenSSL 静态库到 `target/openssl`，再构建 SQLCipher 到 `target/sqlcipher`；两者都以 `MACOSX_DEPLOYMENT_TARGET`（默认 14.0）为部署目标。Go 侧固定使用 `github.com/mattn/go-sqlite3`（`USE_LIBSQLITE3`），`modernc.org/sqlite` 仅作为测试用的明文对照引擎。不要重新引入其他数据库驱动。
 - Web 模式的 `--web` 提供入站 HTTP，公开访问的 TLS 由网关负责；聊天传输为 POST SSE，不恢复应用 WebSocket。网关需传递原始外部 Host／Origin／Sec-Fetch-Site，并通过 `--trusted-host` 精确放行。Desktop 不创建监听端口，请求来源由原生通道中间件校验。
 
