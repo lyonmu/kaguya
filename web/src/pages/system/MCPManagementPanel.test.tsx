@@ -34,6 +34,76 @@ after(async () => {
 
 const server: MCPServer = { id: 'mcp-1', name: '示例服务', transport: 'streamable-http', command: '', args: [], env: {}, working_directory: '', url: 'https://example.com/mcp', headers: {}, timeout_seconds: 60, enabled: false, status: { state: 'stopped', tools: [] }, created_at: '2026-09-10T00:00:00Z', updated_at: '2026-09-10T00:00:00Z' }
 
+it('serializes visibility polling, pauses hidden timers and cleans up on unmount', async () => {
+  const nativeSetTimeout = globalThis.setTimeout
+  const nativeClearTimeout = globalThis.clearTimeout
+  const visibility = Object.getOwnPropertyDescriptor(document, 'visibilityState')
+  let now = 0
+  const timers = new Map<ReturnType<typeof setTimeout>, { at: number; run: () => void }>()
+  // Only the panel's five-second polling timers use this clock; Ant animations keep real timers.
+  globalThis.setTimeout = ((fn: () => void, delay?: number, ...args: unknown[]) => {
+    if (delay !== 5000) return nativeSetTimeout(fn, delay, ...args)
+    const id = {} as ReturnType<typeof setTimeout>
+    timers.set(id, { at: now + delay, run: fn })
+    return id
+  }) as typeof setTimeout
+  globalThis.clearTimeout = ((id: ReturnType<typeof setTimeout>) => { if (!timers.delete(id)) nativeClearTimeout(id) }) as typeof clearTimeout
+  const changeVisibility = (value: 'hidden' | 'visible') => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value })
+    document.dispatchEvent(new dom.Event('visibilitychange') as unknown as Event)
+  }
+  const pending: Array<{ resolve: (value: Response) => void; signal?: AbortSignal | null }> = []
+  globalThis.fetch = (async (_url, init) => new Promise<Response>(resolve => { pending.push({ resolve, signal: init?.signal }) })) as typeof fetch
+  const finish = async (index: number) => act(async () => { pending[index].resolve(response({ items: [server], total: 1, page: 1, page_size: 10 })); await Promise.resolve() })
+  const advance = async (ms: number) => act(async () => {
+    now += ms
+    for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.run() }
+    await Promise.resolve()
+  })
+  try {
+    changeVisibility('visible')
+    const view = render(<App><MCPManagementPanel /></App>)
+    assert.equal(pending.length, 1)
+    await advance(10000)
+    assert.equal(pending.length, 1, 'overlapping poll while request is pending')
+    await finish(0)
+    await advance(4999)
+    assert.equal(pending.length, 1)
+    await advance(1)
+    assert.equal(pending.length, 2)
+    act(() => { changeVisibility('hidden'); changeVisibility('visible'); changeVisibility('hidden') })
+    await finish(1)
+    assert.equal(timers.size, 0)
+    await advance(10000)
+    assert.equal(pending.length, 2)
+    act(() => changeVisibility('visible'))
+    assert.equal(pending.length, 3)
+    await finish(2)
+    assert.equal(pending.length, 3, 'stale pending marker caused a duplicate visible refresh')
+    act(() => changeVisibility('hidden'))
+    assert.equal(timers.size, 0)
+    fireEvent.click(view.getByRole('button', { name: /刷.*新/ }))
+    assert.equal(pending.length, 4, 'manual refresh must work while hidden')
+    act(() => { changeVisibility('visible'); changeVisibility('hidden'); changeVisibility('visible') })
+    assert.equal(pending.length, 4)
+    await finish(3)
+    assert.equal(pending.length, 5, 'visible in-flight transitions coalesce into one refresh')
+    view.unmount()
+    assert.equal(pending[4].signal?.aborted, true)
+    await finish(4)
+    await advance(10000)
+    act(() => changeVisibility('visible'))
+    assert.equal(pending.length, 5)
+    assert.equal(timers.size, 0)
+  } finally {
+    cleanup()
+    globalThis.setTimeout = nativeSetTimeout
+    globalThis.clearTimeout = nativeClearTimeout
+    if (visibility) Object.defineProperty(document, 'visibilityState', visibility)
+    else Reflect.deleteProperty(document, 'visibilityState')
+  }
+})
+
 it('shows servers, enables dynamically and reports failed stop without optimistic state', async () => {
   let current = { ...server }
   let fail = false

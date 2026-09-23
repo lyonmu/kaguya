@@ -30,8 +30,22 @@ export function MCPManagementPanel() {
 
   useEffect(() => {
     const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout>
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let inFlight = false
+    let refreshPending = false
+    const visible = () => document.visibilityState !== 'hidden'
+    const schedule = () => {
+      clearTimeout(timer)
+      if (visible()) timer = setTimeout(() => void load(false), 5000)
+    }
     const load = async (initial: boolean) => {
+      if (controller.signal.aborted) return
+      if (inFlight) {
+        refreshPending = true
+        return
+      }
+      inFlight = true
+      refreshPending = false
       if (initial) setLoading(true)
       try {
         const page = await fetchMCPServers(query.page, query.pageSize, query.name, controller.signal)
@@ -39,11 +53,31 @@ export function MCPManagementPanel() {
       } catch (err) {
         if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'MCP 列表加载失败')
       } finally {
-        if (!controller.signal.aborted) { setLoading(false); timer = setTimeout(() => void load(false), 5000) }
+        inFlight = false
+        if (!controller.signal.aborted) {
+          setLoading(false)
+          if (refreshPending && visible()) {
+            refreshPending = false
+            void load(false)
+          } else {
+            schedule()
+          }
+        }
       }
     }
+    const onVisibilityChange = () => {
+      clearTimeout(timer)
+      if (!visible()) return
+      if (inFlight) refreshPending = true
+      else void load(false)
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
     void load(true)
-    return () => { controller.abort(); clearTimeout(timer) }
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [query, revision])
 
   const reload = () => setRevision(value => value + 1)
