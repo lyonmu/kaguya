@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"charm.land/fantasy"
 	"github.com/lyonmu/kaguya/internal/consts"
@@ -17,13 +18,19 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
+	"github.com/lyonmu/kaguya/internal/global"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 // 失败或取消的轮次保留已产生的正文，但绝不进入续聊上下文、用量统计或完整轮次。
 func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
-	for _, mode := range []string{"error", "disconnect", "cancel", "length", "storage"} {
+	for _, mode := range []string{"error", "disconnect", "cancel", "length", "storage", "user-stop", "deadline", "cancel-storage", "cancel-mark"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, client := setupChatTest(t)
+			core, logs := observer.New(zap.DebugLevel)
+			global.Logger = zap.New(core)
+			canceled := mode == "cancel" || mode == "user-stop" || mode == "deadline" || strings.HasPrefix(mode, "cancel-")
 			if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetChatMaxRetries(0).Exec(ctx); err != nil {
 				t.Fatal(err)
 			}
@@ -34,7 +41,17 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if mode == "storage" {
+			if mode == "cancel-mark" {
+				client.KaguyaChatTurn.Use(func(next ent.Mutator) ent.Mutator {
+					return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+						if m.Op().Is(ent.OpUpdateOne) {
+							return nil, errors.New("mark failure")
+						}
+						return next.Mutate(ctx, m)
+					})
+				})
+			}
+			if mode == "storage" || mode == "cancel-storage" {
 				client.KaguyaChatBlock.Use(func(ent.Mutator) ent.Mutator {
 					return ent.MutateFunc(func(context.Context, ent.Mutation) (ent.Value, error) { return nil, errors.New("storage failure") })
 				})
@@ -49,7 +66,7 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 				w.Header().Set("Content-Type", "text/event-stream")
 				fmt.Fprint(w, "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"partial\"},\"finish_reason\":null}]}\n\n")
 				w.(http.Flusher).Flush()
-				if mode == "cancel" {
+				if canceled {
 					<-r.Context().Done()
 					return
 				}
@@ -76,6 +93,10 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 			}
 			for _, id := range []string{"123", ""} {
 				callCtx, cancel := context.WithCancel(ctx)
+				if mode == "deadline" {
+					cancel()
+					callCtx, cancel = context.WithTimeout(ctx, 200*time.Millisecond)
+				}
 				ch := make(chan *dtochat.ChatResp)
 				go (&AgentSvc{}).Chat(callCtx, ch, &dtochat.ChatReq{ID: id, Messages: "must not save"})
 				var done, fail int
@@ -86,14 +107,17 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 					if frame.Err != nil {
 						fail++
 					}
-					if mode == "cancel" && frame.Chat.Block != nil && frame.Chat.Block.Text != "" {
+					if canceled && mode != "deadline" && frame.Chat.Block != nil && frame.Chat.Block.Text != "" {
+						if mode == "user-stop" {
+							(&AgentSvc{}).StopConversation(frame.Chat.ID)
+						}
 						// 断联/停止：取消请求上下文，服务端应停止生成并保留已推送内容。
 						cancel()
 					}
 				}
 				cancel()
 				// 取消时连接已断开，错误帧不再投递；其余失败路径必须上报错误。
-				if done != 0 || (mode != "cancel" && fail != 1) {
+				if done != 0 || (!canceled && fail != 1) {
 					t.Fatalf("done=%d failure=%d", done, fail)
 				}
 			}
@@ -107,7 +131,10 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 				t.Fatal(err)
 			}
 			afterJSON, _ := json.Marshal(after)
-			want := append(append([]fantasy.Message{}, before...), fantasy.NewUserMessage("must not save"))
+			want := append([]fantasy.Message{}, before...)
+			if mode != "cancel-mark" { // 终态写入失败时仍为 running，维持现有上下文过滤。
+				want = append(want, fantasy.NewUserMessage("must not save"))
+			}
 			wantJSON, _ := json.Marshal(want)
 			if version != 1 || string(afterJSON) != string(wantJSON) {
 				t.Fatalf("incomplete request context=%s want=%s", afterJSON, wantJSON)
@@ -130,8 +157,43 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantStatus := kaguyachatturn.StatusFailed
-			if mode == "cancel" {
+			if canceled {
 				wantStatus = kaguyachatturn.StatusInterrupted
+			}
+			if mode == "user-stop" {
+				wantStatus = kaguyachatturn.StatusCanceled
+			}
+			if mode == "cancel-mark" {
+				wantStatus = kaguyachatturn.StatusRunning
+			}
+			logMessage, level := "stream chat failed", zap.ErrorLevel
+			switch {
+			case mode == "user-stop":
+				logMessage, level = "chat stopped by user", zap.InfoLevel
+			case mode == "deadline":
+				logMessage, level = "chat interrupted by deadline", zap.WarnLevel
+			case canceled:
+				logMessage, level = "chat interrupted by request cancellation", zap.InfoLevel
+			case mode == "storage":
+				logMessage = "persist completed conversation failed:"
+			}
+			entries := logs.FilterMessageSnippet(logMessage).All()
+			if len(entries) != 2 {
+				t.Fatalf("termination logs=%+v", entries)
+			}
+			for _, entry := range entries {
+				if entry.Level != level {
+					t.Fatalf("level=%v want=%v", entry.Level, level)
+				}
+				if mode != "storage" && (entry.ContextMap()["conversation_id"] == "" || entry.ContextMap()["turn_id"] == "" || entry.ContextMap()["status"] == nil) {
+					t.Fatalf("missing context: %+v", entry)
+				}
+			}
+			if mode == "cancel-storage" && logs.FilterLevelExact(zap.ErrorLevel).FilterMessageSnippet("flush").Len() == 0 {
+				t.Fatal("flush error was downgraded on cancellation")
+			}
+			if mode == "cancel-mark" && logs.FilterLevelExact(zap.ErrorLevel).FilterMessageSnippet("mark turn end failed").Len() == 0 {
+				t.Fatal("terminal write error was downgraded")
 			}
 			if failed.Status != wantStatus {
 				t.Fatalf("status=%s want=%s", failed.Status, wantStatus)
@@ -144,7 +206,7 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 				if len(blocks) != 0 {
 					t.Fatalf("provider error before content wrote blocks: %+v", blocks)
 				}
-			} else if mode != "storage" {
+			} else if mode != "storage" && mode != "cancel-storage" {
 				if len(blocks) == 0 || blocks[0].Text != "partial" {
 					t.Fatalf("partial content lost: %+v", blocks)
 				}
@@ -154,7 +216,7 @@ func TestChatIncompleteTurnKeepsPartialContent(t *testing.T) {
 			if err != nil || len(page.Items) != 2 || page.Items[1].Status != string(wantStatus) {
 				t.Fatalf("turn page=%+v %v", page, err)
 			}
-			if mode != "error" && mode != "storage" && (len(page.Items[1].Blocks) == 0 || page.Items[1].Blocks[0].Text != "partial") {
+			if mode != "error" && mode != "storage" && mode != "cancel-storage" && (len(page.Items[1].Blocks) == 0 || page.Items[1].Blocks[0].Text != "partial") {
 				t.Fatalf("history lost partial content: %+v", page.Items[1])
 			}
 		})

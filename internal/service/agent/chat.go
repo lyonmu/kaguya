@@ -9,6 +9,7 @@ import (
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/global"
+	"go.uber.org/zap"
 )
 
 // send 向 dataChan 推送一条消息；客户端已断开（ctx 取消）或 channel 已关闭时返回 false。
@@ -72,7 +73,7 @@ func flushTurn(recorder *turnRecorder) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := recorder.flush(ctx); err != nil {
-		global.Logger.Sugar().Warnf("flush interrupted turn failed: turn_id=%s err=%v", recorder.turnID, err)
+		global.Logger.Sugar().Errorf("flush interrupted turn failed: turn_id=%s err=%v", recorder.turnID, err)
 	}
 }
 
@@ -220,7 +221,21 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		if markErr := markTurnEnd(exec.turnID, status, time.Now()); markErr != nil {
 			global.Logger.Sugar().Errorf("mark turn end failed: turn_id=%s err=%v", exec.turnID, markErr)
 		}
-		global.Logger.Sugar().Errorf("stream chat failed, err is %+v", err)
+		fields := []zap.Field{
+			zap.String("conversation_id", convID),
+			zap.String("turn_id", exec.turnID),
+			zap.String("status", string(status)),
+		}
+		switch {
+		case status == kaguyachatturn.StatusCanceled:
+			global.Logger.Info("chat stopped by user", fields...)
+		case errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded):
+			global.Logger.Warn("chat interrupted by deadline", fields...)
+		case ctx.Err() != nil || errors.Is(err, context.Canceled):
+			global.Logger.Info("chat interrupted by request cancellation", fields...)
+		default:
+			global.Logger.Error("stream chat failed", append(fields, zap.Error(err))...)
+		}
 		pushChatError(ctx, dataChan, convID, err)
 		return
 	}

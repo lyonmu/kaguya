@@ -56,7 +56,7 @@ func (r *turnRecorder) loop() {
 				err := r.flush(ctx)
 				cancel()
 				if err != nil {
-					global.Logger.Sugar().Warnf("flush running turn failed: turn_id=%s err=%v", r.turnID, err)
+					global.Logger.Sugar().Errorf("flush running turn failed: turn_id=%s err=%v", r.turnID, err)
 				}
 			}
 		}
