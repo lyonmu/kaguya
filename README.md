@@ -77,7 +77,7 @@ The project conversation header menu offers **View code and changes** (查看代
 
 </details>
 
-File tools use `os.Root` to constrain project paths. **Bash and local MCP processes run with the current user's permissions; a working directory is not a sandbox.** File changes and external operations take effect immediately; stopping a conversation does not undo them. Long command output is truncated for display, with oversized output saved under `/tmp/kaguya/YYYYMMDD/<conversation-id>/` for paginated reads by that conversation. Cleanup follows the operating system's temporary-directory lifecycle.
+File tools use `os.Root` to constrain project paths. **Bash and local MCP processes run with the current user's permissions; a working directory is not a sandbox.** Project-root `AGENTS.md` instructions come from the selected repository, so use trusted projects and MCP services. File changes and external operations take effect immediately; stopping a conversation does not undo them. Long command output is truncated for display, with oversized output saved under `/tmp/kaguya/YYYYMMDD/<conversation-id>/` for paginated reads by that conversation. Cleanup follows the operating system's temporary-directory lifecycle.
 
 ### Providers and models
 
@@ -198,7 +198,7 @@ Ordinary packaging targets automatically apply an ad-hoc signature to the comple
 
 The desktop window calls the shared Go services through Wails' native asset channel and **does not listen on a local network port**. External links open in the system browser and copying uses the system clipboard. Model and remote MCP requests still access the network as configured.
 
-When launched from Finder, the application attempts to supplement `PATH` through a login shell so it can locate Homebrew, Bun, uvx, and other commands. It keeps the existing `PATH` if the lookup fails or times out after 5 seconds. This step imports only `PATH`. To inherit terminal proxy variables or other environment settings, run `/Applications/Kaguya.app/Contents/MacOS/kaguya` from a terminal. Bash, Git, and other project tools must be available on the host.
+When launched from Finder, the application attempts to load `~/.zshrc` through a login shell and imports its complete exported environment so it can locate Homebrew, Bun, uvx, proxies, and other configured tools. It keeps the existing environment if loading fails or times out after 5 seconds. Terminal launches keep the existing terminal environment. Bash and local stdio MCP services inherit the application environment, including sensitive variables, and run with the current user's permissions; configure only trusted projects and services. Bash, Git, and other project tools must be available on the host.
 
 ### Optional Web mode
 

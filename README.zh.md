@@ -77,7 +77,7 @@
 
 </details>
 
-文件工具通过 `os.Root` 限制项目路径；**Bash 与本地 MCP 进程使用当前用户权限，工作目录不是沙箱**。文件修改和外部操作立即生效，停止对话不会撤销它们。长命令输出会截断展示，超出展示范围的输出保存到 `/tmp/kaguya/YYYYMMDD/<conversation-id>/`，供当前会话分页读取，清理由操作系统临时目录机制负责。
+文件工具通过 `os.Root` 限制项目路径；**Bash 与本地 MCP 进程使用当前用户权限，工作目录不是沙箱**。项目根目录的 `AGENTS.md` 指令来自所选仓库，因此应只使用可信项目和 MCP 服务。文件修改和外部操作立即生效，停止对话不会撤销它们。长命令输出会截断展示，超出展示范围的输出保存到 `/tmp/kaguya/YYYYMMDD/<conversation-id>/`，供当前会话分页读取，清理由操作系统临时目录机制负责。
 
 ### 提供商与模型
 
@@ -198,7 +198,7 @@ CODESIGN_IDENTITY='Developer ID Application: Name (TEAMID)' \
 
 桌面窗口通过 Wails 原生资源通道调用同一套 Go 服务，**不监听本地网络端口**。外部链接交给系统浏览器，复制使用系统剪贴板；模型和远程 MCP 请求仍按配置访问网络。
 
-从 Finder 启动时，应用会尝试通过登录 shell 补充 `PATH`，方便找到 Homebrew、Bun、uvx 等命令；失败或 5 秒超时后保留原 `PATH`。此步骤只补充 `PATH`。需要终端中的代理变量等环境时，可从终端运行 `/Applications/Kaguya.app/Contents/MacOS/kaguya`。项目所需的 Bash、Git 和其他工具链须在主机上可用。
+从 Finder 启动时，应用会尝试通过登录 shell 加载 `~/.zshrc` 并导入其中导出的完整环境，方便找到 Homebrew、Bun、uvx、代理及其他已配置工具；失败或 5 秒超时后保留原环境。从终端启动时沿用现有终端环境。Bash 与本地 stdio MCP 服务会继承应用环境（包括敏感变量），并以当前用户权限运行，因此应只配置可信项目与服务。项目所需的 Bash、Git 和其他工具链须在主机上可用。
 
 ### 可选 Web 模式
 
