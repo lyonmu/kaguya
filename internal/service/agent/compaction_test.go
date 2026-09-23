@@ -109,6 +109,114 @@ func TestCompactionSnapshotAndContinuation(t *testing.T) {
 	}
 }
 
+func BenchmarkCompactionPrepareWithActualUsage(b *testing.B) {
+	messages := make([]fantasy.Message, 10000)
+	for i := range messages {
+		messages[i] = fantasy.NewUserMessage("history that should not be serialized when provider usage is available")
+	}
+	opts := fantasy.PrepareStepFunctionOptions{
+		Messages: messages,
+		Steps:    []fantasy.StepResult{{Response: fantasy.Response{Usage: fantasy.Usage{InputTokens: 100, OutputTokens: 10}}}},
+	}
+	for _, baseline := range []bool{true, false} {
+		name := "lazy"
+		if baseline {
+			name = "baseline"
+		}
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				compactor := &contextCompactor{window: 1000000}
+				if baseline {
+					compactor.messages = append(compactor.messages, opts.Messages...)
+					if referenceContextTokens(compactor, opts, opts.Messages) >= 900000 {
+						b.Fatal("unexpected compaction")
+					}
+				} else if _, _, err := compactor.prepare(context.Background(), opts); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// The pre-optimization formula intentionally estimates the complete history first.
+func referenceContextTokens(c *contextCompactor, opts fantasy.PrepareStepFunctionOptions, trailing []fantasy.Message) int64 {
+	tokens := estimateMessages(c.messages) + c.toolTokens
+	if len(opts.Steps) > 0 {
+		if actual := completedContextTokens(opts.Steps[len(opts.Steps)-1].Usage); actual != nil {
+			var results []fantasy.Message
+			for _, message := range trailing {
+				if message.Role == fantasy.MessageRoleTool {
+					results = append(results, message)
+				}
+			}
+			tokens = *actual + estimateMessages(results)
+		}
+	} else if c.lastTokens != nil {
+		tokens = max(tokens, *c.lastTokens)
+	}
+	return tokens
+}
+
+func TestCompactionLazyFormulaBoundaries(t *testing.T) {
+	actual := fantasy.StepResult{Response: fantasy.Response{Usage: fantasy.Usage{InputTokens: 100, CacheReadTokens: 20, OutputTokens: 5}}}
+	for _, steps := range [][]fantasy.StepResult{nil, {actual}, {actual, {}}, {{Response: fantasy.Response{Usage: fantasy.Usage{TotalTokens: 1000}}}}} {
+		for _, previous := range []int64{-1, 0, 30, 900} {
+			for _, withTool := range []bool{false, true} {
+				messages := []fantasy.Message{fantasy.NewUserMessage(strings.Repeat("x", 600))}
+				if withTool {
+					messages = append(messages, fantasy.Message{Role: fantasy.MessageRoleTool, Content: []fantasy.MessagePart{fantasy.ToolResultPart{ToolCallID: "t", Output: fantasy.ToolResultOutputContentText{Text: "tool output"}}}})
+				}
+				for _, seen := range []int{0, 1} {
+					c := &contextCompactor{messages: messages, toolTokens: 7}
+					if previous >= 0 {
+						c.lastTokens = &previous
+					}
+					opts := fantasy.PrepareStepFunctionOptions{Messages: messages, Steps: steps}
+					tokens := referenceContextTokens(c, opts, messages[seen:])
+					for _, delta := range []int64{-1, 0, 1} {
+						copy := *c
+						copy.window, copy.percent, copy.seen = int(2*(tokens+delta)), 50, seen
+						copy.messages = append([]fantasy.Message{}, messages[:seen]...)
+						_, _, err := copy.prepare(context.Background(), opts)
+						if (err != nil) != (delta <= 0) {
+							t.Fatalf("steps=%+v previous=%d tool=%v seen=%d tokens=%d delta=%d err=%v", steps, previous, withTool, seen, tokens, delta, err)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+type serializationProbe struct{ calls int }
+
+func (*serializationProbe) Options()                       {}
+func (p *serializationProbe) MarshalJSON() ([]byte, error) { p.calls++; return []byte(`{}`), nil }
+func (*serializationProbe) UnmarshalJSON([]byte) error     { return nil }
+
+func TestCompactionSkipsHistorySerializationOnlyWithActualStepUsage(t *testing.T) {
+	for _, actual := range []bool{false, true} {
+		probe := &serializationProbe{}
+		message := fantasy.NewUserMessage("history")
+		message.ProviderOptions = fantasy.ProviderOptions{"probe": probe}
+		step := fantasy.StepResult{}
+		if actual {
+			step.Usage.InputTokens = 1
+		}
+		c := &contextCompactor{window: 100000}
+		_, _, err := c.prepare(context.Background(), fantasy.PrepareStepFunctionOptions{Messages: []fantasy.Message{message}, Steps: []fantasy.StepResult{step}})
+		if err != nil || (probe.calls == 0) != actual {
+			t.Fatalf("actual=%v serializations=%d err=%v", actual, probe.calls, err)
+		}
+	}
+	c := &contextCompactor{seen: 99}
+	if _, _, err := c.prepare(context.Background(), fantasy.PrepareStepFunctionOptions{}); err != nil || c.seen != 99 {
+		t.Fatal("unknown window no longer skips preparation")
+	}
+}
+
 func TestCompactionRejectsUncompactableInput(t *testing.T) {
 	c := &contextCompactor{window: 100}
 	_, _, err := c.prepare(context.Background(), fantasy.PrepareStepFunctionOptions{Messages: []fantasy.Message{fantasy.NewUserMessage(strings.Repeat("x", 1000))}})

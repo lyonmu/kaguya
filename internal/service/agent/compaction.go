@@ -42,7 +42,7 @@ func (c *contextCompactor) prepare(ctx context.Context, opts fantasy.PrepareStep
 	trailing := opts.Messages[c.seen:]
 	c.messages = append(c.messages, trailing...)
 	c.seen = len(opts.Messages)
-	tokens := estimateMessages(c.messages) + c.toolTokens
+	var tokens int64
 	if len(opts.Steps) > 0 {
 		last := opts.Steps[len(opts.Steps)-1]
 		if actual := completedContextTokens(last.Usage); actual != nil {
@@ -54,9 +54,14 @@ func (c *contextCompactor) prepare(ctx context.Context, opts fantasy.PrepareStep
 				}
 			}
 			tokens = *actual + estimateMessages(toolResults)
+		} else {
+			tokens = estimateMessages(c.messages) + c.toolTokens
 		}
-	} else if c.lastTokens != nil {
-		tokens = max(tokens, *c.lastTokens)
+	} else {
+		tokens = estimateMessages(c.messages) + c.toolTokens
+		if c.lastTokens != nil {
+			tokens = max(tokens, *c.lastTokens)
+		}
 	}
 	percent := compactionPercent(c.percent)
 	threshold := int64(c.window) * int64(percent) / 100
