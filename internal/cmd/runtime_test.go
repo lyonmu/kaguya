@@ -2,11 +2,76 @@ package cmd
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/db"
+	"github.com/lyonmu/kaguya/internal/ent"
 )
+
+type runtimeCloseDriver struct {
+	dialect.Driver
+	closes atomic.Int64
+}
+
+func (d *runtimeCloseDriver) Close() error { d.closes.Add(1); return d.Driver.Close() }
+
+func TestRuntimeDrainsBackgroundPersistenceBeforeClosingDatabase(t *testing.T) {
+	rt := newAppRuntime(context.Background())
+	raw, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := &runtimeCloseDriver{Driver: entsql.OpenDB(dialect.SQLite, raw)}
+	old := db.EntClient
+	db.EntClient = ent.NewClient(ent.Driver(driver))
+	defer func() { db.EntClient = old }()
+	rt.dbReady, rt.modelSyncUp = true, true
+	release, closed := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	releaseWork := func() { once.Do(func() { close(release) }) }
+	defer func() { releaseWork(); <-closed }()
+	persisted := make(chan error, 1)
+	go func() {
+		<-rt.ctx.Done()
+		<-release
+		_, err := raw.Exec("CREATE TABLE drained (id INTEGER)")
+		persisted <- err
+		close(rt.modelSyncDone)
+	}()
+	go func() { rt.close(); close(closed) }()
+	<-rt.ctx.Done()
+	select {
+	case <-closed:
+		t.Fatal("closed before background drain")
+	case <-time.After(10 * time.Millisecond):
+	}
+	if driver.closes.Load() != 0 {
+		t.Fatal("database closed while final persistence was pending")
+	}
+	if err := raw.Ping(); err != nil {
+		t.Fatal(err)
+	}
+	releaseWork()
+	<-closed
+	if err := <-persisted; err != nil {
+		t.Fatal("delayed persistence failed", err)
+	}
+	rt.close()
+	if driver.closes.Load() != 1 {
+		t.Fatal("database must close exactly once")
+	}
+	if err := raw.Ping(); err == nil {
+		t.Fatal("database remained open")
+	}
+}
 
 func TestAppRuntimeShutdownClosesAdmission(t *testing.T) {
 	rt := newAppRuntime(context.Background())

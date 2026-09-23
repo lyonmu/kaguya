@@ -72,6 +72,7 @@ func runDesktop() error {
 // 最后释放 MCP、数据库与日志。
 func shutdownDesktop(rt *appRuntime) {
 	rt.beginShutdown()
+	startedAt := time.Now()
 	for {
 		waitCtx, cancel := context.WithTimeout(context.Background(), desktopDrainBudget)
 		handlersErr := rt.gate.Wait(waitCtx)
@@ -84,7 +85,13 @@ func shutdownDesktop(rt *appRuntime) {
 			break
 		}
 		if global.Logger != nil {
+			stage := "agent_work"
+			if handlersErr != nil {
+				stage = "handlers"
+			}
 			global.Logger.Warn("still draining work before desktop shutdown",
+				zap.Duration("elapsed", time.Since(startedAt)),
+				zap.String("stage", stage),
 				zap.Int64("pending", serviceagent.PendingWork()))
 		}
 	}
