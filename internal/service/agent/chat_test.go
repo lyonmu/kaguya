@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -30,6 +31,8 @@ type chatTestID struct{ value atomic.Int64 }
 
 func (g *chatTestID) GenID() (int64, error) { return g.value.Add(1), nil }
 
+var sqlcipherTests = flag.Bool("sqlcipher", false, "run chat service fixtures with a temporary disk SQLCipher database")
+
 func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -37,15 +40,20 @@ func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
 	// 测试库是 shared-cache 的内存 SQLite：表级锁不会等待 busy handler，而是
 	// 直接返回 SQLITE_LOCKED。限制单连接串行写入，避免标题任务与聊天事务
 	// 并发写同一张表时的随机失败。
-	conn, err := sql.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=on&_busy_timeout=5000", t.Name()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	conn.SetMaxOpenConns(1)
-	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.SQLite, conn)))
-	t.Cleanup(func() { _ = client.Close() })
-	if err := client.Schema.Create(ctx, migrate.WithForeignKeys(false)); err != nil {
-		t.Fatal(err)
+	var client *ent.Client
+	if *sqlcipherTests {
+		client = openDiskChatClient(t)
+	} else {
+		conn, err := sql.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=on&_busy_timeout=5000", t.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.SetMaxOpenConns(1)
+		client = ent.NewClient(ent.Driver(entsql.OpenDB(dialect.SQLite, conn)))
+		t.Cleanup(func() { _ = client.Close() })
+		if err := client.Schema.Create(ctx, migrate.WithForeignKeys(false)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	oldClient, oldID, oldLogger := db.EntClient, global.Id, global.Logger
 	gen := &chatTestID{}
