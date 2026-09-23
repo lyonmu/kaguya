@@ -3,8 +3,10 @@ package system
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,11 +14,16 @@ import (
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
+	"github.com/lyonmu/kaguya/internal/global"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	ctx := setupSystemServiceTest(t)
+	core, logs := observer.New(zap.DebugLevel)
+	global.Logger = zap.New(core)
 	manager := agentmcp.Default
 	agentmcp.Default = agentmcp.NewManager()
 	defer func() { agentmcp.Default.Close(); agentmcp.Default = manager }()
@@ -65,9 +72,14 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	}))
 	defer badRemote.Close()
 	invalid := *req
-	invalid.URL = badRemote.URL
+	invalid.URL = badRemote.URL + "?token=fake-secret"
 	if _, err := svc.MCPUpdate(ctx, created.ID, &invalid); !errors.Is(err, ErrMCPConnect) {
 		t.Fatalf("bad update err=%v", err)
+	} else {
+		var cause *agentmcp.Error
+		if !errors.As(err, &cause) || strings.Contains(err.Error(), "secret") {
+			t.Fatal("safe cause was lost or leaked")
+		}
 	}
 	detail, err := svc.MCPDetail(ctx, created.ID)
 	if err != nil {
@@ -102,6 +114,31 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	}
 	if detail.Enabled || detail.Status.State != "error" {
 		t.Fatal("failed enable persisted true or hid failure")
+	}
+	if strings.Contains(detail.Status.Message, "secret") {
+		t.Fatal("unsafe manager status")
+	}
+	if err := db.EntClient.KaguyaMCPServer.UpdateOneID(created.ID).SetEnabled(true).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RestoreMCP(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.MCPSetEnabled(ctx, created.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, message := range []string{"validate replacement MCP connection failed", "enable MCP connection failed", "restore MCP connection failed"} {
+		entries := logs.FilterMessage(message).All()
+		if len(entries) != 1 {
+			t.Fatalf("logs for %q: %+v", message, entries)
+		}
+		fields := entries[0].ContextMap()
+		if fields["service_id"] != created.ID || fields["transport"] != "streamable-http" || fields["stage"] != "connect" || fields["reason"] == nil {
+			t.Fatalf("missing safe fields: %+v", fields)
+		}
+	}
+	if strings.Contains(fmt.Sprint(logs.All()), "secret") || strings.Contains(fmt.Sprint(logs.All()), badRemote.URL) {
+		t.Fatal("raw MCP error leaked into logs")
 	}
 	if _, err := svc.MCPUpdate(ctx, created.ID, req); err != nil {
 		t.Fatal(err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
 	"github.com/lyonmu/kaguya/internal/global"
+	"go.uber.org/zap"
 )
 
 var (
@@ -64,6 +66,16 @@ func (g *mcpMutationGate) acquire(ctx context.Context, id string) (func(), error
 }
 
 var mcpMutations = mcpMutationGate{locks: map[string]*mcpServiceLock{}}
+
+func logMCPFailure(message, id, transport string, err error) {
+	stage, reason := agentmcp.Diagnostic(err)
+	fields := []zap.Field{zap.String("service_id", id), zap.String("transport", transport), zap.String("stage", stage), zap.String("reason", reason)}
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		fields = append(fields, zap.Int("exit_code", exitErr.ExitCode()))
+	}
+	global.Logger.Warn(message, fields...)
+}
 
 func mcpConfig(row *ent.KaguyaMCPServer) agentmcp.Config {
 	return agentmcp.Config{Name: row.Name, Transport: string(row.Transport), Command: row.Command, Args: row.Args, Env: row.Env, WorkingDirectory: row.WorkingDirectory, URL: row.URL, Headers: row.Headers, TimeoutSeconds: row.TimeoutSeconds}
@@ -145,7 +157,8 @@ func (s *SystemSvc) MCPUpdate(ctx context.Context, id string, req *dtosystem.Sys
 	if old.Enabled {
 		next, err = agentmcp.Prepare(ctx, *req)
 		if err != nil {
-			return nil, fmt.Errorf("%w: %s", ErrMCPConnect, err)
+			logMCPFailure("validate replacement MCP connection failed", id, req.Transport, err)
+			return nil, fmt.Errorf("%w: %w", ErrMCPConnect, err)
 		}
 	}
 	row, err := db.EntClient.KaguyaMCPServer.UpdateOneID(id).SetName(req.Name).SetTransport(kaguyamcpserver.Transport(req.Transport)).SetCommand(req.Command).SetArgs(req.Args).SetEnv(req.Env).SetWorkingDirectory(req.WorkingDirectory).SetURL(req.URL).SetHeaders(req.Headers).SetTimeoutSeconds(req.TimeoutSeconds).Save(ctx)
@@ -179,7 +192,8 @@ func (s *SystemSvc) MCPSetEnabled(ctx context.Context, id string, enabled bool) 
 		next, err = agentmcp.Prepare(ctx, mcpConfig(old))
 		if err != nil {
 			agentmcp.Default.Failed(id, err.Error())
-			return nil, fmt.Errorf("%w: %s", ErrMCPConnect, err)
+			logMCPFailure("enable MCP connection failed", id, string(old.Transport), err)
+			return nil, fmt.Errorf("%w: %w", ErrMCPConnect, err)
 		}
 	}
 	row, err := db.EntClient.KaguyaMCPServer.UpdateOneID(id).SetEnabled(enabled).Save(ctx)
@@ -240,7 +254,7 @@ func (s *SystemSvc) RestoreMCP(ctx context.Context) error {
 			connection, err := agentmcp.Prepare(ctx, mcpConfig(row))
 			if err != nil {
 				agentmcp.Default.Failed(id, err.Error())
-				global.Logger.Sugar().Warnf("restore MCP connection failed: id=%s", id)
+				logMCPFailure("restore MCP connection failed", id, string(row.Transport), err)
 				return nil
 			}
 			agentmcp.Default.Replace(id, connection)

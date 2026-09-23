@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -19,7 +20,9 @@ import (
 
 	"charm.land/fantasy"
 	"github.com/kaptinlin/jsonschema"
+	"github.com/lyonmu/kaguya/internal/global"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.uber.org/zap"
 )
 
 var Default = NewManager()
@@ -50,7 +53,15 @@ type Connection struct {
 	closing         bool
 	active          sync.WaitGroup
 	tools           []*sdk.Tool
+	preparedTools   []preparedTool
 	timeout         time.Duration
+}
+
+type preparedTool struct {
+	remoteName string
+	info       fantasy.ToolInfo
+	definition []byte
+	validator  *jsonschema.Schema
 }
 
 // Prepare 先完成连接和工具发现，只有数据库保存成功后才发布连接。
@@ -100,28 +111,36 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 		cancel()
 		// 可执行文件缺失是最常见的 GUI 启动问题；给出可操作提示，其余错误保持通用。
 		if errors.Is(err, exec.ErrNotFound) {
-			return nil, fmt.Errorf("找不到 MCP 可执行文件 %q，请检查 PATH 或改用绝对路径", config.Command)
+			return nil, newError(fmt.Sprintf("找不到 MCP 可执行文件 %q，请检查 PATH 或改用绝对路径", config.Command), "connect", err)
 		}
-		return nil, fmt.Errorf("MCP 连接失败，请检查服务地址、命令及认证配置")
+		return nil, newError("MCP 连接失败，请检查服务地址、命令及认证配置", "connect", err)
 	}
 	for tool, err := range connection.session.Tools(connectCtx, nil) {
 		if err != nil {
 			connection.Close()
-			return nil, fmt.Errorf("MCP 工具发现失败")
+			return nil, newError("MCP 工具发现失败", "discover", err)
 		}
 		if len(connection.tools) >= 256 {
 			connection.Close()
-			return nil, fmt.Errorf("MCP 工具数量超过 256")
+			cause := fmt.Errorf("tool limit exceeded")
+			return nil, newProtocolError("MCP 工具数量超过 256", "discover", cause)
 		}
 		if _, err := toolInfo("", tool); err != nil {
 			connection.Close()
-			return nil, err
+			return nil, newProtocolError(err.Error(), "discover", err)
 		}
 		connection.tools = append(connection.tools, tool)
+		if prepared, err := prepareTool(tool); err == nil {
+			connection.preparedTools = append(connection.preparedTools, prepared)
+		} else if global.Logger != nil {
+			global.Logger.Warn("skip MCP tool with uncompiled schema",
+				zap.String("stage", "compile_schema"),
+				zap.Int("tool_index", len(connection.tools)-1))
+		}
 	}
 	if !stopConnect() || connectCtx.Err() != nil {
 		connection.Close()
-		return nil, fmt.Errorf("MCP 连接超时或请求已取消")
+		return nil, newError("MCP 连接超时或请求已取消", "connect", connectCtx.Err())
 	}
 	go func() { _ = connection.session.Wait(); connection.cancel(); connection.transportCancel() }()
 	return connection, nil
@@ -216,13 +235,9 @@ func (m *Manager) Tools() []fantasy.AgentTool {
 
 // buildTools 为一条连接构造全部工具适配器，schema 无法本地校验时跳过该工具。
 func buildTools(id string, c *Connection) []fantasy.AgentTool {
-	result := make([]fantasy.AgentTool, 0, len(c.tools))
-	for _, t := range c.tools {
-		tool, err := newAgentTool(id, c, t)
-		if err != nil {
-			continue
-		}
-		result = append(result, tool)
+	result := make([]fantasy.AgentTool, 0, len(c.preparedTools))
+	for _, prepared := range c.preparedTools {
+		result = append(result, newAgentToolFromPrepared(id, c, prepared))
 	}
 	return result
 }
@@ -290,35 +305,53 @@ func toolInfo(id string, tool *sdk.Tool) (fantasy.ToolInfo, error) {
 			}
 		}
 	}
-	hash := sha256.Sum256([]byte(id + "\x00" + tool.Name))
+	return fantasy.ToolInfo{Name: toolName(id, tool.Name), Description: tool.Description, Parameters: properties, Required: required}, nil
+}
+
+func toolName(id, remoteName string) string {
+	hash := sha256.Sum256([]byte(id + "\x00" + remoteName))
 	name := strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '-' {
 			return r
 		}
 		return '_'
-	}, tool.Name)
+	}, remoteName)
 	if len(name) > 24 {
 		name = name[:24]
 	}
-	return fantasy.ToolInfo{Name: fmt.Sprintf("mcp_%s_%x", name, hash[:12]), Description: tool.Description, Parameters: properties, Required: required}, nil
+	return fmt.Sprintf("mcp_%s_%x", name, hash[:12])
 }
 
-// newAgentTool 构造可调用工具，并编译完整的本地输入校验器。
-// 校验只使用远端声明的真实约束，不自行猜测参数；校验失败不触达远端。
-func newAgentTool(id string, connection *Connection, tool *sdk.Tool) (*agentTool, error) {
-	info, err := toolInfo(id, tool)
+// prepareTool 在连接发现阶段编译完整的本地输入校验器。校验只使用远端声明的
+// 真实约束；编译失败时保持原有语义，只从可调用适配器中跳过该工具。
+func prepareTool(tool *sdk.Tool) (preparedTool, error) {
+	info, err := toolInfo("", tool)
 	if err != nil {
-		return nil, err
+		return preparedTool{}, err
 	}
 	raw, err := json.Marshal(tool.InputSchema)
 	if err != nil {
-		return nil, fmt.Errorf("encode MCP tool schema: %w", err)
+		return preparedTool{}, fmt.Errorf("encode MCP tool schema: %w", err)
 	}
 	validator, err := jsonschema.NewCompiler().Compile(raw)
 	if err != nil {
-		return nil, fmt.Errorf("compile MCP tool schema: %w", err)
+		return preparedTool{}, fmt.Errorf("compile MCP tool schema: %w", err)
 	}
-	return &agentTool{connection: connection, remoteName: tool.Name, info: info, definition: raw, validator: validator}, nil
+	return preparedTool{remoteName: tool.Name, info: info, definition: raw, validator: validator}, nil
+}
+
+func newAgentToolFromPrepared(id string, connection *Connection, prepared preparedTool) *agentTool {
+	info := prepared.info
+	info.Name = toolName(id, prepared.remoteName)
+	return &agentTool{connection: connection, remoteName: prepared.remoteName, info: info, definition: prepared.definition, validator: prepared.validator}
+}
+
+func newAgentTool(id string, connection *Connection, tool *sdk.Tool) (*agentTool, error) {
+	prepared, err := prepareTool(tool)
+	if err != nil {
+		return nil, err
+	}
+	return newAgentToolFromPrepared(id, connection, prepared), nil
 }
 
 type agentTool struct {
@@ -334,6 +367,8 @@ type agentTool struct {
 // 不能把同一棵可变树交给后续请求复用。
 func (t *agentTool) Info() fantasy.ToolInfo {
 	info := t.info
+	info.Required = slices.Clone(t.info.Required)
+	info.Parameters = map[string]any{}
 	var definition map[string]any
 	if err := json.Unmarshal(t.definition, &definition); err == nil {
 		if properties, ok := definition["properties"].(map[string]any); ok {

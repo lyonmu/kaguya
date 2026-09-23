@@ -3,11 +3,14 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -55,6 +58,9 @@ func testServer(started ...chan struct{}) *sdk.Server {
 			<-ctx.Done()
 			return nil, nil, ctx.Err()
 		}
+		if input.Text == "environment" {
+			return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: os.Getenv("KAGUYA_SECRET_KEY") + "|" + os.Getenv("KAGUYA_MCP_INHERITED") + "|" + os.Getenv("HTTPS_PROXY")}}}, nil, nil
+		}
 		return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: input.Text}}}, nil, nil
 	})
 	return server
@@ -71,6 +77,9 @@ func TestMCPHelperProcess(t *testing.T) {
 func TestTransportsAndDynamicStop(t *testing.T) {
 	for _, kind := range []string{"streamable-http", "sse", "stdio"} {
 		t.Run(kind, func(t *testing.T) {
+			t.Setenv("KAGUYA_SECRET_KEY", "inherited-secret")
+			t.Setenv("KAGUYA_MCP_INHERITED", "inherited-value")
+			t.Setenv("HTTPS_PROXY", "http://fake-proxy.invalid")
 			config := Config{Name: "test", Transport: kind, TimeoutSeconds: 5}
 			started := make(chan struct{}, 1)
 			if kind == "stdio" {
@@ -115,6 +124,22 @@ func TestTransportsAndDynamicStop(t *testing.T) {
 			response, err := tools[0].Run(context.Background(), fantasy.ToolCall{Input: `{"text":"hello"}`})
 			if err != nil || response.IsError || !strings.Contains(response.Content, "hello") {
 				t.Fatalf("response=%+v err=%v", response, err)
+			}
+			if kind == "stdio" {
+				response, err = tools[0].Run(context.Background(), fantasy.ToolCall{Input: `{"text":"environment"}`})
+				if err != nil || response.IsError || !strings.Contains(response.Content, "inherited-secret|inherited-value|http://fake-proxy.invalid") {
+					t.Fatalf("stdio environment was not inherited: response=%+v err=%v", response, err)
+				}
+				config.Env["KAGUYA_SECRET_KEY"] = "configured-secret"
+				override, err := Prepare(context.Background(), config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer override.Close()
+				response, err = buildTools("override", override)[0].Run(context.Background(), fantasy.ToolCall{Input: `{"text":"environment"}`})
+				if err != nil || response.IsError || !strings.Contains(response.Content, "configured-secret|inherited-value|http://fake-proxy.invalid") {
+					t.Fatal("stdio override did not preserve inherited variables")
+				}
 			}
 			result := make(chan fantasy.ToolResponse, 1)
 			go func() {
@@ -191,6 +216,12 @@ func TestMissingCommandErrorMentionsPath(t *testing.T) {
 	_, err := Prepare(ctx, Config{Name: "missing", Transport: "stdio", Command: "kaguya-missing-mcp-command", TimeoutSeconds: 2})
 	if err == nil || !strings.Contains(err.Error(), "找不到") || !strings.Contains(err.Error(), "kaguya-missing-mcp-command") {
 		t.Fatalf("missing command error=%v", err)
+	}
+	if !errors.Is(err, exec.ErrNotFound) {
+		t.Fatalf("missing command cause was not preserved: %v", err)
+	}
+	if stage, reason := Diagnostic(err); stage != "connect" || reason != "not_found" {
+		t.Fatalf("diagnostic=%s/%s", stage, reason)
 	}
 }
 
@@ -282,6 +313,107 @@ func TestAgentToolValidatesInputLocally(t *testing.T) {
 }
 
 // Info 每次返回独立的 schema 树，Provider 规范化嵌套 schema 不得污染后续请求。
+func TestToolsReusePreparedValidatorAndKeepAdapterStateIsolated(t *testing.T) {
+	remote := &sdk.Tool{Name: "cached", InputSchema: map[string]any{
+		"type": "object", "properties": map[string]any{"value": map[string]any{"type": "string"}}, "required": []string{"value"},
+	}}
+	prepared, err := prepareTool(remote)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	connection := &Connection{ctx: ctx, preparedTools: []preparedTool{prepared}, tools: []*sdk.Tool{remote}}
+	manager := NewManager()
+	manager.Replace("service", connection)
+	first := manager.Tools()[0].(*agentTool)
+	second := manager.Tools()[0].(*agentTool)
+	if first == second || first.validator != second.validator {
+		t.Fatal("Tools did not create isolated adapters backed by the prepared validator")
+	}
+	first.SetProviderOptions(fantasy.ProviderOptions{})
+	if second.ProviderOptions() != nil {
+		t.Fatal("provider options leaked between adapters")
+	}
+	info := first.Info()
+	info.Parameters["value"].(map[string]any)["type"] = "integer"
+	info.Required[0] = "mutated"
+	if first.Info().Required[0] != "value" || second.Info().Required[0] != "value" {
+		t.Fatal("Required slice leaked across Info calls or adapters")
+	}
+	// Once published, even the source discovery object is no longer read by Tools.
+	remote.InputSchema = map[string]any{"type": "array"}
+	if manager.Tools()[0].Info().Required[0] != "value" {
+		t.Fatal("Tools reused mutable discovery metadata")
+	}
+	if second.Info().Parameters["value"].(map[string]any)["type"] != "string" {
+		t.Fatal("nested schema mutation leaked between adapters")
+	}
+	var failed atomic.Bool
+	var workers sync.WaitGroup
+	for range 32 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for range 100 {
+				if first.validateInput(map[string]any{"value": "ok"}) != "" || second.validateInput(map[string]any{"value": 1}) == "" {
+					failed.Store(true)
+				}
+			}
+		}()
+	}
+	workers.Wait()
+	if failed.Load() {
+		t.Fatal("shared validator returned inconsistent concurrent results")
+	}
+}
+
+func BenchmarkBuildToolsWithPreparedSchemas(b *testing.B) {
+	for _, count := range []int{1, 64, 256} {
+		b.Run(fmt.Sprintf("tools-%d", count), func(b *testing.B) {
+			ctx := context.Background()
+			connection := &Connection{ctx: ctx}
+			for i := range count {
+				remote := &sdk.Tool{Name: fmt.Sprintf("tool-%d", i), InputSchema: map[string]any{
+					"type": "object", "properties": map[string]any{"value": map[string]any{"type": "string"}},
+				}}
+				prepared, err := prepareTool(remote)
+				if err != nil {
+					b.Fatal(err)
+				}
+				connection.preparedTools = append(connection.preparedTools, prepared)
+				connection.tools = append(connection.tools, remote)
+			}
+			for _, baseline := range []bool{true, false} {
+				name := "cached"
+				if baseline {
+					name = "baseline"
+				}
+				b.Run(name, func(b *testing.B) {
+					b.ReportAllocs()
+					for b.Loop() {
+						if baseline {
+							tools := make([]fantasy.AgentTool, 0, len(connection.tools))
+							for _, remote := range connection.tools {
+								tool, err := newAgentTool("service", connection, remote)
+								if err != nil {
+									b.Fatal(err)
+								}
+								tools = append(tools, tool)
+							}
+							if len(tools) != count {
+								b.Fatal(len(tools))
+							}
+						} else if got := buildTools("service", connection); len(got) != count {
+							b.Fatal(len(got))
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestAgentToolInfoReturnsFreshSchema(t *testing.T) {
 	tool, err := newAgentTool("srv", &Connection{}, &sdk.Tool{Name: "nested", InputSchema: map[string]any{
 		"type": "object",
