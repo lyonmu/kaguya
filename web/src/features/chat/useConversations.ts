@@ -16,9 +16,25 @@ export function useConversations(projectId?: string, options?: { enabled?: boole
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const request = useRef<AbortController | null>(null)
+  const mounted = useRef(true)
   const pages = useRef(new Map<number, Conversation[]>())
   const titleUpdates = useRef(new Map<string, string>())
   const refresh = useCallback(() => setVersion(value => value + 1), [])
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
+  const cancelCurrent = useCallback((finishLoading: boolean) => {
+    const controller = request.current
+    controller?.abort()
+    if (request.current === controller) {
+      request.current = null
+      busy.current = false
+      if (finishLoading && mounted.current) setLoading(false)
+    }
+  }, [])
 
   // 同一筛选条件的页请求必须复用同一个信号与函数，刷新不得放大成大量并发请求。
   const fetchPage = useCallback((value: number, signal: AbortSignal) =>
@@ -70,7 +86,7 @@ export function useConversations(projectId?: string, options?: { enabled?: boole
   }, [fetchPage, syncItems])
 
   const load = useCallback(async (foreground: boolean, append = false) => {
-    if (append && busy.current) return
+    if (!enabled || !mounted.current || (append && busy.current)) return
     busy.current = true
     request.current?.abort()
     const controller = new AbortController()
@@ -89,11 +105,15 @@ export function useConversations(projectId?: string, options?: { enabled?: boole
         await loadPages(controller.signal)
       }
     } catch (error) {
-      if (!controller.signal.aborted) setError(error instanceof Error ? error.message : '加载会话失败')
+      if (!controller.signal.aborted && request.current === controller) setError(error instanceof Error ? error.message : '加载会话失败')
     } finally {
-      if (!controller.signal.aborted) { setLoading(false); busy.current = false }
+      if (request.current === controller) {
+        request.current = null
+        busy.current = false
+        if (mounted.current) setLoading(false)
+      }
     }
-  }, [fetchPage, loadPages, syncItems])
+  }, [enabled, fetchPage, loadPages, syncItems])
 
   useEffect(() => {
     nextPage.current = 1
@@ -103,10 +123,13 @@ export function useConversations(projectId?: string, options?: { enabled?: boole
   }, [projectId])
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      cancelCurrent(true)
+      return
+    }
     const timer = setTimeout(() => void load(true), 250)
-    return () => { clearTimeout(timer); request.current?.abort() }
-  }, [load, version, enabled])
+    return () => { clearTimeout(timer); cancelCurrent(false) }
+  }, [load, version, enabled, cancelCurrent])
 
   // Chat completions must use the latest filter/page, not the closure at send time.
   const latestLoad = useRef(load)
@@ -119,9 +142,9 @@ export function useConversations(projectId?: string, options?: { enabled?: boole
 
   return {
     items, total, loading, error, keyword, favorite, refresh, refreshQuietly, updateTitle,
-    resetFilters: () => { request.current?.abort(); nextPage.current = 1; pages.current.clear(); setKeyword(''); setFavorite(false); setItems([]); setTotal(0); setLoading(true); refresh() },
+    resetFilters: () => { cancelCurrent(false); nextPage.current = 1; pages.current.clear(); setKeyword(''); setFavorite(false); setItems([]); setTotal(0); setLoading(enabled); refresh() },
     loadMore: () => { if (enabled && !loading && !error && items.length < total) void load(true, true) },
-    search: (value: string) => { request.current?.abort(); nextPage.current = 1; pages.current.clear(); setItems([]); setTotal(0); setLoading(true); setKeyword(value) },
-    filter: (value: boolean) => { request.current?.abort(); nextPage.current = 1; pages.current.clear(); setItems([]); setTotal(0); setLoading(true); setFavorite(value) },
+    search: (value: string) => { cancelCurrent(false); nextPage.current = 1; pages.current.clear(); setItems([]); setTotal(0); setLoading(enabled); setKeyword(value); if (value === keyword) refresh() },
+    filter: (value: boolean) => { cancelCurrent(false); nextPage.current = 1; pages.current.clear(); setItems([]); setTotal(0); setLoading(enabled); setFavorite(value); if (value === favorite) refresh() },
   }
 }

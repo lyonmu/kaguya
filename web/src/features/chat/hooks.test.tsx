@@ -43,6 +43,70 @@ describe('chat refresh stability', () => {
     assert.deepEqual(result.current.items.map(item => item.id), ['b-chat'])
   })
 
+  it('releases loading ownership when disabled and ignores a late aborted response', async () => {
+    let calls = 0
+    let release!: (value: Response) => void
+    globalThis.fetch = (async () => {
+      calls++
+      return new Promise<Response>(resolve => { release = resolve })
+    }) as typeof fetch
+    const { result, rerender } = renderHook(({ enabled }) => useConversations(undefined, { enabled }), { initialProps: { enabled: false } })
+    await waitFor(() => assert.equal(result.current.loading, false))
+    assert.equal(calls, 0)
+    rerender({ enabled: true })
+    await waitFor(() => assert.equal(calls, 1))
+    rerender({ enabled: false })
+    await waitFor(() => assert.equal(result.current.loading, false))
+    await act(async () => { release(response({ items: [detail], total: 1 })); await new Promise(resolve => setTimeout(resolve, 0)) })
+    assert.deepEqual(result.current.items, [])
+  })
+
+  it('keeps the new request busy when an aborted request rejects during debounce or a replacement load', async () => {
+    const pending: Array<{ resolve: (value: Response) => void; reject: (err: Error) => void; signal?: AbortSignal | null; page: string | null }> = []
+    globalThis.fetch = (async (url, init) => new Promise<Response>((resolve, reject) => pending.push({ resolve, reject, signal: init?.signal, page: new URL(String(url), 'http://localhost').searchParams.get('page') }))) as typeof fetch
+    const { result, unmount } = renderHook(() => useConversations())
+    await waitFor(() => assert.equal(pending.length, 1))
+    act(() => result.current.search('new'))
+    assert.equal(pending[0].signal?.aborted, true)
+    await act(async () => { pending[0].reject(new Error('late abort')); await Promise.resolve() })
+    assert.equal(result.current.loading, true, 'old finally cleared debounce loading')
+    await waitFor(() => assert.equal(pending.length, 2))
+    let quiet!: Promise<void>
+    act(() => { quiet = result.current.refreshQuietly() })
+    assert.equal(pending.length, 3)
+    await act(async () => { pending[1].resolve(response({ items: [{ ...detail, id: 'stale' }], total: 9 })); await Promise.resolve() })
+    assert.equal(result.current.loading, true, 'old finally released replacement loading')
+    await act(async () => { pending[2].resolve(response({ items: [detail], total: 2 })); await quiet })
+    assert.deepEqual(result.current.items.map(item => item.id), ['123'])
+    act(() => { result.current.loadMore(); result.current.loadMore() })
+    assert.equal(pending.length, 4)
+    assert.equal(pending[3].page, '2')
+    unmount()
+    assert.equal(pending[3].signal?.aborted, true)
+    await act(async () => { pending[3].reject(new Error('late unmount')); await Promise.resolve() })
+    await result.current.refreshQuietly()
+    assert.equal(pending.length, 4, 'unmounted hook sent a new request')
+  })
+
+  it('does not send quiet/filter requests while disabled and resumes pagination after enabling', async () => {
+    const pages: string[] = []
+    globalThis.fetch = (async url => {
+      const page = new URL(String(url), 'http://localhost').searchParams.get('page')!
+      pages.push(page)
+      return response({ items: [{ ...detail, id: page }], total: 2 })
+    }) as typeof fetch
+    const { result, rerender } = renderHook(({ enabled }) => useConversations(undefined, { enabled }), { initialProps: { enabled: false } })
+    act(() => { result.current.search('saved'); result.current.filter(true); result.current.resetFilters() })
+    await act(async () => { await result.current.refreshQuietly() })
+    assert.equal(result.current.loading, false)
+    assert.deepEqual(pages, [])
+    rerender({ enabled: true })
+    await waitFor(() => assert.equal(result.current.items.length, 1))
+    act(() => result.current.loadMore())
+    await waitFor(() => assert.equal(result.current.items.length, 2))
+    assert.deepEqual(pages, ['1', '2'])
+  })
+
   it('replaces message pages and continues from the latest saved turn', async () => {
     const requested: number[] = []
     globalThis.fetch = (async url => {
