@@ -1,12 +1,28 @@
 /// <reference types="node" />
 import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { streamChat } from './api'
+import { fetchBlock, fetchTurnPage, streamChat } from './api'
+import { isBlock } from './guards'
 
 const originalFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = originalFetch })
 
 describe('chat API', () => {
+  it('validates phase in historical blocks without narrowing legacy or extension fields', async () => {
+    for (const phase of [undefined, 'start', 'delta', 'block_end', null, 'future', 1, false, {}]) {
+      const block = { type: 'text', phase, future_extension: true }
+      const accepted = phase === undefined || ['start', 'delta', 'block_end'].includes(phase as string)
+      assert.equal(isBlock(block), accepted)
+      globalThis.fetch = (async url => Response.json({ code: 100000, data: String(url).includes('/blocks/') ? block : {
+        items: [{ turn_index: 1, user_content: 'q', started_at: '2026-01-01T00:00:00Z', blocks: [block] }], page: 1, total_pages: 1,
+      } })) as typeof fetch
+      for (const request of [() => fetchBlock('1', 1, 1), () => fetchTurnPage('1', 1)]) {
+        if (accepted) await request()
+        else await assert.rejects(request(), /格式不正确/)
+      }
+    }
+    assert.equal(isBlock({ type: 'text', extra: 1 }), true)
+  })
   it('POSTs a continuation ID and consumes SSE', async () => {
     globalThis.fetch = (async (url, init) => {
       assert.ok(String(url).endsWith('/v1/chat/sse'))

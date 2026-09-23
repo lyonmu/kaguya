@@ -12,9 +12,13 @@ const isUsage = (value: unknown, required: boolean): value is Usage => {
 }
 
 const blockTypes = ['text', 'reasoning', 'tool_call', 'tool_result']
+const blockPhases = ['start', 'delta', 'block_end']
 
 export const isBlock = (value: unknown): value is Block =>
-  isRecord(value) && isString(value.type) && blockTypes.includes(value.type)
+  isRecord(value) &&
+  isString(value.type) &&
+  blockTypes.includes(value.type) &&
+  isOptional(value.phase, (phase): phase is NonNullable<Block['phase']> => isString(phase) && blockPhases.includes(phase))
 
 const isTurn = (value: unknown): value is Turn =>
   isRecord(value) &&

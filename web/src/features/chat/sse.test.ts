@@ -66,6 +66,17 @@ describe('SSE runtime validation', () => {
     assert.equal(received.length, 2)
     assert.equal(received[0].chat.content, 'ok')
   })
+  it('accepts optional known block phases and rejects invalid phases', async () => {
+    for (const phase of [undefined, 'start', 'delta', 'block_end']) {
+      const block = phase === undefined ? { type: 'text', text: 'ok' } : { type: 'text', text: 'ok', phase }
+      const received: ChatFrame[] = []
+      await consumeSSE(stream(envelope({ chat: { id: '1', flag: 'delta', block } }) + envelope({ chat: { id: '1', flag: 'done' } })), value => received.push(value))
+      assert.equal(received.length, 2)
+    }
+    for (const phase of [null, 'future', 1]) {
+      await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '1', flag: 'delta', block: { type: 'text', phase } } })), () => {}), /格式不正确/)
+    }
+  })
   it('rejects an error frame without a chat id only when the field is missing', async () => {
     await assert.rejects(consumeSSE(stream(envelope({ chat: { flag: 'error' } })), () => {}), /格式不正确/)
     // 会话尚未建立时后端允许空 id。
