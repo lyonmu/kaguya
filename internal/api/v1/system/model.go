@@ -39,7 +39,7 @@ func (b *SystemApiV1Group) SystemModelCatalog(c *gin.Context) {
 func (b *SystemApiV1Group) SystemModelSync(c *gin.Context) {
 	resp, err := servicesystem.DefaultModelCatalogSyncer.Sync(c.Request.Context())
 	if err != nil {
-		global.Logger.Sugar().Warnf("manual model catalog sync failed: %v", err)
+		global.Logger.Warn("manual model catalog sync failed")
 		dtocode.ModelCatalogSyncFailure.Failure(c)
 		return
 	}

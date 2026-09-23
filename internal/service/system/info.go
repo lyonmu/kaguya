@@ -36,7 +36,11 @@ func (s *SystemSvc) Info(ctx context.Context) (*dtosystem.SystemInfoResp, error)
 	if err != nil {
 		return nil, err
 	}
-	return systemInfoResponse(row), nil
+	resp := systemInfoResponse(row)
+	if runtimeError := DefaultModelCatalogSyncer.runtimeError(); runtimeError != "" {
+		resp.ModelSyncLastError = runtimeError
+	}
+	return resp, nil
 }
 
 func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSaveReq) (*dtosystem.SystemInfoResp, error) {

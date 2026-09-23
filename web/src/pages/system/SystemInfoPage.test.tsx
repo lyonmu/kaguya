@@ -69,6 +69,50 @@ it('loads, edits and saves system config with local model record IDs', async () 
   assert.equal((view.getByLabelText('全局基础提示词') as HTMLTextAreaElement).value, '新的基础人设')
 })
 
+it('refreshes sync status on failure and success without replacing unsaved form inputs', async () => {
+  const config = { context_compaction_percent: 90, agent_max_steps: 0, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: [], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: 'saved', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '' }
+  let calls = 0
+  let unreadable = false
+  globalThis.fetch = (async (url, init) => {
+    if (String(url).includes('/model/label')) return response([])
+    if (init?.method === 'POST') {
+      calls++
+      if (calls <= 2) {
+        config.model_sync_last_error = '无法保存模型目录'
+        return Response.json({ code: 999999, message: '目录同步失败' })
+      }
+      config.model_sync_last_error = ''
+      config.model_sync_catalog_count = 1
+      config.provider_catalog_count = 1
+      return response({ count: 1, provider_count: 1, synced_at: '2026-01-01T00:00:00Z' })
+    }
+    if (unreadable) return Response.json({ code: 999999, message: '配置暂不可读' })
+    return response(config)
+  }) as typeof fetch
+  const view = render(<App><SystemInfoPage /></App>)
+  const input = await view.findByLabelText('全局基础提示词') as HTMLTextAreaElement
+  fireEvent.change(input, { target: { value: 'unsaved draft' } })
+  fireEvent.change(view.getByLabelText('模型目录同步地址'), { target: { value: 'https://unsaved.invalid/models' } })
+  const button = view.getByRole('button', { name: /立即同步/ })
+  fireEvent.click(button)
+  await view.findByText('最近失败：无法保存模型目录')
+  assert.equal(input.value, 'unsaved draft')
+  await waitFor(() => assert.equal(button.classList.contains('ant-btn-loading'), false))
+  unreadable = true
+  fireEvent.click(button)
+  await view.findByText('同步状态刷新失败，请重试或重新加载')
+  await waitFor(() => assert.equal(button.classList.contains('ant-btn-loading'), false))
+  assert.equal(input.value, 'unsaved draft')
+  assert.equal(button.hasAttribute('disabled'), false)
+  unreadable = false
+  fireEvent.click(button)
+  await waitFor(() => assert.ok(view.getByText(/提供商 1 个 · 模型 1 项/)))
+  assert.equal(view.queryByText(/最近失败：/), null)
+  assert.equal(input.value, 'unsaved draft')
+  assert.equal((view.getByLabelText('模型目录同步地址') as HTMLInputElement).value, 'https://unsaved.invalid/models')
+  assert.equal(calls, 3)
+})
+
 it('searches models by API ID, clears configuration and restores the chat default', async () => {
   const models = [
     { label: '同名模型', value: 'local-a', provider_name: '提供商 A', provider_id: 'a', model_id: 'api-alpha', is_default: true },

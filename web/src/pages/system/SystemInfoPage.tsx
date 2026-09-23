@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, App, Button, Card, Form, Input, InputNumber, Select, Space, Spin, Switch, Tooltip, Typography } from 'antd'
 import { ReloadOutlined, SaveOutlined, SyncOutlined } from '@ant-design/icons'
 import { fetchModelLabels, syncModelCatalog } from '../../features/providers/api'
@@ -17,6 +17,8 @@ export function SystemInfoPage() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
+  const syncRequest = useRef<AbortController | null>(null)
+  useEffect(() => () => { syncRequest.current?.abort() }, [])
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
@@ -50,13 +52,38 @@ export function SystemInfoPage() {
     finally { setSaving(false) }
   }
   const syncNow = async () => {
+    if (syncRequest.current) return
+    const controller = new AbortController()
+    syncRequest.current = controller
     setSyncing(true)
     try {
       const result = await syncModelCatalog()
-      void message.success(`已同步 ${result.provider_count.toLocaleString()} 个提供商、${result.count.toLocaleString()} 个模型`)
-      setRevision(value => value + 1)
-    } catch (error) { void message.error(error instanceof Error ? error.message : '同步失败') }
-    finally { setSyncing(false) }
+      if (!controller.signal.aborted) void message.success(`已同步 ${result.provider_count.toLocaleString()} 个提供商、${result.count.toLocaleString()} 个模型`)
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        const failure = error instanceof Error ? error.message : '同步失败'
+        void message.error(failure)
+        setInfo(current => current && { ...current, model_sync_last_error: failure })
+      }
+    } finally {
+      // 同步成功或失败都只刷新状态，不重新装载表单或覆盖未保存输入。
+      if (!controller.signal.aborted) {
+        try {
+          const status = await fetchSystemInfo(controller.signal)
+          if (!controller.signal.aborted) setInfo(current => current && { ...current,
+            model_sync_last_error: status.model_sync_last_error,
+            model_sync_last_attempt_at: status.model_sync_last_attempt_at,
+            model_sync_last_success_at: status.model_sync_last_success_at,
+            model_sync_catalog_count: status.model_sync_catalog_count,
+            provider_catalog_count: status.provider_catalog_count,
+          })
+        } catch {
+          if (!controller.signal.aborted) void message.error('同步状态刷新失败，请重试或重新加载')
+        }
+        if (!controller.signal.aborted) setSyncing(false)
+      }
+      if (syncRequest.current === controller) syncRequest.current = null
+    }
   }
   const formatTime = (value?: string) => value ? new Date(value).toLocaleString() : '尚未同步'
   return <div className="mx-auto w-full max-w-[1180px] px-6 py-5 max-[620px]:px-3.5">

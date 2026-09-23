@@ -12,6 +12,19 @@ import (
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 )
 
+func TestSystemInfoIncludesRuntimeCatalogError(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	old := DefaultModelCatalogSyncer
+	syncer := NewModelCatalogSyncer(http.DefaultClient)
+	syncer.setSyncError(syncer.nextSequence(), "模型目录运行期错误")
+	DefaultModelCatalogSyncer = syncer
+	t.Cleanup(func() { DefaultModelCatalogSyncer = old })
+	info, err := (&SystemSvc{}).Info(ctx)
+	if err != nil || info.ModelSyncLastError != "模型目录运行期错误" {
+		t.Fatalf("info=%+v err=%v", info, err)
+	}
+}
+
 // 提供商目录来自 api.json，模型目录来自 models.json；两个地址分别配置、分别解析。
 func TestModelCatalogSyncAndQuery(t *testing.T) {
 	ctx := setupSystemServiceTest(t)

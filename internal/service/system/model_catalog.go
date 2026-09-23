@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -21,8 +20,9 @@ import (
 )
 
 const (
-	modelCatalogMaxBytes = 8 << 20
-	modelCatalogTimeout  = 30 * time.Second
+	modelCatalogMaxBytes        = 8 << 20
+	modelCatalogTimeout         = 30 * time.Second
+	modelCatalogFailureCooldown = 60 * time.Second
 	// 目录条目上限，防止异常响应把整份 JSON 写进单行配置。
 	modelCatalogMaxEntries    = 10000
 	providerCatalogMaxEntries = 1000
@@ -60,17 +60,71 @@ type modelCatalogSource struct {
 	} `json:"limit"`
 }
 
+type catalogRuntimeError struct {
+	sequence uint64
+	message  string
+}
+
 // ModelCatalogSyncer 负责手动同步与定时调度；两条路径共享互斥锁，避免重复下载覆盖。
 type ModelCatalogSyncer struct {
-	client *http.Client
-	notify chan struct{}
-	syncMu sync.Mutex
+	client        *http.Client
+	notify        chan struct{}
+	syncMu        sync.Mutex
+	stateMu       sync.Mutex
+	sequence      uint64
+	scheduleError catalogRuntimeError
+	syncError     catalogRuntimeError
 }
 
 var DefaultModelCatalogSyncer = NewModelCatalogSyncer(newModelCatalogHTTPClient())
 
 func NewModelCatalogSyncer(client *http.Client) *ModelCatalogSyncer {
 	return &ModelCatalogSyncer{client: client, notify: make(chan struct{}, 1)}
+}
+
+func (s *ModelCatalogSyncer) nextSequence() uint64 {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	s.sequence++
+	return s.sequence
+}
+
+func (s *ModelCatalogSyncer) setScheduleError(sequence uint64, message string) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if sequence >= s.scheduleError.sequence {
+		s.scheduleError = catalogRuntimeError{sequence: sequence, message: message}
+	}
+}
+
+func (s *ModelCatalogSyncer) setSyncError(sequence uint64, message string) {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if sequence >= s.syncError.sequence {
+		s.syncError = catalogRuntimeError{sequence: sequence, message: message}
+	}
+}
+
+func (s *ModelCatalogSyncer) runtimeError() string {
+	s.stateMu.Lock()
+	defer s.stateMu.Unlock()
+	if s.syncError.message == "" || s.scheduleError.message != "" && s.scheduleError.sequence > s.syncError.sequence {
+		return s.scheduleError.message
+	}
+	return s.syncError.message
+}
+
+func (s *ModelCatalogSyncer) waitAfterFailure(ctx context.Context) bool {
+	timer := time.NewTimer(modelCatalogFailureCooldown)
+	defer stopTimer(timer)
+	select {
+	case <-ctx.Done():
+		return false
+	case <-s.notify:
+		return true
+	case <-timer.C:
+		return true
+	}
 }
 
 func newModelCatalogHTTPClient() *http.Client {
@@ -103,15 +157,22 @@ func (s *ModelCatalogSyncer) Notify() {
 // Run 按最近尝试时间计算下一次同步；失败后同样等待完整间隔，避免网络异常时忙重试。
 func (s *ModelCatalogSyncer) Run(ctx context.Context) {
 	for {
+		sequence := s.nextSequence()
 		row, err := db.EntClient.KaguyaSystemInfo.Query().Where(kaguyasysteminfo.IDEQ(consts.SystemInfoID)).
 			Select(kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelSyncLastAttemptAt).
 			Only(ctx)
 		if err != nil {
-			if ctx.Err() == nil {
-				global.Logger.Sugar().Errorf("query model sync schedule failed: %v", err)
+			if ctx.Err() != nil {
+				return
 			}
-			return
+			s.setScheduleError(sequence, "无法读取模型目录同步配置")
+			global.Logger.Error("query model sync schedule failed")
+			if !s.waitAfterFailure(ctx) {
+				return
+			}
+			continue
 		}
+		s.setScheduleError(sequence, "")
 		if !row.ModelSyncEnabled {
 			select {
 			case <-ctx.Done():
@@ -126,8 +187,14 @@ func (s *ModelCatalogSyncer) Run(ctx context.Context) {
 			delay = time.Until(row.ModelSyncLastAttemptAt.Add(time.Duration(row.ModelSyncIntervalHours) * time.Hour))
 		}
 		if delay <= 0 {
-			if _, err := s.Sync(ctx); err != nil && ctx.Err() == nil {
-				global.Logger.Sugar().Warnf("scheduled model catalog sync failed: %v", err)
+			if _, err := s.Sync(ctx); err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+				global.Logger.Warn("scheduled model catalog sync failed")
+				if !s.waitAfterFailure(ctx) {
+					return
+				}
 			}
 			continue
 		}
@@ -154,16 +221,24 @@ func stopTimer(timer *time.Timer) {
 
 // Sync 分别下载提供商目录（api.json）与模型目录（models.json），两个目录一旦有一边失败
 // 就整体失败，避免出现半新半旧的配置。
-func (s *ModelCatalogSyncer) Sync(ctx context.Context) (*dtosystem.SystemModelSyncResp, error) {
+func (s *ModelCatalogSyncer) Sync(ctx context.Context) (resp *dtosystem.SystemModelSyncResp, resultErr error) {
 	s.syncMu.Lock()
 	defer s.syncMu.Unlock()
+	sequence := s.nextSequence()
+	defer func() {
+		if resultErr != nil {
+			s.setSyncError(sequence, safeCatalogError(resultErr))
+		} else {
+			s.setSyncError(sequence, "")
+		}
+	}()
 
 	attemptedAt := time.Now()
 	config, err := db.EntClient.KaguyaSystemInfo.Query().Where(kaguyasysteminfo.IDEQ(consts.SystemInfoID)).
 		Select(kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldProviderSyncURL, kaguyasysteminfo.FieldModelSyncURL).
 		Only(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%w: query sync URL: %v", ErrModelCatalogSync, err)
+		return nil, s.fail(ctx, attemptedAt, &catalogSyncError{message: "无法读取模型目录同步配置", cause: err})
 	}
 	providerBody, err := s.download(ctx, config.ProviderSyncURL)
 	if err != nil {
@@ -245,7 +320,7 @@ func (s *ModelCatalogSyncer) Sync(ctx context.Context) (*dtosystem.SystemModelSy
 		SetModelSyncLastSuccessAt(syncedAt).
 		SetModelSyncLastError("").
 		Exec(ctx); err != nil {
-		return nil, fmt.Errorf("%w: persist catalog: %v", ErrModelCatalogSync, err)
+		return nil, s.fail(ctx, attemptedAt, &catalogSyncError{message: "无法保存模型目录", cause: err})
 	}
 	global.Logger.Sugar().Infof("catalog synced: providers=%d models=%d", len(providers), len(models))
 	return &dtosystem.SystemModelSyncResp{Count: len(models), ProviderCount: len(providers), SyncedAt: syncedAt}, nil
@@ -280,19 +355,39 @@ func (s *ModelCatalogSyncer) download(ctx context.Context, rawURL string) ([]byt
 }
 
 func (s *ModelCatalogSyncer) fail(ctx context.Context, attemptedAt time.Time, cause error) error {
-	var urlError *url.Error
-	if errors.As(cause, &urlError) {
-		cause = urlError.Err
-	}
-	message := cause.Error()
-	if len(message) > 2000 {
-		message = message[:2000]
-	}
-	_ = db.EntClient.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
+	message := safeCatalogError(cause)
+	if err := db.EntClient.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
 		SetModelSyncLastAttemptAt(attemptedAt).
 		SetModelSyncLastError(message).
-		Exec(ctx)
-	return fmt.Errorf("%w: %v", ErrModelCatalogSync, cause)
+		Exec(ctx); err != nil {
+		global.Logger.Error("persist model catalog failure status failed")
+		return &catalogSyncError{message: message + "；无法保存失败状态", cause: errors.Join(cause, err)}
+	}
+	return &catalogSyncError{message: message, cause: cause}
+}
+
+// 公开文案不拼接底层错误；cause 仅用于内部 errors.Is/As，不解析任意错误正文。
+type catalogSyncError struct {
+	message string
+	cause   error
+}
+
+func (e *catalogSyncError) Error() string   { return ErrModelCatalogSync.Error() + ": " + e.message }
+func (e *catalogSyncError) Unwrap() []error { return []error{ErrModelCatalogSync, e.cause} }
+
+func safeCatalogError(err error) string {
+	var failure *catalogSyncError
+	if errors.As(err, &failure) {
+		return failure.message
+	}
+	switch {
+	case errors.Is(err, context.Canceled):
+		return "模型目录同步已取消"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "模型目录同步请求超时"
+	default:
+		return "模型目录同步失败，请检查网络与目录配置"
+	}
 }
 
 func (s *SystemSvc) ModelCatalog(ctx context.Context, req *dtosystem.SystemModelCatalogReq) (*dtosystem.SystemModelCatalogListResp, error) {
