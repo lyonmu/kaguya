@@ -15,11 +15,16 @@ import (
 
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtoproject "github.com/lyonmu/kaguya/internal/dto/project"
+	"github.com/lyonmu/kaguya/internal/global"
 	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestProjectToolWorkspaceAuthority(t *testing.T) {
 	ctx, _ := setupChatTest(t)
+	core, logs := observer.New(zap.DebugLevel)
+	global.Logger = zap.New(core)
 	home, homeErr := filepath.EvalSymlinks(t.TempDir())
 	if homeErr != nil {
 		t.Fatal(homeErr)
@@ -47,6 +52,10 @@ func TestProjectToolWorkspaceAuthority(t *testing.T) {
 		t.Fatal("wrong workspace")
 	}
 	set.Close()
+	entries := logs.FilterMessage("project coding tools registered").All()
+	if len(entries) != 1 || entries[0].Level != zap.DebugLevel || entries[0].ContextMap()["conversation_id"] != "123" || entries[0].ContextMap()["project_id"] != p.ID {
+		t.Fatalf("registration logs=%+v", entries)
+	}
 	if err := (&projectsvc.ProjectSvc{}).Delete(ctx, p.ID); err != nil {
 		t.Fatal(err)
 	}
