@@ -64,6 +64,24 @@ it('opens external links with the system browser instead of navigating', async (
   assert.equal(link.getAttribute('target'), '_blank')
 })
 
+it('keeps image approval and default URL transformation under the native scheme', () => {
+  const view = render(<Markdown text="![图](javascript:secret)" />)
+  for (const src of ['javascript:secret', 'data:text/html,secret', 'vbscript:secret']) {
+    view.rerender(<Markdown text={`![图](${src})`} />)
+    assert.equal(view.queryByRole('button', { name: '加载图片：图' }), null)
+    assert.equal(view.container.querySelector('img'), null)
+  }
+  for (const src of ['https://example.com/a?data=fake', 'http://example.com/a', '/relative/a.png', '//example.com/a']) {
+    view.rerender(<Markdown text={`![图](${src})`} />)
+    assert.equal(view.container.querySelector('img'), null)
+    const button = view.getByRole('button', { name: '加载图片：图' })
+    assert.equal(button.getAttribute('title'), src)
+    fireEvent.click(button)
+    assert.equal(view.container.querySelector('img')?.getAttribute('src'), src)
+    assert.equal(view.container.querySelector('img')?.getAttribute('referrerpolicy'), 'no-referrer')
+  }
+})
+
 it('reports a failed native system operation', async () => {
   globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'clipboard write failed' }), { status: 500 })) as typeof fetch
   const view = render(<Markdown text={'```go\nx\n```'} />)

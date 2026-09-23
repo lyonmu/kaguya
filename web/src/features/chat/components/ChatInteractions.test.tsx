@@ -70,6 +70,19 @@ it('loads Markdown images only on request and requires approval for a changed UR
   assert.equal(view.container.querySelector('img'), null)
 })
 
+it('keeps Markdown image URL compatibility while rejecting dangerous protocols', () => {
+  const view = render(<Markdown text="![危险](javascript:alert(1))" />)
+  assert.equal(view.queryByRole('button', { name: '加载图片：危险' }), null)
+  assert.equal(view.container.querySelector('img'), null)
+  for (const source of ['http://example.com/a.png', '/relative.png', '//cdn.example.com/a.png']) {
+    view.rerender(<Markdown text={`![兼容](${source})`} />)
+    const button = view.getByRole('button', { name: '加载图片：兼容' })
+    assert.equal(button.getAttribute('title'), source)
+    fireEvent.click(button)
+    assert.equal(view.container.querySelector('img')?.getAttribute('src'), source)
+  }
+})
+
 it('distinguishes execution from completed input, failures, and interrupted calls', () => {
   const block = { type: 'tool_call' as const, phase: 'block_end' as const, tool_name: 'bash', input: '{"command":"go test ./..."}' }
   const view = render(<ActivityBlock block={block} streaming />)
