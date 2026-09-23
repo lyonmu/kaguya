@@ -270,11 +270,20 @@ func TestBashCWDOutputExitAndTimeout(t *testing.T) {
 	oldID := global.Id
 	global.Id = &testIDGenerator{next: 123456789}
 	t.Cleanup(func() { global.Id = oldID })
+	t.Setenv("KAGUYA_SECRET_KEY", "test-secret-value")
+	t.Setenv("HTTPS_PROXY", "http://proxy.invalid")
+	t.Setenv("KAGUYA_TEST_TOOLCHAIN", "fake-toolchain")
+	t.Setenv("KAGUYA_WORKSPACE", "/not-the-project")
 	s := setup(t)
 	r := run(t, s.BashTool(), BashInput{Command: "pwd; printf error >&2"})
 	requireOK(t, r)
 	if !strings.Contains(r.Content, s.cwd) || !strings.Contains(r.Content, "error") {
 		t.Fatal(r.Content)
+	}
+	r = run(t, s.BashTool(), BashInput{Command: `printf '%s\n%s\n%s\n%s' "$KAGUYA_SECRET_KEY" "$HTTPS_PROXY" "$KAGUYA_WORKSPACE" "$KAGUYA_TEST_TOOLCHAIN"`})
+	requireOK(t, r)
+	if !strings.Contains(r.Content, "test-secret-value") || !strings.Contains(r.Content, "http://proxy.invalid") || !strings.Contains(r.Content, s.cwd) || !strings.Contains(r.Content, "fake-toolchain") || strings.Contains(r.Content, "/not-the-project") {
+		t.Fatal("bash did not inherit the complete application environment")
 	}
 	r = run(t, s.BashTool(), BashInput{Command: "echo partial; exit 7"})
 	if !r.IsError || !strings.Contains(r.Content, "partial") || !strings.Contains(r.Content, "7") {
@@ -648,6 +657,49 @@ func TestReadStreamingTextBoundaries(t *testing.T) {
 }
 
 // 大文件的窗口读取不应把整个文件复制进内存；基准用于对比窗口大小的影响。
+func BenchmarkGrepLargeOutput(b *testing.B) {
+	if _, err := exec.LookPath("rg"); err != nil {
+		b.Skip("rg unavailable")
+	}
+	cwd, temp := b.TempDir(), b.TempDir()
+	s, err := newSet(cwd, "benchmark-conversation", temp, time.Now(), zap.NewNop())
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Cleanup(func() { _ = s.Close() })
+	var content strings.Builder
+	for i := range 10000 {
+		fmt.Fprintf(&content, "match-%05d %s\n", i, strings.Repeat("内容", 80))
+	}
+	if err := os.WriteFile(filepath.Join(cwd, "large.txt"), []byte(content.String()), 0o600); err != nil {
+		b.Fatal(err)
+	}
+	limit := 10000
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if _, err := s.grep(context.Background(), GrepInput{Pattern: "match", Path: "large.txt", Context: 1, Limit: &limit}); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkApplyEditsMany(b *testing.B) {
+	var original strings.Builder
+	edits := make([]Replacement, 0, 64)
+	for i := range 64 {
+		line := fmt.Sprintf("line-%03d: value with punctuation — %d\n", i, i)
+		original.WriteString(line)
+		edits = append(edits, Replacement{OldText: line, NewText: fmt.Sprintf("line-%03d: updated %d\n", i, i)})
+	}
+	b.ReportAllocs()
+	for range b.N {
+		if _, _, err := applyEdits(original.String(), edits); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkReadToolWindow(b *testing.B) {
 	for _, size := range []int{1 << 20, 8 << 20} {
 		content := strings.Repeat("0123456789abcdef\n", size/17)

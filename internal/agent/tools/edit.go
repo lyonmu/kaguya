@@ -82,6 +82,15 @@ func applyEdits(original string, edits []Replacement) (string, int, error) {
 		base = fuzzy(original)
 	}
 	matches := make([]matchedEdit, 0, len(edits))
+	var fuzzyBase string
+	fuzzyBaseReady := false
+	getFuzzyBase := func() string {
+		if !fuzzyBaseReady {
+			fuzzyBase = fuzzy(base)
+			fuzzyBaseReady = true
+		}
+		return fuzzyBase
+	}
 	for i, e := range edits {
 		old := normalizeLF(e.OldText)
 		if !strings.Contains(base, old) {
@@ -95,7 +104,8 @@ func applyEdits(original string, edits []Replacement) (string, int, error) {
 			return "", 0, fmt.Errorf("could not find edits[%d]; oldText must match the original file", i)
 		}
 		// As in pi, fuzzy-equivalent duplicates are ambiguous even with one exact match.
-		if strings.Count(fuzzy(base), fuzzy(old)) > 1 || strings.Contains(base[start+1:], old) {
+		fuzzyOld := fuzzy(old)
+		if strings.Count(getFuzzyBase(), fuzzyOld) > 1 || strings.Contains(base[start+1:], old) {
 			return "", 0, fmt.Errorf("edits[%d] is not unique; provide more context", i)
 		}
 		matches = append(matches, matchedEdit{start: start, end: start + len(old), index: i, text: normalizeLF(e.NewText)})

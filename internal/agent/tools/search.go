@@ -359,6 +359,7 @@ func (s *Set) grep(ctx context.Context, in GrepInput) (fantasy.ToolResponse, err
 		matches = matches[:limit]
 	}
 	lines := []string{}
+	outputBytes := 0
 	longLines := false
 	emit := func(p string, line int, text string, matching bool) {
 		r := []rune(text)
@@ -370,7 +371,12 @@ func (s *Set) grep(ctx context.Context, in GrepInput) (fantasy.ToolResponse, err
 		if !matching {
 			separator = "-"
 		}
-		lines = append(lines, fmt.Sprintf("%s%s%d%s %s", p, separator, line, separator, text))
+		formatted := fmt.Sprintf("%s%s%d%s %s", p, separator, line, separator, text)
+		if len(lines) > 0 {
+			outputBytes++ // strings.Join 使用的分隔换行。
+		}
+		outputBytes += len(formatted)
+		lines = append(lines, formatted)
 	}
 	// 同一文件的匹配通常连续出现，这里按路径缓存已切分的行，避免每个匹配重读整份文件；
 	// 缓存总量设上限，避免多个大文件同时驻留内存。
@@ -411,7 +417,7 @@ func (s *Set) grep(ctx context.Context, in GrepInput) (fantasy.ToolResponse, err
 		for i := max(1, m.line-in.Context); i <= min(len(all), m.line+in.Context); i++ {
 			emit(filepath.ToSlash(display), i, all[i-1], i == m.line)
 		}
-		if len(strings.Join(lines, "\n")) > MaxBytes {
+		if outputBytes > MaxBytes {
 			break
 		}
 	}
