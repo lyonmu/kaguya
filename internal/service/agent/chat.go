@@ -36,15 +36,17 @@ func pushChatError(ctx context.Context, dataChan chan *dtochat.ChatResp, convID 
 	send(ctx, dataChan, resp)
 }
 
-// startFrame 是本轮下发的第一条帧，携带会话 ID 与模型信息。
+// startFrame 是本轮下发的第一条帧，携带会话 ID 与模型信息；
+// MemoryUnavailable 明确提示长期记忆暂不可用的非致命状态。
 func startFrame(exec chatExecution) *dtochat.ChatResp {
 	model := exec.target.model
 	return &dtochat.ChatResp{
-		Chat:        dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagStart},
-		APIProtocol: consts.ProviderProtocol(model.APIProtocol),
-		Created:     time.Now().Unix(),
-		ModelID:     model.ModelID,
-		ModelName:   model.ModelName,
+		Chat:              dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagStart},
+		APIProtocol:       consts.ProviderProtocol(model.APIProtocol),
+		Created:           time.Now().Unix(),
+		ModelID:           model.ModelID,
+		ModelName:         model.ModelName,
+		MemoryUnavailable: exec.prompt.memory.unavailable,
 	}
 }
 
@@ -161,7 +163,9 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		startEarlyTitleTask(ctx, convID, req.Messages)
 	}
 
-	prompt, err := prepareChatPrompt(ctx, target, toolset, convID, req)
+	// 每轮生成前进行一次本地召回；失败只降级并明确显示，不阻塞聊天。
+	mem := s.prepareMemory(ctx, convID, target.model.TokenContextWindow, req.Messages)
+	prompt, err := prepareChatPrompt(ctx, target, toolset, convID, req, mem)
 	if err != nil {
 		pushChatError(ctx, dataChan, "", err)
 		return

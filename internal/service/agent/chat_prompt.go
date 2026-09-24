@@ -8,6 +8,7 @@ import (
 
 	"charm.land/fantasy"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
+	"github.com/lyonmu/kaguya/internal/agent/memorytools"
 	codingtools "github.com/lyonmu/kaguya/internal/agent/tools"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/global"
@@ -24,13 +25,15 @@ const (
 type chatPrompt struct {
 	requestPrompt string              // 用户提问（含内联文件引用）
 	system        string              // 系统提示词：全局人设 + 指令快照 + 工具说明
-	tools         []fantasy.AgentTool // 项目工具 + MCP 工具
+	tools         []fantasy.AgentTool // 项目工具 + MCP 工具 + 只读记忆工具
 	instructions  string              // AGENTS.md 快照，随轮次持久化
+	memory        memoryTurn          // 本轮自动召回的临时上下文与冻结选择
 }
 
 // prepareChatPrompt 组装系统提示词、项目指令快照、文件引用与可用工具。
 // toolset 为空表示本次对话没有项目工作区，此时不允许引用文件。
-func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingtools.Set, conversationID string, req *dtochat.ChatReq) (*chatPrompt, error) {
+// mem 提供本轮自动召回的临时上下文与只读记忆工具（普通对话也可用，无需项目文件权限）。
+func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingtools.Set, conversationID string, req *dtochat.ChatReq, mem memoryTurn) (*chatPrompt, error) {
 	projectDir := ""
 	if toolset != nil {
 		projectDir = toolset.CWD()
@@ -43,7 +46,8 @@ func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingt
 	if target.info.GlobalSystemPrompt != nil {
 		basePrompt = *target.info.GlobalSystemPrompt
 	}
-	prompt := &chatPrompt{instructions: instructions, system: servicesystem.ChatSystemPrompt(basePrompt, target.info.SystemPrompt) + instructions}
+	prompt := &chatPrompt{instructions: instructions, memory: mem,
+		system: servicesystem.ChatSystemPrompt(basePrompt, target.info.SystemPrompt) + instructions}
 	if toolset != nil {
 		toolset.SetCommandTimeout(time.Duration(*target.info.CommandTimeoutSeconds) * time.Second)
 		prompt.tools = toolset.AllTools()
@@ -55,8 +59,28 @@ func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingt
 		return nil, err
 	}
 	prompt.requestPrompt = requestPrompt
-	prompt.tools = append(prompt.tools, agentmcp.Default.Tools()...)
+	mcpTools := agentmcp.Default.Tools()
+	prompt.tools = append(prompt.tools, mcpTools...)
+	// 工具名与外部 MCP 工具冲突时不注册记忆工具，保持已有工具契约不变。
+	if mem.reader != nil && !toolNameConflict(mcpTools, "memory_search", "memory_read") {
+		prompt.tools = append(prompt.tools, memorytools.Tools(mem.reader)...)
+	}
 	return prompt, nil
+}
+
+// toolNameConflict 检查记忆工具名与外部 MCP 工具的冲突。
+func toolNameConflict(existing []fantasy.AgentTool, names ...string) bool {
+	wanted := map[string]bool{}
+	for _, name := range names {
+		wanted[name] = true
+	}
+	for _, tool := range existing {
+		if tool != nil && wanted[tool.Info().Name] {
+			global.Logger.Sugar().Warnf("memory tool name conflicts with MCP tool %q; memory tools not registered", tool.Info().Name)
+			return true
+		}
+	}
+	return false
 }
 
 // composeRequestPrompt 拼接用户提问与内联引用的项目文件内容。

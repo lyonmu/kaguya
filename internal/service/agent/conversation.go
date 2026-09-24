@@ -13,12 +13,15 @@ import (
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
+	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
+	"github.com/lyonmu/kaguya/internal/global"
+	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
 )
 
@@ -111,10 +114,10 @@ func createConversation(ctx context.Context, target *chatTarget, id, projectID s
 
 // turnStart 是创建进行中占位行的输入。
 type turnStart struct {
-	ConversationID string
-	UserContent    string
+	ConversationID                                            string
+	UserContent                                               string
 	ProviderID, ProviderName, ModelID, ModelName, APIProtocol string
-	StartedAt      time.Time
+	StartedAt                                                 time.Time
 }
 
 // beginTurn 在正文开始生成前写入 running 占位行；中断的轮次同样占用 turn_index，
@@ -187,6 +190,7 @@ type completedTurn struct {
 	FinishReason                                              string
 	ContextTokens                                             *int64
 	ContextWindow                                             int
+	MemorySelection                                           *dtomemory.TurnMemorySelection
 	Usage                                                     token.NormalizedUsage
 	Messages                                                  []fantasy.Message
 	Blocks                                                    []dtochat.StoredBlock
@@ -266,6 +270,9 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	if turn.ContextMessages != nil {
 		createTurn.SetContextMessages(turn.ContextMessages)
 	}
+	if turn.MemorySelection != nil {
+		createTurn.SetMemoryRefs(*turn.MemorySelection)
+	}
 	turnID := turn.TurnID
 	if turnID == "" {
 		row, err := createTurn.SetMessages(turn.Messages).Save(ctx)
@@ -283,9 +290,12 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 			SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
 			SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
 			SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
-			SetCompactionCount(turn.CompactionCount).SetMessages(turn.Messages).ClearContextMessages()
+			SetCompactionCount(turn.CompactionCount).SetMessages(turn.Messages).ClearContextMessages().ClearMemoryRefs()
 		if turn.ContextMessages != nil {
 			update.SetContextMessages(turn.ContextMessages)
+		}
+		if turn.MemorySelection != nil {
+			update.SetMemoryRefs(*turn.MemorySelection)
 		}
 		if _, err := update.Save(ctx); err != nil {
 			return err
@@ -318,6 +328,21 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 			return err
 		}
 	}
+	// 与 completed 轮次同事务写入来源待处理记录（outbox）：模型/编译失败不影响
+	// 聊天，但同事务的写失败会使完成事务失败，这是可靠捕获的代价。
+	policy, err := memorysvc.LoadPolicy(ctx, client)
+	if err != nil {
+		return err
+	}
+	if policy.AutoCapture {
+		if err := memorysvc.CaptureCompletedTx(ctx, client, memorysvc.CaptureInput{
+			ConversationID: turn.ConversationID,
+			TurnID:         turnID,
+			PolicyEpoch:    policy.Epoch,
+		}); err != nil {
+			return err
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -325,7 +350,8 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 }
 
 func conversationResp(row *ent.KaguyaConversation) dtochat.ConversationResp {
-	return dtochat.ConversationResp{IsProject: row.ProjectID != nil, ProjectID: row.ProjectID, ID: row.ID, Title: row.Title, Favorite: row.Favorite, TurnCount: row.TurnCount,
+	return dtochat.ConversationResp{IsProject: row.ProjectID != nil, ProjectID: row.ProjectID, ID: row.ID, Title: row.Title,
+		Favorite: row.Favorite, MemoryMode: string(row.MemoryMode), TurnCount: row.TurnCount,
 		ModelID: row.ModelID, ModelName: row.ModelName, CreatedAt: row.CreatedAt, LastMessageAt: row.LastMessageAt,
 		DurationMS: row.DurationMs, ToolCalls: row.ToolCalls,
 		Usage: dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)}}
@@ -380,7 +406,31 @@ func (s *AgentSvc) ConversationDetail(ctx context.Context, id string) (*dtochat.
 		return nil, err
 	}
 	resp.LastModelID = lastModelID
+	refs, err := lastTurnMemoryRefs(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	resp.MemoryRefs = refs
 	return &resp, nil
+}
+
+// lastTurnMemoryRefs 解析最近一轮的召回引用；已删除页面显示“已删除”，
+// 不能通过历史版本接口绕过删除。
+func lastTurnMemoryRefs(ctx context.Context, conversationID string) (*dtomemory.MemoryRefsResp, error) {
+	turn, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(conversationID), kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted)).
+		Select(kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldMemoryRefs).
+		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).First(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(turn.MemoryRefs.Refs) == 0 {
+		return nil, nil
+	}
+	return memorysvc.NewService(db.EntClient, global.Logger).TurnMemoryRefs(ctx, turn.MemoryRefs)
 }
 
 // conversationLastModelID 解析最近一轮使用的本地模型记录 ID，供前端续聊时默认选中。
@@ -410,7 +460,7 @@ func conversationLastModelID(ctx context.Context, conversationID string) (string
 }
 
 func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtochat.ConversationUpdateReq) (*dtochat.ConversationResp, error) {
-	if req.Title == nil && req.Favorite == nil {
+	if req.Title == nil && req.Favorite == nil && req.MemoryMode == nil {
 		return nil, ErrConversationUpdate
 	}
 	if req.Title != nil && (strings.TrimSpace(*req.Title) == "" || len([]rune(*req.Title)) > 200) {
@@ -421,12 +471,20 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 		return nil, err
 	}
 	defer release()
-	update := db.EntClient.KaguyaConversation.UpdateOneID(id).Where(kaguyaconversation.DeletedAtIsNil())
+	tx, err := db.EntClient.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	update := tx.Client().KaguyaConversation.UpdateOneID(id).Where(kaguyaconversation.DeletedAtIsNil())
 	if req.Title != nil {
 		update.SetTitle(strings.TrimSpace(*req.Title))
 	}
 	if req.Favorite != nil {
 		update.SetFavorite(*req.Favorite)
+	}
+	if req.MemoryMode != nil {
+		update.SetMemoryMode(kaguyaconversation.MemoryMode(*req.MemoryMode))
 	}
 	row, err := update.Save(ctx)
 	if ent.IsNotFound(err) {
@@ -435,20 +493,45 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 	if err != nil {
 		return nil, err
 	}
+	if req.MemoryMode != nil {
+		// 会话记忆模式变化提升策略版本，使在途提案不能再发布。
+		if err := memorysvc.BumpPolicyEpoch(ctx, tx.Client()); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
 	resp := conversationResp(row)
 	return &resp, nil
 }
-func (s *AgentSvc) ConversationDelete(ctx context.Context, id string) error {
+
+// ConversationDelete 删除会话。Memory 接入后必须显式扩展：
+// 同事务撤销该会话来源的可用性、取消待处理来源/作业，依赖页面保守标 stale
+// 移出自动召回；purgeMemory 为真时进一步删除来源及其派生记忆内容。
+// 绝不随会话解除归属把来源改写为 personal/shared。
+func (s *AgentSvc) ConversationDelete(ctx context.Context, id string, purgeMemory bool) error {
 	_, release, err := acquireConversation(id)
 	if err != nil {
 		return err
 	}
 	defer release()
-	err = db.EntClient.KaguyaConversation.UpdateOneID(id).Where(kaguyaconversation.DeletedAtIsNil()).SetDeletedAt(time.Now()).Exec(ctx)
+	tx, err := db.EntClient.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	err = tx.Client().KaguyaConversation.UpdateOneID(id).Where(kaguyaconversation.DeletedAtIsNil()).SetDeletedAt(time.Now()).Exec(ctx)
 	if ent.IsNotFound(err) {
 		return ErrConversationNotFound
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	if err := memorysvc.OnConversationDeletedTx(ctx, tx.Client(), id, purgeMemory); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtochat.TurnPageReq) (*dtochat.TurnListResp, error) {
 	if req.Limit < 1 || req.Limit > 100 || req.Page < 0 || req.Before < 0 || (req.Page > 0 && req.Before > 0) {
@@ -538,6 +621,13 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 			DurationMS: row.DurationMs, ToolCalls: row.ToolCalls, FinishReason: row.FinishReason, Status: string(row.Status),
 			Usage:  dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)},
 			Blocks: make([]dtochat.StoredBlock, 0, len(blocksByTurn[row.ID]))}
+		if len(row.MemoryRefs.Refs) > 0 {
+			refs, err := memorysvc.NewService(db.EntClient, global.Logger).TurnMemoryRefs(ctx, row.MemoryRefs)
+			if err != nil {
+				return nil, err
+			}
+			turn.MemoryRefs = refs
+		}
 		for _, b := range blocksByTurn[row.ID] {
 			block, err := storedBlock(b)
 			if err != nil {

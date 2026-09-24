@@ -31,7 +31,7 @@ type turnRecorder struct {
 	once    sync.Once
 
 	mu         sync.Mutex
-	flushed    traceStats     // 最近一次成功提交时的快照统计
+	flushed    traceStats      // 最近一次成功提交时的快照统计
 	flushedRev map[int64]int64 // sequence 已成功写入的轨迹版本
 	lastFlush  time.Time
 }

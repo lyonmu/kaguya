@@ -6,6 +6,7 @@ import (
 
 	"charm.land/fantasy"
 	token "github.com/lyonmu/kaguya/internal/agent/token"
+	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 )
 
 // chatOutcome 是一次成功轮次的结果；持久化与 done 帧都基于它，不重复计算。
@@ -39,10 +40,12 @@ func (o *chatOutcome) conversationMessages(userPrompt string) []fantasy.Message 
 	return messages
 }
 
-// persist 在单个事务内写入完成轮次。失败时调用方不得发送 done。
+// persist 在单个事务内写入完成轮次。失败时调用方不得发送 done；
+// 提交成功后 Notify 唤醒记忆 Worker（通知丢失也不丢任务）。
 func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 	target := exec.target
-	return saveCompletedTurn(ctx, completedTurn{
+	err := saveCompletedTurn(ctx, completedTurn{
+		MemorySelection:   exec.prompt.memory.selection(),
 		AgentInstructions: &exec.prompt.instructions,
 		ConversationID:    exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
 		TurnID:      exec.turnID,
@@ -55,4 +58,9 @@ func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 		ContextMessages: o.compactor.snapshot(o.result), CompactionCount: o.compactor.count,
 		ContextTokens: completedResultContextTokens(o.result, o.paused), ContextWindow: target.model.TokenContextWindow,
 	})
+	if err != nil {
+		return err
+	}
+	memorysvc.Notify()
+	return nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/global"
+	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 )
 
 var ErrPathExists = errors.New("project directory already exists")
@@ -192,7 +193,27 @@ func (s *ProjectSvc) Save(ctx context.Context, id string, req *dto.SaveReq) (*dt
 	if id == "" {
 		row, err = db.EntClient.KaguyaProject.Create().SetName(name).SetPath(path).SetDescription(req.Description).Save(ctx)
 	} else {
-		row, err = db.EntClient.KaguyaProject.UpdateOneID(id).Where(kaguyaproject.DeletedAtIsNil()).SetName(name).SetPath(path).SetDescription(req.Description).Save(ctx)
+		var tx *ent.Tx
+		tx, err = db.EntClient.Tx(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = tx.Rollback() }()
+		previous, queryErr := tx.KaguyaProject.Query().Where(kaguyaproject.IDEQ(id), kaguyaproject.DeletedAtIsNil()).Only(ctx)
+		if ent.IsNotFound(queryErr) {
+			return nil, ErrNotFound
+		}
+		if queryErr != nil {
+			return nil, queryErr
+		}
+		row, err = tx.KaguyaProject.UpdateOneID(id).Where(kaguyaproject.DeletedAtIsNil()).SetName(name).SetPath(path).SetDescription(req.Description).Save(ctx)
+		if err == nil && row.Path != previous.Path {
+			// 项目换绑意味着代码对象可能更换：旧记忆标待核验并提升策略版本。
+			err = memorysvc.OnProjectPathChangedTx(ctx, tx.Client(), id)
+		}
+		if err == nil {
+			err = tx.Commit()
+		}
 	}
 	if ent.IsNotFound(err) {
 		return nil, ErrNotFound
@@ -232,6 +253,10 @@ func (s *ProjectSvc) Delete(ctx context.Context, id string) error {
 		return err
 	}
 	if err = tx.KaguyaProject.UpdateOneID(id).SetDeletedAt(time.Now()).Exec(ctx); err != nil {
+		return err
+	}
+	// 项目删除：范围保持原项目身份且不再召回，待处理任务取消。
+	if err = memorysvc.OnProjectDeletedTx(ctx, tx.Client(), id); err != nil {
 		return err
 	}
 	if err = tx.Commit(); err != nil {

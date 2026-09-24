@@ -18,11 +18,14 @@ type contextCompactor struct {
 	percent    int
 	maxOutput  int
 	toolTokens int64
-	lastTokens *int64
-	seen       int
-	messages   []fantasy.Message
-	count      int
-	usage      fantasy.Usage
+	// transientTokens 是本轮自动召回 sidecar 的估算占用：阈值估算与压缩后校验
+	// 都为它预留空间，但 Memory 不进入历史摘要正文。
+	transientTokens int64
+	lastTokens      *int64
+	seen            int
+	messages        []fantasy.Message
+	count           int
+	usage           fantasy.Usage
 }
 
 func estimateMessages(messages []fantasy.Message) int64 {
@@ -115,7 +118,7 @@ func (c *contextCompactor) prepare(ctx context.Context, opts fantasy.PrepareStep
 	next := append([]fantasy.Message{}, c.messages[:start]...)
 	next = append(next, summary)
 	next = append(next, c.messages[cut:]...)
-	if estimateMessages(next)+c.toolTokens >= threshold {
+	if estimateMessages(next)+c.toolTokens+c.transientTokens >= threshold {
 		return ctx, fantasy.PrepareStepResult{}, fmt.Errorf("compacted context still exceeds %d%% of model window; shorten input or increase model window", percent)
 	}
 	c.messages = next

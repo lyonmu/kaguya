@@ -82,21 +82,16 @@ func (s *Service) SearchPages(ctx context.Context, scopes []string, query string
 	if err := validateScopes(scopes); err != nil {
 		return nil, err
 	}
-	now := nowTime().UTC()
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(scopes)), ",")
-	args := make([]any, 0, len(scopes)+4)
+	// 参数按 SQL 中占位符的出现顺序绑定。
+	args := make([]any, 0, len(scopes)+3)
 	args = append(args, match)
 	for _, scope := range scopes {
 		args = append(args, scope)
 	}
-	freshExpr := "1"
-	if !includeExpired {
-		freshExpr = "CASE WHEN p.expires_at IS NULL OR p.expires_at > ? THEN 1 ELSE 0 END"
-		args = append(args, now)
-	}
 	args = append(args, max(limit, ftsCandidateLimit))
 	rows, err := s.client.QueryContext(ctx, fmt.Sprintf(`
-SELECT p.id, %s AS fresh, bm25(kaguya_memory_fts, 8.0, 5.0, 3.0, 1.0) AS lexical_rank
+SELECT p.id, bm25(kaguya_memory_fts, 8.0, 5.0, 3.0, 1.0) AS lexical_rank
 FROM kaguya_memory_fts
 JOIN kaguya_memory_search_doc AS d ON d.id = kaguya_memory_fts.rowid
 JOIN kaguya_memory_page AS p ON p.id = d.page_id
@@ -106,7 +101,7 @@ WHERE kaguya_memory_fts MATCH ?
   AND p.deleted_at IS NULL
   AND p.version = d.page_version
 ORDER BY lexical_rank ASC, p.id ASC
-LIMIT ?`, freshExpr, placeholders), args...)
+LIMIT ?`, placeholders), args...)
 	if err != nil {
 		return nil, fmt.Errorf("memory search: %w", err)
 	}
@@ -114,12 +109,10 @@ LIMIT ?`, freshExpr, placeholders), args...)
 	hits := make([]searchHit, 0, ftsCandidateLimit)
 	for rows.Next() {
 		var item searchHit
-		var fresh int
-		if err := rows.Scan(&item.id, &fresh, &item.rank); err != nil {
+		if err := rows.Scan(&item.id, &item.rank); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		item.fresh = fresh == 1
 		hits = append(hits, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -127,14 +120,24 @@ LIMIT ?`, freshExpr, placeholders), args...)
 		return nil, err
 	}
 	rows.Close()
-	return s.loadHits(ctx, hits, limit)
+	pages, err := s.loadHits(ctx, hits, limit)
+	if err != nil || includeExpired {
+		return pages, err
+	}
+	// 过期页面默认不自动注入；显式搜索才返回并标记。
+	filtered := pages[:0]
+	for _, page := range pages {
+		if !page.Expired {
+			filtered = append(filtered, page)
+		}
+	}
+	return filtered, nil
 }
 
 // searchHit 是 FTS 命中行。
 type searchHit struct {
-	id    string
-	fresh bool
-	rank  float64
+	id   string
+	rank float64
 }
 
 // loadHits 按命中顺序加载完整页面行；expired 页面仅在显式搜索时保留并标记。
@@ -155,6 +158,7 @@ func (s *Service) loadHits(ctx context.Context, hits []searchHit, limit int) ([]
 	for _, row := range rows {
 		byID[row.ID] = row
 	}
+	now := nowTime()
 	out := make([]RetrievedPage, 0, len(hits))
 	for _, item := range hits {
 		row, ok := byID[item.id]
@@ -164,7 +168,10 @@ func (s *Service) loadHits(ctx context.Context, hits []searchHit, limit int) ([]
 		page := RetrievedPage{
 			ID: row.ID, Version: row.Version, ScopeKey: row.ScopeKey, Kind: string(row.Kind),
 			Title: row.Title, Summary: row.Summary, Body: row.Body, Status: string(row.Status),
-			Pinned: row.Pinned, Aliases: row.Aliases, Expired: !item.fresh, LexicalRank: item.rank,
+			Pinned: row.Pinned, Aliases: row.Aliases, LexicalRank: item.rank,
+		}
+		if row.ExpiresAt != nil {
+			page.Expired = row.ExpiresAt.Before(now)
 		}
 		out = append(out, page)
 		if len(out) >= limit {

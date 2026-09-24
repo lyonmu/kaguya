@@ -14,8 +14,10 @@ import (
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
+	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
@@ -178,7 +180,21 @@ func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatRe
 	if err != nil {
 		return nil, err
 	}
-	call.PrepareStep = compactor.prepare
+	// 自动召回 sidecar 在压缩器处理之后、模型调用之前注入；每 step 重新校验
+	// 冻结选择的可用性，运行中被删除/禁用的页面不再附加。
+	call.PrepareStep = func(ctx context.Context, opts fantasy.PrepareStepFunctionOptions) (context.Context, fantasy.PrepareStepResult, error) {
+		nextCtx, prepared, err := compactor.prepare(ctx, opts)
+		if err != nil {
+			return nextCtx, prepared, err
+		}
+		messages := prepared.Messages
+		if messages == nil {
+			// 窗口未知时现有 compactor 返回零值。
+			messages = opts.Messages
+		}
+		prepared.Messages = InjectMemory(messages, exec.prompt.memory.renderTransient(ctx))
+		return nextCtx, prepared, nil
+	}
 
 	trace := exec.trace
 	if trace == nil {
@@ -239,7 +255,7 @@ func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, 
 	model := exec.target.model
 	compactor := &contextCompactor{
 		window: model.TokenContextWindow, percent: *info.ContextCompactionPercent,
-		maxOutput: model.TokenMaxOutputTokens,
+		maxOutput: model.TokenMaxOutputTokens, transientTokens: exec.prompt.memory.estimated,
 	}
 	for _, item := range exec.prompt.tools {
 		data, err := json.Marshal(item.Info())
@@ -249,15 +265,52 @@ func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, 
 		compactor.toolTokens += int64((len(data) + 3) / 4)
 	}
 	// 续聊时用上一次完成轮次的实际占用作为基线，避免重复估算整段历史。
+	// 上一轮与本轮 Memory 选择不同时废弃旧估算基线，避免逐轮累积；
+	// 保守重估优于伪精确减法。
 	if exec.version > 0 {
 		previous, err := s.ConversationContext(ctx, exec.conversationID)
 		if err != nil {
 			return nil, err
 		}
-		if previous.ModelID == model.ModelID && previous.ContextTokens != nil {
+		lastSelection, err := lastTurnMemorySelection(ctx, exec.conversationID)
+		if err != nil {
+			return nil, err
+		}
+		if previous.ModelID == model.ModelID && previous.ContextTokens != nil && sameMemorySelection(lastSelection, exec.prompt.memory.selection()) {
 			estimate := *previous.ContextTokens + estimateMessages([]fantasy.Message{fantasy.NewUserMessage(exec.prompt.requestPrompt)})
 			compactor.lastTokens = &estimate
 		}
 	}
 	return compactor, nil
+}
+
+// lastTurnMemorySelection 读取最近完成轮次的召回记录。
+func lastTurnMemorySelection(ctx context.Context, conversationID string) (*dtomemory.TurnMemorySelection, error) {
+	turn, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(conversationID), kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted)).
+		Select(kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldMemoryRefs).
+		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).First(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &turn.MemoryRefs, nil
+}
+
+// sameMemorySelection 比较两轮召回选择是否完全一致。
+func sameMemorySelection(a, b *dtomemory.TurnMemorySelection) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	if a.EstimatedTokens != b.EstimatedTokens || len(a.Refs) != len(b.Refs) {
+		return false
+	}
+	for i := range a.Refs {
+		if a.Refs[i] != b.Refs[i] {
+			return false
+		}
+	}
+	return true
 }

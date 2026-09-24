@@ -135,7 +135,7 @@ func TestConversationTitleBackgroundResult(t *testing.T) {
 				}
 			}
 			if mode == "deleted" {
-				if err := (&AgentSvc{}).ConversationDelete(ctx, "123"); err != nil {
+				if err := (&AgentSvc{}).ConversationDelete(ctx, "123", false); err != nil {
 					t.Fatal(err)
 				}
 			}

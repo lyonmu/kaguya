@@ -87,7 +87,7 @@ func TestConversationPersistenceAndPages(t *testing.T) {
 	if err != nil || list.Total != 0 {
 		t.Fatalf("favorite=false failed: %+v %v", list, err)
 	}
-	if err := svc.ConversationDelete(ctx, "123"); err != nil {
+	if err := svc.ConversationDelete(ctx, "123", false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.ConversationTurns(ctx, "123", &dtochat.TurnPageReq{Limit: 20}); !errors.Is(err, ErrConversationNotFound) {
@@ -316,7 +316,7 @@ func TestCompactHistoryDefersLargeBlocksAndPreservesPaging(t *testing.T) {
 		t.Fatalf("cross-conversation lookup: %v", err)
 	}
 	request.ID = "compact-history"
-	if err := svc.ConversationDelete(ctx, request.ID); err != nil {
+	if err := svc.ConversationDelete(ctx, request.ID, false); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.ConversationBlock(ctx, request); !errors.Is(err, ErrConversationNotFound) {

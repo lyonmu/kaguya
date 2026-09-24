@@ -84,7 +84,7 @@ func TestConversationContextUsesLatestCompletedModel(t *testing.T) {
 	if err != nil || got.ContextTokens != nil || got.Percent != nil {
 		t.Fatalf("legacy=%+v %v", got, err)
 	}
-	if err := svc.ConversationDelete(ctx, "context"); err != nil {
+	if err := svc.ConversationDelete(ctx, "context", false); err != nil {
 		t.Fatal(err)
 	}
 	for _, id := range []string{"context", "missing"} {

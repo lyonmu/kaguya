@@ -1,6 +1,10 @@
 package chat
 
-import "time"
+import (
+	"time"
+
+	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
+)
 
 type ConversationIDReq struct {
 	ID string `uri:"id" binding:"required,max=64"`
@@ -14,8 +18,9 @@ type ConversationPageReq struct {
 	PageSize  int    `form:"page_size,default=20" binding:"min=1,max=100"`
 }
 type ConversationUpdateReq struct {
-	Title    *string `json:"title" binding:"omitempty,min=1,max=200"`
-	Favorite *bool   `json:"favorite"`
+	Title      *string `json:"title" binding:"omitempty,min=1,max=200"`
+	Favorite   *bool   `json:"favorite"`
+	MemoryMode *string `json:"memory_mode" binding:"omitempty,oneof=inherit off readonly"` // 会话记忆模式：继承 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史
 }
 
 type ConversationTitleResp struct {
@@ -37,20 +42,22 @@ type BlockDetailReq struct {
 	Sequence  int64  `uri:"sequence" binding:"min=1"`
 }
 type ConversationResp struct {
-	IsProject     bool      `json:"is_project"` // 根据 project_id 是否为空派生，不单独存储
-	ProjectID     *string   `json:"project_id"`
-	ID            string    `json:"id"`
-	Title         string    `json:"title"` // AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试
-	Favorite      bool      `json:"favorite"`
-	TurnCount     int64     `json:"turn_count"`
-	ModelID       string    `json:"model_id"`
-	ModelName     string    `json:"model_name"`
-	LastModelID   string    `json:"last_model_id,omitempty"` // 最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型
-	CreatedAt     time.Time `json:"created_at"`
-	LastMessageAt time.Time `json:"last_message_at"`
-	DurationMS    int64     `json:"duration_ms"`
-	ToolCalls     int64     `json:"tool_calls"`
-	Usage         Usage     `json:"usage"` // 仅累计已完成轮次
+	IsProject     bool                           `json:"is_project"` // 根据 project_id 是否为空派生，不单独存储
+	ProjectID     *string                        `json:"project_id"`
+	ID            string                         `json:"id"`
+	Title         string                         `json:"title"` // AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试
+	Favorite      bool                           `json:"favorite"`
+	TurnCount     int64                          `json:"turn_count"`
+	ModelID       string                         `json:"model_id"`
+	ModelName     string                         `json:"model_name"`
+	LastModelID   string                         `json:"last_model_id,omitempty"` // 最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型
+	CreatedAt     time.Time                      `json:"created_at"`
+	LastMessageAt time.Time                      `json:"last_message_at"`
+	DurationMS    int64                          `json:"duration_ms"`
+	ToolCalls     int64                          `json:"tool_calls"`
+	Usage         Usage                          `json:"usage"`                 // 仅累计已完成轮次
+	MemoryMode    string                         `json:"memory_mode"`           // inherit/off/readonly
+	MemoryRefs    *dtomemory.MemoryRefsResp      `json:"memory_refs,omitempty"` // 最近一轮自动召回的选择记录；已删除页面显示“已删除”
 }
 type ConversationListResp struct {
 	Items    []ConversationResp `json:"items"`
@@ -79,20 +86,21 @@ type StoredBlock struct {
 	EndOrder         int64       `json:"end_order"`
 }
 type StoredTurn struct {
-	TurnIndex    int64         `json:"turn_index"` // 仅历史分页/排序使用，不改变实时 DTO
-	UserContent  string        `json:"user_content"`
-	ProviderName string        `json:"provider_name"`
-	ModelID      string        `json:"model_id"`
-	ModelName    string        `json:"model_name"`
-	APIProtocol  string        `json:"api_protocol"`
-	StartedAt    time.Time     `json:"started_at"`
-	FinishedAt   time.Time     `json:"finished_at"`
-	DurationMS   int64         `json:"duration_ms"`
-	ToolCalls    int64         `json:"tool_calls"`
-	FinishReason string        `json:"finish_reason"`
-	Status       string        `json:"status"` // running/completed/interrupted/failed；只有 completed 是完整上下文
-	Usage        Usage         `json:"usage"`
-	Blocks       []StoredBlock `json:"blocks"`
+	TurnIndex    int64                          `json:"turn_index"` // 仅历史分页/排序使用，不改变实时 DTO
+	UserContent  string                         `json:"user_content"`
+	ProviderName string                         `json:"provider_name"`
+	ModelID      string                         `json:"model_id"`
+	ModelName    string                         `json:"model_name"`
+	APIProtocol  string                         `json:"api_protocol"`
+	StartedAt    time.Time                      `json:"started_at"`
+	FinishedAt   time.Time                      `json:"finished_at"`
+	DurationMS   int64                          `json:"duration_ms"`
+	ToolCalls    int64                          `json:"tool_calls"`
+	FinishReason string                         `json:"finish_reason"`
+	Status       string                         `json:"status"`                // running/completed/interrupted/failed；只有 completed 是完整上下文
+	MemoryRefs   *dtomemory.MemoryRefsResp     `json:"memory_refs,omitempty"` // 本轮自动召回选择的页面版本，不复制正文
+	Usage        Usage                          `json:"usage"`
+	Blocks       []StoredBlock                  `json:"blocks"`
 }
 type TurnListResp struct {
 	Total      int64        `json:"total"`
