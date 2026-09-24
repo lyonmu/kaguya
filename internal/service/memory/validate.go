@@ -42,15 +42,21 @@ var (
 
 // EvidenceIndex 是发布前校验的允许证据集合：本批来源片段 ∪ 目标页当前修订证据。
 type EvidenceIndex struct {
-	segments map[string]map[string]Segment                 // source_id -> part_key -> segment
-	retained map[string]map[string]dtomemory.ClaimEvidence // page_id -> source\x00part\x00quote
+	segments map[string]map[string]Segment          // source_id -> part_key -> segment
+	retained map[string]map[string]retainedEvidence // page_id -> source\x00part\x00quote
+}
+
+type retainedEvidence struct {
+	dtomemory.ClaimEvidence
+	Basis    string `json:"basis"`
+	ClaimKey string `json:"claim_key"`
 }
 
 // NewEvidenceIndex 建立本批允许证据集合；retained 在校验 update/conflict 时按页补充。
 func NewEvidenceIndex(projections []*SourceProjection) *EvidenceIndex {
 	index := &EvidenceIndex{
 		segments: make(map[string]map[string]Segment, len(projections)),
-		retained: make(map[string]map[string]dtomemory.ClaimEvidence),
+		retained: make(map[string]map[string]retainedEvidence),
 	}
 	for _, projection := range projections {
 		parts := make(map[string]Segment, len(projection.Segments))
@@ -66,12 +72,12 @@ func NewEvidenceIndex(projections []*SourceProjection) *EvidenceIndex {
 func (e *EvidenceIndex) AddRetained(pageID string, rows []*ent.KaguyaMemoryEvidence) {
 	set := e.retained[pageID]
 	if set == nil {
-		set = map[string]dtomemory.ClaimEvidence{}
+		set = map[string]retainedEvidence{}
 		e.retained[pageID] = set
 	}
 	for _, row := range rows {
 		set[evidenceKey(dtomemory.ClaimEvidence{SourceID: row.SourceID, PartKey: row.PartKey, Quote: row.Quote})] =
-			dtomemory.ClaimEvidence{SourceID: row.SourceID, PartKey: row.PartKey, Quote: row.Quote, Relation: string(row.Relation)}
+			retainedEvidence{ClaimEvidence: dtomemory.ClaimEvidence{SourceID: row.SourceID, PartKey: row.PartKey, Quote: row.Quote, Relation: string(row.Relation)}, Basis: string(row.Basis), ClaimKey: row.ClaimKey}
 	}
 }
 
@@ -116,6 +122,9 @@ func validatePatch(change *dtomemory.PagePatch, in ValidatePlanInput, seenKeys m
 	if change.Action == "noop" {
 		return nil
 	}
+	if len(change.CandidateKeys) == 0 || len(change.Claims) == 0 {
+		return fmt.Errorf("%w: missing candidate keys or claims", ErrPlanInvalid)
+	}
 	for _, key := range change.CandidateKeys {
 		if !in.CandidateKeys[key] {
 			return fmt.Errorf("%w: unknown candidate key %q", ErrPlanInvalid, key)
@@ -136,6 +145,9 @@ func validatePatch(change *dtomemory.PagePatch, in ValidatePlanInput, seenKeys m
 		page, ok := in.CandidatePages[change.PageID]
 		if !ok {
 			return fmt.Errorf("%w: page %q is not in the candidate set", ErrPlanInvalid, change.PageID)
+		}
+		if page.ScopeKey != in.SchemaVersionScope {
+			return fmt.Errorf("%w: candidate crosses scopes", ErrPlanInvalid)
 		}
 		if change.BaseVersion != page.Version {
 			return fmt.Errorf("%w: page %q base_version %d does not match current version %d", ErrPlanInvalid, change.PageID, change.BaseVersion, page.Version)
@@ -159,7 +171,7 @@ func validatePatch(change *dtomemory.PagePatch, in ValidatePlanInput, seenKeys m
 			if !validRel[ev.Relation] {
 				return fmt.Errorf("%w: invalid evidence relation %q", ErrPlanInvalid, ev.Relation)
 			}
-			if !in.Evidence.allows(change.PageID, ev) {
+			if !in.Evidence.allows(change.PageID, ev) || !in.Evidence.allowsBasis(change.PageID, ev, claim.Basis) {
 				return fmt.Errorf("%w: evidence %q/%q is outside the allowed set", ErrPlanInvalid, ev.SourceID, ev.PartKey)
 			}
 		}
@@ -197,6 +209,17 @@ func (e *EvidenceIndex) allows(pageID string, ev dtomemory.ClaimEvidence) bool {
 	return false
 }
 
+// 不能靠模型自报 basis 把助手断言或旧 synthesis 升级为强证据。
+func (e *EvidenceIndex) allowsBasis(pageID string, ev dtomemory.ClaimEvidence, basis string) bool {
+	if basis == "synthesis" {
+		return true
+	}
+	if parts, ok := e.segments[ev.SourceID]; ok {
+		return parts[ev.PartKey].Origin == basis
+	}
+	return e.retained[pageID][evidenceKey(ev)].Basis == basis
+}
+
 func validatePageShape(change *dtomemory.PagePatch) error {
 	if !validKinds[change.Kind] {
 		return fmt.Errorf("%w: invalid kind %q", ErrPlanInvalid, change.Kind)
@@ -230,7 +253,11 @@ func validatePageShape(change *dtomemory.PagePatch) error {
 // validateNoSecrets 是生成校验：明显秘密不允许由编译写入；
 // 正则只能覆盖已知模式，高风险资料需人工确认。人工保存是用户明确动作，不受此限。
 func validateNoSecrets(change *dtomemory.PagePatch) error {
-	for _, text := range []string{change.Title, change.Summary, change.Body, change.Reason} {
+	texts := append([]string{change.Title, change.Summary, change.Body, change.Reason, change.CanonicalKey}, change.Aliases...)
+	for _, claim := range change.Claims {
+		texts = append(texts, claim.Key, claim.Statement)
+	}
+	for _, text := range texts {
 		if redactSecrets(text) != text {
 			return fmt.Errorf("%w: content contains secret-looking material", ErrPlanInvalid)
 		}
@@ -247,10 +274,9 @@ func validateNoSecrets(change *dtomemory.PagePatch) error {
 
 // LoadRetainedEvidence 为候选页补充当前修订证据（保留主张允许集合）。
 func LoadRetainedEvidence(ctx context.Context, client *ent.Client, index *EvidenceIndex, pages map[string]*ent.KaguyaMemoryPage) error {
-	for pageID := range pages {
+	for pageID, page := range pages {
 		revision, err := client.KaguyaMemoryRevision.Query().
-			Where(kaguyamemoryrevision.PageIDEQ(pageID)).
-			Order(ent.Desc(kaguyamemoryrevision.FieldVersion)).First(ctx)
+			Where(kaguyamemoryrevision.PageIDEQ(pageID), kaguyamemoryrevision.VersionEQ(page.Version)).Only(ctx)
 		if ent.IsNotFound(err) {
 			continue
 		}
@@ -263,6 +289,35 @@ func LoadRetainedEvidence(ctx context.Context, client *ent.Client, index *Eviden
 			return err
 		}
 		index.AddRetained(pageID, rows)
+	}
+	return nil
+}
+
+// ValidateCandidates 在候选检索前限制提炼结果的规模和证据权限。
+func ValidateCandidates(candidates []dtomemory.Candidate, projections []*SourceProjection) error {
+	if len(candidates) > maxBatchPages {
+		return fmt.Errorf("%w: too many candidates", ErrPlanInvalid)
+	}
+	index := NewEvidenceIndex(projections)
+	seen := map[string]bool{}
+	for _, candidate := range candidates {
+		if candidate.Key == "" || seen[candidate.Key] || !validBasis[candidate.Basis] || len(candidate.Evidence) == 0 || len(candidate.Evidence) > maxEvidencePerPlan {
+			return fmt.Errorf("%w: invalid candidate", ErrPlanInvalid)
+		}
+		seen[candidate.Key] = true
+		patch := &dtomemory.PagePatch{Kind: candidate.Kind, Title: candidate.Title, Summary: candidate.Statement, Aliases: candidate.Aliases, CanonicalKey: candidate.Key}
+		if err := validatePageShape(patch); err != nil {
+			return err
+		}
+		if err := validateNoSecrets(patch); err != nil {
+			return err
+		}
+		for _, evidence := range candidate.Evidence {
+			ev := dtomemory.ClaimEvidence{SourceID: evidence.SourceID, PartKey: evidence.PartKey, Quote: evidence.Quote}
+			if !index.allows("", ev) || !index.allowsBasis("", ev, candidate.Basis) {
+				return fmt.Errorf("%w: invalid candidate evidence", ErrPlanInvalid)
+			}
+		}
 	}
 	return nil
 }

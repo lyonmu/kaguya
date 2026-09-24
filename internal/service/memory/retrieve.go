@@ -556,7 +556,7 @@ func validateScopes(scopes []string) error {
 // RenderTransient 按冻结的 selection 重新渲染临时上下文：
 // 运行中被删除/禁用的页面立即失效，后续请求不得继续附加已撤销页面，
 // 但同一轮不引入后台新完成的记忆。
-func (s *Service) RenderTransient(ctx context.Context, refs []dtomemory.TurnMemoryRef) (string, []dtomemory.TurnMemoryRef, error) {
+func (s *Service) RenderTransient(ctx context.Context, refs []dtomemory.TurnMemoryRef, tokenLimit ...int64) (string, []dtomemory.TurnMemoryRef, error) {
 	if len(refs) == 0 {
 		return "", nil, nil
 	}
@@ -572,6 +572,9 @@ func (s *Service) RenderTransient(ctx context.Context, refs []dtomemory.TurnMemo
 		}
 		if err != nil {
 			return "", nil, err
+		}
+		if page.ExpiresAt != nil && !page.ExpiresAt.After(nowTime()) {
+			continue
 		}
 		// 冻结版本优先取修订快照；修订被物理清除后不能绕过删除。
 		if page.Version != ref.Version {
@@ -600,7 +603,10 @@ func (s *Service) RenderTransient(ctx context.Context, refs []dtomemory.TurnMemo
 	if err := s.prepareBlocks(ctx, pages); err != nil {
 		return "", nil, err
 	}
-	budget := recallBudget{tokens: 1 << 30, bytes: 1 << 30}
+	budget := recallBudget{tokens: maxMemoryBytes / 4, bytes: maxMemoryBytes}
+	if len(tokenLimit) > 0 {
+		budget.tokens = min(budget.tokens, tokenLimit[0])
+	}
 	text, rendered := renderBlocks(pages, budget)
 	return text, rendered, nil
 }

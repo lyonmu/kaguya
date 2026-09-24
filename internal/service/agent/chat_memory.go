@@ -15,13 +15,15 @@ import (
 // 自动召回失败时 unavailable=true，调用方必须明确显示非致命状态，
 // 不能默默切成无记忆模式。
 type memoryTurn struct {
-	text        string
-	refs        []dtomemory.TurnMemoryRef
-	estimated   int64
-	retriever   int
-	enabled     bool
-	unavailable bool
-	reader      memorytools.Reader
+	text           string
+	refs           []dtomemory.TurnMemoryRef
+	estimated      int64
+	retriever      int
+	enabled        bool
+	unavailable    bool
+	reader         memorytools.Reader
+	conversationID string
+	policyEpoch    int64
 }
 
 // InjectMemory 把自动召回资料作为一条标明“资料而非指令”的临时 user-role 消息，
@@ -59,10 +61,10 @@ func (s *AgentSvc) prepareMemory(ctx context.Context, conversationID string, win
 	if !policy.Enabled || !convPolicy.Recall {
 		return memoryTurn{}
 	}
-	turn := memoryTurn{enabled: true, retriever: memory.RetrieverVersion}
+	turn := memoryTurn{enabled: true, retriever: memory.RetrieverVersion, conversationID: conversationID, policyEpoch: policy.Epoch}
 	// 私密/不记忆会话同时避免自动捕获和自动召回；工具也随召回一并关闭。
 	scopes := memory.RecallScopes(convPolicy.ProjectID)
-	turn.reader = memory.NewScopedReader(svc, scopes)
+	turn.reader = memory.NewConversationReader(svc, scopes, conversationID, policy.Epoch)
 	selection, err := svc.AutoRecall(ctx, memory.RecallOptions{
 		Scopes: scopes, Query: query,
 		ContextTokens: policy.ContextTokens, Window: window,
@@ -116,7 +118,12 @@ func (m memoryTurn) renderTransient(ctx context.Context) string {
 		return ""
 	}
 	svc := memory.NewService(db.EntClient, global.Logger)
-	text, _, err := svc.RenderTransient(ctx, m.refs)
+	if m.conversationID != "" {
+		if err := svc.CheckConversationEpoch(ctx, m.conversationID, m.policyEpoch); err != nil {
+			return ""
+		}
+	}
+	text, _, err := svc.RenderTransient(ctx, m.refs, m.estimated)
 	if err != nil {
 		global.Logger.Sugar().Warnf("revalidate memory selection failed: err=%v", err)
 		return ""

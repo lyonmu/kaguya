@@ -24,10 +24,9 @@ const ProjectionVersion = 1
 // 来源投影的有界参数：单段与单来源总量限制，超长按可追溯 segment 切分，
 // 不截掉末尾后假装全部处理成功。
 const (
-	maxSegmentChars  = 6000
-	maxSourceChars   = 24000
-	maxToolObsChars  = 2000
-	maxSegmentPieces = 64
+	maxSegmentChars = 6000
+	maxSourceChars  = 24000
+	maxToolObsChars = 2000
 )
 
 // toolObservationWhitelist 是允许进入来源投影的工具观察白名单；
@@ -106,7 +105,7 @@ func splitSegments(partKey, origin, text string) []Segment {
 	}
 	var pieces []string
 	runes := []rune(text)
-	for start := 0; start < len(runes) && len(pieces) < maxSegmentPieces; start += maxSegmentChars {
+	for start := 0; start < len(runes); start += maxSegmentChars {
 		pieces = append(pieces, string(runes[start:min(start+maxSegmentChars, len(runes))]))
 	}
 	if len(pieces) == 1 {

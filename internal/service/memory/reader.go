@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"errors"
 
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
@@ -15,8 +16,10 @@ import (
 // ScopedReader 是绑定作用域的只读记忆读取器，实现 memorytools.Reader 窄接口；
 // 范围由服务端闭包绑定，模型只能传 query / page ID。
 type ScopedReader struct {
-	svc    *Service
-	scopes []string
+	svc            *Service
+	scopes         []string
+	conversationID string
+	policyEpoch    int64
 }
 
 // NewScopedReader 构造范围绑定的只读记忆工具接口。
@@ -24,9 +27,43 @@ func NewScopedReader(svc *Service, scopes []string) *ScopedReader {
 	return &ScopedReader{svc: svc, scopes: scopes}
 }
 
+// NewConversationReader 除范围外还绑定本轮策略版本；撤销后旧工具立即拒绝读取。
+func NewConversationReader(svc *Service, scopes []string, conversationID string, epoch int64) *ScopedReader {
+	return &ScopedReader{svc: svc, scopes: append([]string(nil), scopes...), conversationID: conversationID, policyEpoch: epoch}
+}
+
+func (r *ScopedReader) checkPolicy(ctx context.Context) error {
+	if r.conversationID == "" {
+		return nil
+	}
+	return r.svc.CheckConversationEpoch(ctx, r.conversationID, r.policyEpoch)
+}
+
+// CheckConversationEpoch 是在途读取的撤销栅栏，epoch 不能替代当前授权检查。
+func (s *Service) CheckConversationEpoch(ctx context.Context, conversationID string, epoch int64) error {
+	policy, err := LoadPolicy(ctx, s.client)
+	if err != nil {
+		return err
+	}
+	if !policy.Enabled || policy.Epoch != epoch {
+		return errors.New("memory policy changed")
+	}
+	conv, err := ResolveConversationPolicy(ctx, s.client, conversationID, policy)
+	if err != nil {
+		return err
+	}
+	if !conv.Recall {
+		return errors.New("conversation memory is disabled")
+	}
+	return nil
+}
+
 // SearchMemory 返回 page_id、version、title、summary、status、source_count；
 // 显式搜索可返回过期页面并标记，不返回删除或无权访问的页面。
 func (r *ScopedReader) SearchMemory(ctx context.Context, query string, limit int) (string, error) {
+	if err := r.checkPolicy(ctx); err != nil {
+		return "", err
+	}
 	pages, err := r.svc.SearchPages(ctx, r.scopes, query, limit, true)
 	if err != nil {
 		return "", err
@@ -65,6 +102,9 @@ func (r *ScopedReader) SearchMemory(ctx context.Context, query string, limit int
 
 // ReadMemory 返回有界正文、主张证据摘要与关联页面 ID；版本参数用于核验时效。
 func (r *ScopedReader) ReadMemory(ctx context.Context, pageID string, version int64) (string, error) {
+	if err := r.checkPolicy(ctx); err != nil {
+		return "", err
+	}
 	detail, err := r.svc.ReadPageDetail(ctx, r.scopes, pageID, version)
 	if err != nil {
 		return "", err

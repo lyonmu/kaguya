@@ -517,7 +517,13 @@ func TestRetryJobRestoresSources(t *testing.T) {
 	backdateSources(t, f.ctx, f.client, 2*time.Minute)
 	job, _ := f.worker.claimReadyBatch(f.ctx, "")
 	f.svc.runJob(f.ctx, job)
-	_ = f.svc.failJob(f.ctx, job, "manual", "forced")
+	job, err := f.client.KaguyaMemoryJob.Get(f.ctx, job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.svc.failJob(f.ctx, job, "manual", "forced"); err != nil {
+		t.Fatal(err)
+	}
 	if err := f.svc.RetryJob(f.ctx, job.ID); err != nil {
 		t.Fatal(err)
 	}

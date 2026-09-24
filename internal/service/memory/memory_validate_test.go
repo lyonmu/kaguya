@@ -157,7 +157,7 @@ func TestValidatePlanRetainedEvidenceOnly(t *testing.T) {
 		t.Fatal("invented historical evidence must be rejected")
 	}
 	in.Evidence.AddRetained("page-1", []*ent.KaguyaMemoryEvidence{{
-		SourceID: "old-source", PartKey: "user", Quote: "历史引用",
+		SourceID: "old-source", PartKey: "user", Quote: "历史引用", Basis: "user_statement",
 	}})
 	if err := ValidatePlan(in); err != nil {
 		t.Fatalf("retained evidence rejected: %v", err)

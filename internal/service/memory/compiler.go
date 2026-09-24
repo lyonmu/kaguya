@@ -27,6 +27,9 @@ const (
 	maxPlanOutputChars = 24000
 )
 
+var errInputBudget = errors.New("memory input exceeds budget")
+var errDailyBudget = errors.New("daily memory budget exhausted")
+
 // CallResult 是一次任务模型调用的结果与用量。
 // 生成错误路径未返回上游用量时 UsageKnown=false，不能按 0 计入确认消耗。
 type CallResult struct {
@@ -116,7 +119,16 @@ func strictDecodeJSON(raw string, out any) error {
 // callTracked 执行一次模型调用并把用量/结果码记入 Attempt。
 // 所有分支（含错误与修复调用）都会落一条 Attempt，失败重试同样可能收费。
 func (s *Service) callTracked(ctx context.Context, job *ent.KaguyaMemoryJob, phase kaguyamemoryattempt.Phase, target *servicesystem.TaskModel, systemPrompt, payload string) (CallResult, error) {
-	maxOutput := callOutputLimit(target, len(payload))
+	if err := s.checkJobAccess(ctx, job); err != nil {
+		return CallResult{}, err
+	}
+	if err := checkDailyBudget(ctx, s.client); err != nil {
+		return CallResult{}, err
+	}
+	if target.TokenContextWindow > 0 && (len(payload)+len(systemPrompt)+3)/4+256 >= target.TokenContextWindow*3/4 {
+		return CallResult{}, errInputBudget
+	}
+	maxOutput := callOutputLimit(target, len(payload)+len(systemPrompt))
 	startedAt := time.Now()
 	result, err := s.caller.Call(ctx, target.Config, systemPrompt, payload, maxOutput)
 	duration := time.Since(startedAt)
@@ -132,8 +144,10 @@ func (s *Service) callTracked(ctx context.Context, job *ent.KaguyaMemoryJob, pha
 	if attempt < 1 {
 		attempt = 1
 	}
-	fields := func(set func(*ent.KaguyaMemoryAttemptCreate)) {}
-	_ = fields
+	// SSE/应用取消后仍需保存已经发生的远程消费。
+	recordCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	ctx = recordCtx
 	// 领取时已登记本尝试的首个 Attempt 行（result=started）：调用完成后补全用量；
 	// 修复调用与后续阶段各自新增一行，失败重试同样可能收费。
 	pending, queryErr := s.client.KaguyaMemoryAttempt.Query().
@@ -185,6 +199,12 @@ func callOutputLimit(target *servicesystem.TaskModel, payloadBytes int) int64 {
 // 认证失败与输入预算问题直接 blocked，429/5xx/网络问题指数退避重试，
 // 尊重可用的 Retry-After。
 func classifyCallError(err error) (code string, retryAfter time.Duration) {
+	if errors.Is(err, errInputBudget) {
+		return "input_budget", 0
+	}
+	if errors.Is(err, errDailyBudget) {
+		return "budget", 0
+	}
 	var providerErr *fantasy.ProviderError
 	if !errors.As(err, &providerErr) {
 		return "provider_error", 0
@@ -219,7 +239,7 @@ func callRetryable(err error) bool {
 // callBlocked 决定错误是否应转为 blocked 等待用户修复。
 func callBlocked(err error) bool {
 	code, _ := classifyCallError(err)
-	return code == "auth" || code == "input_budget"
+	return code == "auth" || code == "input_budget" || code == "budget"
 }
 
 func retryAfterSeconds(headers map[string]string) time.Duration {
@@ -257,9 +277,13 @@ func (s *Service) Extract(ctx context.Context, job *ent.KaguyaMemoryJob, target 
 }
 
 // Repair 是阶段 A/C 的一次有界格式修复调用；总调用次数仍受任务预算控制。
-func (s *Service) Repair(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, broken string) (string, error) {
+func (s *Service) Repair(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, broken string, prompts ...string) (string, error) {
+	systemPrompt := extractSystemPrompt
+	if len(prompts) > 0 {
+		systemPrompt = prompts[0]
+	}
 	payload := "The previous response did not match the required JSON contract. Return only the corrected JSON.\nPrevious response:\n" + truncateRunes(broken, 8000)
-	result, err := s.callTracked(ctx, job, kaguyamemoryattempt.PhaseRepair, target, extractSystemPrompt, payload)
+	result, err := s.callTracked(ctx, job, kaguyamemoryattempt.PhaseRepair, target, systemPrompt, payload)
 	if err != nil {
 		return "", err
 	}

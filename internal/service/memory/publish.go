@@ -71,15 +71,10 @@ func (s *Service) Publish(ctx context.Context, job *ent.KaguyaMemoryJob, plan *d
 		return PublishResult{}, ErrStaleLease
 	}
 
-	index := NewEvidenceIndex(projections)
 	candidates, err := candidatePagesTx(ctx, client, job.ScopeKey, plan)
 	if err != nil {
 		return PublishResult{}, err
 	}
-	if err := LoadRetainedEvidence(ctx, client, index, candidates); err != nil {
-		return PublishResult{}, err
-	}
-
 	result := PublishResult{}
 	review := make([]dtomemory.PagePatch, 0)
 	for i := range plan.Changes {
@@ -102,6 +97,7 @@ func (s *Service) Publish(ctx context.Context, job *ent.KaguyaMemoryJob, plan *d
 
 	if len(review) > 0 {
 		result.NeedsJob = true
+		result.Review = len(review)
 		if err := saveReviewProposalTx(ctx, client, job, review); err != nil {
 			return PublishResult{}, err
 		}
@@ -200,6 +196,10 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 		if page.Status == kaguyamemorypage.StatusDeleted {
 			return changeDropped, nil
 		}
+		if page.Version != change.BaseVersion {
+			// 冻结候选之后的用户编辑不能被旧冲突提案下线。
+			return changeReview, nil
+		}
 		if change.Action == "conflict" {
 			// 强证据（用户陈述/工具观察）且未锁定时，同事务把原页面标为 conflicted、
 			// 递增版本并移出自动召回，但保留原正文；弱助手猜测不能强制下线可靠页面。
@@ -217,15 +217,12 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 			// 人工锁定页面被新资料挑战：待审修订，不自动改正文。
 			return changeReview, nil
 		}
-		if page.Version != change.BaseVersion {
-			// 版本不一致：以当前页面版本为基准重新审核，不能最后写入者悄悄覆盖。
-			return changeReview, nil
-		}
 		status := page.Status
 		if strongEvidence(change) {
 			status = kaguyamemorypage.StatusActive
 		} else if status == kaguyamemorypage.StatusActive {
-			status = kaguyamemorypage.StatusProposed
+			// 助手推断不得自动替换已确认页面，交给用户审阅。
+			return changeReview, nil
 		}
 		updated, err := client.KaguyaMemoryPage.UpdateOneID(page.ID).
 			SetKind(kaguyamemorypage.Kind(change.Kind)).
@@ -264,20 +261,27 @@ func publishedStatus(change *dtomemory.PagePatch) kaguyamemorypage.Status {
 	return kaguyamemorypage.StatusProposed
 }
 
-// strongEvidence 判断是否存在用户陈述、工具观察或资料陈述证据；
-// 只有 synthesis 的内容默认不自动激活。
+// strongEvidence 要求每条主张都有强支持证据；不能用一条用户陈述
+// 为同页的助手推断背书，反驳证据也不能当作支持。
 func strongEvidence(change *dtomemory.PagePatch) bool {
+	if len(change.Claims) == 0 {
+		return false
+	}
 	for _, claim := range change.Claims {
+		supported := false
 		for _, ev := range claim.Evidence {
-			if ev.Quote != "" {
+			if ev.Quote != "" && ev.Relation != "refute" {
 				switch claim.Basis {
 				case "user_statement", "tool_observation", "document_statement":
-					return true
+					supported = true
 				}
 			}
 		}
+		if !supported {
+			return false
+		}
 	}
-	return false
+	return true
 }
 
 func defaultAliases(aliases []string) []string {
@@ -515,7 +519,7 @@ func checkLeaseAndSources(ctx context.Context, client *ent.Client, job *ent.Kagu
 	if err != nil {
 		return nil, err
 	}
-	if policy.Epoch != row.PolicyEpoch {
+	if !policy.Enabled || policy.Epoch != row.PolicyEpoch {
 		return func(ctx context.Context) error {
 			return releaseClaimTx(ctx, client, job, "policy_changed", "memory policy changed")
 		}, nil
@@ -523,7 +527,7 @@ func checkLeaseAndSources(ctx context.Context, client *ent.Client, job *ent.Kagu
 	// 重新检查会话模式与项目有效性，不能简单替换 epoch 后复活已撤销来源。
 	if job.ConversationID != "" {
 		convPolicy, err := ResolveConversationPolicy(ctx, client, job.ConversationID, policy)
-		if err != nil || !convPolicy.Recall {
+		if err != nil || !convPolicy.Recall || convPolicy.Mode == ModeReadOnly {
 			return func(ctx context.Context) error {
 				return releaseClaimTx(ctx, client, job, "policy_changed", "conversation no longer allows memory")
 			}, nil

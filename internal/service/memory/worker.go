@@ -15,6 +15,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryattempt"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorypage"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryrevision"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 	"go.uber.org/zap"
@@ -263,11 +264,14 @@ func (w *Worker) unblockJobs(ctx context.Context) bool {
 		switch job.ErrorCode {
 		case "budget":
 			// 日预算按 UTC 自然日重置。
-			if now.Sub(job.UpdatedAt) < 24*time.Hour {
+			if now.UTC().Truncate(24 * time.Hour).Equal(job.UpdatedAt.UTC().Truncate(24 * time.Hour)) {
 				continue
 			}
 		case "config":
-			// 配置修复后由系统配置保存触发 Notify；这里做一次复核。
+			// 配置修复后由系统配置保存触发 Notify；未修复不重新领取或新增 Attempt。
+			if _, err := w.svc.taskModels(ctx, w.svc.client, job.ConversationID); err != nil {
+				continue
+			}
 		default:
 			continue
 		}
@@ -333,6 +337,19 @@ func (s *Service) createJobForSources(ctx context.Context, group []*ent.KaguyaMe
 	}
 	policy, err := LoadPolicy(ctx, client)
 	if err != nil {
+		return nil, err
+	}
+	if !policy.Enabled {
+		return nil, nil
+	}
+	convPolicy, err := ResolveConversationPolicy(ctx, client, group[0].ConversationID, policy)
+	if err != nil {
+		return nil, err
+	}
+	if !convPolicy.Recall || convPolicy.Mode == ModeReadOnly {
+		return nil, nil
+	}
+	if err := ValidateScope(ctx, client, group[0].ScopeKey); err != nil {
 		return nil, err
 	}
 	if err := checkDailyBudget(ctx, client); err != nil {
@@ -404,13 +421,19 @@ func blockGroupJob(ctx context.Context, client *ent.Client, group []*ent.KaguyaM
 
 // claimJob 领取既有作业的下一次执行尝试：新 lease token、attempt+1、新 Attempt。
 func (s *Service) claimJob(ctx context.Context, job *ent.KaguyaMemoryJob) (*ent.KaguyaMemoryJob, error) {
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	client := tx.Client()
 	lease := newLeaseToken()
 	attempt := job.Attempt + 1
 	if attempt < 1 {
 		attempt = 1
 	}
-	updated, err := s.client.KaguyaMemoryJob.UpdateOneID(job.ID).
-		Where(kaguyamemoryjob.StatusIn(kaguyamemoryjob.StatusRetryWait, kaguyamemoryjob.StatusRunning)).
+	updated, err := client.KaguyaMemoryJob.UpdateOneID(job.ID).
+		Where(kaguyamemoryjob.StatusIn(kaguyamemoryjob.StatusRetryWait, kaguyamemoryjob.StatusRunning), kaguyamemoryjob.LeaseTokenEQ(job.LeaseToken)).
 		SetStatus(kaguyamemoryjob.StatusRunning).
 		SetAttempt(attempt).
 		SetLeaseToken(lease).SetLeaseExpiresAt(nowTime().Add(leaseDuration)).
@@ -421,9 +444,12 @@ func (s *Service) claimJob(ctx context.Context, job *ent.KaguyaMemoryJob) (*ent.
 	if err != nil {
 		return nil, err
 	}
-	if err := s.client.KaguyaMemoryAttempt.Create().
+	if err := client.KaguyaMemoryAttempt.Create().
 		SetJobID(job.ID).SetAttempt(attempt).SetPhase(kaguyamemoryattempt.PhaseExtract).
 		SetResultCode("started").Exec(ctx); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	updated.Attempt = attempt
@@ -480,7 +506,7 @@ func checkDailyBudget(ctx context.Context, client *ent.Client) error {
 		return err
 	}
 	if calls >= memoryDailyCalls {
-		return errors.New("daily memory call budget exhausted")
+		return errDailyBudget
 	}
 	rows, err := client.KaguyaMemoryAttempt.Query().
 		Where(kaguyamemoryattempt.CreatedAtGTE(midnight), kaguyamemoryattempt.UsageKnownEQ(true)).
@@ -493,7 +519,7 @@ func checkDailyBudget(ctx context.Context, client *ent.Client) error {
 		tokens += row.TotalTokens
 	}
 	if tokens >= memoryDailyTokens {
-		return errors.New("daily memory token budget exhausted")
+		return errDailyBudget
 	}
 	return nil
 }
@@ -510,6 +536,10 @@ func newLeaseToken() string {
 func (s *Service) runJob(ctx context.Context, job *ent.KaguyaMemoryJob) {
 	if ctx.Err() != nil {
 		s.retryLater(context.Background(), job, time.Second, "canceled")
+		return
+	}
+	// 模型出站前也检查撤销栅栏，不能只在发布时拒绝已经泄露的资料。
+	if err := s.checkJobAccess(ctx, job); err != nil {
 		return
 	}
 	input, err := s.loadJobInput(ctx, job)
@@ -546,14 +576,28 @@ func (s *Service) runJob(ctx context.Context, job *ent.KaguyaMemoryJob) {
 		return
 	}
 	projections := projectionsFromPayload(input)
+	if err := ValidateCandidates(extracted.Candidates, projections); err != nil {
+		s.invalidJob(ctx, job, "candidate validation failed")
+		return
+	}
 	if len(extracted.Candidates) == 0 {
 		// 合法空输出标记 noop：原子推进来源与作业状态，未覆盖分段仍待处理。
 		s.noopJob(ctx, job, projections)
 		return
 	}
-	payload, err := s.buildPlanPayload(job.ScopeKey, input, extracted.Candidates)
+	candidates, err := s.findMergeCandidates(ctx, job.ScopeKey, extracted.Candidates)
 	if err != nil {
-		_ = s.failJob(ctx, job, "input_mismatch", err.Error())
+		_ = s.failJob(ctx, job, "input_mismatch", "candidate lookup failed")
+		return
+	}
+	payload, err := s.buildPlanPayload(ctx, job.ScopeKey, input, extracted.Candidates, candidates.pages)
+	if err != nil {
+		s.recordFailure(ctx, job, err)
+		return
+	}
+	index := NewEvidenceIndex(projections)
+	if err := LoadRetainedEvidence(ctx, s.client, index, candidates.pages); err != nil {
+		_ = s.failJob(ctx, job, "input_mismatch", "evidence lookup failed")
 		return
 	}
 	plan, err := s.Plan(ctx, job, target, payload)
@@ -571,16 +615,8 @@ func (s *Service) runJob(ctx context.Context, job *ent.KaguyaMemoryJob) {
 			return
 		}
 	}
-	candidates, err := s.findMergeCandidates(ctx, job.ScopeKey, extracted.Candidates, plan)
-	if err != nil {
-		_ = s.failJob(ctx, job, "input_mismatch", err.Error())
-		return
-	}
-	index := NewEvidenceIndex(projections)
-	if err := LoadRetainedEvidence(ctx, s.client, index, candidates.pages); err != nil {
-		_ = s.failJob(ctx, job, "input_mismatch", err.Error())
-		return
-	}
+	// 校验使用生成前冻结的候选集合，不能生成后重新检索扩大权限。
+	candidates.related = candidates.pages
 	if err := ValidatePlan(ValidatePlanInput{
 		SchemaVersionScope: job.ScopeKey,
 		Projections:        projections,
@@ -599,6 +635,28 @@ func (s *Service) runJob(ctx context.Context, job *ent.KaguyaMemoryJob) {
 		}
 		s.recordFailure(ctx, job, err)
 	}
+}
+
+func (s *Service) checkJobAccess(ctx context.Context, job *ent.KaguyaMemoryJob) error {
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	release, err := checkLeaseAndSources(ctx, tx.Client(), job)
+	if err != nil {
+		return err
+	}
+	if release != nil {
+		if err := release(ctx); err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		return ErrStaleLease
+	}
+	return tx.Commit()
 }
 
 // loadJobInput 确定性重建冻结输入并校验 input_hash；来源在 claimed 状态下不可变。
@@ -649,7 +707,7 @@ type mergeCandidates struct {
 // findMergeCandidates 对每个 candidate 做同 scope 的 canonical key 精确候选与
 // FTS5 搜索（title + statement + aliases），取少量候选并加载完整小页面。
 func (s *Service) findMergeCandidates(ctx context.Context, scope string,
-	candidates []dtomemory.Candidate, plan *dtomemory.PatchPlan) (*mergeCandidates, error) {
+	candidates []dtomemory.Candidate) (*mergeCandidates, error) {
 	out := &mergeCandidates{pages: map[string]*ent.KaguyaMemoryPage{}, related: map[string]*ent.KaguyaMemoryPage{}}
 	add := func(page *ent.KaguyaMemoryPage) {
 		if page != nil && out.pages[page.ID] == nil {
@@ -657,19 +715,20 @@ func (s *Service) findMergeCandidates(ctx context.Context, scope string,
 		}
 	}
 	for _, candidate := range candidates {
-		page, err := s.client.KaguyaMemoryPage.Query().
+		pages, err := s.client.KaguyaMemoryPage.Query().
 			Where(kaguyamemorypage.ScopeKeyEQ(scope),
 				kaguyamemorypage.StatusNEQ(kaguyamemorypage.StatusDeleted),
 				kaguyamemorypage.Or(
 					kaguyamemorypage.CanonicalKeyEQ(strings.ToLower(candidate.Key)),
 					kaguyamemorypage.CanonicalKeyEQ(deriveCanonicalKey(candidate.Title)),
-				)).Only(ctx)
-		if err == nil {
-			add(page)
-		} else if !ent.IsNotFound(err) {
+				)).All(ctx)
+		if err != nil {
 			return nil, err
 		}
-		hits, err := s.SearchPages(ctx, []string{scope}, candidate.Title+" "+candidate.Statement, 5, true)
+		for _, page := range pages {
+			add(page)
+		}
+		hits, err := s.SearchPages(ctx, []string{scope}, candidate.Title+" "+candidate.Statement+" "+strings.Join(candidate.Aliases, " "), 5, true)
 		if err != nil {
 			return nil, err
 		}
@@ -684,21 +743,6 @@ func (s *Service) findMergeCandidates(ctx context.Context, scope string,
 			add(hitPage)
 		}
 	}
-	for i := range plan.Changes {
-		for _, related := range plan.Changes[i].RelatedIDs {
-			if out.related[related] != nil {
-				continue
-			}
-			page, err := s.client.KaguyaMemoryPage.Get(ctx, related)
-			if ent.IsNotFound(err) {
-				continue
-			}
-			if err != nil {
-				return nil, err
-			}
-			out.related[related] = page
-		}
-	}
 	return out, nil
 }
 
@@ -711,12 +755,49 @@ func candidateKeySet(candidates []dtomemory.Candidate) map[string]bool {
 }
 
 // buildPlanPayload 组装阶段 C 输入：冻结来源投影 + 候选主张 + 少量完整旧页面。
-func (s *Service) buildPlanPayload(scope string, input []byte, candidates []dtomemory.Candidate) ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"scope_key":  scope,
-		"sources":    projectionsFromPayload(input),
-		"candidates": candidates,
+func (s *Service) buildPlanPayload(ctx context.Context, scope string, input []byte, candidates []dtomemory.Candidate, pages map[string]*ent.KaguyaMemoryPage) ([]byte, error) {
+	index := NewEvidenceIndex(nil)
+	if err := LoadRetainedEvidence(ctx, s.client, index, pages); err != nil {
+		return nil, err
+	}
+	oldPages := make(map[string]any, len(pages))
+	for id, page := range pages {
+		var claims []dtomemory.MemoryClaim
+		revision, err := s.client.KaguyaMemoryRevision.Query().Where(
+			kaguyamemoryrevision.PageIDEQ(id), kaguyamemoryrevision.VersionEQ(page.Version)).Only(ctx)
+		if err != nil && !ent.IsNotFound(err) {
+			return nil, err
+		}
+		if revision != nil {
+			claims = revision.Claims
+			for i := range claims {
+				claims[i].Statement = redactSecrets(claims[i].Statement)
+			}
+		}
+		evidence := make([]retainedEvidence, 0, len(index.retained[id]))
+		for _, ev := range index.retained[id] {
+			ev.Quote = redactSecrets(ev.Quote)
+			evidence = append(evidence, ev)
+		}
+		aliases := make([]string, len(page.Aliases))
+		for i, alias := range page.Aliases {
+			aliases[i] = redactSecrets(alias)
+		}
+		oldPages[id] = map[string]any{
+			"page_id": id, "version": page.Version, "canonical_key": redactSecrets(page.CanonicalKey),
+			"kind": page.Kind, "title": redactSecrets(page.Title), "summary": redactSecrets(page.Summary),
+			"body": redactSecrets(page.Body), "aliases": aliases,
+			"evidence": evidence, "claims": claims,
+		}
+	}
+	payload, err := json.Marshal(map[string]any{
+		"scope_key": scope, "sources": projectionsFromPayload(input),
+		"candidates": candidates, "pages": oldPages,
 	})
+	if err == nil && len(payload) > 128<<10 {
+		return nil, errInputBudget
+	}
+	return payload, err
 }
 
 // repairExtract / repairPlan 各执行一次有界格式修复。
@@ -733,7 +814,7 @@ func (s *Service) repairExtract(ctx context.Context, job *ent.KaguyaMemoryJob, t
 }
 
 func (s *Service) repairPlan(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, broken string) (*dtomemory.PatchPlan, error) {
-	raw, err := s.Repair(ctx, job, target, broken)
+	raw, err := s.Repair(ctx, job, target, broken, planSystemPrompt)
 	if err != nil {
 		return nil, err
 	}
@@ -747,6 +828,9 @@ func (s *Service) repairPlan(ctx context.Context, job *ent.KaguyaMemoryJob, targ
 // recordFailure 分类失败：认证/预算 blocked，瞬时错误指数退避重试，
 // 其余达到上限后 failed；来源不伪装成已处理。
 func (s *Service) recordFailure(ctx context.Context, job *ent.KaguyaMemoryJob, cause error) {
+	if errors.Is(cause, ErrStaleLease) {
+		return
+	}
 	if callBlocked(cause) {
 		s.blockJob(job, classifyCode(cause), cause.Error())
 		return
@@ -781,6 +865,7 @@ func retryDelay(attempt int, cause error) (time.Duration, string) {
 
 func (s *Service) retryLater(ctx context.Context, job *ent.KaguyaMemoryJob, delay time.Duration, code string) {
 	if err := s.client.KaguyaMemoryJob.UpdateOneID(job.ID).
+		Where(kaguyamemoryjob.StatusEQ(kaguyamemoryjob.StatusRunning), kaguyamemoryjob.LeaseTokenEQ(job.LeaseToken)).
 		SetStatus(kaguyamemoryjob.StatusRetryWait).
 		SetNextAttemptAt(nowTime().Add(delay)).
 		SetLeaseToken("").ClearLeaseExpiresAt().
@@ -795,11 +880,12 @@ func (s *Service) blockJob(job *ent.KaguyaMemoryJob, code, summary string) {
 	// 未产生模型调用的 blocked 不消耗执行尝试上限。
 	attempt := max(job.Attempt-1, 0)
 	if err := s.client.KaguyaMemoryJob.UpdateOneID(job.ID).
+		Where(kaguyamemoryjob.StatusEQ(kaguyamemoryjob.StatusRunning), kaguyamemoryjob.LeaseTokenEQ(job.LeaseToken)).
 		SetStatus(kaguyamemoryjob.StatusBlocked).
 		SetAttempt(attempt).
 		SetLeaseToken("").ClearLeaseExpiresAt().
 		SetNextAttemptAt(nowTime().Add(24 * time.Hour)).
-		SetErrorCode(code).SetErrorSummary(truncateRunes(summary, 500)).Exec(ctx); err != nil {
+		SetErrorCode(code).SetErrorSummary(code).Exec(ctx); err != nil {
 		s.svcLogWarn("block memory job failed", err)
 	}
 }
@@ -823,9 +909,10 @@ func (s *Service) failJob(ctx context.Context, job *ent.KaguyaMemoryJob, code, s
 		return err
 	}
 	if err := client.KaguyaMemoryJob.UpdateOneID(job.ID).
+		Where(kaguyamemoryjob.StatusEQ(job.Status), kaguyamemoryjob.LeaseTokenEQ(job.LeaseToken)).
 		SetStatus(kaguyamemoryjob.StatusFailed).
 		SetLeaseToken("").ClearLeaseExpiresAt().
-		SetErrorCode(code).SetErrorSummary(truncateRunes(summary, 500)).
+		SetErrorCode(code).SetErrorSummary(code).
 		SetFinishedAt(nowTime()).Exec(ctx); err != nil {
 		return err
 	}
@@ -846,6 +933,20 @@ func (s *Service) noopJob(ctx context.Context, job *ent.KaguyaMemoryJob, project
 	}
 	defer func() { _ = tx.Rollback() }()
 	client := tx.Client()
+	release, err := checkLeaseAndSources(ctx, client, job)
+	if err != nil {
+		return
+	}
+	if release != nil {
+		if err := release(ctx); err != nil {
+			s.svcLogWarn("release stale noop job failed", err)
+			return
+		}
+		if err := tx.Commit(); err != nil {
+			s.svcLogWarn("release stale noop job failed", err)
+		}
+		return
+	}
 	if err := completeSourcesTx(ctx, client, job, projections, PublishResult{}); err != nil {
 		s.svcLogWarn("noop memory job failed", err)
 		return
