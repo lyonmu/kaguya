@@ -68,5 +68,11 @@ func InitSQLite(c *config.DatabaseConfig) (*ent.Client, error) {
 		_ = client.Close()
 		return nil, createErr
 	}
+	// FTS5 检索设施是派生数据，固定 SQL 由版本化逻辑维护；Ent/Atlas 不管理虚拟表
+	// 与 shadow tables，只保留常规表的自动迁移。
+	if err := EnsureMemoryFTS(context.Background(), client); err != nil {
+		_ = client.Close()
+		return nil, err
+	}
 	return client, nil
 }
