@@ -15,12 +15,12 @@ type CandidateEvidence struct {
 
 // Candidate 是阶段 A 输出的待整合主张，不直接落库。
 type Candidate struct {
-	Key       string             `json:"key"`
-	Kind      string             `json:"kind"`
-	Title     string             `json:"title"`
-	Statement string             `json:"statement"`
-	Aliases   []string           `json:"aliases"`
-	Basis     string             `json:"basis"`
+	Key       string              `json:"key"`
+	Kind      string              `json:"kind"`
+	Title     string              `json:"title"`
+	Statement string              `json:"statement"`
+	Aliases   []string            `json:"aliases"`
+	Basis     string              `json:"basis"`
 	Evidence  []CandidateEvidence `json:"evidence"`
 }
 
@@ -40,9 +40,9 @@ type ClaimEvidence struct {
 
 // ClaimPatch 是 PatchPlan 中单条主张及其证据。
 type ClaimPatch struct {
-	Key       string         `json:"key"`
-	Statement string         `json:"statement"`
-	Basis     string         `json:"basis"`
+	Key       string          `json:"key"`
+	Statement string          `json:"statement"`
+	Basis     string          `json:"basis"`
 	Evidence  []ClaimEvidence `json:"evidence"`
 }
 

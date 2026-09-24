@@ -16,6 +16,7 @@ import (
 	initialize "github.com/lyonmu/kaguya/internal/init"
 	"github.com/lyonmu/kaguya/internal/router"
 	serviceagent "github.com/lyonmu/kaguya/internal/service/agent"
+	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 	"github.com/lyonmu/kaguya/pkg"
 	"go.uber.org/zap"
@@ -106,6 +107,11 @@ func (rt *appRuntime) init() error {
 	global.Logger.Info("start init application data")
 	initCtx, cancelInit := context.WithTimeout(rt.ctx, initStageTimeout)
 	initErr := initialize.Run(initCtx, db.EntClient)
+	if initErr == nil {
+		// 记忆搜索投影的 normalizer 升级需要从页面重新生成，小库启动时同步迁移；
+		// FTS 结构迁移已在 db.InitSQLite 内完成。
+		initErr = memorysvc.EnsureSearchProjection(initCtx, db.EntClient)
+	}
 	if initErr == nil {
 		// 上次进程崩溃/强杀会留下 running 占位轮次：本实例启动时不接管它们。
 		initErr = serviceagent.ReconcileRunningTurns(initCtx)
