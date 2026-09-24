@@ -111,6 +111,9 @@ func (s *Service) CreatePage(ctx context.Context, req *dtomemory.MemoryPageSaveR
 	if err := replaceRelatedLinksTx(ctx, client, page.ID, req.RelatedIDs); err != nil {
 		return nil, err
 	}
+	if err := replaceSupersedesLinksTx(ctx, client, page.ID, req.SupersedesIDs); err != nil {
+		return nil, err
+	}
 	if err := writeSearchDocTx(ctx, client, page); err != nil {
 		return nil, err
 	}
@@ -250,6 +253,11 @@ func (s *Service) UpdatePage(ctx context.Context, id string, req *dtomemory.Memo
 	}
 	if req.RelatedIDs != nil {
 		if err := replaceRelatedLinksTx(ctx, client, updated.ID, req.RelatedIDs); err != nil {
+			return nil, err
+		}
+	}
+	if req.SupersedesIDs != nil {
+		if err := replaceSupersedesLinksTx(ctx, client, updated.ID, req.SupersedesIDs); err != nil {
 			return nil, err
 		}
 	}

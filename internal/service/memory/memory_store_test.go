@@ -7,6 +7,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorypage"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryrevision"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
 
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
@@ -241,5 +242,79 @@ func TestTombstoneBlocksAutoResurrection(t *testing.T) {
 	revisions, err := svc.ListRevisions(ctx, []string{ScopePersonal}, detail.ID)
 	if err != nil || len(revisions) != 1 || revisions[0].Actor != "user" {
 		t.Fatalf("revisions=%+v err=%v", revisions, err)
+	}
+}
+
+// 确定性完整性检查：孤立关系清理并统计已撤销来源、过期页面与可疑重复。
+func TestLintPassDeterministicChecks(t *testing.T) {
+	ctx, svc, client := setupMemoryTest(t)
+	setupPolicy(t, ctx, client, true, true)
+	kept, err := svc.CreatePage(ctx, &dtomemory.MemoryPageSaveReq{
+		ScopeKey: ScopePersonal, Kind: "fact", Title: "保留页面", Body: "内容 A",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expired, err := svc.CreatePage(ctx, &dtomemory.MemoryPageSaveReq{
+		ScopeKey: ScopePersonal, Kind: "fact", Title: "过期页面", Body: "内容 B",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	past := time.Now().Add(-time.Hour)
+	if err := client.KaguyaMemoryPage.UpdateOneID(expired.ID).SetExpiresAt(past).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	forgotten, err := svc.CreatePage(ctx, &dtomemory.MemoryPageSaveReq{
+		ScopeKey: ScopePersonal, Kind: "fact", Title: "将被遗忘", Body: "内容 C",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.DeletePage(ctx, forgotten.ID, "forget"); err != nil {
+		t.Fatal(err)
+	}
+	// 指向已删除页面的孤立关系。
+	if err := client.KaguyaMemoryLink.Create().
+		SetFromPageID(kept.ID).SetToPageID(forgotten.ID).SetRelation("related").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// 已排除来源的证据残留。
+	if err := client.KaguyaMemorySource.Create().
+		SetSourceKey("turn:gone:projection-v1").SetKind("turn").SetScopeKey(ScopePersonal).
+		SetState("excluded").SetCapturedAt(time.Now()).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	excluded, err := client.KaguyaMemorySource.Query().Where(kaguyamemorysource.SourceKeyEQ("turn:gone:projection-v1")).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	revision, err := client.KaguyaMemoryRevision.Query().
+		Where(kaguyamemoryrevision.PageIDEQ(kept.ID)).First(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaMemoryEvidence.Create().
+		SetRevisionID(revision.ID).SetClaimKey("extra").SetSourceID(excluded.ID).
+		SetPartKey("user").SetQuote("x").SetRelation("support").SetBasis("user_statement").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// 同范围同标题的可疑重复。
+	if _, err := svc.CreatePage(ctx, &dtomemory.MemoryPageSaveReq{
+		ScopeKey: ScopePersonal, Kind: "fact", Title: "保留页面", CanonicalKey: "dup-1", Body: "内容 D",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	stats, err := svc.LintPass(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.OrphanLinks != 1 || stats.ExcludedEvidence < 1 || stats.ExpiredPages < 1 || stats.DuplicateTitles < 1 {
+		t.Fatalf("stats=%+v", stats)
+	}
+	// 孤立关系被清理，其他只提示不擅自改内容。
+	if count, err := client.KaguyaMemoryLink.Query().Count(ctx); err != nil || count != 0 {
+		t.Fatalf("orphan links kept: count=%d err=%v", count, err)
 	}
 }

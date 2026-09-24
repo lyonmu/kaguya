@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -280,5 +281,42 @@ func TestCompactorReservesMemorySidecar(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("sidecar must reserve budget before threshold")
+	}
+}
+
+// sidecar 只进入每次请求的临时消息：不进入 compactor 历史/快照，多 step 不重复累积。
+func TestPrepareWithMemoryKeepsSidecarOutOfHistory(t *testing.T) {
+	compactor := &contextCompactor{window: 100000, percent: 90, maxOutput: 100}
+	render := func(context.Context) string { return "历史记忆资料" }
+	prepare := prepareWithMemory(compactor, render)
+
+	first := []fantasy.Message{fantasy.NewUserMessage("问题一")}
+	_, result, err := prepare(context.Background(), fantasy.PrepareStepFunctionOptions{Messages: first})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Messages) != 2 || msgText(result.Messages[0]) != "历史记忆资料" {
+		t.Fatalf("sidecar not injected: %+v", result.Messages)
+	}
+	second := append(append([]fantasy.Message{}, first...), fantasy.NewUserMessage("问题二"))
+	_, result2, err := prepare(context.Background(), fantasy.PrepareStepFunctionOptions{Messages: second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 第二步只附加一条 sidecar，不随 step 数量累积。
+	if len(result2.Messages) != 3 {
+		t.Fatalf("sidecar accumulated across steps: %d", len(result2.Messages))
+	}
+	// compactor 历史与快照不含 sidecar 副本。
+	for _, message := range compactor.messages {
+		if strings.Contains(msgText(message), "历史记忆资料") {
+			t.Fatalf("sidecar leaked into compactor history: %+v", compactor.messages)
+		}
+	}
+	if strings.Contains(fmt.Sprint(compactor.snapshot(&fantasy.AgentResult{})), "历史记忆资料") {
+		t.Fatal("sidecar leaked into compaction snapshot")
+	}
+	if compactor.seen != 2 {
+		t.Fatalf("compactor seen=%d", compactor.seen)
 	}
 }

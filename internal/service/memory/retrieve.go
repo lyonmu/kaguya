@@ -14,6 +14,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryrevision"
 
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
+	"go.uber.org/zap"
 )
 
 // RetrieverVersion 是召回排序与注入格式的版本，随轮次元数据保存。
@@ -82,6 +83,11 @@ func (s *Service) SearchPages(ctx context.Context, scopes []string, query string
 	if err := validateScopes(scopes); err != nil {
 		return nil, err
 	}
+	// 只记录耗时等安全计数，不记录查询原文。
+	searchStartedAt := time.Now()
+	defer func() {
+		s.logger.Debug("memory search", zap.Duration("duration", time.Since(searchStartedAt)))
+	}()
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(scopes)), ",")
 	// 参数按 SQL 中占位符的出现顺序绑定。
 	args := make([]any, 0, len(scopes)+3)

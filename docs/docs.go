@@ -2971,6 +2971,10 @@ const docTemplate = `{
                 "finished_at": {
                     "type": "string"
                 },
+                "id": {
+                    "description": "轮次行 ID，保存为记忆时定位来源",
+                    "type": "string"
+                },
                 "memory_refs": {
                     "description": "本轮自动召回选择的页面版本，不复制正文",
                     "allOf": [
@@ -3534,6 +3538,14 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 300
                 },
+                "supersedes_ids": {
+                    "description": "显式替代关系",
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "title": {
                     "type": "string",
                     "maxLength": 120
@@ -3608,6 +3620,14 @@ const docTemplate = `{
                 "summary": {
                     "type": "string",
                     "maxLength": 300
+                },
+                "supersedes_ids": {
+                    "description": "显式替代关系",
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "title": {
                     "type": "string",
@@ -4056,6 +4076,20 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 20000
                 },
+                "memory_auto_capture": {
+                    "type": "boolean"
+                },
+                "memory_context_tokens": {
+                    "type": "integer",
+                    "maximum": 100000,
+                    "minimum": 0
+                },
+                "memory_enabled": {
+                    "type": "boolean"
+                },
+                "memory_policy_epoch": {
+                    "type": "integer"
+                },
                 "model_sync_catalog_count": {
                     "type": "integer"
                 },
@@ -4133,6 +4167,17 @@ const docTemplate = `{
                 "global_system_prompt": {
                     "type": "string",
                     "maxLength": 20000
+                },
+                "memory_auto_capture": {
+                    "type": "boolean"
+                },
+                "memory_context_tokens": {
+                    "type": "integer",
+                    "maximum": 100000,
+                    "minimum": 0
+                },
+                "memory_enabled": {
+                    "type": "boolean"
                 },
                 "model_sync_enabled": {
                     "type": "boolean"

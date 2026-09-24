@@ -39,8 +39,12 @@ const (
 // Worker 是有界的后台编译 Worker：单实例串行领取与发布，同一作用域的编译发布
 // 天然串行。通知丢失也不丢任务，定时扫描和下次启动可发现待处理来源。
 type Worker struct {
-	svc *Service
+	svc      *Service
+	lastLint time.Time
 }
+
+// lintInterval 是确定性完整性检查的周期。
+const lintInterval = 24 * time.Hour
 
 // forcedScopes 是用户点击“立即整理”登记的范围请求，由 Worker 循环消费；
 // 领取始终发生在 Worker 内，避免与后台领取并发竞争同一批来源。
@@ -102,6 +106,19 @@ func (w *Worker) tick(ctx context.Context) time.Duration {
 
 // processOnce 处理一个到期批次（或回收一个到期作业），返回下一个事件时间。
 func (w *Worker) processOnce(ctx context.Context) time.Time {
+	// 周期性确定性检查：孤立引用、已撤销来源、过期页面与可疑重复。
+	if time.Since(w.lastLint) >= lintInterval {
+		w.lastLint = time.Now()
+		if stats, err := w.svc.LintPass(ctx); err != nil {
+			w.svc.svcLogWarn("memory lint failed", err)
+		} else if stats != (LintStats{}) {
+			w.svc.logger.Info("memory lint stats",
+				zap.Int("orphan_links", stats.OrphanLinks),
+				zap.Int("excluded_evidence", stats.ExcludedEvidence),
+				zap.Int("expired_pages", stats.ExpiredPages),
+				zap.Int("duplicate_titles", stats.DuplicateTitles))
+		}
+	}
 	if job := w.claimDueJob(ctx); job != nil {
 		w.svc.runJob(ctx, job)
 		return nowTime().Add(time.Second)

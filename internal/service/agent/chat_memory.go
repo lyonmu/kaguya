@@ -80,6 +80,25 @@ func (s *AgentSvc) prepareMemory(ctx context.Context, conversationID string, win
 	return turn
 }
 
+// prepareWithMemory 把自动召回 sidecar 的注入接在压缩器处理之后、模型调用之前；
+// 每个 step 重新校验冻结选择的可用性。sidecar 只进入本次请求消息，不写入
+// compactor 的历史记录、快照或指令快照，多 step 也不会重复累积。
+func prepareWithMemory(compactor *contextCompactor, render func(context.Context) string) fantasy.PrepareStepFunction {
+	return func(ctx context.Context, opts fantasy.PrepareStepFunctionOptions) (context.Context, fantasy.PrepareStepResult, error) {
+		nextCtx, prepared, err := compactor.prepare(ctx, opts)
+		if err != nil {
+			return nextCtx, prepared, err
+		}
+		messages := prepared.Messages
+		if messages == nil {
+			// 窗口未知时现有 compactor 返回零值。
+			messages = opts.Messages
+		}
+		prepared.Messages = InjectMemory(messages, render(ctx))
+		return nextCtx, prepared, nil
+	}
+}
+
 // selection 冻结本轮召回记录；不复制完整页面。
 func (m memoryTurn) selection() *dtomemory.TurnMemorySelection {
 	if len(m.refs) == 0 {

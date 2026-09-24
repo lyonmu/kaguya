@@ -182,19 +182,7 @@ func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatRe
 	}
 	// 自动召回 sidecar 在压缩器处理之后、模型调用之前注入；每 step 重新校验
 	// 冻结选择的可用性，运行中被删除/禁用的页面不再附加。
-	call.PrepareStep = func(ctx context.Context, opts fantasy.PrepareStepFunctionOptions) (context.Context, fantasy.PrepareStepResult, error) {
-		nextCtx, prepared, err := compactor.prepare(ctx, opts)
-		if err != nil {
-			return nextCtx, prepared, err
-		}
-		messages := prepared.Messages
-		if messages == nil {
-			// 窗口未知时现有 compactor 返回零值。
-			messages = opts.Messages
-		}
-		prepared.Messages = InjectMemory(messages, exec.prompt.memory.renderTransient(ctx))
-		return nextCtx, prepared, nil
-	}
+	call.PrepareStep = prepareWithMemory(compactor, exec.prompt.memory.renderTransient)
 
 	trace := exec.trace
 	if trace == nil {

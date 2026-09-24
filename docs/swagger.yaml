@@ -290,6 +290,9 @@ definitions:
         type: string
       finished_at:
         type: string
+      id:
+        description: 轮次行 ID，保存为记忆时定位来源
+        type: string
       memory_refs:
         allOf:
         - $ref: '#/definitions/memory.MemoryRefsResp'
@@ -671,6 +674,12 @@ definitions:
       summary:
         maxLength: 300
         type: string
+      supersedes_ids:
+        description: 显式替代关系
+        items:
+          type: string
+        maxItems: 8
+        type: array
       title:
         maxLength: 120
         type: string
@@ -727,6 +736,12 @@ definitions:
       summary:
         maxLength: 300
         type: string
+      supersedes_ids:
+        description: 显式替代关系
+        items:
+          type: string
+        maxItems: 8
+        type: array
       title:
         maxLength: 120
         type: string
@@ -1028,6 +1043,16 @@ definitions:
       global_system_prompt:
         maxLength: 20000
         type: string
+      memory_auto_capture:
+        type: boolean
+      memory_context_tokens:
+        maximum: 100000
+        minimum: 0
+        type: integer
+      memory_enabled:
+        type: boolean
+      memory_policy_epoch:
+        type: integer
       model_sync_catalog_count:
         type: integer
       model_sync_enabled:
@@ -1085,6 +1110,14 @@ definitions:
       global_system_prompt:
         maxLength: 20000
         type: string
+      memory_auto_capture:
+        type: boolean
+      memory_context_tokens:
+        maximum: 100000
+        minimum: 0
+        type: integer
+      memory_enabled:
+        type: boolean
       model_sync_enabled:
         type: boolean
       model_sync_interval_hours:

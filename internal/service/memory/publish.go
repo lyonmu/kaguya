@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent"
@@ -393,20 +394,35 @@ func saveRevisionTx(ctx context.Context, client *ent.Client, page *ent.KaguyaMem
 	return client.KaguyaMemoryEvidence.CreateBulk(builders...).Exec(ctx)
 }
 
-// replaceRelatedLinksTx 以本次计划替换 related 关系；supersedes 关系不受影响。
+// replaceRelatedLinksTx 以本次计划替换 related 关系；supersedes 关系不受影响，
+// 由 replaceSupersedesLinksTx 单独维护。
 func replaceRelatedLinksTx(ctx context.Context, client *ent.Client, pageID string, relatedIDs []string) error {
 	if _, err := client.KaguyaMemoryLink.Delete().
 		Where(kaguyamemorylink.FromPageIDEQ(pageID), kaguyamemorylink.RelationEQ(kaguyamemorylink.RelationRelated)).
 		Exec(ctx); err != nil {
 		return err
 	}
-	if len(relatedIDs) == 0 {
+	return createLinksTx(ctx, client, pageID, relatedIDs, kaguyamemorylink.RelationRelated)
+}
+
+// replaceSupersedesLinksTx 维护显式替代关系（由用户或后续编译显式建立）。
+func replaceSupersedesLinksTx(ctx context.Context, client *ent.Client, pageID string, supersedesIDs []string) error {
+	if _, err := client.KaguyaMemoryLink.Delete().
+		Where(kaguyamemorylink.FromPageIDEQ(pageID), kaguyamemorylink.RelationEQ(kaguyamemorylink.RelationSupersedes)).
+		Exec(ctx); err != nil {
+		return err
+	}
+	return createLinksTx(ctx, client, pageID, supersedesIDs, kaguyamemorylink.RelationSupersedes)
+}
+
+func createLinksTx(ctx context.Context, client *ent.Client, pageID string, targets []string, relation kaguyamemorylink.Relation) error {
+	if len(targets) == 0 {
 		return nil
 	}
-	builders := make([]*ent.KaguyaMemoryLinkCreate, 0, len(relatedIDs))
-	for _, to := range relatedIDs {
+	builders := make([]*ent.KaguyaMemoryLinkCreate, 0, len(targets))
+	for _, to := range targets {
 		builders = append(builders, client.KaguyaMemoryLink.Create().
-			SetFromPageID(pageID).SetToPageID(to).SetRelation(kaguyamemorylink.RelationRelated))
+			SetFromPageID(pageID).SetToPageID(to).SetRelation(relation))
 	}
 	return client.KaguyaMemoryLink.CreateBulk(builders...).Exec(ctx)
 }
@@ -721,4 +737,82 @@ func reviewPlan(job *ent.KaguyaMemoryJob) (*dtomemory.PatchPlan, error) {
 		return nil, fmt.Errorf("decode review proposal: %w", err)
 	}
 	return &plan, nil
+}
+
+// LintStats 是确定性完整性检查的结果计数，不包含原文。
+type LintStats struct {
+	OrphanLinks      int // 孤立或指向已删除页面的关系
+	ExcludedEvidence int // 引用了已排除来源的证据残留
+	ExpiredPages     int // 已过期但仍在有效状态的页面（仅提示，不自动删除）
+	DuplicateTitles  int // 同范围同标题的可疑重复（仅提示；canonical_key 唯一由数据库保证）
+}
+
+// LintPass 执行周期性确定性检查（docs/memory-design.md 7.6）：
+// 孤立引用、已撤销来源、过期页面、重复 canonical key。不做语义合并——
+// 语义合并/矛盾检查由用户手动触发并产生待审提案。孤立关系直接清理，
+// 其余只统计并记录安全计数，不写入原文。
+func (s *Service) LintPass(ctx context.Context) (LintStats, error) {
+	var stats LintStats
+	pages, err := s.client.KaguyaMemoryPage.Query().
+		Where(kaguyamemorypage.StatusEQ(kaguyamemorypage.StatusDeleted)).
+		Select(kaguyamemorypage.FieldID).All(ctx)
+	if err != nil {
+		return stats, err
+	}
+	dead := map[string]bool{}
+	for _, page := range pages {
+		dead[page.ID] = true
+	}
+	links, err := s.client.KaguyaMemoryLink.Query().All(ctx)
+	if err != nil {
+		return stats, err
+	}
+	for _, link := range links {
+		if dead[link.FromPageID] || dead[link.ToPageID] {
+			stats.OrphanLinks++
+			if _, err := s.client.KaguyaMemoryLink.Delete().Where(kaguyamemorylink.IDEQ(link.ID)).Exec(ctx); err != nil {
+				return stats, err
+			}
+		}
+	}
+	evidence, err := s.client.KaguyaMemoryEvidence.Query().
+		Select(kaguyamemoryevidence.FieldID, kaguyamemoryevidence.FieldSourceID).All(ctx)
+	if err != nil {
+		return stats, err
+	}
+	sources, err := s.client.KaguyaMemorySource.Query().
+		Where(kaguyamemorysource.StateEQ(kaguyamemorysource.StateExcluded)).
+		Select(kaguyamemorysource.FieldID, kaguyamemorysource.FieldSourceKey).All(ctx)
+	if err != nil {
+		return stats, err
+	}
+	excluded := map[string]bool{}
+	for _, src := range sources {
+		excluded[src.ID] = true
+	}
+	for _, row := range evidence {
+		if excluded[row.SourceID] {
+			stats.ExcludedEvidence++
+		}
+	}
+	active, err := s.client.KaguyaMemoryPage.Query().
+		Where(kaguyamemorypage.StatusEQ(kaguyamemorypage.StatusActive), kaguyamemorypage.DeletedAtIsNil()).
+		All(ctx)
+	if err != nil {
+		return stats, err
+	}
+	now := nowTime()
+	titles := map[string]int{}
+	for _, page := range active {
+		if page.ExpiresAt != nil && page.ExpiresAt.Before(now) {
+			stats.ExpiredPages++
+		}
+		titles[page.ScopeKey+"\x00"+strings.ToLower(strings.TrimSpace(page.Title))]++
+	}
+	for _, count := range titles {
+		if count > 1 {
+			stats.DuplicateTitles++
+		}
+	}
+	return stats, nil
 }

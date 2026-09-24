@@ -236,6 +236,15 @@ export function MemoryPage() {
               setDetail(updated)
             }}>锁定</Button>
           <Button size="small" onClick={openRevisions}>版本</Button>
+          {detail.scope_key !== 'shared' && (
+            <Popconfirm title="将这一条用于所有对话？内容将对普通与项目对话可见，请确认不包含敏感信息。" onConfirm={async () => {
+              const updated = await updateMemoryPage(detail.id, { expected_version: detail.version, scope_key: 'shared' })
+              setDetail(updated)
+              await loadList()
+            }}>
+              <Button size="small">用于所有对话</Button>
+            </Popconfirm>
+          )}
           <Popconfirm title="停用后不再召回，内容保留可恢复" onConfirm={() => removePage('disable')}>
             <Button size="small" disabled={detail.status === 'archived'}>停用</Button>
           </Popconfirm>
