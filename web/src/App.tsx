@@ -13,6 +13,8 @@ const AIConfigurationPage = lazy(() => import('./pages/system/AIConfigurationPag
 
 const SystemInfoPage = lazy(() => import('./pages/system/SystemInfoPage').then(module => ({ default: module.SystemInfoPage })))
 
+const MemoryPage = lazy(() => import('./pages/memory/MemoryPage').then(module => ({ default: module.MemoryPage })))
+
 function App() {
   const { colorMode, toggleColorMode } = useColorMode()
   const [currentPage, setCurrentPage] = useState<SystemPage>('chat')
@@ -35,6 +37,8 @@ function App() {
             <TokenUsagePage />
           ) : currentPage === 'system-info' ? (
             <SystemInfoPage />
+          ) : currentPage === 'memory' ? (
+            <MemoryPage />
           ) : (
             <AIConfigurationPage />
           )}

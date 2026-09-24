@@ -2,6 +2,7 @@ import { useState, type PropsWithChildren } from 'react'
 import {
   ApiOutlined,
   BarChartOutlined,
+  DatabaseOutlined,
   MenuOutlined,
   RobotOutlined,
   RightOutlined,
@@ -15,7 +16,7 @@ import { kaguyaAvatar } from '../../assets/avatars'
 
 const { Content, Header, Sider } = Layout
 
-export type SystemPage = 'chat' | 'ai-providers' | 'system-info' | 'token-usage'
+export type SystemPage = 'chat' | 'ai-providers' | 'system-info' | 'token-usage' | 'memory'
 
 interface AppLayoutProps extends PropsWithChildren {
   colorMode: ColorMode
@@ -38,6 +39,9 @@ export function AppLayout({
   const configurationItems = [
     { key: 'ai-providers', icon: <RobotOutlined />, label: 'AI 配置' },
     { key: 'system-info', icon: <SettingOutlined />, label: '系统配置' },
+  ]
+  const memoryItems = [
+    { key: 'memory', icon: <DatabaseOutlined />, label: '长期记忆' },
   ]
 
   return (
@@ -85,6 +89,18 @@ export function AppLayout({
             />
 
             <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
+              长期记忆
+            </div>
+            <Menu
+              className="border-0! bg-transparent!"
+              items={memoryItems}
+              mode="inline"
+              onClick={({ key }) => onPageChange(key as SystemPage)}
+              selectedKeys={[currentPage]}
+              theme={isDark ? 'dark' : 'light'}
+            />
+
+            <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
               日志与审计
             </div>
             <Menu
@@ -118,6 +134,7 @@ export function AppLayout({
         <Drawer title="系统管理" placement="left" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
           <Menu selectedKeys={[currentPage]} items={[
             ...configurationItems,
+            ...memoryItems,
             { key: 'token-usage', icon: <BarChartOutlined />, label: '用量分析' },
           ]} onClick={({ key }) => { onPageChange(key as SystemPage); setMobileMenuOpen(false) }} />
         </Drawer>
@@ -129,7 +146,7 @@ export function AppLayout({
             <Breadcrumb
               items={[
                 { title: '系统管理' },
-                { title: currentPage === 'ai-providers' ? 'AI 配置' : currentPage === 'system-info' ? '系统配置' : '用量分析' },
+                { title: currentPage === 'ai-providers' ? 'AI 配置' : currentPage === 'system-info' ? '系统配置' : currentPage === 'memory' ? '长期记忆' : '用量分析' },
               ]}
               separator={<RightOutlined className="text-[8px]" />}
             />

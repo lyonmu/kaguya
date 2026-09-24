@@ -70,7 +70,7 @@ export function buildUrl(path: string, query?: Record<string, QueryValue>) {
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   options?: {
     body?: unknown
@@ -165,6 +165,10 @@ export function put<T>(path: string, body?: unknown, guard?: PayloadGuard<T>): P
   return request<T>('PUT', path, { body }, guard)
 }
 
-export function del(path: string): Promise<void> {
-  return request<void>('DELETE', path)
+export function patch<T>(path: string, body?: unknown, guard?: PayloadGuard<T>): Promise<T> {
+  return request<T>('PATCH', path, { body }, guard)
+}
+
+export function del(path: string, query?: Record<string, QueryValue>): Promise<void> {
+  return request<void>('DELETE', path, { query })
 }

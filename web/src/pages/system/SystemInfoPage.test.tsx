@@ -35,7 +35,7 @@ after(async () => {
 
 it('loads, edits and saves system config with local model record IDs', async () => {
   let saved: Record<string, unknown> | undefined
-  const config = { context_compaction_percent: 90, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: '可编辑基础人设', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '' }
+  const config = { context_compaction_percent: 90, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: ['~/.config/agents/AGENTS.md', '~/.codex/AGENTS.md'], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: '可编辑基础人设', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '', memory_enabled: false, memory_auto_capture: false, memory_context_tokens: 2000, memory_policy_epoch: 0 }
   globalThis.fetch = (async (url, init) => {
     if (String(url).includes('/model/label')) return response([
       { label: '聊天模型', value: 'local-chat', provider_name: '提供商 A', provider_id: 'p', model_id: 'api-chat', is_default: true },
@@ -65,12 +65,12 @@ it('loads, edits and saves system config with local model record IDs', async () 
     fireEvent.click(await within(popup).findByText(model))
   }
   fireEvent.click(view.getByRole('button', { name: /保存配置/ }))
-  await waitFor(() => assert.deepEqual(saved, { context_compaction_percent: 75, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: config.global_agents_paths, global_system_prompt: '新的基础人设', system_prompt: '请简洁回答', model_sync_enabled: false, provider_sync_url: 'https://mirror.example/api.json', model_sync_url: 'https://mirror.example/models.json', model_sync_interval_hours: 24, default_model_id: 'local-chat', task_model_id: 'local-task' }))
+  await waitFor(() => assert.deepEqual(saved, { context_compaction_percent: 75, agent_max_steps: 64, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: config.global_agents_paths, global_system_prompt: '新的基础人设', system_prompt: '请简洁回答', model_sync_enabled: false, provider_sync_url: 'https://mirror.example/api.json', model_sync_url: 'https://mirror.example/models.json', model_sync_interval_hours: 24, default_model_id: 'local-chat', task_model_id: 'local-task', memory_enabled: false, memory_auto_capture: false, memory_context_tokens: 2000 }))
   assert.equal((view.getByLabelText('全局基础提示词') as HTMLTextAreaElement).value, '新的基础人设')
 })
 
 it('refreshes sync status on failure and success without replacing unsaved form inputs', async () => {
-  const config = { context_compaction_percent: 90, agent_max_steps: 0, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: [], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: 'saved', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '' }
+  const config = { context_compaction_percent: 90, agent_max_steps: 0, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: [], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: 'saved', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '', memory_enabled: false, memory_auto_capture: false, memory_context_tokens: 2000, memory_policy_epoch: 0 }
   let calls = 0
   let unreadable = false
   globalThis.fetch = (async (url, init) => {

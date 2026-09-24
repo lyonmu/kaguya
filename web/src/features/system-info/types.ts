@@ -12,9 +12,13 @@ export interface SystemInfoPayload {
   model_sync_interval_hours?: number
   default_model_id: string
   task_model_id: string
+  memory_enabled: boolean
+  memory_auto_capture: boolean
+  memory_context_tokens: number
 }
 
 export interface SystemInfo extends SystemInfoPayload {
+  memory_policy_epoch: number
   model_sync_catalog_count: number
   provider_catalog_count: number
   model_sync_last_attempt_at?: string
