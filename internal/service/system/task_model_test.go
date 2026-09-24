@@ -86,3 +86,56 @@ func TestTaskModelUniqueAndIndependent(t *testing.T) {
 	}
 	check("", "")
 }
+
+// ResolveTaskModel 返回不可变调用快照；未配置、模型删除与密钥不可用分别映射为
+// 明确错误，绝不悄悄回退到聊天模型。
+func TestResolveTaskModelSnapshot(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	svc := &SystemSvc{}
+	if _, err := ResolveTaskModel(ctx, db.EntClient, "conv-1"); err != ErrTaskModelNotConfigured {
+		t.Fatalf("unconfigured: %v", err)
+	}
+	provider, err := svc.ProviderCreate(ctx, &dtosystem.SystemProviderSaveReq{
+		ProviderName: "task-provider", APIKey: "api-key", BaseURL: "https://example.invalid/v1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := svc.ModelCreate(ctx, modelSaveReq(provider.ID, "task-model", "upstream-model"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{TaskModelID: model.ID}); err != nil {
+		t.Fatal(err)
+	}
+	task, err := ResolveTaskModel(ctx, db.EntClient, "conv-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if task.ModelRecordID != model.ID || task.ProviderID != provider.ID || task.UpstreamModelID != "upstream-model" {
+		t.Fatalf("snapshot identity=%+v", task)
+	}
+	if task.Config.APIKey != "api-key" || task.Config.ConversationID != "conv-1" || task.Config.RequestPath != "/v1/chat/completions" {
+		t.Fatalf("snapshot config=%+v", task.Config)
+	}
+	if task.TokenContextWindow != 128000 || task.TokenMaxOutputTokens != 8192 {
+		t.Fatalf("snapshot limits: window=%d output=%d", task.TokenContextWindow, task.TokenMaxOutputTokens)
+	}
+	// 密钥不可用：不能返回配置，也不能回退到聊天模型。
+	if err := db.EntClient.KaguyaProviderInfo.UpdateOneID(provider.ID).SetAPIKey("enc:v2:broken").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ResolveTaskModel(ctx, db.EntClient, "conv-1"); err != ErrProviderSecret {
+		t.Fatalf("broken secret: %v", err)
+	}
+	// 模型删除后回到未配置错误。
+	if err := db.EntClient.KaguyaProviderInfo.UpdateOneID(provider.ID).SetAPIKey("api-key").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.ModelDelete(ctx, model.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ResolveTaskModel(ctx, db.EntClient, "conv-1"); err != ErrTaskModelNotConfigured {
+		t.Fatalf("deleted model: %v", err)
+	}
+}

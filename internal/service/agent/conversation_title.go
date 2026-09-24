@@ -11,15 +11,12 @@ import (
 
 	"charm.land/fantasy"
 	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
-	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/global"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 	"go.uber.org/zap"
@@ -122,36 +119,18 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 	return s.ConversationTitleWait(ctx, id)
 }
 
-// resolveTitleConfig 读取全局后台任务模型及其提供商的调用配置（client 由调用方捕获）。
-// 未配置或已删除时返回 ErrTaskModelNotConfigured。
+// resolveTitleConfig 复用后台任务模型解析，保留标题入口的错误映射与 API 行为。
 func resolveTitleConfig(ctx context.Context, client *ent.Client, conversationID string) (agentruntime.ProviderConfig, error) {
-	info, err := (&servicesystem.SystemSvc{}).Info(ctx)
-	if err != nil {
-		return agentruntime.ProviderConfig{}, err
-	}
-	if info.TaskModelID == "" {
+	task, err := servicesystem.ResolveTaskModel(ctx, client, conversationID)
+	switch {
+	case errors.Is(err, servicesystem.ErrTaskModelNotConfigured):
 		return agentruntime.ProviderConfig{}, ErrTaskModelNotConfigured
-	}
-	model, err := client.KaguyaModelsInfo.Query().Where(
-		kaguyamodelsinfo.IDEQ(info.TaskModelID), kaguyamodelsinfo.DeletedAtIsNil(),
-		kaguyamodelsinfo.HasProviderWith(kaguyaproviderinfo.DeletedAtIsNil()),
-	).WithProvider().Only(ctx)
-	if ent.IsNotFound(err) {
-		return agentruntime.ProviderConfig{}, ErrTaskModelNotConfigured
-	}
-	if err != nil {
+	case errors.Is(err, servicesystem.ErrProviderSecret):
+		return agentruntime.ProviderConfig{}, ErrProviderSecretUnavailable
+	case err != nil:
 		return agentruntime.ProviderConfig{}, err
 	}
-	provider := model.Edges.Provider
-	apiKey, err := providerAPIKey(provider, conversationID)
-	if err != nil {
-		return agentruntime.ProviderConfig{}, err
-	}
-	return agentruntime.ProviderConfig{
-		Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(model.APIProtocol),
-		ReasoningEnabled: model.ReasoningEnabled, ReasoningEffort: model.ReasoningEffort,
-		BaseURL: provider.BaseURL, RequestPath: model.RequestPath, APIKey: apiKey, ModelID: model.ModelID, ConversationID: conversationID,
-	}, nil
+	return task.Config, nil
 }
 
 // 由标题生成接口调用。不复用 HTTP 请求 context，避免客户端断开导致任务被取消。
