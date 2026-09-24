@@ -99,6 +99,9 @@ definitions:
       finish_reason:
         description: stop 或 step_limit（已保存，可继续）
         type: string
+      memory_unavailable:
+        description: 长期记忆检索暂不可用的非致命状态，不改变无记忆语义
+        type: boolean
       model_id:
         description: 模型id
         type: string
@@ -187,6 +190,13 @@ definitions:
       last_model_id:
         description: 最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型
         type: string
+      memory_mode:
+        description: inherit/off/readonly
+        type: string
+      memory_refs:
+        allOf:
+        - $ref: '#/definitions/memory.MemoryRefsResp'
+        description: 最近一轮自动召回的选择记录；已删除页面显示“已删除”
       model_id:
         type: string
       model_name:
@@ -217,6 +227,13 @@ definitions:
     properties:
       favorite:
         type: boolean
+      memory_mode:
+        description: 会话记忆模式：继承 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史
+        enum:
+        - inherit
+        - "off"
+        - readonly
+        type: string
       title:
         maxLength: 200
         minLength: 1
@@ -273,6 +290,10 @@ definitions:
         type: string
       finished_at:
         type: string
+      memory_refs:
+        allOf:
+        - $ref: '#/definitions/memory.MemoryRefsResp'
+        description: 本轮自动召回选择的页面版本，不复制正文
       model_id:
         type: string
       model_name:
@@ -420,6 +441,410 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  memory.ClaimDetail:
+    properties:
+      basis:
+        type: string
+      evidence:
+        items:
+          $ref: '#/definitions/memory.EvidenceDetail'
+        type: array
+      key:
+        type: string
+      statement:
+        type: string
+    type: object
+  memory.EvidenceDetail:
+    properties:
+      part_key:
+        type: string
+      quote:
+        type: string
+      relation:
+        type: string
+      source:
+        type: string
+      source_id:
+        type: string
+    type: object
+  memory.MemoryCompileReq:
+    properties:
+      scope_key:
+        maxLength: 128
+        type: string
+    required:
+    - scope_key
+    type: object
+  memory.MemoryExportReq:
+    properties:
+      include_deleted:
+        type: boolean
+      page_ids:
+        items:
+          type: string
+        maxItems: 200
+        type: array
+      scope_keys:
+        items:
+          type: string
+        maxItems: 3
+        type: array
+    type: object
+  memory.MemoryExportResp:
+    properties:
+      filename:
+        type: string
+      markdown:
+        type: string
+    type: object
+  memory.MemoryJobListResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/memory.MemoryJobResp'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  memory.MemoryJobResp:
+    properties:
+      attempt:
+        type: integer
+      calls:
+        type: integer
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      error_code:
+        type: string
+      error_summary:
+        type: string
+      finished_at:
+        type: string
+      id:
+        type: string
+      input_tokens:
+        type: integer
+      kind:
+        type: string
+      output_tokens:
+        type: integer
+      proposal:
+        description: needs_review 的有界 PatchPlan
+      scope_key:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+      total_tokens:
+        type: integer
+    type: object
+  memory.MemoryPageDetail:
+    properties:
+      aliases:
+        items:
+          type: string
+        type: array
+      body:
+        type: string
+      claims:
+        items:
+          $ref: '#/definitions/memory.ClaimDetail'
+        type: array
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      pinned:
+        type: boolean
+      related_ids:
+        items:
+          type: string
+        type: array
+      scope_key:
+        type: string
+      source_count:
+        type: integer
+      status:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_locked:
+        type: boolean
+      version:
+        type: integer
+    type: object
+  memory.MemoryPageListResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/memory.MemoryPageResp'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  memory.MemoryPageResp:
+    properties:
+      canonical_key:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      kind:
+        type: string
+      pinned:
+        type: boolean
+      scope_key:
+        type: string
+      status:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_locked:
+        type: boolean
+      version:
+        type: integer
+    type: object
+  memory.MemoryPageSaveReq:
+    properties:
+      aliases:
+        items:
+          type: string
+        maxItems: 12
+        type: array
+      body:
+        type: string
+      canonical_key:
+        maxLength: 160
+        type: string
+      expires_at:
+        type: string
+      kind:
+        enum:
+        - preference
+        - fact
+        - decision
+        - procedure
+        - lesson
+        type: string
+      pinned:
+        type: boolean
+      reason:
+        maxLength: 500
+        type: string
+      related_ids:
+        items:
+          type: string
+        maxItems: 8
+        type: array
+      scope_key:
+        maxLength: 128
+        type: string
+      source:
+        allOf:
+        - $ref: '#/definitions/memory.MemorySourceRefReq'
+        description: 用户选中文字的来源定位
+      summary:
+        maxLength: 300
+        type: string
+      title:
+        maxLength: 120
+        type: string
+      user_locked:
+        type: boolean
+    required:
+    - kind
+    - scope_key
+    - title
+    type: object
+  memory.MemoryPageUpdateReq:
+    properties:
+      aliases:
+        items:
+          type: string
+        maxItems: 12
+        type: array
+      body:
+        type: string
+      canonical_key:
+        maxLength: 160
+        type: string
+      clear_expires_at:
+        type: boolean
+      expected_version:
+        minimum: 1
+        type: integer
+      expires_at:
+        type: string
+      kind:
+        enum:
+        - preference
+        - fact
+        - decision
+        - procedure
+        - lesson
+        type: string
+      pinned:
+        type: boolean
+      reason:
+        maxLength: 500
+        type: string
+      related_ids:
+        items:
+          type: string
+        maxItems: 8
+        type: array
+      scope_key:
+        description: 仅支持显式提升到 shared
+        maxLength: 128
+        type: string
+      source:
+        $ref: '#/definitions/memory.MemorySourceRefReq'
+      summary:
+        maxLength: 300
+        type: string
+      title:
+        maxLength: 120
+        type: string
+      user_locked:
+        type: boolean
+    required:
+    - expected_version
+    type: object
+  memory.MemoryRefItemResp:
+    properties:
+      deleted:
+        type: boolean
+      page_id:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      version:
+        type: integer
+    type: object
+  memory.MemoryRefsResp:
+    properties:
+      estimated_tokens:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/memory.MemoryRefItemResp'
+        type: array
+      retriever_version:
+        type: integer
+    type: object
+  memory.MemoryRevisionResp:
+    properties:
+      actor:
+        type: string
+      body:
+        type: string
+      claim_keys:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      job_id:
+        type: string
+      reason:
+        type: string
+      status:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      version:
+        type: integer
+    type: object
+  memory.MemorySourceRefReq:
+    properties:
+      conversation_id:
+        maxLength: 64
+        type: string
+      part_key:
+        maxLength: 200
+        type: string
+      quote:
+        type: string
+      turn_id:
+        maxLength: 64
+        type: string
+    required:
+    - conversation_id
+    - part_key
+    - quote
+    - turn_id
+    type: object
+  memory.MemoryStatusResp:
+    properties:
+      active_pages:
+        type: integer
+      auto_capture:
+        type: boolean
+      blocked_jobs:
+        type: integer
+      context_tokens:
+        type: integer
+      enabled:
+        type: boolean
+      failed_jobs:
+        type: integer
+      index_normalizer:
+        type: integer
+      memory_calls:
+        type: integer
+      memory_input_tokens:
+        type: integer
+      memory_output_tokens:
+        type: integer
+      memory_total_tokens:
+        type: integer
+      memory_usage_known:
+        type: boolean
+      pending_sources:
+        type: integer
+      policy_epoch:
+        type: integer
+      review_jobs:
+        type: integer
+      task_model_set:
+        type: boolean
+    type: object
+  memory.memoryRestoreReq:
+    properties:
+      version:
+        minimum: 1
+        type: integer
+    required:
+    - version
     type: object
   project.ContentResp:
     properties:
@@ -1177,12 +1602,17 @@ info:
 paths:
   /v1/chat/conversation/{id}:
     delete:
+      description: 删除会话同时撤销该会话记忆来源并取消待处理编译；purge_memory=true 时进一步删除来源及其派生记忆内容（需用户明确确认）。删除记忆不会改写聊天历史。
       parameters:
       - description: 会话雪花 ID
         in: path
         name: id
         required: true
         type: string
+      - description: 一并删除该会话的来源及其派生记忆内容
+        in: query
+        name: purge_memory
+        type: boolean
       responses:
         "200":
           description: OK
@@ -1471,6 +1901,350 @@ paths:
       summary: ChatSSE
       tags:
       - Chat
+  /v1/memory/compile:
+    post:
+      description: 登记后由后台 Worker 跳过防抖立即处理该范围的待处理来源；响应不是编译结果。
+      parameters:
+      - description: 范围
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/memory.MemoryCompileReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/code.Response'
+      summary: 立即整理已选择范围
+      tags:
+      - Memory
+  /v1/memory/export:
+    post:
+      description: 用户确认的导出范围；正文可携带，但导出内容不写入临时目录明文副本。
+      parameters:
+      - description: 导出范围
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/memory.MemoryExportReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryExportResp'
+              type: object
+      summary: Markdown 导出
+      tags:
+      - Memory
+  /v1/memory/jobs:
+    get:
+      description: 状态、错误码与独立用量成本；不返回原始 Prompt，待审任务附带有界提案。
+      parameters:
+      - in: query
+        maximum: 1000000
+        minimum: 1
+        name: page
+        type: integer
+      - in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      - enum:
+        - pending
+        - running
+        - succeeded
+        - retry_wait
+        - blocked
+        - needs_review
+        - failed
+        - canceled
+        in: query
+        name: status
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryJobListResp'
+              type: object
+      summary: 记忆任务列表
+      tags:
+      - Memory
+  /v1/memory/jobs/{id}/approve:
+    post:
+      description: 以当前页面版本发布新修订，不回退版本号。
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/code.Response'
+      summary: 批准待审提案
+      tags:
+      - Memory
+  /v1/memory/jobs/{id}/reject:
+    post:
+      description: 记录处理结果，不产生新修订。
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/code.Response'
+      summary: 拒绝待审提案
+      tags:
+      - Memory
+  /v1/memory/jobs/{id}/retry:
+    post:
+      parameters:
+      - description: 任务 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/code.Response'
+      summary: 重试失败/阻塞任务
+      tags:
+      - Memory
+  /v1/memory/pages:
+    get:
+      description: 分页、范围、状态、关键词查询；管理界面可显式查看所有范围（聊天自动召回不能如此）。不传 status 时不含已删除占位。
+      parameters:
+      - in: query
+        maxLength: 200
+        name: keyword
+        type: string
+      - in: query
+        maximum: 1000000
+        minimum: 1
+        name: page
+        type: integer
+      - in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      - in: query
+        name: pinned
+        type: boolean
+      - in: query
+        maxLength: 128
+        name: scope_key
+        type: string
+      - enum:
+        - proposed
+        - active
+        - conflicted
+        - stale
+        - archived
+        - deleted
+        in: query
+        name: status
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryPageListResp'
+              type: object
+      summary: 记忆页面列表
+      tags:
+      - Memory
+    post:
+      description: 用户手写内容同步保存为人工修订，无需任务模型；可选来源引用定位选中文字（选择助手文字只代表用户认可保存）。作用域只允许 personal/shared/未删除项目。
+      parameters:
+      - description: 记忆页面
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/memory.MemoryPageSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryPageDetail'
+              type: object
+      summary: 人工新建记忆
+      tags:
+      - Memory
+  /v1/memory/pages/{id}:
+    delete:
+      description: mode=disable 停用（不再召回、可恢复、内容保留）；mode=forget 删除记忆（立即撤出索引并清除正文/修订/证据摘录，保留最小抑制标记）。删除同步生效，不排队等模型决定。
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - enum:
+        - disable
+        - forget
+        in: query
+        name: mode
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/code.Response'
+      summary: 停用或忘记记忆
+      tags:
+      - Memory
+    get:
+      description: '正文、当前版本、主张证据摘要与关联页面；Cache-Control: no-store。'
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 指定历史版本；被遗忘清除的版本不可读取
+        in: query
+        name: version
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryPageDetail'
+              type: object
+      summary: 记忆页面详情
+      tags:
+      - Memory
+    patch:
+      description: 带 expected_version 的人工编辑，冲突返回明确错误而非最后写入者悄悄覆盖；scope_key 仅支持显式提升到
+        shared。
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 编辑内容
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/memory.MemoryPageUpdateReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryPageDetail'
+              type: object
+      summary: 编辑/置顶/锁定记忆
+      tags:
+      - Memory
+  /v1/memory/pages/{id}/restore:
+    post:
+      description: 以旧内容新建恢复修订，不回退版本号；被遗忘且已物理清除的修订不能恢复。
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 目标版本
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/memory.memoryRestoreReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryPageDetail'
+              type: object
+      summary: 恢复历史修订
+      tags:
+      - Memory
+  /v1/memory/pages/{id}/revisions:
+    get:
+      description: 受删除与范围权限约束；被遗忘清除的修订不再返回。
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/memory.MemoryRevisionResp'
+                  type: array
+              type: object
+      summary: 修订历史
+      tags:
+      - Memory
+  /v1/memory/status:
+    get:
+      description: pending/blocked/failed 任务、索引版本与独立的后台任务用量标签；编译消费不计入聊天口径。
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryStatusResp'
+              type: object
+      summary: 记忆状态与后台任务用量
+      tags:
+      - Memory
   /v1/project:
     post:
       description: 名称可重复；未删除项目的规范化绝对路径必须唯一，冲突返回业务码 107003

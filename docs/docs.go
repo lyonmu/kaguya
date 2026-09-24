@@ -173,6 +173,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "description": "删除会话同时撤销该会话记忆来源并取消待处理编译；purge_memory=true 时进一步删除来源及其派生记忆内容（需用户明确确认）。删除记忆不会改写聊天历史。",
                 "tags": [
                     "Chat History"
                 ],
@@ -184,6 +185,12 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "一并删除该会话的来源及其派生记忆内容",
+                        "name": "purge_memory",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -491,6 +498,563 @@ const docTemplate = `{
                                         },
                                         "message": {
                                             "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/compile": {
+            "post": {
+                "description": "登记后由后台 Worker 跳过防抖立即处理该范围的待处理来源；响应不是编译结果。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "立即整理已选择范围",
+                "parameters": [
+                    {
+                        "description": "范围",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/memory.MemoryCompileReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/export": {
+            "post": {
+                "description": "用户确认的导出范围；正文可携带，但导出内容不写入临时目录明文副本。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "Markdown 导出",
+                "parameters": [
+                    {
+                        "description": "导出范围",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/memory.MemoryExportReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryExportResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/jobs": {
+            "get": {
+                "description": "状态、错误码与独立用量成本；不返回原始 Prompt，待审任务附带有界提案。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "记忆任务列表",
+                "parameters": [
+                    {
+                        "maximum": 1000000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "pending",
+                            "running",
+                            "succeeded",
+                            "retry_wait",
+                            "blocked",
+                            "needs_review",
+                            "failed",
+                            "canceled"
+                        ],
+                        "type": "string",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryJobListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/jobs/{id}/approve": {
+            "post": {
+                "description": "以当前页面版本发布新修订，不回退版本号。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "批准待审提案",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/jobs/{id}/reject": {
+            "post": {
+                "description": "记录处理结果，不产生新修订。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "拒绝待审提案",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/jobs/{id}/retry": {
+            "post": {
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "重试失败/阻塞任务",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "任务 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/pages": {
+            "get": {
+                "description": "分页、范围、状态、关键词查询；管理界面可显式查看所有范围（聊天自动召回不能如此）。不传 status 时不含已删除占位。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "记忆页面列表",
+                "parameters": [
+                    {
+                        "maxLength": 200,
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 1000000,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 1,
+                        "type": "integer",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "name": "pinned",
+                        "in": "query"
+                    },
+                    {
+                        "maxLength": 128,
+                        "type": "string",
+                        "name": "scope_key",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "proposed",
+                            "active",
+                            "conflicted",
+                            "stale",
+                            "archived",
+                            "deleted"
+                        ],
+                        "type": "string",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryPageListResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "用户手写内容同步保存为人工修订，无需任务模型；可选来源引用定位选中文字（选择助手文字只代表用户认可保存）。作用域只允许 personal/shared/未删除项目。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "人工新建记忆",
+                "parameters": [
+                    {
+                        "description": "记忆页面",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/memory.MemoryPageSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryPageDetail"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/pages/{id}": {
+            "get": {
+                "description": "正文、当前版本、主张证据摘要与关联页面；Cache-Control: no-store。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "记忆页面详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "指定历史版本；被遗忘清除的版本不可读取",
+                        "name": "version",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryPageDetail"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "mode=disable 停用（不再召回、可恢复、内容保留）；mode=forget 删除记忆（立即撤出索引并清除正文/修订/证据摘录，保留最小抑制标记）。删除同步生效，不排队等模型决定。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "停用或忘记记忆",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "disable",
+                            "forget"
+                        ],
+                        "type": "string",
+                        "name": "mode",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "description": "带 expected_version 的人工编辑，冲突返回明确错误而非最后写入者悄悄覆盖；scope_key 仅支持显式提升到 shared。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "编辑/置顶/锁定记忆",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "编辑内容",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/memory.MemoryPageUpdateReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryPageDetail"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/pages/{id}/restore": {
+            "post": {
+                "description": "以旧内容新建恢复修订，不回退版本号；被遗忘且已物理清除的修订不能恢复。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "恢复历史修订",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目标版本",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/memory.memoryRestoreReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryPageDetail"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/pages/{id}/revisions": {
+            "get": {
+                "description": "受删除与范围权限约束；被遗忘清除的修订不再返回。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "修订历史",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "页面 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/memory.MemoryRevisionResp"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/memory/status": {
+            "get": {
+                "description": "pending/blocked/failed 任务、索引版本与独立的后台任务用量标签；编译消费不计入聊天口径。",
+                "tags": [
+                    "Memory"
+                ],
+                "summary": "记忆状态与后台任务用量",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/memory.MemoryStatusResp"
                                         }
                                     }
                                 }
@@ -2118,6 +2682,10 @@ const docTemplate = `{
                     "description": "stop 或 step_limit（已保存，可继续）",
                     "type": "string"
                 },
+                "memory_unavailable": {
+                    "description": "长期记忆检索暂不可用的非致命状态，不改变无记忆语义",
+                    "type": "boolean"
+                },
                 "model_id": {
                     "description": "模型id",
                     "type": "string"
@@ -2252,6 +2820,18 @@ const docTemplate = `{
                     "description": "最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型",
                     "type": "string"
                 },
+                "memory_mode": {
+                    "description": "inherit/off/readonly",
+                    "type": "string"
+                },
+                "memory_refs": {
+                    "description": "最近一轮自动召回的选择记录；已删除页面显示“已删除”",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/memory.MemoryRefsResp"
+                        }
+                    ]
+                },
                 "model_id": {
                     "type": "string"
                 },
@@ -2298,6 +2878,15 @@ const docTemplate = `{
             "properties": {
                 "favorite": {
                     "type": "boolean"
+                },
+                "memory_mode": {
+                    "description": "会话记忆模式：继承 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史",
+                    "type": "string",
+                    "enum": [
+                        "inherit",
+                        "off",
+                        "readonly"
+                    ]
                 },
                 "title": {
                     "type": "string",
@@ -2381,6 +2970,14 @@ const docTemplate = `{
                 },
                 "finished_at": {
                     "type": "string"
+                },
+                "memory_refs": {
+                    "description": "本轮自动召回选择的页面版本，不复制正文",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/memory.MemoryRefsResp"
+                        }
+                    ]
                 },
                 "model_id": {
                     "type": "string"
@@ -2585,6 +3182,605 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "memory.ClaimDetail": {
+            "type": "object",
+            "properties": {
+                "basis": {
+                    "type": "string"
+                },
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/memory.EvidenceDetail"
+                    }
+                },
+                "key": {
+                    "type": "string"
+                },
+                "statement": {
+                    "type": "string"
+                }
+            }
+        },
+        "memory.EvidenceDetail": {
+            "type": "object",
+            "properties": {
+                "part_key": {
+                    "type": "string"
+                },
+                "quote": {
+                    "type": "string"
+                },
+                "relation": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "memory.MemoryCompileReq": {
+            "type": "object",
+            "required": [
+                "scope_key"
+            ],
+            "properties": {
+                "scope_key": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "memory.MemoryExportReq": {
+            "type": "object",
+            "properties": {
+                "include_deleted": {
+                    "type": "boolean"
+                },
+                "page_ids": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scope_keys": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "memory.MemoryExportResp": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string"
+                },
+                "markdown": {
+                    "type": "string"
+                }
+            }
+        },
+        "memory.MemoryJobListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/memory.MemoryJobResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemoryJobResp": {
+            "type": "object",
+            "properties": {
+                "attempt": {
+                    "type": "integer"
+                },
+                "calls": {
+                    "type": "integer"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "error_code": {
+                    "type": "string"
+                },
+                "error_summary": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "input_tokens": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "output_tokens": {
+                    "type": "integer"
+                },
+                "proposal": {
+                    "description": "needs_review 的有界 PatchPlan"
+                },
+                "scope_key": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemoryPageDetail": {
+            "type": "object",
+            "properties": {
+                "aliases": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "body": {
+                    "type": "string"
+                },
+                "claims": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/memory.ClaimDetail"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "related_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scope_key": {
+                    "type": "string"
+                },
+                "source_count": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_locked": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemoryPageListResp": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/memory.MemoryPageResp"
+                    }
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemoryPageResp": {
+            "type": "object",
+            "properties": {
+                "canonical_key": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "scope_key": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_locked": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemoryPageSaveReq": {
+            "type": "object",
+            "required": [
+                "kind",
+                "scope_key",
+                "title"
+            ],
+            "properties": {
+                "aliases": {
+                    "type": "array",
+                    "maxItems": 12,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "body": {
+                    "type": "string"
+                },
+                "canonical_key": {
+                    "type": "string",
+                    "maxLength": 160
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "preference",
+                        "fact",
+                        "decision",
+                        "procedure",
+                        "lesson"
+                    ]
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "related_ids": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scope_key": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "source": {
+                    "description": "用户选中文字的来源定位",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/memory.MemorySourceRefReq"
+                        }
+                    ]
+                },
+                "summary": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "user_locked": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "memory.MemoryPageUpdateReq": {
+            "type": "object",
+            "required": [
+                "expected_version"
+            ],
+            "properties": {
+                "aliases": {
+                    "type": "array",
+                    "maxItems": 12,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "body": {
+                    "type": "string"
+                },
+                "canonical_key": {
+                    "type": "string",
+                    "maxLength": 160
+                },
+                "clear_expires_at": {
+                    "type": "boolean"
+                },
+                "expected_version": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "preference",
+                        "fact",
+                        "decision",
+                        "procedure",
+                        "lesson"
+                    ]
+                },
+                "pinned": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "related_ids": {
+                    "type": "array",
+                    "maxItems": 8,
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scope_key": {
+                    "description": "仅支持显式提升到 shared",
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "source": {
+                    "$ref": "#/definitions/memory.MemorySourceRefReq"
+                },
+                "summary": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "user_locked": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "memory.MemoryRefItemResp": {
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "type": "boolean"
+                },
+                "page_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemoryRefsResp": {
+            "type": "object",
+            "properties": {
+                "estimated_tokens": {
+                    "type": "integer"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/memory.MemoryRefItemResp"
+                    }
+                },
+                "retriever_version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemoryRevisionResp": {
+            "type": "object",
+            "properties": {
+                "actor": {
+                    "type": "string"
+                },
+                "body": {
+                    "type": "string"
+                },
+                "claim_keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "memory.MemorySourceRefReq": {
+            "type": "object",
+            "required": [
+                "conversation_id",
+                "part_key",
+                "quote",
+                "turn_id"
+            ],
+            "properties": {
+                "conversation_id": {
+                    "type": "string",
+                    "maxLength": 64
+                },
+                "part_key": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "quote": {
+                    "type": "string"
+                },
+                "turn_id": {
+                    "type": "string",
+                    "maxLength": 64
+                }
+            }
+        },
+        "memory.MemoryStatusResp": {
+            "type": "object",
+            "properties": {
+                "active_pages": {
+                    "type": "integer"
+                },
+                "auto_capture": {
+                    "type": "boolean"
+                },
+                "blocked_jobs": {
+                    "type": "integer"
+                },
+                "context_tokens": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "failed_jobs": {
+                    "type": "integer"
+                },
+                "index_normalizer": {
+                    "type": "integer"
+                },
+                "memory_calls": {
+                    "type": "integer"
+                },
+                "memory_input_tokens": {
+                    "type": "integer"
+                },
+                "memory_output_tokens": {
+                    "type": "integer"
+                },
+                "memory_total_tokens": {
+                    "type": "integer"
+                },
+                "memory_usage_known": {
+                    "type": "boolean"
+                },
+                "pending_sources": {
+                    "type": "integer"
+                },
+                "policy_epoch": {
+                    "type": "integer"
+                },
+                "review_jobs": {
+                    "type": "integer"
+                },
+                "task_model_set": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "memory.memoryRestoreReq": {
+            "type": "object",
+            "required": [
+                "version"
+            ],
+            "properties": {
+                "version": {
+                    "type": "integer",
+                    "minimum": 1
                 }
             }
         },
