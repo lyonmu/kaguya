@@ -42,6 +42,8 @@ type appRuntime struct {
 	restoreUp     bool
 	modelSyncDone chan struct{}
 	modelSyncUp   bool
+	memoryDone    chan struct{}
+	memoryUp      bool
 
 	closeOnce sync.Once
 }
@@ -54,6 +56,7 @@ func newAppRuntime(parent context.Context) *appRuntime {
 		gate:          pkg.NewAdmission(),
 		restoreDone:   make(chan struct{}),
 		modelSyncDone: make(chan struct{}),
+		memoryDone:    make(chan struct{}),
 	}
 }
 
@@ -136,7 +139,19 @@ func (rt *appRuntime) init() error {
 
 	rt.startMCPRestore()
 	rt.startModelCatalogSync()
+	rt.startMemoryWorker()
 	return nil
+}
+
+// startMemoryWorker 启动长期记忆后台编译 Worker。Worker 使用 root context：
+// beginShutdown 停止新领取并取消当前远程调用，close 等待其退出后再关闭数据库。
+func (rt *appRuntime) startMemoryWorker() {
+	rt.memoryUp = true
+	worker := memorysvc.NewWorker(memorysvc.NewService(db.EntClient, global.Logger))
+	go func() {
+		defer close(rt.memoryDone)
+		worker.Run(rt.ctx)
+	}()
 }
 
 // startModelCatalogSync 启动 models.dev 目录调度器；手动同步与它共享互斥控制。
@@ -203,6 +218,10 @@ func (rt *appRuntime) close() {
 		}
 		if rt.modelSyncUp {
 			<-rt.modelSyncDone
+		}
+		// 先等待 Memory worker 退出，再关闭数据库与日志。
+		if rt.memoryUp {
+			<-rt.memoryDone
 		}
 		agentmcp.Default.Close()
 		if rt.dbReady && db.EntClient != nil {

@@ -174,7 +174,7 @@ func ValidateScope(ctx context.Context, client *ent.Client, scope string) error 
 	case strings.HasPrefix(scope, scopeProjectPrefix):
 		projectID := strings.TrimPrefix(scope, scopeProjectPrefix)
 		if projectID == "" {
-			return fmt.Errorf("invalid memory scope %q", scope)
+			return fmt.Errorf("%w: invalid memory scope %q", ErrPlanInvalid, scope)
 		}
 		exists, err := client.KaguyaProject.Query().
 			Where(kaguyaproject.IDEQ(projectID), kaguyaproject.DeletedAtIsNil()).Exist(ctx)
@@ -182,11 +182,11 @@ func ValidateScope(ctx context.Context, client *ent.Client, scope string) error 
 			return err
 		}
 		if !exists {
-			return fmt.Errorf("memory scope %q is not an active project", scope)
+			return fmt.Errorf("%w: memory scope %q is not an active project", ErrPlanInvalid, scope)
 		}
 		return nil
 	default:
-		return fmt.Errorf("invalid memory scope %q", scope)
+		return fmt.Errorf("%w: invalid memory scope %q", ErrPlanInvalid, scope)
 	}
 }
 

@@ -4,4 +4,5 @@ type V1Router struct {
 	ChatRouter
 	ProjectRouter
 	SystemRouter
+	MemoryRouter
 }

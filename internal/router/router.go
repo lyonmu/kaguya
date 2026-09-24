@@ -34,6 +34,7 @@ func InitRouter(e *gin.Engine) {
 	v1route.InitChatRouter(group, v1api)
 	v1route.InitProjectRouter(group, v1api)
 	v1route.InitSystemRouter(group, v1api)
+	v1route.InitMemoryRouter(group, v1api)
 
 	global.Logger.Sugar().Info("router http register success")
 

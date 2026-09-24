@@ -7,6 +7,7 @@ import (
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	"github.com/lyonmu/kaguya/internal/global"
+	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 
@@ -52,5 +53,7 @@ func (b *SystemApiV1Group) SystemInfoUpdate(c *gin.Context) {
 		}
 		return
 	}
+	// 任务模型/记忆配置修复后唤醒记忆 Worker：blocked 作业等待明确变化。
+	memorysvc.Notify()
 	dtocode.SystemSuccess.Success(resp, c)
 }

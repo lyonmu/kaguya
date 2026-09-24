@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"strings"
+	"sync"
 	"time"
 
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
@@ -39,6 +40,31 @@ const (
 // 天然串行。通知丢失也不丢任务，定时扫描和下次启动可发现待处理来源。
 type Worker struct {
 	svc *Service
+}
+
+// forcedScopes 是用户点击“立即整理”登记的范围请求，由 Worker 循环消费；
+// 领取始终发生在 Worker 内，避免与后台领取并发竞争同一批来源。
+var forcedScopes = struct {
+	sync.Mutex
+	scopes map[string]bool
+}{scopes: map[string]bool{}}
+
+// RequestCompile 登记“立即整理”并唤醒 Worker；重复登记是幂等的。
+func RequestCompile(scope string) {
+	forcedScopes.Lock()
+	forcedScopes.scopes[scope] = true
+	forcedScopes.Unlock()
+	Notify()
+}
+
+func popForcedScope() (string, bool) {
+	forcedScopes.Lock()
+	defer forcedScopes.Unlock()
+	for scope := range forcedScopes.scopes {
+		delete(forcedScopes.scopes, scope)
+		return scope, true
+	}
+	return "", false
 }
 
 // NewWorker 装配记忆 Worker。
@@ -79,6 +105,17 @@ func (w *Worker) processOnce(ctx context.Context) time.Time {
 	if job := w.claimDueJob(ctx); job != nil {
 		w.svc.runJob(ctx, job)
 		return nowTime().Add(time.Second)
+	}
+	// 用户点击“立即整理”：跳过防抖，按登记范围处理一个批次。
+	for {
+		scope, ok := popForcedScope()
+		if !ok {
+			break
+		}
+		if job, _ := w.claimReadyBatch(ctx, scope); job != nil {
+			w.svc.runJob(ctx, job)
+			return nowTime().Add(time.Second)
+		}
 	}
 	if job, next := w.claimReadyBatch(ctx, ""); job != nil {
 		w.svc.runJob(ctx, job)
@@ -443,6 +480,9 @@ func checkDailyBudget(ctx context.Context, client *ent.Client) error {
 	}
 	return nil
 }
+
+// ErrJobNotFound 表示任务不存在。
+var ErrJobNotFound = errors.New("memory job not found")
 
 func newLeaseToken() string {
 	return fmt.Sprintf("%d-%d", nowTime().UnixNano(), rand.Uint64())
@@ -820,6 +860,9 @@ func (s *Service) RetryJob(ctx context.Context, id string) error {
 	defer func() { _ = tx.Rollback() }()
 	client := tx.Client()
 	job, err := client.KaguyaMemoryJob.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return ErrJobNotFound
+	}
 	if err != nil {
 		return err
 	}
@@ -850,4 +893,79 @@ func (s *Service) RetryJob(ctx context.Context, id string) error {
 
 func (s *Service) svcLogWarn(msg string, err error) {
 	s.logger.Warn(msg, zap.Error(err))
+}
+
+// ListJobs 分页查询任务状态、错误码与成本；不返回原始 Prompt，
+// 待审作业附带保存的有界 PatchPlan 供界面审阅。
+func (s *Service) ListJobs(ctx context.Context, req *dtomemory.MemoryJobListReq) (*dtomemory.MemoryJobListResp, error) {
+	query := s.client.KaguyaMemoryJob.Query()
+	if req.Status != "" {
+		query.Where(kaguyamemoryjob.StatusEQ(kaguyamemoryjob.Status(req.Status)))
+	}
+	total, err := query.Clone().Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := query.Order(ent.Desc(kaguyamemoryjob.FieldCreatedAt)).
+		Offset((req.Page - 1) * req.PageSize).Limit(req.PageSize).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := &dtomemory.MemoryJobListResp{
+		Total: total, Page: req.Page, PageSize: req.PageSize,
+		Items: make([]dtomemory.MemoryJobResp, 0, len(rows)),
+	}
+	for _, row := range rows {
+		item := dtomemory.MemoryJobResp{
+			ID: row.ID, Kind: string(row.Kind), ScopeKey: row.ScopeKey, ConversationID: row.ConversationID,
+			Status: string(row.Status), Attempt: row.Attempt,
+			ErrorCode: row.ErrorCode, ErrorSummary: row.ErrorSummary,
+			CreatedAt: row.CreatedAt, StartedAt: row.StartedAt, FinishedAt: row.FinishedAt,
+		}
+		if row.Status == kaguyamemoryjob.StatusNeedsReview && row.ResultJSON != "" {
+			if plan, err := reviewPlan(row); err == nil {
+				item.Proposal = plan
+			}
+		}
+		attempts, err := s.client.KaguyaMemoryAttempt.Query().
+			Where(kaguyamemoryattempt.JobIDEQ(row.ID)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, attempt := range attempts {
+			item.Calls++
+			if !attempt.UsageKnown {
+				continue
+			}
+			item.InputTokens += attempt.InputTokens
+			item.OutputTokens += attempt.OutputTokens
+			item.TotalTokens += attempt.TotalTokens
+		}
+		resp.Items = append(resp.Items, item)
+	}
+	return resp, nil
+}
+
+// ApproveJob 批准待审提案：以当前页面版本发布新修订。
+func (s *Service) ApproveJob(ctx context.Context, id string) (PublishResult, error) {
+	job, err := s.client.KaguyaMemoryJob.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return PublishResult{}, ErrJobNotFound
+	}
+	if err != nil {
+		return PublishResult{}, err
+	}
+	return s.ApproveReview(ctx, job)
+}
+
+// RejectJob 拒绝待审提案并记录处理结果。
+func (s *Service) RejectJob(ctx context.Context, id string) error {
+	job, err := s.client.KaguyaMemoryJob.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return ErrJobNotFound
+	}
+	if err != nil {
+		return err
+	}
+	return s.RejectReview(ctx, job)
 }

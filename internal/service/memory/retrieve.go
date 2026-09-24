@@ -537,11 +537,11 @@ func sanitizeInline(text string) string {
 
 func validateScopes(scopes []string) error {
 	if len(scopes) == 0 || len(scopes) > 3 {
-		return fmt.Errorf("invalid memory scope set")
+		return fmt.Errorf("%w: invalid memory scope set", ErrPlanInvalid)
 	}
 	for _, scope := range scopes {
 		if scope != ScopePersonal && scope != ScopeShared && !strings.HasPrefix(scope, scopeProjectPrefix) {
-			return fmt.Errorf("invalid memory scope %q", scope)
+			return fmt.Errorf("%w: invalid memory scope %q", ErrPlanInvalid, scope)
 		}
 	}
 	return nil

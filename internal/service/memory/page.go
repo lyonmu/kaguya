@@ -380,6 +380,45 @@ func excludePendingSupportTx(ctx context.Context, client *ent.Client, pageID str
 	return nil
 }
 
+// Client 暴露服务持有的 client（API 层装配校验用）。
+func (s *Service) Client() *ent.Client { return s.client }
+
+// ManageDetail 管理详情：管理界面显式查看所有范围，读取闭包绑定页面自身作用域。
+func (s *Service) ManageDetail(ctx context.Context, id string, version int64) (*MemoryPageDetail, error) {
+	row, err := s.client.KaguyaMemoryPage.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return nil, ErrPageNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s.ReadPageDetail(ctx, []string{row.ScopeKey}, id, version)
+}
+
+// ManageRevisions 管理修订历史。
+func (s *Service) ManageRevisions(ctx context.Context, id string) ([]dtomemory.MemoryRevisionResp, error) {
+	row, err := s.client.KaguyaMemoryPage.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return nil, ErrPageNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s.ListRevisions(ctx, []string{row.ScopeKey}, id)
+}
+
+// ManageRestore 管理恢复修订。
+func (s *Service) ManageRestore(ctx context.Context, id string, version int64) (*MemoryPageDetail, error) {
+	row, err := s.client.KaguyaMemoryPage.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return nil, ErrPageNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s.RestoreRevision(ctx, []string{row.ScopeKey}, id, version)
+}
+
 // ListPages 管理界面查询：可显式查看所有范围（聊天自动召回不能如此）。
 func (s *Service) ListPages(ctx context.Context, req *dtomemory.MemoryPageListReq) (*dtomemory.MemoryPageListResp, error) {
 	query := s.client.KaguyaMemoryPage.Query().Where(kaguyamemorypage.DeletedAtIsNil())

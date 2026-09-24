@@ -3,6 +3,8 @@ package chat
 import (
 	"context"
 	"errors"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
@@ -220,7 +222,9 @@ func (b *ChatApiV1Group) ConversationStop(c *gin.Context) {
 // ConversationDelete
 // @Tags Chat History
 // @Summary 软删除会话（删除后不可查询或续聊）
+// @Description 删除会话同时撤销该会话记忆来源并取消待处理编译；purge_memory=true 时进一步删除来源及其派生记忆内容（需用户明确确认）。删除记忆不会改写聊天历史。
 // @Param id path string true "会话雪花 ID"
+// @Param purge_memory query bool false "一并删除该会话的来源及其派生记忆内容"
 // @Success 200 {object} dtocode.Response
 // @Router /v1/chat/conversation/{id} [delete]
 func (b *ChatApiV1Group) ConversationDelete(c *gin.Context) {
@@ -229,7 +233,16 @@ func (b *ChatApiV1Group) ConversationDelete(c *gin.Context) {
 		dtocode.RequestParameterError.Failure(c)
 		return
 	}
-	if err := agentvc.ConversationDelete(c.Request.Context(), uri.ID); err != nil {
+	purge := false
+	if raw := c.Query("purge_memory"); raw != "" {
+		parsed, err := strconv.ParseBool(raw)
+		if err != nil {
+			dtocode.RequestParameterError.Failure(c)
+			return
+		}
+		purge = parsed
+	}
+	if err := agentvc.ConversationDelete(c.Request.Context(), uri.ID, purge); err != nil {
 		conversationFailure(c, err, dtocode.ConversationDeleteFailure)
 		return
 	}
