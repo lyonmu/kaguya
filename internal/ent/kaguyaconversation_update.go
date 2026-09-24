@@ -125,6 +125,20 @@ func (_u *KaguyaConversationUpdate) SetNillableFavorite(v *bool) *KaguyaConversa
 	return _u
 }
 
+// SetMemoryMode sets the "memory_mode" field.
+func (_u *KaguyaConversationUpdate) SetMemoryMode(v kaguyaconversation.MemoryMode) *KaguyaConversationUpdate {
+	_u.mutation.SetMemoryMode(v)
+	return _u
+}
+
+// SetNillableMemoryMode sets the "memory_mode" field if the given value is not nil.
+func (_u *KaguyaConversationUpdate) SetNillableMemoryMode(v *kaguyaconversation.MemoryMode) *KaguyaConversationUpdate {
+	if v != nil {
+		_u.SetMemoryMode(*v)
+	}
+	return _u
+}
+
 // SetTurnCount sets the "turn_count" field.
 func (_u *KaguyaConversationUpdate) SetTurnCount(v int64) *KaguyaConversationUpdate {
 	_u.mutation.ResetTurnCount()
@@ -436,6 +450,11 @@ func (_u *KaguyaConversationUpdate) check() error {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MemoryMode(); ok {
+		if err := kaguyaconversation.MemoryModeValidator(v); err != nil {
+			return &ValidationError{Name: "memory_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.memory_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.TurnCount(); ok {
 		if err := kaguyaconversation.TurnCountValidator(v); err != nil {
 			return &ValidationError{Name: "turn_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.turn_count": %w`, err)}
@@ -517,6 +536,9 @@ func (_u *KaguyaConversationUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MemoryMode(); ok {
+		_spec.SetField(kaguyaconversation.FieldMemoryMode, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.TurnCount(); ok {
 		_spec.SetField(kaguyaconversation.FieldTurnCount, field.TypeInt64, value)
@@ -761,6 +783,20 @@ func (_u *KaguyaConversationUpdateOne) SetFavorite(v bool) *KaguyaConversationUp
 func (_u *KaguyaConversationUpdateOne) SetNillableFavorite(v *bool) *KaguyaConversationUpdateOne {
 	if v != nil {
 		_u.SetFavorite(*v)
+	}
+	return _u
+}
+
+// SetMemoryMode sets the "memory_mode" field.
+func (_u *KaguyaConversationUpdateOne) SetMemoryMode(v kaguyaconversation.MemoryMode) *KaguyaConversationUpdateOne {
+	_u.mutation.SetMemoryMode(v)
+	return _u
+}
+
+// SetNillableMemoryMode sets the "memory_mode" field if the given value is not nil.
+func (_u *KaguyaConversationUpdateOne) SetNillableMemoryMode(v *kaguyaconversation.MemoryMode) *KaguyaConversationUpdateOne {
+	if v != nil {
+		_u.SetMemoryMode(*v)
 	}
 	return _u
 }
@@ -1089,6 +1125,11 @@ func (_u *KaguyaConversationUpdateOne) check() error {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.MemoryMode(); ok {
+		if err := kaguyaconversation.MemoryModeValidator(v); err != nil {
+			return &ValidationError{Name: "memory_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.memory_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.TurnCount(); ok {
 		if err := kaguyaconversation.TurnCountValidator(v); err != nil {
 			return &ValidationError{Name: "turn_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.turn_count": %w`, err)}
@@ -1187,6 +1228,9 @@ func (_u *KaguyaConversationUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MemoryMode(); ok {
+		_spec.SetField(kaguyaconversation.FieldMemoryMode, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.TurnCount(); ok {
 		_spec.SetField(kaguyaconversation.FieldTurnCount, field.TypeInt64, value)

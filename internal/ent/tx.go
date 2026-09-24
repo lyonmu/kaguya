@@ -22,6 +22,22 @@ type Tx struct {
 	KaguyaConversation *KaguyaConversationClient
 	// KaguyaMCPServer is the client for interacting with the KaguyaMCPServer builders.
 	KaguyaMCPServer *KaguyaMCPServerClient
+	// KaguyaMemoryAttempt is the client for interacting with the KaguyaMemoryAttempt builders.
+	KaguyaMemoryAttempt *KaguyaMemoryAttemptClient
+	// KaguyaMemoryEvidence is the client for interacting with the KaguyaMemoryEvidence builders.
+	KaguyaMemoryEvidence *KaguyaMemoryEvidenceClient
+	// KaguyaMemoryJob is the client for interacting with the KaguyaMemoryJob builders.
+	KaguyaMemoryJob *KaguyaMemoryJobClient
+	// KaguyaMemoryLink is the client for interacting with the KaguyaMemoryLink builders.
+	KaguyaMemoryLink *KaguyaMemoryLinkClient
+	// KaguyaMemoryPage is the client for interacting with the KaguyaMemoryPage builders.
+	KaguyaMemoryPage *KaguyaMemoryPageClient
+	// KaguyaMemoryRevision is the client for interacting with the KaguyaMemoryRevision builders.
+	KaguyaMemoryRevision *KaguyaMemoryRevisionClient
+	// KaguyaMemorySearchDoc is the client for interacting with the KaguyaMemorySearchDoc builders.
+	KaguyaMemorySearchDoc *KaguyaMemorySearchDocClient
+	// KaguyaMemorySource is the client for interacting with the KaguyaMemorySource builders.
+	KaguyaMemorySource *KaguyaMemorySourceClient
 	// KaguyaModelsInfo is the client for interacting with the KaguyaModelsInfo builders.
 	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProject is the client for interacting with the KaguyaProject builders.
@@ -165,6 +181,14 @@ func (tx *Tx) init() {
 	tx.KaguyaChatTurn = NewKaguyaChatTurnClient(tx.config)
 	tx.KaguyaConversation = NewKaguyaConversationClient(tx.config)
 	tx.KaguyaMCPServer = NewKaguyaMCPServerClient(tx.config)
+	tx.KaguyaMemoryAttempt = NewKaguyaMemoryAttemptClient(tx.config)
+	tx.KaguyaMemoryEvidence = NewKaguyaMemoryEvidenceClient(tx.config)
+	tx.KaguyaMemoryJob = NewKaguyaMemoryJobClient(tx.config)
+	tx.KaguyaMemoryLink = NewKaguyaMemoryLinkClient(tx.config)
+	tx.KaguyaMemoryPage = NewKaguyaMemoryPageClient(tx.config)
+	tx.KaguyaMemoryRevision = NewKaguyaMemoryRevisionClient(tx.config)
+	tx.KaguyaMemorySearchDoc = NewKaguyaMemorySearchDocClient(tx.config)
+	tx.KaguyaMemorySource = NewKaguyaMemorySourceClient(tx.config)
 	tx.KaguyaModelsInfo = NewKaguyaModelsInfoClient(tx.config)
 	tx.KaguyaProject = NewKaguyaProjectClient(tx.config)
 	tx.KaguyaProviderInfo = NewKaguyaProviderInfoClient(tx.config)

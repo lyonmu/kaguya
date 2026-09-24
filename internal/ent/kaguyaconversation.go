@@ -33,6 +33,8 @@ type KaguyaConversation struct {
 	AgentInstructions *string `json:"-"`
 	// Favorite holds the value of the "favorite" field.
 	Favorite bool `json:"favorite,omitempty"`
+	// 会话记忆模式：继承全局 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史
+	MemoryMode kaguyaconversation.MemoryMode `json:"memory_mode,omitempty"`
 	// 已提交轮数，同时用于乐观并发校验
 	TurnCount int64 `json:"turn_count,omitempty"`
 	// LastMessageAt holds the value of the "last_message_at" field.
@@ -101,7 +103,7 @@ func (*KaguyaConversation) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case kaguyaconversation.FieldTurnCount, kaguyaconversation.FieldDurationMs, kaguyaconversation.FieldToolCalls, kaguyaconversation.FieldInputTokens, kaguyaconversation.FieldOutputTokens, kaguyaconversation.FieldTotalTokens, kaguyaconversation.FieldCachedTokens, kaguyaconversation.FieldReasoningTokens:
 			values[i] = new(sql.NullInt64)
-		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldProjectID, kaguyaconversation.FieldAgentInstructions, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
+		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldProjectID, kaguyaconversation.FieldAgentInstructions, kaguyaconversation.FieldMemoryMode, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
 			values[i] = new(sql.NullString)
 		case kaguyaconversation.FieldCreatedAt, kaguyaconversation.FieldUpdatedAt, kaguyaconversation.FieldDeletedAt, kaguyaconversation.FieldLastMessageAt:
 			values[i] = new(sql.NullTime)
@@ -170,6 +172,12 @@ func (_m *KaguyaConversation) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field favorite", values[i])
 			} else if value.Valid {
 				_m.Favorite = value.Bool
+			}
+		case kaguyaconversation.FieldMemoryMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field memory_mode", values[i])
+			} else if value.Valid {
+				_m.MemoryMode = kaguyaconversation.MemoryMode(value.String)
 			}
 		case kaguyaconversation.FieldTurnCount:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -306,6 +314,9 @@ func (_m *KaguyaConversation) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("favorite=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Favorite))
+	builder.WriteString(", ")
+	builder.WriteString("memory_mode=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemoryMode))
 	builder.WriteString(", ")
 	builder.WriteString("turn_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.TurnCount))

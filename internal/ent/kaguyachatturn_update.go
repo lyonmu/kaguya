@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
@@ -468,6 +469,26 @@ func (_u *KaguyaChatTurnUpdate) AddCompactionCount(v int) *KaguyaChatTurnUpdate 
 	return _u
 }
 
+// SetMemoryRefs sets the "memory_refs" field.
+func (_u *KaguyaChatTurnUpdate) SetMemoryRefs(v memory.TurnMemorySelection) *KaguyaChatTurnUpdate {
+	_u.mutation.SetMemoryRefs(v)
+	return _u
+}
+
+// SetNillableMemoryRefs sets the "memory_refs" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableMemoryRefs(v *memory.TurnMemorySelection) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetMemoryRefs(*v)
+	}
+	return _u
+}
+
+// ClearMemoryRefs clears the value of the "memory_refs" field.
+func (_u *KaguyaChatTurnUpdate) ClearMemoryRefs() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearMemoryRefs()
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdate) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdate {
 	_u.mutation.SetMessages(v)
@@ -783,6 +804,12 @@ func (_u *KaguyaChatTurnUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedCompactionCount(); ok {
 		_spec.AddField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.MemoryRefs(); ok {
+		_spec.SetField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON, value)
+	}
+	if _u.mutation.MemoryRefsCleared() {
+		_spec.ClearField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -1323,6 +1350,26 @@ func (_u *KaguyaChatTurnUpdateOne) AddCompactionCount(v int) *KaguyaChatTurnUpda
 	return _u
 }
 
+// SetMemoryRefs sets the "memory_refs" field.
+func (_u *KaguyaChatTurnUpdateOne) SetMemoryRefs(v memory.TurnMemorySelection) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetMemoryRefs(v)
+	return _u
+}
+
+// SetNillableMemoryRefs sets the "memory_refs" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableMemoryRefs(v *memory.TurnMemorySelection) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetMemoryRefs(*v)
+	}
+	return _u
+}
+
+// ClearMemoryRefs clears the value of the "memory_refs" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearMemoryRefs() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearMemoryRefs()
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdateOne) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdateOne {
 	_u.mutation.SetMessages(v)
@@ -1668,6 +1715,12 @@ func (_u *KaguyaChatTurnUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaCh
 	}
 	if value, ok := _u.mutation.AddedCompactionCount(); ok {
 		_spec.AddField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.MemoryRefs(); ok {
+		_spec.SetField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON, value)
+	}
+	if _u.mutation.MemoryRefsCleared() {
+		_spec.ClearField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)

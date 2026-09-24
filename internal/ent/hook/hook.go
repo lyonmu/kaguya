@@ -57,6 +57,102 @@ func (f KaguyaMCPServerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMCPServerMutation", m)
 }
 
+// The KaguyaMemoryAttemptFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemoryAttempt mutator.
+type KaguyaMemoryAttemptFunc func(context.Context, *ent.KaguyaMemoryAttemptMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemoryAttemptFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemoryAttemptMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemoryAttemptMutation", m)
+}
+
+// The KaguyaMemoryEvidenceFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemoryEvidence mutator.
+type KaguyaMemoryEvidenceFunc func(context.Context, *ent.KaguyaMemoryEvidenceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemoryEvidenceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemoryEvidenceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemoryEvidenceMutation", m)
+}
+
+// The KaguyaMemoryJobFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemoryJob mutator.
+type KaguyaMemoryJobFunc func(context.Context, *ent.KaguyaMemoryJobMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemoryJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemoryJobMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemoryJobMutation", m)
+}
+
+// The KaguyaMemoryLinkFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemoryLink mutator.
+type KaguyaMemoryLinkFunc func(context.Context, *ent.KaguyaMemoryLinkMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemoryLinkFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemoryLinkMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemoryLinkMutation", m)
+}
+
+// The KaguyaMemoryPageFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemoryPage mutator.
+type KaguyaMemoryPageFunc func(context.Context, *ent.KaguyaMemoryPageMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemoryPageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemoryPageMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemoryPageMutation", m)
+}
+
+// The KaguyaMemoryRevisionFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemoryRevision mutator.
+type KaguyaMemoryRevisionFunc func(context.Context, *ent.KaguyaMemoryRevisionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemoryRevisionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemoryRevisionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemoryRevisionMutation", m)
+}
+
+// The KaguyaMemorySearchDocFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemorySearchDoc mutator.
+type KaguyaMemorySearchDocFunc func(context.Context, *ent.KaguyaMemorySearchDocMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemorySearchDocFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemorySearchDocMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemorySearchDocMutation", m)
+}
+
+// The KaguyaMemorySourceFunc type is an adapter to allow the use of ordinary
+// function as KaguyaMemorySource mutator.
+type KaguyaMemorySourceFunc func(context.Context, *ent.KaguyaMemorySourceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaMemorySourceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaMemorySourceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaMemorySourceMutation", m)
+}
+
 // The KaguyaModelsInfoFunc type is an adapter to allow the use of ordinary
 // function as KaguyaModelsInfo mutator.
 type KaguyaModelsInfoFunc func(context.Context, *ent.KaguyaModelsInfoMutation) (ent.Value, error)

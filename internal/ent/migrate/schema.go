@@ -101,6 +101,7 @@ var (
 		{Name: "context_window", Type: field.TypeInt, Comment: "本轮模型 token_context_window 快照，0 表示未知", Default: 0},
 		{Name: "context_messages", Type: field.TypeJSON, Nullable: true, Comment: "发生压缩后的完整续聊快照；原始 messages 始终保留"},
 		{Name: "compaction_count", Type: field.TypeInt, Default: 0},
+		{Name: "memory_refs", Type: field.TypeJSON, Nullable: true, Comment: "本轮自动召回选择的页面版本与检索器版本；不复制正文，失败轮次为空"},
 		{Name: "messages", Type: field.TypeJSON, Comment: "仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"},
 		{Name: "conversation_id", Type: field.TypeString, Size: 64},
 	}
@@ -113,7 +114,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_chat_turn_kaguya_conversation_turns",
-				Columns:    []*schema.Column{KaguyaChatTurnColumns[27]},
+				Columns:    []*schema.Column{KaguyaChatTurnColumns[28]},
 				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -142,7 +143,7 @@ var (
 			{
 				Name:    "kaguyachatturn_conversation_id_turn_index",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaChatTurnColumns[27], KaguyaChatTurnColumns[4]},
+				Columns: []*schema.Column{KaguyaChatTurnColumns[28], KaguyaChatTurnColumns[4]},
 			},
 			{
 				Name:    "kaguyachatturn_finished_at",
@@ -160,6 +161,7 @@ var (
 		{Name: "title", Type: field.TypeString, Size: 200},
 		{Name: "agent_instructions", Type: field.TypeString, Nullable: true, Size: 2147483647, Comment: "会话首次成功轮次保存的全局及项目指令快照；NULL 表示尚未加载"},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
+		{Name: "memory_mode", Type: field.TypeEnum, Comment: "会话记忆模式：继承全局 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史", Enums: []string{"inherit", "off", "readonly"}, Default: "inherit"},
 		{Name: "turn_count", Type: field.TypeInt64, Comment: "已提交轮数，同时用于乐观并发校验", Default: 0},
 		{Name: "last_message_at", Type: field.TypeTime},
 		{Name: "model_id", Type: field.TypeString},
@@ -182,7 +184,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_conversation_kaguya_project_conversations",
-				Columns:    []*schema.Column{KaguyaConversationColumns[18]},
+				Columns:    []*schema.Column{KaguyaConversationColumns[19]},
 				RefColumns: []*schema.Column{KaguyaProjectColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -211,12 +213,12 @@ var (
 			{
 				Name:    "kaguyaconversation_deleted_at_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[8], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[9], KaguyaConversationColumns[0]},
 			},
 			{
 				Name:    "kaguyaconversation_deleted_at_favorite_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[6], KaguyaConversationColumns[8], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[6], KaguyaConversationColumns[9], KaguyaConversationColumns[0]},
 			},
 			{
 				Name:    "kaguyaconversation_deleted_at_title",
@@ -226,7 +228,7 @@ var (
 			{
 				Name:    "kaguyaconversation_project_id_deleted_at_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[18], KaguyaConversationColumns[3], KaguyaConversationColumns[8], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[19], KaguyaConversationColumns[3], KaguyaConversationColumns[9], KaguyaConversationColumns[0]},
 			},
 		},
 	}
@@ -280,6 +282,440 @@ var (
 				Annotation: &entsql.IndexAnnotation{
 					Where: "deleted_at IS NULL",
 				},
+			},
+		},
+	}
+	// KaguyaMemoryAttemptColumns holds the columns for the "kaguya_memory_attempt" table.
+	KaguyaMemoryAttemptColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "job_id", Type: field.TypeString, Size: 64},
+		{Name: "attempt", Type: field.TypeInt, Comment: "作业执行尝试序号"},
+		{Name: "phase", Type: field.TypeEnum, Enums: []string{"extract", "plan", "repair"}, Default: "extract"},
+		{Name: "model_record_id", Type: field.TypeString, Size: 64, Comment: "本地模型记录 ID 快照", Default: ""},
+		{Name: "provider_id", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "upstream_model_id", Type: field.TypeString, Size: 200, Comment: "调用时使用的上游模型快照", Default: ""},
+		{Name: "usage_known", Type: field.TypeBool, Comment: "错误路径未返回用量时为 false，不能按 0 计入确认消耗", Default: false},
+		{Name: "input_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "output_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "cached_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "reasoning_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "duration_ms", Type: field.TypeInt64, Default: 0},
+		{Name: "result_code", Type: field.TypeString, Size: 64, Comment: "ok / invalid_json / provider_error / budget / blocked 等安全错误码", Default: ""},
+	}
+	// KaguyaMemoryAttemptTable holds the schema information for the "kaguya_memory_attempt" table.
+	KaguyaMemoryAttemptTable = &schema.Table{
+		Name:       "kaguya_memory_attempt",
+		Comment:    "任务模型调用尝试与用量",
+		Columns:    KaguyaMemoryAttemptColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemoryAttemptColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemoryattempt_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryAttemptColumns[1]},
+			},
+			{
+				Name:    "kaguyamemoryattempt_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryAttemptColumns[2]},
+			},
+			{
+				Name:    "kaguyamemoryattempt_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryAttemptColumns[3]},
+			},
+			{
+				Name:    "kaguyamemoryattempt_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryAttemptColumns[0]},
+			},
+			{
+				Name:    "kaguyamemoryattempt_job_id_attempt",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryAttemptColumns[4], KaguyaMemoryAttemptColumns[5]},
+			},
+		},
+	}
+	// KaguyaMemoryEvidenceColumns holds the columns for the "kaguya_memory_evidence" table.
+	KaguyaMemoryEvidenceColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "revision_id", Type: field.TypeString, Size: 64},
+		{Name: "claim_key", Type: field.TypeString, Size: 200},
+		{Name: "source_id", Type: field.TypeString, Size: 64},
+		{Name: "part_key", Type: field.TypeString, Size: 200},
+		{Name: "quote", Type: field.TypeString, Size: 2147483647},
+		{Name: "quote_hash", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "relation", Type: field.TypeEnum, Enums: []string{"support", "refute"}, Default: "support"},
+		{Name: "basis", Type: field.TypeEnum, Comment: "证据基础：用户陈述 / 工具观察 / 资料陈述 / 综合推断", Enums: []string{"user_statement", "tool_observation", "document_statement", "synthesis"}, Default: "synthesis"},
+	}
+	// KaguyaMemoryEvidenceTable holds the schema information for the "kaguya_memory_evidence" table.
+	KaguyaMemoryEvidenceTable = &schema.Table{
+		Name:       "kaguya_memory_evidence",
+		Comment:    "主张到来源片段的证据引用",
+		Columns:    KaguyaMemoryEvidenceColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemoryEvidenceColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemoryevidence_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryEvidenceColumns[1]},
+			},
+			{
+				Name:    "kaguyamemoryevidence_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryEvidenceColumns[2]},
+			},
+			{
+				Name:    "kaguyamemoryevidence_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryEvidenceColumns[3]},
+			},
+			{
+				Name:    "kaguyamemoryevidence_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryEvidenceColumns[0]},
+			},
+			{
+				Name:    "kaguyamemoryevidence_revision_id_claim_key",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryEvidenceColumns[4], KaguyaMemoryEvidenceColumns[5]},
+			},
+			{
+				Name:    "kaguyamemoryevidence_source_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryEvidenceColumns[6]},
+			},
+		},
+	}
+	// KaguyaMemoryJobColumns holds the columns for the "kaguya_memory_job" table.
+	KaguyaMemoryJobColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"compile", "backfill"}, Default: "compile"},
+		{Name: "scope_key", Type: field.TypeString, Size: 128},
+		{Name: "conversation_id", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "input_source_ids", Type: field.TypeJSON, Nullable: true, Comment: "冻结的输入来源 ID 集合，领取后不再变化"},
+		{Name: "input_hash", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "compiler_version", Type: field.TypeString, Size: 32, Default: ""},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "running", "succeeded", "retry_wait", "blocked", "needs_review", "failed", "canceled"}, Default: "pending"},
+		{Name: "attempt", Type: field.TypeInt, Comment: "已执行尝试次数", Default: 0},
+		{Name: "lease_token", Type: field.TypeString, Size: 64, Comment: "每次尝试使用新 token，避免只看过期时间产生 ABA 问题", Default: ""},
+		{Name: "lease_expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "next_attempt_at", Type: field.TypeTime, Nullable: true, Comment: "retry_wait 的下次执行时间"},
+		{Name: "error_code", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "error_summary", Type: field.TypeString, Size: 2147483647, Comment: "不含源文本或上游完整请求的错误摘要", Default: ""},
+		{Name: "result_json", Type: field.TypeString, Size: 2147483647, Comment: "有界结果：noop 说明或待审 PatchPlan", Default: ""},
+		{Name: "policy_epoch", Type: field.TypeInt64, Comment: "领取时的记忆策略版本", Default: 0},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+	}
+	// KaguyaMemoryJobTable holds the schema information for the "kaguya_memory_job" table.
+	KaguyaMemoryJobTable = &schema.Table{
+		Name:       "kaguya_memory_job",
+		Comment:    "后台记忆编译作业与待审提案",
+		Columns:    KaguyaMemoryJobColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemoryJobColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemoryjob_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[1]},
+			},
+			{
+				Name:    "kaguyamemoryjob_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[2]},
+			},
+			{
+				Name:    "kaguyamemoryjob_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[3]},
+			},
+			{
+				Name:    "kaguyamemoryjob_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[0]},
+			},
+			{
+				Name:    "kaguyamemoryjob_status_next_attempt_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[10], KaguyaMemoryJobColumns[14]},
+			},
+			{
+				Name:    "kaguyamemoryjob_conversation_id_scope_key",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[6], KaguyaMemoryJobColumns[5]},
+			},
+			{
+				Name:    "kaguyamemoryjob_lease_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[13]},
+			},
+		},
+	}
+	// KaguyaMemoryLinkColumns holds the columns for the "kaguya_memory_link" table.
+	KaguyaMemoryLinkColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "from_page_id", Type: field.TypeString, Size: 64},
+		{Name: "to_page_id", Type: field.TypeString, Size: 64},
+		{Name: "relation", Type: field.TypeEnum, Enums: []string{"related", "supersedes"}, Default: "related"},
+	}
+	// KaguyaMemoryLinkTable holds the schema information for the "kaguya_memory_link" table.
+	KaguyaMemoryLinkTable = &schema.Table{
+		Name:       "kaguya_memory_link",
+		Comment:    "记忆页面关系",
+		Columns:    KaguyaMemoryLinkColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemoryLinkColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemorylink_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryLinkColumns[1]},
+			},
+			{
+				Name:    "kaguyamemorylink_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryLinkColumns[2]},
+			},
+			{
+				Name:    "kaguyamemorylink_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryLinkColumns[3]},
+			},
+			{
+				Name:    "kaguyamemorylink_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryLinkColumns[0]},
+			},
+			{
+				Name:    "kaguyamemorylink_from_page_id_to_page_id_relation",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaMemoryLinkColumns[4], KaguyaMemoryLinkColumns[5], KaguyaMemoryLinkColumns[6]},
+			},
+			{
+				Name:    "kaguyamemorylink_to_page_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryLinkColumns[5]},
+			},
+		},
+	}
+	// KaguyaMemoryPageColumns holds the columns for the "kaguya_memory_page" table.
+	KaguyaMemoryPageColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "scope_key", Type: field.TypeString, Size: 128},
+		{Name: "canonical_key", Type: field.TypeString, Size: 160, Comment: "同范围内稳定主题键，重命名不改变 ID；辅助去重"},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"preference", "fact", "decision", "procedure", "lesson"}},
+		{Name: "title", Type: field.TypeString},
+		{Name: "summary", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "body", Type: field.TypeString, Size: 2147483647},
+		{Name: "aliases", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Comment: "deleted 保留最小 tombstone，防止自动复活", Enums: []string{"proposed", "active", "conflicted", "stale", "archived", "deleted"}, Default: "proposed"},
+		{Name: "version", Type: field.TypeInt64, Comment: "乐观并发版本，发布与编辑都按版本条件更新", Default: 1},
+		{Name: "pinned", Type: field.TypeBool, Comment: "影响预算内召回", Default: false},
+		{Name: "user_locked", Type: field.TypeBool, Comment: "阻止自动覆盖", Default: false},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, Comment: "过期后默认不自动注入，显式搜索可返回并标记"},
+	}
+	// KaguyaMemoryPageTable holds the schema information for the "kaguya_memory_page" table.
+	KaguyaMemoryPageTable = &schema.Table{
+		Name:       "kaguya_memory_page",
+		Comment:    "可溯源的长期记忆页面",
+		Columns:    KaguyaMemoryPageColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemoryPageColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemorypage_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryPageColumns[1]},
+			},
+			{
+				Name:    "kaguyamemorypage_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryPageColumns[2]},
+			},
+			{
+				Name:    "kaguyamemorypage_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryPageColumns[3]},
+			},
+			{
+				Name:    "kaguyamemorypage_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryPageColumns[0]},
+			},
+			{
+				Name:    "kaguyamemorypage_scope_key_canonical_key",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaMemoryPageColumns[4], KaguyaMemoryPageColumns[5]},
+			},
+			{
+				Name:    "kaguyamemorypage_scope_key_status_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryPageColumns[4], KaguyaMemoryPageColumns[11], KaguyaMemoryPageColumns[2]},
+			},
+		},
+	}
+	// KaguyaMemoryRevisionColumns holds the columns for the "kaguya_memory_revision" table.
+	KaguyaMemoryRevisionColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "page_id", Type: field.TypeString, Size: 64},
+		{Name: "version", Type: field.TypeInt64, Comment: "页面版本；恢复旧内容产生新版本，不回退版本号"},
+		{Name: "canonical_key", Type: field.TypeString, Size: 160},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"preference", "fact", "decision", "procedure", "lesson"}},
+		{Name: "title", Type: field.TypeString},
+		{Name: "summary", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "body", Type: field.TypeString, Size: 2147483647},
+		{Name: "aliases", Type: field.TypeJSON, Nullable: true},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"proposed", "active", "conflicted", "stale", "archived", "deleted"}},
+		{Name: "pinned", Type: field.TypeBool, Default: false},
+		{Name: "user_locked", Type: field.TypeBool, Default: false},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true},
+		{Name: "claims", Type: field.TypeJSON, Nullable: true, Comment: "本修订的主张摘要，证据单独建表"},
+		{Name: "actor", Type: field.TypeEnum, Enums: []string{"user", "task_model", "system"}},
+		{Name: "job_id", Type: field.TypeString, Size: 64, Comment: "产生该修订的作业；人工修订为空", Default: ""},
+		{Name: "reason", Type: field.TypeString, Comment: "变更原因", Default: ""},
+	}
+	// KaguyaMemoryRevisionTable holds the schema information for the "kaguya_memory_revision" table.
+	KaguyaMemoryRevisionTable = &schema.Table{
+		Name:       "kaguya_memory_revision",
+		Comment:    "记忆页面修订快照",
+		Columns:    KaguyaMemoryRevisionColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemoryRevisionColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemoryrevision_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryRevisionColumns[1]},
+			},
+			{
+				Name:    "kaguyamemoryrevision_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryRevisionColumns[2]},
+			},
+			{
+				Name:    "kaguyamemoryrevision_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryRevisionColumns[3]},
+			},
+			{
+				Name:    "kaguyamemoryrevision_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemoryRevisionColumns[0]},
+			},
+			{
+				Name:    "kaguyamemoryrevision_page_id_version",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaMemoryRevisionColumns[4], KaguyaMemoryRevisionColumns[5]},
+			},
+		},
+	}
+	// KaguyaMemorySearchDocColumns holds the columns for the "kaguya_memory_search_doc" table.
+	KaguyaMemorySearchDocColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true, Comment: "显式 INTEGER PRIMARY KEY，跨重建与 VACUUM 稳定"},
+		{Name: "page_id", Type: field.TypeString, Unique: true, Size: 64},
+		{Name: "page_version", Type: field.TypeInt64},
+		{Name: "normalizer_version", Type: field.TypeInt},
+		{Name: "title_terms", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "alias_terms", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "summary_terms", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "body_terms", Type: field.TypeString, Size: 2147483647, Default: ""},
+	}
+	// KaguyaMemorySearchDocTable holds the schema information for the "kaguya_memory_search_doc" table.
+	KaguyaMemorySearchDocTable = &schema.Table{
+		Name:       "kaguya_memory_search_doc",
+		Comment:    "长期记忆检索投影",
+		Columns:    KaguyaMemorySearchDocColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemorySearchDocColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemorysearchdoc_page_version",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySearchDocColumns[2]},
+			},
+		},
+	}
+	// KaguyaMemorySourceColumns holds the columns for the "kaguya_memory_source" table.
+	KaguyaMemorySourceColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "source_key", Type: field.TypeString, Size: 200, Comment: "稳定来源键，如 turn:<turn-id>:projection-v1；唯一约束防止重复入队"},
+		{Name: "kind", Type: field.TypeEnum, Comment: "来源类型：完成轮次 / 用户笔记 / 显式导入资料", Enums: []string{"turn", "note", "import"}, Default: "turn"},
+		{Name: "scope_key", Type: field.TypeString, Size: 128, Comment: "personal / shared / project:<project-id>，来源创建后不改写"},
+		{Name: "conversation_id", Type: field.TypeString, Size: 64, Comment: "来源会话；笔记等无会话来源为空", Default: ""},
+		{Name: "turn_id", Type: field.TypeString, Size: 64, Comment: "来源轮次", Default: ""},
+		{Name: "projection_version", Type: field.TypeInt, Comment: "来源投影版本，投影契约变化时递增", Default: 1},
+		{Name: "cursor_part", Type: field.TypeInt, Comment: "投影 segment 游标：超预算切分后剩余部分仍待处理", Default: 0},
+		{Name: "content_hash", Type: field.TypeString, Size: 64, Comment: "投影内容哈希，用于排除与去重；不保证拦截同义改写", Default: ""},
+		{Name: "state", Type: field.TypeEnum, Comment: "pending→claimed→processed/noop/failed；excluded 表示隐私关闭、删除或来源失效", Enums: []string{"pending", "claimed", "processed", "noop", "failed", "excluded"}, Default: "pending"},
+		{Name: "job_id", Type: field.TypeString, Size: 64, Comment: "当前/最近领取该来源的作业", Default: ""},
+		{Name: "captured_at", Type: field.TypeTime, Comment: "来源捕获时间"},
+		{Name: "policy_epoch", Type: field.TypeInt64, Comment: "捕获时的记忆策略版本，作为并发栅栏", Default: 0},
+	}
+	// KaguyaMemorySourceTable holds the schema information for the "kaguya_memory_source" table.
+	KaguyaMemorySourceTable = &schema.Table{
+		Name:       "kaguya_memory_source",
+		Comment:    "长期记忆来源与持久化待处理队列",
+		Columns:    KaguyaMemorySourceColumns,
+		PrimaryKey: []*schema.Column{KaguyaMemorySourceColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyamemorysource_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[1]},
+			},
+			{
+				Name:    "kaguyamemorysource_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[2]},
+			},
+			{
+				Name:    "kaguyamemorysource_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[3]},
+			},
+			{
+				Name:    "kaguyamemorysource_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[0]},
+			},
+			{
+				Name:    "kaguyamemorysource_source_key",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[4]},
+			},
+			{
+				Name:    "kaguyamemorysource_state_captured_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[12], KaguyaMemorySourceColumns[14]},
+			},
+			{
+				Name:    "kaguyamemorysource_conversation_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[7]},
+			},
+			{
+				Name:    "kaguyamemorysource_job_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[13]},
 			},
 		},
 	}
@@ -483,6 +919,10 @@ var (
 		{Name: "model_sync_last_error", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "default_model_id", Type: field.TypeString, Comment: "默认聊天模型的本地记录 ID，空值表示未配置", Default: ""},
 		{Name: "task_model_id", Type: field.TypeString, Comment: "后台任务模型的本地记录 ID，空值表示未配置", Default: ""},
+		{Name: "memory_enabled", Type: field.TypeBool, Comment: "长期记忆总开关：关闭后停止自动召回、工具与编译", Default: false},
+		{Name: "memory_auto_capture", Type: field.TypeBool, Comment: "是否自动产生新来源；关闭只停止学习，不删除已有页面", Default: false},
+		{Name: "memory_context_tokens", Type: field.TypeInt, Comment: "每轮自动召回注入上限（估算 token，不保证精确相等）", Default: 2000},
+		{Name: "memory_policy_epoch", Type: field.TypeInt64, Comment: "记忆策略版本：隐私模式变化、删除记忆/来源、项目删除或换绑时单调递增", Default: 0},
 	}
 	// KaguyaSystemInfoTable holds the schema information for the "kaguya_system_info" table.
 	KaguyaSystemInfoTable = &schema.Table{
@@ -519,6 +959,14 @@ var (
 		KaguyaChatTurnTable,
 		KaguyaConversationTable,
 		KaguyaMcpServerTable,
+		KaguyaMemoryAttemptTable,
+		KaguyaMemoryEvidenceTable,
+		KaguyaMemoryJobTable,
+		KaguyaMemoryLinkTable,
+		KaguyaMemoryPageTable,
+		KaguyaMemoryRevisionTable,
+		KaguyaMemorySearchDocTable,
+		KaguyaMemorySourceTable,
 		KaguyaModelsInfoTable,
 		KaguyaProjectTable,
 		KaguyaProviderInfoTable,
@@ -541,6 +989,30 @@ func init() {
 	}
 	KaguyaMcpServerTable.Annotation = &entsql.Annotation{
 		Table: "kaguya_mcp_server",
+	}
+	KaguyaMemoryAttemptTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_attempt",
+	}
+	KaguyaMemoryEvidenceTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_evidence",
+	}
+	KaguyaMemoryJobTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_job",
+	}
+	KaguyaMemoryLinkTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_link",
+	}
+	KaguyaMemoryPageTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_page",
+	}
+	KaguyaMemoryRevisionTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_revision",
+	}
+	KaguyaMemorySearchDocTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_search_doc",
+	}
+	KaguyaMemorySourceTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_memory_source",
 	}
 	KaguyaModelsInfoTable.ForeignKeys[0].RefTable = KaguyaProviderInfoTable
 	KaguyaModelsInfoTable.Annotation = &entsql.Annotation{

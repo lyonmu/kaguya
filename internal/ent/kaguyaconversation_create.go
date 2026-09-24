@@ -115,6 +115,20 @@ func (_c *KaguyaConversationCreate) SetNillableFavorite(v *bool) *KaguyaConversa
 	return _c
 }
 
+// SetMemoryMode sets the "memory_mode" field.
+func (_c *KaguyaConversationCreate) SetMemoryMode(v kaguyaconversation.MemoryMode) *KaguyaConversationCreate {
+	_c.mutation.SetMemoryMode(v)
+	return _c
+}
+
+// SetNillableMemoryMode sets the "memory_mode" field if the given value is not nil.
+func (_c *KaguyaConversationCreate) SetNillableMemoryMode(v *kaguyaconversation.MemoryMode) *KaguyaConversationCreate {
+	if v != nil {
+		_c.SetMemoryMode(*v)
+	}
+	return _c
+}
+
 // SetTurnCount sets the "turn_count" field.
 func (_c *KaguyaConversationCreate) SetTurnCount(v int64) *KaguyaConversationCreate {
 	_c.mutation.SetTurnCount(v)
@@ -334,6 +348,10 @@ func (_c *KaguyaConversationCreate) defaults() error {
 		v := kaguyaconversation.DefaultFavorite
 		_c.mutation.SetFavorite(v)
 	}
+	if _, ok := _c.mutation.MemoryMode(); !ok {
+		v := kaguyaconversation.DefaultMemoryMode
+		_c.mutation.SetMemoryMode(v)
+	}
 	if _, ok := _c.mutation.TurnCount(); !ok {
 		v := kaguyaconversation.DefaultTurnCount
 		_c.mutation.SetTurnCount(v)
@@ -394,6 +412,14 @@ func (_c *KaguyaConversationCreate) check() error {
 	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		return &ValidationError{Name: "favorite", err: errors.New(`ent: missing required field "KaguyaConversation.favorite"`)}
+	}
+	if _, ok := _c.mutation.MemoryMode(); !ok {
+		return &ValidationError{Name: "memory_mode", err: errors.New(`ent: missing required field "KaguyaConversation.memory_mode"`)}
+	}
+	if v, ok := _c.mutation.MemoryMode(); ok {
+		if err := kaguyaconversation.MemoryModeValidator(v); err != nil {
+			return &ValidationError{Name: "memory_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.memory_mode": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.TurnCount(); !ok {
 		return &ValidationError{Name: "turn_count", err: errors.New(`ent: missing required field "KaguyaConversation.turn_count"`)}
@@ -532,6 +558,10 @@ func (_c *KaguyaConversationCreate) createSpec() (*KaguyaConversation, *sqlgraph
 	if value, ok := _c.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
 		_node.Favorite = value
+	}
+	if value, ok := _c.mutation.MemoryMode(); ok {
+		_spec.SetField(kaguyaconversation.FieldMemoryMode, field.TypeEnum, value)
+		_node.MemoryMode = value
 	}
 	if value, ok := _c.mutation.TurnCount(); ok {
 		_spec.SetField(kaguyaconversation.FieldTurnCount, field.TypeInt64, value)
@@ -749,6 +779,18 @@ func (u *KaguyaConversationUpsert) SetFavorite(v bool) *KaguyaConversationUpsert
 // UpdateFavorite sets the "favorite" field to the value that was provided on create.
 func (u *KaguyaConversationUpsert) UpdateFavorite() *KaguyaConversationUpsert {
 	u.SetExcluded(kaguyaconversation.FieldFavorite)
+	return u
+}
+
+// SetMemoryMode sets the "memory_mode" field.
+func (u *KaguyaConversationUpsert) SetMemoryMode(v kaguyaconversation.MemoryMode) *KaguyaConversationUpsert {
+	u.Set(kaguyaconversation.FieldMemoryMode, v)
+	return u
+}
+
+// UpdateMemoryMode sets the "memory_mode" field to the value that was provided on create.
+func (u *KaguyaConversationUpsert) UpdateMemoryMode() *KaguyaConversationUpsert {
+	u.SetExcluded(kaguyaconversation.FieldMemoryMode)
 	return u
 }
 
@@ -1085,6 +1127,20 @@ func (u *KaguyaConversationUpsertOne) SetFavorite(v bool) *KaguyaConversationUps
 func (u *KaguyaConversationUpsertOne) UpdateFavorite() *KaguyaConversationUpsertOne {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.UpdateFavorite()
+	})
+}
+
+// SetMemoryMode sets the "memory_mode" field.
+func (u *KaguyaConversationUpsertOne) SetMemoryMode(v kaguyaconversation.MemoryMode) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetMemoryMode(v)
+	})
+}
+
+// UpdateMemoryMode sets the "memory_mode" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertOne) UpdateMemoryMode() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateMemoryMode()
 	})
 }
 
@@ -1618,6 +1674,20 @@ func (u *KaguyaConversationUpsertBulk) SetFavorite(v bool) *KaguyaConversationUp
 func (u *KaguyaConversationUpsertBulk) UpdateFavorite() *KaguyaConversationUpsertBulk {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.UpdateFavorite()
+	})
+}
+
+// SetMemoryMode sets the "memory_mode" field.
+func (u *KaguyaConversationUpsertBulk) SetMemoryMode(v kaguyaconversation.MemoryMode) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetMemoryMode(v)
+	})
+}
+
+// UpdateMemoryMode sets the "memory_mode" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertBulk) UpdateMemoryMode() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateMemoryMode()
 	})
 }
 

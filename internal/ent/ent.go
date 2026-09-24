@@ -16,6 +16,14 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryattempt"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryevidence"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorylink"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorypage"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryrevision"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysearchdoc"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
@@ -80,14 +88,22 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			kaguyachatblock.Table:    kaguyachatblock.ValidColumn,
-			kaguyachatturn.Table:     kaguyachatturn.ValidColumn,
-			kaguyaconversation.Table: kaguyaconversation.ValidColumn,
-			kaguyamcpserver.Table:    kaguyamcpserver.ValidColumn,
-			kaguyamodelsinfo.Table:   kaguyamodelsinfo.ValidColumn,
-			kaguyaproject.Table:      kaguyaproject.ValidColumn,
-			kaguyaproviderinfo.Table: kaguyaproviderinfo.ValidColumn,
-			kaguyasysteminfo.Table:   kaguyasysteminfo.ValidColumn,
+			kaguyachatblock.Table:       kaguyachatblock.ValidColumn,
+			kaguyachatturn.Table:        kaguyachatturn.ValidColumn,
+			kaguyaconversation.Table:    kaguyaconversation.ValidColumn,
+			kaguyamcpserver.Table:       kaguyamcpserver.ValidColumn,
+			kaguyamemoryattempt.Table:   kaguyamemoryattempt.ValidColumn,
+			kaguyamemoryevidence.Table:  kaguyamemoryevidence.ValidColumn,
+			kaguyamemoryjob.Table:       kaguyamemoryjob.ValidColumn,
+			kaguyamemorylink.Table:      kaguyamemorylink.ValidColumn,
+			kaguyamemorypage.Table:      kaguyamemorypage.ValidColumn,
+			kaguyamemoryrevision.Table:  kaguyamemoryrevision.ValidColumn,
+			kaguyamemorysearchdoc.Table: kaguyamemorysearchdoc.ValidColumn,
+			kaguyamemorysource.Table:    kaguyamemorysource.ValidColumn,
+			kaguyamodelsinfo.Table:      kaguyamodelsinfo.ValidColumn,
+			kaguyaproject.Table:         kaguyaproject.ValidColumn,
+			kaguyaproviderinfo.Table:    kaguyaproviderinfo.ValidColumn,
+			kaguyasysteminfo.Table:      kaguyasysteminfo.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

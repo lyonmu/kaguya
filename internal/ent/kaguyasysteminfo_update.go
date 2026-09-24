@@ -401,6 +401,76 @@ func (_u *KaguyaSystemInfoUpdate) SetNillableTaskModelID(v *string) *KaguyaSyste
 	return _u
 }
 
+// SetMemoryEnabled sets the "memory_enabled" field.
+func (_u *KaguyaSystemInfoUpdate) SetMemoryEnabled(v bool) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetMemoryEnabled(v)
+	return _u
+}
+
+// SetNillableMemoryEnabled sets the "memory_enabled" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableMemoryEnabled(v *bool) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetMemoryEnabled(*v)
+	}
+	return _u
+}
+
+// SetMemoryAutoCapture sets the "memory_auto_capture" field.
+func (_u *KaguyaSystemInfoUpdate) SetMemoryAutoCapture(v bool) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetMemoryAutoCapture(v)
+	return _u
+}
+
+// SetNillableMemoryAutoCapture sets the "memory_auto_capture" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableMemoryAutoCapture(v *bool) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetMemoryAutoCapture(*v)
+	}
+	return _u
+}
+
+// SetMemoryContextTokens sets the "memory_context_tokens" field.
+func (_u *KaguyaSystemInfoUpdate) SetMemoryContextTokens(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetMemoryContextTokens()
+	_u.mutation.SetMemoryContextTokens(v)
+	return _u
+}
+
+// SetNillableMemoryContextTokens sets the "memory_context_tokens" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableMemoryContextTokens(v *int) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetMemoryContextTokens(*v)
+	}
+	return _u
+}
+
+// AddMemoryContextTokens adds value to the "memory_context_tokens" field.
+func (_u *KaguyaSystemInfoUpdate) AddMemoryContextTokens(v int) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddMemoryContextTokens(v)
+	return _u
+}
+
+// SetMemoryPolicyEpoch sets the "memory_policy_epoch" field.
+func (_u *KaguyaSystemInfoUpdate) SetMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpdate {
+	_u.mutation.ResetMemoryPolicyEpoch()
+	_u.mutation.SetMemoryPolicyEpoch(v)
+	return _u
+}
+
+// SetNillableMemoryPolicyEpoch sets the "memory_policy_epoch" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableMemoryPolicyEpoch(v *int64) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetMemoryPolicyEpoch(*v)
+	}
+	return _u
+}
+
+// AddMemoryPolicyEpoch adds value to the "memory_policy_epoch" field.
+func (_u *KaguyaSystemInfoUpdate) AddMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpdate {
+	_u.mutation.AddMemoryPolicyEpoch(v)
+	return _u
+}
+
 // Mutation returns the KaguyaSystemInfoMutation object of the builder.
 func (_u *KaguyaSystemInfoUpdate) Mutation() *KaguyaSystemInfoMutation {
 	return _u.mutation
@@ -493,6 +563,16 @@ func (_u *KaguyaSystemInfoUpdate) check() error {
 	if v, ok := _u.mutation.ProviderCatalogCount(); ok {
 		if err := kaguyasysteminfo.ProviderCatalogCountValidator(v); err != nil {
 			return &ValidationError{Name: "provider_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_catalog_count": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MemoryContextTokens(); ok {
+		if err := kaguyasysteminfo.MemoryContextTokensValidator(v); err != nil {
+			return &ValidationError{Name: "memory_context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.memory_context_tokens": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MemoryPolicyEpoch(); ok {
+		if err := kaguyasysteminfo.MemoryPolicyEpochValidator(v); err != nil {
+			return &ValidationError{Name: "memory_policy_epoch", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.memory_policy_epoch": %w`, err)}
 		}
 	}
 	return nil
@@ -619,6 +699,24 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.TaskModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldTaskModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MemoryEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MemoryAutoCapture(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryAutoCapture, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MemoryContextTokens(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryContextTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMemoryContextTokens(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldMemoryContextTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.MemoryPolicyEpoch(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryPolicyEpoch, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedMemoryPolicyEpoch(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldMemoryPolicyEpoch, field.TypeInt64, value)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -1013,6 +1111,76 @@ func (_u *KaguyaSystemInfoUpdateOne) SetNillableTaskModelID(v *string) *KaguyaSy
 	return _u
 }
 
+// SetMemoryEnabled sets the "memory_enabled" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetMemoryEnabled(v bool) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetMemoryEnabled(v)
+	return _u
+}
+
+// SetNillableMemoryEnabled sets the "memory_enabled" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableMemoryEnabled(v *bool) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetMemoryEnabled(*v)
+	}
+	return _u
+}
+
+// SetMemoryAutoCapture sets the "memory_auto_capture" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetMemoryAutoCapture(v bool) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetMemoryAutoCapture(v)
+	return _u
+}
+
+// SetNillableMemoryAutoCapture sets the "memory_auto_capture" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableMemoryAutoCapture(v *bool) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetMemoryAutoCapture(*v)
+	}
+	return _u
+}
+
+// SetMemoryContextTokens sets the "memory_context_tokens" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetMemoryContextTokens(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetMemoryContextTokens()
+	_u.mutation.SetMemoryContextTokens(v)
+	return _u
+}
+
+// SetNillableMemoryContextTokens sets the "memory_context_tokens" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableMemoryContextTokens(v *int) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetMemoryContextTokens(*v)
+	}
+	return _u
+}
+
+// AddMemoryContextTokens adds value to the "memory_context_tokens" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddMemoryContextTokens(v int) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddMemoryContextTokens(v)
+	return _u
+}
+
+// SetMemoryPolicyEpoch sets the "memory_policy_epoch" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.ResetMemoryPolicyEpoch()
+	_u.mutation.SetMemoryPolicyEpoch(v)
+	return _u
+}
+
+// SetNillableMemoryPolicyEpoch sets the "memory_policy_epoch" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableMemoryPolicyEpoch(v *int64) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetMemoryPolicyEpoch(*v)
+	}
+	return _u
+}
+
+// AddMemoryPolicyEpoch adds value to the "memory_policy_epoch" field.
+func (_u *KaguyaSystemInfoUpdateOne) AddMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.AddMemoryPolicyEpoch(v)
+	return _u
+}
+
 // Mutation returns the KaguyaSystemInfoMutation object of the builder.
 func (_u *KaguyaSystemInfoUpdateOne) Mutation() *KaguyaSystemInfoMutation {
 	return _u.mutation
@@ -1118,6 +1286,16 @@ func (_u *KaguyaSystemInfoUpdateOne) check() error {
 	if v, ok := _u.mutation.ProviderCatalogCount(); ok {
 		if err := kaguyasysteminfo.ProviderCatalogCountValidator(v); err != nil {
 			return &ValidationError{Name: "provider_catalog_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.provider_catalog_count": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MemoryContextTokens(); ok {
+		if err := kaguyasysteminfo.MemoryContextTokensValidator(v); err != nil {
+			return &ValidationError{Name: "memory_context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.memory_context_tokens": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.MemoryPolicyEpoch(); ok {
+		if err := kaguyasysteminfo.MemoryPolicyEpochValidator(v); err != nil {
+			return &ValidationError{Name: "memory_policy_epoch", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.memory_policy_epoch": %w`, err)}
 		}
 	}
 	return nil
@@ -1261,6 +1439,24 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if value, ok := _u.mutation.TaskModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldTaskModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.MemoryEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MemoryAutoCapture(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryAutoCapture, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.MemoryContextTokens(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryContextTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedMemoryContextTokens(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldMemoryContextTokens, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.MemoryPolicyEpoch(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryPolicyEpoch, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedMemoryPolicyEpoch(); ok {
+		_spec.AddField(kaguyasysteminfo.FieldMemoryPolicyEpoch, field.TypeInt64, value)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &KaguyaSystemInfo{config: _u.config}

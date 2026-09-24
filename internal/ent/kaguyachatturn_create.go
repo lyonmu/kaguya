@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
@@ -234,6 +235,20 @@ func (_c *KaguyaChatTurnCreate) SetCompactionCount(v int) *KaguyaChatTurnCreate 
 func (_c *KaguyaChatTurnCreate) SetNillableCompactionCount(v *int) *KaguyaChatTurnCreate {
 	if v != nil {
 		_c.SetCompactionCount(*v)
+	}
+	return _c
+}
+
+// SetMemoryRefs sets the "memory_refs" field.
+func (_c *KaguyaChatTurnCreate) SetMemoryRefs(v memory.TurnMemorySelection) *KaguyaChatTurnCreate {
+	_c.mutation.SetMemoryRefs(v)
+	return _c
+}
+
+// SetNillableMemoryRefs sets the "memory_refs" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableMemoryRefs(v *memory.TurnMemorySelection) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetMemoryRefs(*v)
 	}
 	return _c
 }
@@ -633,6 +648,10 @@ func (_c *KaguyaChatTurnCreate) createSpec() (*KaguyaChatTurn, *sqlgraph.CreateS
 	if value, ok := _c.mutation.CompactionCount(); ok {
 		_spec.SetField(kaguyachatturn.FieldCompactionCount, field.TypeInt, value)
 		_node.CompactionCount = value
+	}
+	if value, ok := _c.mutation.MemoryRefs(); ok {
+		_spec.SetField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON, value)
+		_node.MemoryRefs = value
 	}
 	if value, ok := _c.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -1104,6 +1123,24 @@ func (u *KaguyaChatTurnUpsert) UpdateCompactionCount() *KaguyaChatTurnUpsert {
 // AddCompactionCount adds v to the "compaction_count" field.
 func (u *KaguyaChatTurnUpsert) AddCompactionCount(v int) *KaguyaChatTurnUpsert {
 	u.Add(kaguyachatturn.FieldCompactionCount, v)
+	return u
+}
+
+// SetMemoryRefs sets the "memory_refs" field.
+func (u *KaguyaChatTurnUpsert) SetMemoryRefs(v memory.TurnMemorySelection) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldMemoryRefs, v)
+	return u
+}
+
+// UpdateMemoryRefs sets the "memory_refs" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateMemoryRefs() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldMemoryRefs)
+	return u
+}
+
+// ClearMemoryRefs clears the value of the "memory_refs" field.
+func (u *KaguyaChatTurnUpsert) ClearMemoryRefs() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldMemoryRefs)
 	return u
 }
 
@@ -1615,6 +1652,27 @@ func (u *KaguyaChatTurnUpsertOne) AddCompactionCount(v int) *KaguyaChatTurnUpser
 func (u *KaguyaChatTurnUpsertOne) UpdateCompactionCount() *KaguyaChatTurnUpsertOne {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateCompactionCount()
+	})
+}
+
+// SetMemoryRefs sets the "memory_refs" field.
+func (u *KaguyaChatTurnUpsertOne) SetMemoryRefs(v memory.TurnMemorySelection) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetMemoryRefs(v)
+	})
+}
+
+// UpdateMemoryRefs sets the "memory_refs" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateMemoryRefs() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateMemoryRefs()
+	})
+}
+
+// ClearMemoryRefs clears the value of the "memory_refs" field.
+func (u *KaguyaChatTurnUpsertOne) ClearMemoryRefs() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearMemoryRefs()
 	})
 }
 
@@ -2295,6 +2353,27 @@ func (u *KaguyaChatTurnUpsertBulk) AddCompactionCount(v int) *KaguyaChatTurnUpse
 func (u *KaguyaChatTurnUpsertBulk) UpdateCompactionCount() *KaguyaChatTurnUpsertBulk {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateCompactionCount()
+	})
+}
+
+// SetMemoryRefs sets the "memory_refs" field.
+func (u *KaguyaChatTurnUpsertBulk) SetMemoryRefs(v memory.TurnMemorySelection) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetMemoryRefs(v)
+	})
+}
+
+// UpdateMemoryRefs sets the "memory_refs" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateMemoryRefs() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateMemoryRefs()
+	})
+}
+
+// ClearMemoryRefs clears the value of the "memory_refs" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearMemoryRefs() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearMemoryRefs()
 	})
 }
 

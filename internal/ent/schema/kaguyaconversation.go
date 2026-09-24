@@ -22,6 +22,7 @@ func (KaguyaConversation) Fields() []ent.Field {
 		field.String("project_id").Optional().Nillable(),
 		field.Text("agent_instructions").Optional().Nillable().Sensitive().Comment("会话首次成功轮次保存的全局及项目指令快照；NULL 表示尚未加载"),
 		field.Bool("favorite").Default(false),
+		field.Enum("memory_mode").Values("inherit", "off", "readonly").Default("inherit").Comment("会话记忆模式：继承全局 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史"),
 		field.Int64("turn_count").Default(0).NonNegative().Comment("已提交轮数，同时用于乐观并发校验"),
 		field.Time("last_message_at"),
 		field.String("model_id"),

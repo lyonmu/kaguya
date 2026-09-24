@@ -18,6 +18,30 @@ type KaguyaConversation func(*sql.Selector)
 // KaguyaMCPServer is the predicate function for kaguyamcpserver builders.
 type KaguyaMCPServer func(*sql.Selector)
 
+// KaguyaMemoryAttempt is the predicate function for kaguyamemoryattempt builders.
+type KaguyaMemoryAttempt func(*sql.Selector)
+
+// KaguyaMemoryEvidence is the predicate function for kaguyamemoryevidence builders.
+type KaguyaMemoryEvidence func(*sql.Selector)
+
+// KaguyaMemoryJob is the predicate function for kaguyamemoryjob builders.
+type KaguyaMemoryJob func(*sql.Selector)
+
+// KaguyaMemoryLink is the predicate function for kaguyamemorylink builders.
+type KaguyaMemoryLink func(*sql.Selector)
+
+// KaguyaMemoryPage is the predicate function for kaguyamemorypage builders.
+type KaguyaMemoryPage func(*sql.Selector)
+
+// KaguyaMemoryRevision is the predicate function for kaguyamemoryrevision builders.
+type KaguyaMemoryRevision func(*sql.Selector)
+
+// KaguyaMemorySearchDoc is the predicate function for kaguyamemorysearchdoc builders.
+type KaguyaMemorySearchDoc func(*sql.Selector)
+
+// KaguyaMemorySource is the predicate function for kaguyamemorysource builders.
+type KaguyaMemorySource func(*sql.Selector)
+
 // KaguyaModelsInfo is the predicate function for kaguyamodelsinfo builders.
 type KaguyaModelsInfo func(*sql.Selector)
 

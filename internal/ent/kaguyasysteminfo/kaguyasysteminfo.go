@@ -60,6 +60,14 @@ const (
 	FieldDefaultModelID = "default_model_id"
 	// FieldTaskModelID holds the string denoting the task_model_id field in the database.
 	FieldTaskModelID = "task_model_id"
+	// FieldMemoryEnabled holds the string denoting the memory_enabled field in the database.
+	FieldMemoryEnabled = "memory_enabled"
+	// FieldMemoryAutoCapture holds the string denoting the memory_auto_capture field in the database.
+	FieldMemoryAutoCapture = "memory_auto_capture"
+	// FieldMemoryContextTokens holds the string denoting the memory_context_tokens field in the database.
+	FieldMemoryContextTokens = "memory_context_tokens"
+	// FieldMemoryPolicyEpoch holds the string denoting the memory_policy_epoch field in the database.
+	FieldMemoryPolicyEpoch = "memory_policy_epoch"
 	// Table holds the table name of the kaguyasysteminfo in the database.
 	Table = "kaguya_system_info"
 )
@@ -90,6 +98,10 @@ var Columns = []string{
 	FieldModelSyncLastError,
 	FieldDefaultModelID,
 	FieldTaskModelID,
+	FieldMemoryEnabled,
+	FieldMemoryAutoCapture,
+	FieldMemoryContextTokens,
+	FieldMemoryPolicyEpoch,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -167,6 +179,18 @@ var (
 	DefaultDefaultModelID string
 	// DefaultTaskModelID holds the default value on creation for the "task_model_id" field.
 	DefaultTaskModelID string
+	// DefaultMemoryEnabled holds the default value on creation for the "memory_enabled" field.
+	DefaultMemoryEnabled bool
+	// DefaultMemoryAutoCapture holds the default value on creation for the "memory_auto_capture" field.
+	DefaultMemoryAutoCapture bool
+	// DefaultMemoryContextTokens holds the default value on creation for the "memory_context_tokens" field.
+	DefaultMemoryContextTokens int
+	// MemoryContextTokensValidator is a validator for the "memory_context_tokens" field. It is called by the builders before save.
+	MemoryContextTokensValidator func(int) error
+	// DefaultMemoryPolicyEpoch holds the default value on creation for the "memory_policy_epoch" field.
+	DefaultMemoryPolicyEpoch int64
+	// MemoryPolicyEpochValidator is a validator for the "memory_policy_epoch" field. It is called by the builders before save.
+	MemoryPolicyEpochValidator func(int64) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID string
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
@@ -289,4 +313,24 @@ func ByDefaultModelID(opts ...sql.OrderTermOption) OrderOption {
 // ByTaskModelID orders the results by the task_model_id field.
 func ByTaskModelID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTaskModelID, opts...).ToFunc()
+}
+
+// ByMemoryEnabled orders the results by the memory_enabled field.
+func ByMemoryEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemoryEnabled, opts...).ToFunc()
+}
+
+// ByMemoryAutoCapture orders the results by the memory_auto_capture field.
+func ByMemoryAutoCapture(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemoryAutoCapture, opts...).ToFunc()
+}
+
+// ByMemoryContextTokens orders the results by the memory_context_tokens field.
+func ByMemoryContextTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemoryContextTokens, opts...).ToFunc()
+}
+
+// ByMemoryPolicyEpoch orders the results by the memory_policy_epoch field.
+func ByMemoryPolicyEpoch(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemoryPolicyEpoch, opts...).ToFunc()
 }

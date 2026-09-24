@@ -337,6 +337,62 @@ func (_c *KaguyaSystemInfoCreate) SetNillableTaskModelID(v *string) *KaguyaSyste
 	return _c
 }
 
+// SetMemoryEnabled sets the "memory_enabled" field.
+func (_c *KaguyaSystemInfoCreate) SetMemoryEnabled(v bool) *KaguyaSystemInfoCreate {
+	_c.mutation.SetMemoryEnabled(v)
+	return _c
+}
+
+// SetNillableMemoryEnabled sets the "memory_enabled" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableMemoryEnabled(v *bool) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetMemoryEnabled(*v)
+	}
+	return _c
+}
+
+// SetMemoryAutoCapture sets the "memory_auto_capture" field.
+func (_c *KaguyaSystemInfoCreate) SetMemoryAutoCapture(v bool) *KaguyaSystemInfoCreate {
+	_c.mutation.SetMemoryAutoCapture(v)
+	return _c
+}
+
+// SetNillableMemoryAutoCapture sets the "memory_auto_capture" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableMemoryAutoCapture(v *bool) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetMemoryAutoCapture(*v)
+	}
+	return _c
+}
+
+// SetMemoryContextTokens sets the "memory_context_tokens" field.
+func (_c *KaguyaSystemInfoCreate) SetMemoryContextTokens(v int) *KaguyaSystemInfoCreate {
+	_c.mutation.SetMemoryContextTokens(v)
+	return _c
+}
+
+// SetNillableMemoryContextTokens sets the "memory_context_tokens" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableMemoryContextTokens(v *int) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetMemoryContextTokens(*v)
+	}
+	return _c
+}
+
+// SetMemoryPolicyEpoch sets the "memory_policy_epoch" field.
+func (_c *KaguyaSystemInfoCreate) SetMemoryPolicyEpoch(v int64) *KaguyaSystemInfoCreate {
+	_c.mutation.SetMemoryPolicyEpoch(v)
+	return _c
+}
+
+// SetNillableMemoryPolicyEpoch sets the "memory_policy_epoch" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableMemoryPolicyEpoch(v *int64) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetMemoryPolicyEpoch(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *KaguyaSystemInfoCreate) SetID(v string) *KaguyaSystemInfoCreate {
 	_c.mutation.SetID(v)
@@ -470,6 +526,22 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultTaskModelID
 		_c.mutation.SetTaskModelID(v)
 	}
+	if _, ok := _c.mutation.MemoryEnabled(); !ok {
+		v := kaguyasysteminfo.DefaultMemoryEnabled
+		_c.mutation.SetMemoryEnabled(v)
+	}
+	if _, ok := _c.mutation.MemoryAutoCapture(); !ok {
+		v := kaguyasysteminfo.DefaultMemoryAutoCapture
+		_c.mutation.SetMemoryAutoCapture(v)
+	}
+	if _, ok := _c.mutation.MemoryContextTokens(); !ok {
+		v := kaguyasysteminfo.DefaultMemoryContextTokens
+		_c.mutation.SetMemoryContextTokens(v)
+	}
+	if _, ok := _c.mutation.MemoryPolicyEpoch(); !ok {
+		v := kaguyasysteminfo.DefaultMemoryPolicyEpoch
+		_c.mutation.SetMemoryPolicyEpoch(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := kaguyasysteminfo.DefaultID
 		_c.mutation.SetID(v)
@@ -580,6 +652,28 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 	}
 	if _, ok := _c.mutation.TaskModelID(); !ok {
 		return &ValidationError{Name: "task_model_id", err: errors.New(`ent: missing required field "KaguyaSystemInfo.task_model_id"`)}
+	}
+	if _, ok := _c.mutation.MemoryEnabled(); !ok {
+		return &ValidationError{Name: "memory_enabled", err: errors.New(`ent: missing required field "KaguyaSystemInfo.memory_enabled"`)}
+	}
+	if _, ok := _c.mutation.MemoryAutoCapture(); !ok {
+		return &ValidationError{Name: "memory_auto_capture", err: errors.New(`ent: missing required field "KaguyaSystemInfo.memory_auto_capture"`)}
+	}
+	if _, ok := _c.mutation.MemoryContextTokens(); !ok {
+		return &ValidationError{Name: "memory_context_tokens", err: errors.New(`ent: missing required field "KaguyaSystemInfo.memory_context_tokens"`)}
+	}
+	if v, ok := _c.mutation.MemoryContextTokens(); ok {
+		if err := kaguyasysteminfo.MemoryContextTokensValidator(v); err != nil {
+			return &ValidationError{Name: "memory_context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.memory_context_tokens": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.MemoryPolicyEpoch(); !ok {
+		return &ValidationError{Name: "memory_policy_epoch", err: errors.New(`ent: missing required field "KaguyaSystemInfo.memory_policy_epoch"`)}
+	}
+	if v, ok := _c.mutation.MemoryPolicyEpoch(); ok {
+		if err := kaguyasysteminfo.MemoryPolicyEpochValidator(v); err != nil {
+			return &ValidationError{Name: "memory_policy_epoch", err: fmt.Errorf(`ent: validator failed for field "KaguyaSystemInfo.memory_policy_epoch": %w`, err)}
+		}
 	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := kaguyasysteminfo.IDValidator(v); err != nil {
@@ -713,6 +807,22 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.TaskModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldTaskModelID, field.TypeString, value)
 		_node.TaskModelID = value
+	}
+	if value, ok := _c.mutation.MemoryEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryEnabled, field.TypeBool, value)
+		_node.MemoryEnabled = value
+	}
+	if value, ok := _c.mutation.MemoryAutoCapture(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryAutoCapture, field.TypeBool, value)
+		_node.MemoryAutoCapture = value
+	}
+	if value, ok := _c.mutation.MemoryContextTokens(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryContextTokens, field.TypeInt, value)
+		_node.MemoryContextTokens = value
+	}
+	if value, ok := _c.mutation.MemoryPolicyEpoch(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldMemoryPolicyEpoch, field.TypeInt64, value)
+		_node.MemoryPolicyEpoch = value
 	}
 	return _node, _spec
 }
@@ -1093,6 +1203,66 @@ func (u *KaguyaSystemInfoUpsert) SetTaskModelID(v string) *KaguyaSystemInfoUpser
 // UpdateTaskModelID sets the "task_model_id" field to the value that was provided on create.
 func (u *KaguyaSystemInfoUpsert) UpdateTaskModelID() *KaguyaSystemInfoUpsert {
 	u.SetExcluded(kaguyasysteminfo.FieldTaskModelID)
+	return u
+}
+
+// SetMemoryEnabled sets the "memory_enabled" field.
+func (u *KaguyaSystemInfoUpsert) SetMemoryEnabled(v bool) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldMemoryEnabled, v)
+	return u
+}
+
+// UpdateMemoryEnabled sets the "memory_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateMemoryEnabled() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldMemoryEnabled)
+	return u
+}
+
+// SetMemoryAutoCapture sets the "memory_auto_capture" field.
+func (u *KaguyaSystemInfoUpsert) SetMemoryAutoCapture(v bool) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldMemoryAutoCapture, v)
+	return u
+}
+
+// UpdateMemoryAutoCapture sets the "memory_auto_capture" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateMemoryAutoCapture() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldMemoryAutoCapture)
+	return u
+}
+
+// SetMemoryContextTokens sets the "memory_context_tokens" field.
+func (u *KaguyaSystemInfoUpsert) SetMemoryContextTokens(v int) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldMemoryContextTokens, v)
+	return u
+}
+
+// UpdateMemoryContextTokens sets the "memory_context_tokens" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateMemoryContextTokens() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldMemoryContextTokens)
+	return u
+}
+
+// AddMemoryContextTokens adds v to the "memory_context_tokens" field.
+func (u *KaguyaSystemInfoUpsert) AddMemoryContextTokens(v int) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldMemoryContextTokens, v)
+	return u
+}
+
+// SetMemoryPolicyEpoch sets the "memory_policy_epoch" field.
+func (u *KaguyaSystemInfoUpsert) SetMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldMemoryPolicyEpoch, v)
+	return u
+}
+
+// UpdateMemoryPolicyEpoch sets the "memory_policy_epoch" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateMemoryPolicyEpoch() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldMemoryPolicyEpoch)
+	return u
+}
+
+// AddMemoryPolicyEpoch adds v to the "memory_policy_epoch" field.
+func (u *KaguyaSystemInfoUpsert) AddMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpsert {
+	u.Add(kaguyasysteminfo.FieldMemoryPolicyEpoch, v)
 	return u
 }
 
@@ -1529,6 +1699,76 @@ func (u *KaguyaSystemInfoUpsertOne) SetTaskModelID(v string) *KaguyaSystemInfoUp
 func (u *KaguyaSystemInfoUpsertOne) UpdateTaskModelID() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateTaskModelID()
+	})
+}
+
+// SetMemoryEnabled sets the "memory_enabled" field.
+func (u *KaguyaSystemInfoUpsertOne) SetMemoryEnabled(v bool) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryEnabled(v)
+	})
+}
+
+// UpdateMemoryEnabled sets the "memory_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateMemoryEnabled() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryEnabled()
+	})
+}
+
+// SetMemoryAutoCapture sets the "memory_auto_capture" field.
+func (u *KaguyaSystemInfoUpsertOne) SetMemoryAutoCapture(v bool) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryAutoCapture(v)
+	})
+}
+
+// UpdateMemoryAutoCapture sets the "memory_auto_capture" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateMemoryAutoCapture() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryAutoCapture()
+	})
+}
+
+// SetMemoryContextTokens sets the "memory_context_tokens" field.
+func (u *KaguyaSystemInfoUpsertOne) SetMemoryContextTokens(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryContextTokens(v)
+	})
+}
+
+// AddMemoryContextTokens adds v to the "memory_context_tokens" field.
+func (u *KaguyaSystemInfoUpsertOne) AddMemoryContextTokens(v int) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddMemoryContextTokens(v)
+	})
+}
+
+// UpdateMemoryContextTokens sets the "memory_context_tokens" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateMemoryContextTokens() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryContextTokens()
+	})
+}
+
+// SetMemoryPolicyEpoch sets the "memory_policy_epoch" field.
+func (u *KaguyaSystemInfoUpsertOne) SetMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryPolicyEpoch(v)
+	})
+}
+
+// AddMemoryPolicyEpoch adds v to the "memory_policy_epoch" field.
+func (u *KaguyaSystemInfoUpsertOne) AddMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddMemoryPolicyEpoch(v)
+	})
+}
+
+// UpdateMemoryPolicyEpoch sets the "memory_policy_epoch" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateMemoryPolicyEpoch() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryPolicyEpoch()
 	})
 }
 
@@ -2132,6 +2372,76 @@ func (u *KaguyaSystemInfoUpsertBulk) SetTaskModelID(v string) *KaguyaSystemInfoU
 func (u *KaguyaSystemInfoUpsertBulk) UpdateTaskModelID() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateTaskModelID()
+	})
+}
+
+// SetMemoryEnabled sets the "memory_enabled" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetMemoryEnabled(v bool) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryEnabled(v)
+	})
+}
+
+// UpdateMemoryEnabled sets the "memory_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateMemoryEnabled() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryEnabled()
+	})
+}
+
+// SetMemoryAutoCapture sets the "memory_auto_capture" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetMemoryAutoCapture(v bool) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryAutoCapture(v)
+	})
+}
+
+// UpdateMemoryAutoCapture sets the "memory_auto_capture" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateMemoryAutoCapture() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryAutoCapture()
+	})
+}
+
+// SetMemoryContextTokens sets the "memory_context_tokens" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetMemoryContextTokens(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryContextTokens(v)
+	})
+}
+
+// AddMemoryContextTokens adds v to the "memory_context_tokens" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddMemoryContextTokens(v int) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddMemoryContextTokens(v)
+	})
+}
+
+// UpdateMemoryContextTokens sets the "memory_context_tokens" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateMemoryContextTokens() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryContextTokens()
+	})
+}
+
+// SetMemoryPolicyEpoch sets the "memory_policy_epoch" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetMemoryPolicyEpoch(v)
+	})
+}
+
+// AddMemoryPolicyEpoch adds v to the "memory_policy_epoch" field.
+func (u *KaguyaSystemInfoUpsertBulk) AddMemoryPolicyEpoch(v int64) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.AddMemoryPolicyEpoch(v)
+	})
+}
+
+// UpdateMemoryPolicyEpoch sets the "memory_policy_epoch" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateMemoryPolicyEpoch() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateMemoryPolicyEpoch()
 	})
 }
 

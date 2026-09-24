@@ -510,6 +510,26 @@ func FavoriteNEQ(v bool) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldNEQ(FieldFavorite, v))
 }
 
+// MemoryModeEQ applies the EQ predicate on the "memory_mode" field.
+func MemoryModeEQ(v MemoryMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldMemoryMode, v))
+}
+
+// MemoryModeNEQ applies the NEQ predicate on the "memory_mode" field.
+func MemoryModeNEQ(v MemoryMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNEQ(FieldMemoryMode, v))
+}
+
+// MemoryModeIn applies the In predicate on the "memory_mode" field.
+func MemoryModeIn(vs ...MemoryMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIn(FieldMemoryMode, vs...))
+}
+
+// MemoryModeNotIn applies the NotIn predicate on the "memory_mode" field.
+func MemoryModeNotIn(vs ...MemoryMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotIn(FieldMemoryMode, vs...))
+}
+
 // TurnCountEQ applies the EQ predicate on the "turn_count" field.
 func TurnCountEQ(v int64) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldEQ(FieldTurnCount, v))

@@ -10,6 +10,14 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryattempt"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryevidence"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorylink"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorypage"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryrevision"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysearchdoc"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
@@ -268,49 +276,49 @@ func init() {
 	// kaguyaconversation.DefaultFavorite holds the default value on creation for the favorite field.
 	kaguyaconversation.DefaultFavorite = kaguyaconversationDescFavorite.Default.(bool)
 	// kaguyaconversationDescTurnCount is the schema descriptor for turn_count field.
-	kaguyaconversationDescTurnCount := kaguyaconversationFields[4].Descriptor()
+	kaguyaconversationDescTurnCount := kaguyaconversationFields[5].Descriptor()
 	// kaguyaconversation.DefaultTurnCount holds the default value on creation for the turn_count field.
 	kaguyaconversation.DefaultTurnCount = kaguyaconversationDescTurnCount.Default.(int64)
 	// kaguyaconversation.TurnCountValidator is a validator for the "turn_count" field. It is called by the builders before save.
 	kaguyaconversation.TurnCountValidator = kaguyaconversationDescTurnCount.Validators[0].(func(int64) error)
 	// kaguyaconversationDescDurationMs is the schema descriptor for duration_ms field.
-	kaguyaconversationDescDurationMs := kaguyaconversationFields[8].Descriptor()
+	kaguyaconversationDescDurationMs := kaguyaconversationFields[9].Descriptor()
 	// kaguyaconversation.DefaultDurationMs holds the default value on creation for the duration_ms field.
 	kaguyaconversation.DefaultDurationMs = kaguyaconversationDescDurationMs.Default.(int64)
 	// kaguyaconversation.DurationMsValidator is a validator for the "duration_ms" field. It is called by the builders before save.
 	kaguyaconversation.DurationMsValidator = kaguyaconversationDescDurationMs.Validators[0].(func(int64) error)
 	// kaguyaconversationDescToolCalls is the schema descriptor for tool_calls field.
-	kaguyaconversationDescToolCalls := kaguyaconversationFields[9].Descriptor()
+	kaguyaconversationDescToolCalls := kaguyaconversationFields[10].Descriptor()
 	// kaguyaconversation.DefaultToolCalls holds the default value on creation for the tool_calls field.
 	kaguyaconversation.DefaultToolCalls = kaguyaconversationDescToolCalls.Default.(int64)
 	// kaguyaconversation.ToolCallsValidator is a validator for the "tool_calls" field. It is called by the builders before save.
 	kaguyaconversation.ToolCallsValidator = kaguyaconversationDescToolCalls.Validators[0].(func(int64) error)
 	// kaguyaconversationDescInputTokens is the schema descriptor for input_tokens field.
-	kaguyaconversationDescInputTokens := kaguyaconversationFields[10].Descriptor()
+	kaguyaconversationDescInputTokens := kaguyaconversationFields[11].Descriptor()
 	// kaguyaconversation.DefaultInputTokens holds the default value on creation for the input_tokens field.
 	kaguyaconversation.DefaultInputTokens = kaguyaconversationDescInputTokens.Default.(int64)
 	// kaguyaconversation.InputTokensValidator is a validator for the "input_tokens" field. It is called by the builders before save.
 	kaguyaconversation.InputTokensValidator = kaguyaconversationDescInputTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescOutputTokens is the schema descriptor for output_tokens field.
-	kaguyaconversationDescOutputTokens := kaguyaconversationFields[11].Descriptor()
+	kaguyaconversationDescOutputTokens := kaguyaconversationFields[12].Descriptor()
 	// kaguyaconversation.DefaultOutputTokens holds the default value on creation for the output_tokens field.
 	kaguyaconversation.DefaultOutputTokens = kaguyaconversationDescOutputTokens.Default.(int64)
 	// kaguyaconversation.OutputTokensValidator is a validator for the "output_tokens" field. It is called by the builders before save.
 	kaguyaconversation.OutputTokensValidator = kaguyaconversationDescOutputTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescTotalTokens is the schema descriptor for total_tokens field.
-	kaguyaconversationDescTotalTokens := kaguyaconversationFields[12].Descriptor()
+	kaguyaconversationDescTotalTokens := kaguyaconversationFields[13].Descriptor()
 	// kaguyaconversation.DefaultTotalTokens holds the default value on creation for the total_tokens field.
 	kaguyaconversation.DefaultTotalTokens = kaguyaconversationDescTotalTokens.Default.(int64)
 	// kaguyaconversation.TotalTokensValidator is a validator for the "total_tokens" field. It is called by the builders before save.
 	kaguyaconversation.TotalTokensValidator = kaguyaconversationDescTotalTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescCachedTokens is the schema descriptor for cached_tokens field.
-	kaguyaconversationDescCachedTokens := kaguyaconversationFields[13].Descriptor()
+	kaguyaconversationDescCachedTokens := kaguyaconversationFields[14].Descriptor()
 	// kaguyaconversation.DefaultCachedTokens holds the default value on creation for the cached_tokens field.
 	kaguyaconversation.DefaultCachedTokens = kaguyaconversationDescCachedTokens.Default.(int64)
 	// kaguyaconversation.CachedTokensValidator is a validator for the "cached_tokens" field. It is called by the builders before save.
 	kaguyaconversation.CachedTokensValidator = kaguyaconversationDescCachedTokens.Validators[0].(func(int64) error)
 	// kaguyaconversationDescReasoningTokens is the schema descriptor for reasoning_tokens field.
-	kaguyaconversationDescReasoningTokens := kaguyaconversationFields[14].Descriptor()
+	kaguyaconversationDescReasoningTokens := kaguyaconversationFields[15].Descriptor()
 	// kaguyaconversation.DefaultReasoningTokens holds the default value on creation for the reasoning_tokens field.
 	kaguyaconversation.DefaultReasoningTokens = kaguyaconversationDescReasoningTokens.Default.(int64)
 	// kaguyaconversation.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
@@ -428,6 +436,804 @@ func init() {
 	// kaguyamcpserver.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	kaguyamcpserver.IDValidator = func() func(string) error {
 		validators := kaguyamcpserverDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamemoryattemptMixin := schema.KaguyaMemoryAttempt{}.Mixin()
+	kaguyamemoryattemptMixinHooks1 := kaguyamemoryattemptMixin[1].Hooks()
+	kaguyamemoryattempt.Hooks[0] = kaguyamemoryattemptMixinHooks1[0]
+	kaguyamemoryattempt.Hooks[1] = kaguyamemoryattemptMixinHooks1[1]
+	kaguyamemoryattemptMixinFields0 := kaguyamemoryattemptMixin[0].Fields()
+	_ = kaguyamemoryattemptMixinFields0
+	kaguyamemoryattemptMixinFields1 := kaguyamemoryattemptMixin[1].Fields()
+	_ = kaguyamemoryattemptMixinFields1
+	kaguyamemoryattemptFields := schema.KaguyaMemoryAttempt{}.Fields()
+	_ = kaguyamemoryattemptFields
+	// kaguyamemoryattemptDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamemoryattemptDescCreatedAt := kaguyamemoryattemptMixinFields1[0].Descriptor()
+	// kaguyamemoryattempt.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamemoryattempt.DefaultCreatedAt = kaguyamemoryattemptDescCreatedAt.Default.(func() time.Time)
+	// kaguyamemoryattemptDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamemoryattemptDescUpdatedAt := kaguyamemoryattemptMixinFields1[1].Descriptor()
+	// kaguyamemoryattempt.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamemoryattempt.DefaultUpdatedAt = kaguyamemoryattemptDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamemoryattempt.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamemoryattempt.UpdateDefaultUpdatedAt = kaguyamemoryattemptDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamemoryattemptDescJobID is the schema descriptor for job_id field.
+	kaguyamemoryattemptDescJobID := kaguyamemoryattemptFields[0].Descriptor()
+	// kaguyamemoryattempt.JobIDValidator is a validator for the "job_id" field. It is called by the builders before save.
+	kaguyamemoryattempt.JobIDValidator = func() func(string) error {
+		validators := kaguyamemoryattemptDescJobID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(job_id string) error {
+			for _, fn := range fns {
+				if err := fn(job_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryattemptDescAttempt is the schema descriptor for attempt field.
+	kaguyamemoryattemptDescAttempt := kaguyamemoryattemptFields[1].Descriptor()
+	// kaguyamemoryattempt.AttemptValidator is a validator for the "attempt" field. It is called by the builders before save.
+	kaguyamemoryattempt.AttemptValidator = kaguyamemoryattemptDescAttempt.Validators[0].(func(int) error)
+	// kaguyamemoryattemptDescModelRecordID is the schema descriptor for model_record_id field.
+	kaguyamemoryattemptDescModelRecordID := kaguyamemoryattemptFields[3].Descriptor()
+	// kaguyamemoryattempt.DefaultModelRecordID holds the default value on creation for the model_record_id field.
+	kaguyamemoryattempt.DefaultModelRecordID = kaguyamemoryattemptDescModelRecordID.Default.(string)
+	// kaguyamemoryattempt.ModelRecordIDValidator is a validator for the "model_record_id" field. It is called by the builders before save.
+	kaguyamemoryattempt.ModelRecordIDValidator = kaguyamemoryattemptDescModelRecordID.Validators[0].(func(string) error)
+	// kaguyamemoryattemptDescProviderID is the schema descriptor for provider_id field.
+	kaguyamemoryattemptDescProviderID := kaguyamemoryattemptFields[4].Descriptor()
+	// kaguyamemoryattempt.DefaultProviderID holds the default value on creation for the provider_id field.
+	kaguyamemoryattempt.DefaultProviderID = kaguyamemoryattemptDescProviderID.Default.(string)
+	// kaguyamemoryattempt.ProviderIDValidator is a validator for the "provider_id" field. It is called by the builders before save.
+	kaguyamemoryattempt.ProviderIDValidator = kaguyamemoryattemptDescProviderID.Validators[0].(func(string) error)
+	// kaguyamemoryattemptDescUpstreamModelID is the schema descriptor for upstream_model_id field.
+	kaguyamemoryattemptDescUpstreamModelID := kaguyamemoryattemptFields[5].Descriptor()
+	// kaguyamemoryattempt.DefaultUpstreamModelID holds the default value on creation for the upstream_model_id field.
+	kaguyamemoryattempt.DefaultUpstreamModelID = kaguyamemoryattemptDescUpstreamModelID.Default.(string)
+	// kaguyamemoryattempt.UpstreamModelIDValidator is a validator for the "upstream_model_id" field. It is called by the builders before save.
+	kaguyamemoryattempt.UpstreamModelIDValidator = kaguyamemoryattemptDescUpstreamModelID.Validators[0].(func(string) error)
+	// kaguyamemoryattemptDescUsageKnown is the schema descriptor for usage_known field.
+	kaguyamemoryattemptDescUsageKnown := kaguyamemoryattemptFields[6].Descriptor()
+	// kaguyamemoryattempt.DefaultUsageKnown holds the default value on creation for the usage_known field.
+	kaguyamemoryattempt.DefaultUsageKnown = kaguyamemoryattemptDescUsageKnown.Default.(bool)
+	// kaguyamemoryattemptDescInputTokens is the schema descriptor for input_tokens field.
+	kaguyamemoryattemptDescInputTokens := kaguyamemoryattemptFields[7].Descriptor()
+	// kaguyamemoryattempt.DefaultInputTokens holds the default value on creation for the input_tokens field.
+	kaguyamemoryattempt.DefaultInputTokens = kaguyamemoryattemptDescInputTokens.Default.(int64)
+	// kaguyamemoryattempt.InputTokensValidator is a validator for the "input_tokens" field. It is called by the builders before save.
+	kaguyamemoryattempt.InputTokensValidator = kaguyamemoryattemptDescInputTokens.Validators[0].(func(int64) error)
+	// kaguyamemoryattemptDescOutputTokens is the schema descriptor for output_tokens field.
+	kaguyamemoryattemptDescOutputTokens := kaguyamemoryattemptFields[8].Descriptor()
+	// kaguyamemoryattempt.DefaultOutputTokens holds the default value on creation for the output_tokens field.
+	kaguyamemoryattempt.DefaultOutputTokens = kaguyamemoryattemptDescOutputTokens.Default.(int64)
+	// kaguyamemoryattempt.OutputTokensValidator is a validator for the "output_tokens" field. It is called by the builders before save.
+	kaguyamemoryattempt.OutputTokensValidator = kaguyamemoryattemptDescOutputTokens.Validators[0].(func(int64) error)
+	// kaguyamemoryattemptDescTotalTokens is the schema descriptor for total_tokens field.
+	kaguyamemoryattemptDescTotalTokens := kaguyamemoryattemptFields[9].Descriptor()
+	// kaguyamemoryattempt.DefaultTotalTokens holds the default value on creation for the total_tokens field.
+	kaguyamemoryattempt.DefaultTotalTokens = kaguyamemoryattemptDescTotalTokens.Default.(int64)
+	// kaguyamemoryattempt.TotalTokensValidator is a validator for the "total_tokens" field. It is called by the builders before save.
+	kaguyamemoryattempt.TotalTokensValidator = kaguyamemoryattemptDescTotalTokens.Validators[0].(func(int64) error)
+	// kaguyamemoryattemptDescCachedTokens is the schema descriptor for cached_tokens field.
+	kaguyamemoryattemptDescCachedTokens := kaguyamemoryattemptFields[10].Descriptor()
+	// kaguyamemoryattempt.DefaultCachedTokens holds the default value on creation for the cached_tokens field.
+	kaguyamemoryattempt.DefaultCachedTokens = kaguyamemoryattemptDescCachedTokens.Default.(int64)
+	// kaguyamemoryattempt.CachedTokensValidator is a validator for the "cached_tokens" field. It is called by the builders before save.
+	kaguyamemoryattempt.CachedTokensValidator = kaguyamemoryattemptDescCachedTokens.Validators[0].(func(int64) error)
+	// kaguyamemoryattemptDescReasoningTokens is the schema descriptor for reasoning_tokens field.
+	kaguyamemoryattemptDescReasoningTokens := kaguyamemoryattemptFields[11].Descriptor()
+	// kaguyamemoryattempt.DefaultReasoningTokens holds the default value on creation for the reasoning_tokens field.
+	kaguyamemoryattempt.DefaultReasoningTokens = kaguyamemoryattemptDescReasoningTokens.Default.(int64)
+	// kaguyamemoryattempt.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
+	kaguyamemoryattempt.ReasoningTokensValidator = kaguyamemoryattemptDescReasoningTokens.Validators[0].(func(int64) error)
+	// kaguyamemoryattemptDescDurationMs is the schema descriptor for duration_ms field.
+	kaguyamemoryattemptDescDurationMs := kaguyamemoryattemptFields[12].Descriptor()
+	// kaguyamemoryattempt.DefaultDurationMs holds the default value on creation for the duration_ms field.
+	kaguyamemoryattempt.DefaultDurationMs = kaguyamemoryattemptDescDurationMs.Default.(int64)
+	// kaguyamemoryattempt.DurationMsValidator is a validator for the "duration_ms" field. It is called by the builders before save.
+	kaguyamemoryattempt.DurationMsValidator = kaguyamemoryattemptDescDurationMs.Validators[0].(func(int64) error)
+	// kaguyamemoryattemptDescResultCode is the schema descriptor for result_code field.
+	kaguyamemoryattemptDescResultCode := kaguyamemoryattemptFields[13].Descriptor()
+	// kaguyamemoryattempt.DefaultResultCode holds the default value on creation for the result_code field.
+	kaguyamemoryattempt.DefaultResultCode = kaguyamemoryattemptDescResultCode.Default.(string)
+	// kaguyamemoryattempt.ResultCodeValidator is a validator for the "result_code" field. It is called by the builders before save.
+	kaguyamemoryattempt.ResultCodeValidator = kaguyamemoryattemptDescResultCode.Validators[0].(func(string) error)
+	// kaguyamemoryattemptDescID is the schema descriptor for id field.
+	kaguyamemoryattemptDescID := kaguyamemoryattemptMixinFields0[0].Descriptor()
+	// kaguyamemoryattempt.DefaultID holds the default value on creation for the id field.
+	kaguyamemoryattempt.DefaultID = kaguyamemoryattemptDescID.Default.(func() string)
+	// kaguyamemoryattempt.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemoryattempt.IDValidator = func() func(string) error {
+		validators := kaguyamemoryattemptDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamemoryevidenceMixin := schema.KaguyaMemoryEvidence{}.Mixin()
+	kaguyamemoryevidenceMixinHooks1 := kaguyamemoryevidenceMixin[1].Hooks()
+	kaguyamemoryevidence.Hooks[0] = kaguyamemoryevidenceMixinHooks1[0]
+	kaguyamemoryevidence.Hooks[1] = kaguyamemoryevidenceMixinHooks1[1]
+	kaguyamemoryevidenceMixinFields0 := kaguyamemoryevidenceMixin[0].Fields()
+	_ = kaguyamemoryevidenceMixinFields0
+	kaguyamemoryevidenceMixinFields1 := kaguyamemoryevidenceMixin[1].Fields()
+	_ = kaguyamemoryevidenceMixinFields1
+	kaguyamemoryevidenceFields := schema.KaguyaMemoryEvidence{}.Fields()
+	_ = kaguyamemoryevidenceFields
+	// kaguyamemoryevidenceDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamemoryevidenceDescCreatedAt := kaguyamemoryevidenceMixinFields1[0].Descriptor()
+	// kaguyamemoryevidence.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamemoryevidence.DefaultCreatedAt = kaguyamemoryevidenceDescCreatedAt.Default.(func() time.Time)
+	// kaguyamemoryevidenceDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamemoryevidenceDescUpdatedAt := kaguyamemoryevidenceMixinFields1[1].Descriptor()
+	// kaguyamemoryevidence.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamemoryevidence.DefaultUpdatedAt = kaguyamemoryevidenceDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamemoryevidence.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamemoryevidence.UpdateDefaultUpdatedAt = kaguyamemoryevidenceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamemoryevidenceDescRevisionID is the schema descriptor for revision_id field.
+	kaguyamemoryevidenceDescRevisionID := kaguyamemoryevidenceFields[0].Descriptor()
+	// kaguyamemoryevidence.RevisionIDValidator is a validator for the "revision_id" field. It is called by the builders before save.
+	kaguyamemoryevidence.RevisionIDValidator = func() func(string) error {
+		validators := kaguyamemoryevidenceDescRevisionID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(revision_id string) error {
+			for _, fn := range fns {
+				if err := fn(revision_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryevidenceDescClaimKey is the schema descriptor for claim_key field.
+	kaguyamemoryevidenceDescClaimKey := kaguyamemoryevidenceFields[1].Descriptor()
+	// kaguyamemoryevidence.ClaimKeyValidator is a validator for the "claim_key" field. It is called by the builders before save.
+	kaguyamemoryevidence.ClaimKeyValidator = func() func(string) error {
+		validators := kaguyamemoryevidenceDescClaimKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(claim_key string) error {
+			for _, fn := range fns {
+				if err := fn(claim_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryevidenceDescSourceID is the schema descriptor for source_id field.
+	kaguyamemoryevidenceDescSourceID := kaguyamemoryevidenceFields[2].Descriptor()
+	// kaguyamemoryevidence.SourceIDValidator is a validator for the "source_id" field. It is called by the builders before save.
+	kaguyamemoryevidence.SourceIDValidator = func() func(string) error {
+		validators := kaguyamemoryevidenceDescSourceID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_id string) error {
+			for _, fn := range fns {
+				if err := fn(source_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryevidenceDescPartKey is the schema descriptor for part_key field.
+	kaguyamemoryevidenceDescPartKey := kaguyamemoryevidenceFields[3].Descriptor()
+	// kaguyamemoryevidence.PartKeyValidator is a validator for the "part_key" field. It is called by the builders before save.
+	kaguyamemoryevidence.PartKeyValidator = func() func(string) error {
+		validators := kaguyamemoryevidenceDescPartKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(part_key string) error {
+			for _, fn := range fns {
+				if err := fn(part_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryevidenceDescQuoteHash is the schema descriptor for quote_hash field.
+	kaguyamemoryevidenceDescQuoteHash := kaguyamemoryevidenceFields[5].Descriptor()
+	// kaguyamemoryevidence.DefaultQuoteHash holds the default value on creation for the quote_hash field.
+	kaguyamemoryevidence.DefaultQuoteHash = kaguyamemoryevidenceDescQuoteHash.Default.(string)
+	// kaguyamemoryevidence.QuoteHashValidator is a validator for the "quote_hash" field. It is called by the builders before save.
+	kaguyamemoryevidence.QuoteHashValidator = kaguyamemoryevidenceDescQuoteHash.Validators[0].(func(string) error)
+	// kaguyamemoryevidenceDescID is the schema descriptor for id field.
+	kaguyamemoryevidenceDescID := kaguyamemoryevidenceMixinFields0[0].Descriptor()
+	// kaguyamemoryevidence.DefaultID holds the default value on creation for the id field.
+	kaguyamemoryevidence.DefaultID = kaguyamemoryevidenceDescID.Default.(func() string)
+	// kaguyamemoryevidence.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemoryevidence.IDValidator = func() func(string) error {
+		validators := kaguyamemoryevidenceDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamemoryjobMixin := schema.KaguyaMemoryJob{}.Mixin()
+	kaguyamemoryjobMixinHooks1 := kaguyamemoryjobMixin[1].Hooks()
+	kaguyamemoryjob.Hooks[0] = kaguyamemoryjobMixinHooks1[0]
+	kaguyamemoryjob.Hooks[1] = kaguyamemoryjobMixinHooks1[1]
+	kaguyamemoryjobMixinFields0 := kaguyamemoryjobMixin[0].Fields()
+	_ = kaguyamemoryjobMixinFields0
+	kaguyamemoryjobMixinFields1 := kaguyamemoryjobMixin[1].Fields()
+	_ = kaguyamemoryjobMixinFields1
+	kaguyamemoryjobFields := schema.KaguyaMemoryJob{}.Fields()
+	_ = kaguyamemoryjobFields
+	// kaguyamemoryjobDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamemoryjobDescCreatedAt := kaguyamemoryjobMixinFields1[0].Descriptor()
+	// kaguyamemoryjob.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamemoryjob.DefaultCreatedAt = kaguyamemoryjobDescCreatedAt.Default.(func() time.Time)
+	// kaguyamemoryjobDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamemoryjobDescUpdatedAt := kaguyamemoryjobMixinFields1[1].Descriptor()
+	// kaguyamemoryjob.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamemoryjob.DefaultUpdatedAt = kaguyamemoryjobDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamemoryjob.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamemoryjob.UpdateDefaultUpdatedAt = kaguyamemoryjobDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamemoryjobDescScopeKey is the schema descriptor for scope_key field.
+	kaguyamemoryjobDescScopeKey := kaguyamemoryjobFields[1].Descriptor()
+	// kaguyamemoryjob.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	kaguyamemoryjob.ScopeKeyValidator = func() func(string) error {
+		validators := kaguyamemoryjobDescScopeKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(scope_key string) error {
+			for _, fn := range fns {
+				if err := fn(scope_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryjobDescConversationID is the schema descriptor for conversation_id field.
+	kaguyamemoryjobDescConversationID := kaguyamemoryjobFields[2].Descriptor()
+	// kaguyamemoryjob.DefaultConversationID holds the default value on creation for the conversation_id field.
+	kaguyamemoryjob.DefaultConversationID = kaguyamemoryjobDescConversationID.Default.(string)
+	// kaguyamemoryjob.ConversationIDValidator is a validator for the "conversation_id" field. It is called by the builders before save.
+	kaguyamemoryjob.ConversationIDValidator = kaguyamemoryjobDescConversationID.Validators[0].(func(string) error)
+	// kaguyamemoryjobDescInputHash is the schema descriptor for input_hash field.
+	kaguyamemoryjobDescInputHash := kaguyamemoryjobFields[4].Descriptor()
+	// kaguyamemoryjob.DefaultInputHash holds the default value on creation for the input_hash field.
+	kaguyamemoryjob.DefaultInputHash = kaguyamemoryjobDescInputHash.Default.(string)
+	// kaguyamemoryjob.InputHashValidator is a validator for the "input_hash" field. It is called by the builders before save.
+	kaguyamemoryjob.InputHashValidator = kaguyamemoryjobDescInputHash.Validators[0].(func(string) error)
+	// kaguyamemoryjobDescCompilerVersion is the schema descriptor for compiler_version field.
+	kaguyamemoryjobDescCompilerVersion := kaguyamemoryjobFields[5].Descriptor()
+	// kaguyamemoryjob.DefaultCompilerVersion holds the default value on creation for the compiler_version field.
+	kaguyamemoryjob.DefaultCompilerVersion = kaguyamemoryjobDescCompilerVersion.Default.(string)
+	// kaguyamemoryjob.CompilerVersionValidator is a validator for the "compiler_version" field. It is called by the builders before save.
+	kaguyamemoryjob.CompilerVersionValidator = kaguyamemoryjobDescCompilerVersion.Validators[0].(func(string) error)
+	// kaguyamemoryjobDescAttempt is the schema descriptor for attempt field.
+	kaguyamemoryjobDescAttempt := kaguyamemoryjobFields[7].Descriptor()
+	// kaguyamemoryjob.DefaultAttempt holds the default value on creation for the attempt field.
+	kaguyamemoryjob.DefaultAttempt = kaguyamemoryjobDescAttempt.Default.(int)
+	// kaguyamemoryjob.AttemptValidator is a validator for the "attempt" field. It is called by the builders before save.
+	kaguyamemoryjob.AttemptValidator = kaguyamemoryjobDescAttempt.Validators[0].(func(int) error)
+	// kaguyamemoryjobDescLeaseToken is the schema descriptor for lease_token field.
+	kaguyamemoryjobDescLeaseToken := kaguyamemoryjobFields[8].Descriptor()
+	// kaguyamemoryjob.DefaultLeaseToken holds the default value on creation for the lease_token field.
+	kaguyamemoryjob.DefaultLeaseToken = kaguyamemoryjobDescLeaseToken.Default.(string)
+	// kaguyamemoryjob.LeaseTokenValidator is a validator for the "lease_token" field. It is called by the builders before save.
+	kaguyamemoryjob.LeaseTokenValidator = kaguyamemoryjobDescLeaseToken.Validators[0].(func(string) error)
+	// kaguyamemoryjobDescErrorCode is the schema descriptor for error_code field.
+	kaguyamemoryjobDescErrorCode := kaguyamemoryjobFields[11].Descriptor()
+	// kaguyamemoryjob.DefaultErrorCode holds the default value on creation for the error_code field.
+	kaguyamemoryjob.DefaultErrorCode = kaguyamemoryjobDescErrorCode.Default.(string)
+	// kaguyamemoryjob.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
+	kaguyamemoryjob.ErrorCodeValidator = kaguyamemoryjobDescErrorCode.Validators[0].(func(string) error)
+	// kaguyamemoryjobDescErrorSummary is the schema descriptor for error_summary field.
+	kaguyamemoryjobDescErrorSummary := kaguyamemoryjobFields[12].Descriptor()
+	// kaguyamemoryjob.DefaultErrorSummary holds the default value on creation for the error_summary field.
+	kaguyamemoryjob.DefaultErrorSummary = kaguyamemoryjobDescErrorSummary.Default.(string)
+	// kaguyamemoryjobDescResultJSON is the schema descriptor for result_json field.
+	kaguyamemoryjobDescResultJSON := kaguyamemoryjobFields[13].Descriptor()
+	// kaguyamemoryjob.DefaultResultJSON holds the default value on creation for the result_json field.
+	kaguyamemoryjob.DefaultResultJSON = kaguyamemoryjobDescResultJSON.Default.(string)
+	// kaguyamemoryjobDescPolicyEpoch is the schema descriptor for policy_epoch field.
+	kaguyamemoryjobDescPolicyEpoch := kaguyamemoryjobFields[14].Descriptor()
+	// kaguyamemoryjob.DefaultPolicyEpoch holds the default value on creation for the policy_epoch field.
+	kaguyamemoryjob.DefaultPolicyEpoch = kaguyamemoryjobDescPolicyEpoch.Default.(int64)
+	// kaguyamemoryjob.PolicyEpochValidator is a validator for the "policy_epoch" field. It is called by the builders before save.
+	kaguyamemoryjob.PolicyEpochValidator = kaguyamemoryjobDescPolicyEpoch.Validators[0].(func(int64) error)
+	// kaguyamemoryjobDescID is the schema descriptor for id field.
+	kaguyamemoryjobDescID := kaguyamemoryjobMixinFields0[0].Descriptor()
+	// kaguyamemoryjob.DefaultID holds the default value on creation for the id field.
+	kaguyamemoryjob.DefaultID = kaguyamemoryjobDescID.Default.(func() string)
+	// kaguyamemoryjob.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemoryjob.IDValidator = func() func(string) error {
+		validators := kaguyamemoryjobDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamemorylinkMixin := schema.KaguyaMemoryLink{}.Mixin()
+	kaguyamemorylinkMixinHooks1 := kaguyamemorylinkMixin[1].Hooks()
+	kaguyamemorylink.Hooks[0] = kaguyamemorylinkMixinHooks1[0]
+	kaguyamemorylink.Hooks[1] = kaguyamemorylinkMixinHooks1[1]
+	kaguyamemorylinkMixinFields0 := kaguyamemorylinkMixin[0].Fields()
+	_ = kaguyamemorylinkMixinFields0
+	kaguyamemorylinkMixinFields1 := kaguyamemorylinkMixin[1].Fields()
+	_ = kaguyamemorylinkMixinFields1
+	kaguyamemorylinkFields := schema.KaguyaMemoryLink{}.Fields()
+	_ = kaguyamemorylinkFields
+	// kaguyamemorylinkDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamemorylinkDescCreatedAt := kaguyamemorylinkMixinFields1[0].Descriptor()
+	// kaguyamemorylink.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamemorylink.DefaultCreatedAt = kaguyamemorylinkDescCreatedAt.Default.(func() time.Time)
+	// kaguyamemorylinkDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamemorylinkDescUpdatedAt := kaguyamemorylinkMixinFields1[1].Descriptor()
+	// kaguyamemorylink.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamemorylink.DefaultUpdatedAt = kaguyamemorylinkDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamemorylink.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamemorylink.UpdateDefaultUpdatedAt = kaguyamemorylinkDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamemorylinkDescFromPageID is the schema descriptor for from_page_id field.
+	kaguyamemorylinkDescFromPageID := kaguyamemorylinkFields[0].Descriptor()
+	// kaguyamemorylink.FromPageIDValidator is a validator for the "from_page_id" field. It is called by the builders before save.
+	kaguyamemorylink.FromPageIDValidator = func() func(string) error {
+		validators := kaguyamemorylinkDescFromPageID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(from_page_id string) error {
+			for _, fn := range fns {
+				if err := fn(from_page_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemorylinkDescToPageID is the schema descriptor for to_page_id field.
+	kaguyamemorylinkDescToPageID := kaguyamemorylinkFields[1].Descriptor()
+	// kaguyamemorylink.ToPageIDValidator is a validator for the "to_page_id" field. It is called by the builders before save.
+	kaguyamemorylink.ToPageIDValidator = func() func(string) error {
+		validators := kaguyamemorylinkDescToPageID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(to_page_id string) error {
+			for _, fn := range fns {
+				if err := fn(to_page_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemorylinkDescID is the schema descriptor for id field.
+	kaguyamemorylinkDescID := kaguyamemorylinkMixinFields0[0].Descriptor()
+	// kaguyamemorylink.DefaultID holds the default value on creation for the id field.
+	kaguyamemorylink.DefaultID = kaguyamemorylinkDescID.Default.(func() string)
+	// kaguyamemorylink.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemorylink.IDValidator = func() func(string) error {
+		validators := kaguyamemorylinkDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamemorypageMixin := schema.KaguyaMemoryPage{}.Mixin()
+	kaguyamemorypageMixinHooks1 := kaguyamemorypageMixin[1].Hooks()
+	kaguyamemorypage.Hooks[0] = kaguyamemorypageMixinHooks1[0]
+	kaguyamemorypage.Hooks[1] = kaguyamemorypageMixinHooks1[1]
+	kaguyamemorypageMixinFields0 := kaguyamemorypageMixin[0].Fields()
+	_ = kaguyamemorypageMixinFields0
+	kaguyamemorypageMixinFields1 := kaguyamemorypageMixin[1].Fields()
+	_ = kaguyamemorypageMixinFields1
+	kaguyamemorypageFields := schema.KaguyaMemoryPage{}.Fields()
+	_ = kaguyamemorypageFields
+	// kaguyamemorypageDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamemorypageDescCreatedAt := kaguyamemorypageMixinFields1[0].Descriptor()
+	// kaguyamemorypage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamemorypage.DefaultCreatedAt = kaguyamemorypageDescCreatedAt.Default.(func() time.Time)
+	// kaguyamemorypageDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamemorypageDescUpdatedAt := kaguyamemorypageMixinFields1[1].Descriptor()
+	// kaguyamemorypage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamemorypage.DefaultUpdatedAt = kaguyamemorypageDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamemorypage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamemorypage.UpdateDefaultUpdatedAt = kaguyamemorypageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamemorypageDescScopeKey is the schema descriptor for scope_key field.
+	kaguyamemorypageDescScopeKey := kaguyamemorypageFields[0].Descriptor()
+	// kaguyamemorypage.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	kaguyamemorypage.ScopeKeyValidator = func() func(string) error {
+		validators := kaguyamemorypageDescScopeKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(scope_key string) error {
+			for _, fn := range fns {
+				if err := fn(scope_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemorypageDescCanonicalKey is the schema descriptor for canonical_key field.
+	kaguyamemorypageDescCanonicalKey := kaguyamemorypageFields[1].Descriptor()
+	// kaguyamemorypage.CanonicalKeyValidator is a validator for the "canonical_key" field. It is called by the builders before save.
+	kaguyamemorypage.CanonicalKeyValidator = func() func(string) error {
+		validators := kaguyamemorypageDescCanonicalKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(canonical_key string) error {
+			for _, fn := range fns {
+				if err := fn(canonical_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemorypageDescTitle is the schema descriptor for title field.
+	kaguyamemorypageDescTitle := kaguyamemorypageFields[3].Descriptor()
+	// kaguyamemorypage.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	kaguyamemorypage.TitleValidator = kaguyamemorypageDescTitle.Validators[0].(func(string) error)
+	// kaguyamemorypageDescSummary is the schema descriptor for summary field.
+	kaguyamemorypageDescSummary := kaguyamemorypageFields[4].Descriptor()
+	// kaguyamemorypage.DefaultSummary holds the default value on creation for the summary field.
+	kaguyamemorypage.DefaultSummary = kaguyamemorypageDescSummary.Default.(string)
+	// kaguyamemorypageDescVersion is the schema descriptor for version field.
+	kaguyamemorypageDescVersion := kaguyamemorypageFields[8].Descriptor()
+	// kaguyamemorypage.DefaultVersion holds the default value on creation for the version field.
+	kaguyamemorypage.DefaultVersion = kaguyamemorypageDescVersion.Default.(int64)
+	// kaguyamemorypage.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	kaguyamemorypage.VersionValidator = kaguyamemorypageDescVersion.Validators[0].(func(int64) error)
+	// kaguyamemorypageDescPinned is the schema descriptor for pinned field.
+	kaguyamemorypageDescPinned := kaguyamemorypageFields[9].Descriptor()
+	// kaguyamemorypage.DefaultPinned holds the default value on creation for the pinned field.
+	kaguyamemorypage.DefaultPinned = kaguyamemorypageDescPinned.Default.(bool)
+	// kaguyamemorypageDescUserLocked is the schema descriptor for user_locked field.
+	kaguyamemorypageDescUserLocked := kaguyamemorypageFields[10].Descriptor()
+	// kaguyamemorypage.DefaultUserLocked holds the default value on creation for the user_locked field.
+	kaguyamemorypage.DefaultUserLocked = kaguyamemorypageDescUserLocked.Default.(bool)
+	// kaguyamemorypageDescID is the schema descriptor for id field.
+	kaguyamemorypageDescID := kaguyamemorypageMixinFields0[0].Descriptor()
+	// kaguyamemorypage.DefaultID holds the default value on creation for the id field.
+	kaguyamemorypage.DefaultID = kaguyamemorypageDescID.Default.(func() string)
+	// kaguyamemorypage.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemorypage.IDValidator = func() func(string) error {
+		validators := kaguyamemorypageDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamemoryrevisionMixin := schema.KaguyaMemoryRevision{}.Mixin()
+	kaguyamemoryrevisionMixinHooks1 := kaguyamemoryrevisionMixin[1].Hooks()
+	kaguyamemoryrevision.Hooks[0] = kaguyamemoryrevisionMixinHooks1[0]
+	kaguyamemoryrevision.Hooks[1] = kaguyamemoryrevisionMixinHooks1[1]
+	kaguyamemoryrevisionMixinFields0 := kaguyamemoryrevisionMixin[0].Fields()
+	_ = kaguyamemoryrevisionMixinFields0
+	kaguyamemoryrevisionMixinFields1 := kaguyamemoryrevisionMixin[1].Fields()
+	_ = kaguyamemoryrevisionMixinFields1
+	kaguyamemoryrevisionFields := schema.KaguyaMemoryRevision{}.Fields()
+	_ = kaguyamemoryrevisionFields
+	// kaguyamemoryrevisionDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamemoryrevisionDescCreatedAt := kaguyamemoryrevisionMixinFields1[0].Descriptor()
+	// kaguyamemoryrevision.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamemoryrevision.DefaultCreatedAt = kaguyamemoryrevisionDescCreatedAt.Default.(func() time.Time)
+	// kaguyamemoryrevisionDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamemoryrevisionDescUpdatedAt := kaguyamemoryrevisionMixinFields1[1].Descriptor()
+	// kaguyamemoryrevision.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamemoryrevision.DefaultUpdatedAt = kaguyamemoryrevisionDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamemoryrevision.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamemoryrevision.UpdateDefaultUpdatedAt = kaguyamemoryrevisionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamemoryrevisionDescPageID is the schema descriptor for page_id field.
+	kaguyamemoryrevisionDescPageID := kaguyamemoryrevisionFields[0].Descriptor()
+	// kaguyamemoryrevision.PageIDValidator is a validator for the "page_id" field. It is called by the builders before save.
+	kaguyamemoryrevision.PageIDValidator = func() func(string) error {
+		validators := kaguyamemoryrevisionDescPageID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(page_id string) error {
+			for _, fn := range fns {
+				if err := fn(page_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryrevisionDescVersion is the schema descriptor for version field.
+	kaguyamemoryrevisionDescVersion := kaguyamemoryrevisionFields[1].Descriptor()
+	// kaguyamemoryrevision.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	kaguyamemoryrevision.VersionValidator = kaguyamemoryrevisionDescVersion.Validators[0].(func(int64) error)
+	// kaguyamemoryrevisionDescCanonicalKey is the schema descriptor for canonical_key field.
+	kaguyamemoryrevisionDescCanonicalKey := kaguyamemoryrevisionFields[2].Descriptor()
+	// kaguyamemoryrevision.CanonicalKeyValidator is a validator for the "canonical_key" field. It is called by the builders before save.
+	kaguyamemoryrevision.CanonicalKeyValidator = func() func(string) error {
+		validators := kaguyamemoryrevisionDescCanonicalKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(canonical_key string) error {
+			for _, fn := range fns {
+				if err := fn(canonical_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemoryrevisionDescTitle is the schema descriptor for title field.
+	kaguyamemoryrevisionDescTitle := kaguyamemoryrevisionFields[4].Descriptor()
+	// kaguyamemoryrevision.TitleValidator is a validator for the "title" field. It is called by the builders before save.
+	kaguyamemoryrevision.TitleValidator = kaguyamemoryrevisionDescTitle.Validators[0].(func(string) error)
+	// kaguyamemoryrevisionDescSummary is the schema descriptor for summary field.
+	kaguyamemoryrevisionDescSummary := kaguyamemoryrevisionFields[5].Descriptor()
+	// kaguyamemoryrevision.DefaultSummary holds the default value on creation for the summary field.
+	kaguyamemoryrevision.DefaultSummary = kaguyamemoryrevisionDescSummary.Default.(string)
+	// kaguyamemoryrevisionDescPinned is the schema descriptor for pinned field.
+	kaguyamemoryrevisionDescPinned := kaguyamemoryrevisionFields[9].Descriptor()
+	// kaguyamemoryrevision.DefaultPinned holds the default value on creation for the pinned field.
+	kaguyamemoryrevision.DefaultPinned = kaguyamemoryrevisionDescPinned.Default.(bool)
+	// kaguyamemoryrevisionDescUserLocked is the schema descriptor for user_locked field.
+	kaguyamemoryrevisionDescUserLocked := kaguyamemoryrevisionFields[10].Descriptor()
+	// kaguyamemoryrevision.DefaultUserLocked holds the default value on creation for the user_locked field.
+	kaguyamemoryrevision.DefaultUserLocked = kaguyamemoryrevisionDescUserLocked.Default.(bool)
+	// kaguyamemoryrevisionDescJobID is the schema descriptor for job_id field.
+	kaguyamemoryrevisionDescJobID := kaguyamemoryrevisionFields[14].Descriptor()
+	// kaguyamemoryrevision.DefaultJobID holds the default value on creation for the job_id field.
+	kaguyamemoryrevision.DefaultJobID = kaguyamemoryrevisionDescJobID.Default.(string)
+	// kaguyamemoryrevision.JobIDValidator is a validator for the "job_id" field. It is called by the builders before save.
+	kaguyamemoryrevision.JobIDValidator = kaguyamemoryrevisionDescJobID.Validators[0].(func(string) error)
+	// kaguyamemoryrevisionDescReason is the schema descriptor for reason field.
+	kaguyamemoryrevisionDescReason := kaguyamemoryrevisionFields[15].Descriptor()
+	// kaguyamemoryrevision.DefaultReason holds the default value on creation for the reason field.
+	kaguyamemoryrevision.DefaultReason = kaguyamemoryrevisionDescReason.Default.(string)
+	// kaguyamemoryrevisionDescID is the schema descriptor for id field.
+	kaguyamemoryrevisionDescID := kaguyamemoryrevisionMixinFields0[0].Descriptor()
+	// kaguyamemoryrevision.DefaultID holds the default value on creation for the id field.
+	kaguyamemoryrevision.DefaultID = kaguyamemoryrevisionDescID.Default.(func() string)
+	// kaguyamemoryrevision.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemoryrevision.IDValidator = func() func(string) error {
+		validators := kaguyamemoryrevisionDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	kaguyamemorysearchdocFields := schema.KaguyaMemorySearchDoc{}.Fields()
+	_ = kaguyamemorysearchdocFields
+	// kaguyamemorysearchdocDescPageID is the schema descriptor for page_id field.
+	kaguyamemorysearchdocDescPageID := kaguyamemorysearchdocFields[1].Descriptor()
+	// kaguyamemorysearchdoc.PageIDValidator is a validator for the "page_id" field. It is called by the builders before save.
+	kaguyamemorysearchdoc.PageIDValidator = func() func(string) error {
+		validators := kaguyamemorysearchdocDescPageID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(page_id string) error {
+			for _, fn := range fns {
+				if err := fn(page_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemorysearchdocDescPageVersion is the schema descriptor for page_version field.
+	kaguyamemorysearchdocDescPageVersion := kaguyamemorysearchdocFields[2].Descriptor()
+	// kaguyamemorysearchdoc.PageVersionValidator is a validator for the "page_version" field. It is called by the builders before save.
+	kaguyamemorysearchdoc.PageVersionValidator = kaguyamemorysearchdocDescPageVersion.Validators[0].(func(int64) error)
+	// kaguyamemorysearchdocDescNormalizerVersion is the schema descriptor for normalizer_version field.
+	kaguyamemorysearchdocDescNormalizerVersion := kaguyamemorysearchdocFields[3].Descriptor()
+	// kaguyamemorysearchdoc.NormalizerVersionValidator is a validator for the "normalizer_version" field. It is called by the builders before save.
+	kaguyamemorysearchdoc.NormalizerVersionValidator = kaguyamemorysearchdocDescNormalizerVersion.Validators[0].(func(int) error)
+	// kaguyamemorysearchdocDescTitleTerms is the schema descriptor for title_terms field.
+	kaguyamemorysearchdocDescTitleTerms := kaguyamemorysearchdocFields[4].Descriptor()
+	// kaguyamemorysearchdoc.DefaultTitleTerms holds the default value on creation for the title_terms field.
+	kaguyamemorysearchdoc.DefaultTitleTerms = kaguyamemorysearchdocDescTitleTerms.Default.(string)
+	// kaguyamemorysearchdocDescAliasTerms is the schema descriptor for alias_terms field.
+	kaguyamemorysearchdocDescAliasTerms := kaguyamemorysearchdocFields[5].Descriptor()
+	// kaguyamemorysearchdoc.DefaultAliasTerms holds the default value on creation for the alias_terms field.
+	kaguyamemorysearchdoc.DefaultAliasTerms = kaguyamemorysearchdocDescAliasTerms.Default.(string)
+	// kaguyamemorysearchdocDescSummaryTerms is the schema descriptor for summary_terms field.
+	kaguyamemorysearchdocDescSummaryTerms := kaguyamemorysearchdocFields[6].Descriptor()
+	// kaguyamemorysearchdoc.DefaultSummaryTerms holds the default value on creation for the summary_terms field.
+	kaguyamemorysearchdoc.DefaultSummaryTerms = kaguyamemorysearchdocDescSummaryTerms.Default.(string)
+	// kaguyamemorysearchdocDescBodyTerms is the schema descriptor for body_terms field.
+	kaguyamemorysearchdocDescBodyTerms := kaguyamemorysearchdocFields[7].Descriptor()
+	// kaguyamemorysearchdoc.DefaultBodyTerms holds the default value on creation for the body_terms field.
+	kaguyamemorysearchdoc.DefaultBodyTerms = kaguyamemorysearchdocDescBodyTerms.Default.(string)
+	// kaguyamemorysearchdocDescID is the schema descriptor for id field.
+	kaguyamemorysearchdocDescID := kaguyamemorysearchdocFields[0].Descriptor()
+	// kaguyamemorysearchdoc.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemorysearchdoc.IDValidator = kaguyamemorysearchdocDescID.Validators[0].(func(int64) error)
+	kaguyamemorysourceMixin := schema.KaguyaMemorySource{}.Mixin()
+	kaguyamemorysourceMixinHooks1 := kaguyamemorysourceMixin[1].Hooks()
+	kaguyamemorysource.Hooks[0] = kaguyamemorysourceMixinHooks1[0]
+	kaguyamemorysource.Hooks[1] = kaguyamemorysourceMixinHooks1[1]
+	kaguyamemorysourceMixinFields0 := kaguyamemorysourceMixin[0].Fields()
+	_ = kaguyamemorysourceMixinFields0
+	kaguyamemorysourceMixinFields1 := kaguyamemorysourceMixin[1].Fields()
+	_ = kaguyamemorysourceMixinFields1
+	kaguyamemorysourceFields := schema.KaguyaMemorySource{}.Fields()
+	_ = kaguyamemorysourceFields
+	// kaguyamemorysourceDescCreatedAt is the schema descriptor for created_at field.
+	kaguyamemorysourceDescCreatedAt := kaguyamemorysourceMixinFields1[0].Descriptor()
+	// kaguyamemorysource.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyamemorysource.DefaultCreatedAt = kaguyamemorysourceDescCreatedAt.Default.(func() time.Time)
+	// kaguyamemorysourceDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyamemorysourceDescUpdatedAt := kaguyamemorysourceMixinFields1[1].Descriptor()
+	// kaguyamemorysource.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyamemorysource.DefaultUpdatedAt = kaguyamemorysourceDescUpdatedAt.Default.(func() time.Time)
+	// kaguyamemorysource.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyamemorysource.UpdateDefaultUpdatedAt = kaguyamemorysourceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyamemorysourceDescSourceKey is the schema descriptor for source_key field.
+	kaguyamemorysourceDescSourceKey := kaguyamemorysourceFields[0].Descriptor()
+	// kaguyamemorysource.SourceKeyValidator is a validator for the "source_key" field. It is called by the builders before save.
+	kaguyamemorysource.SourceKeyValidator = func() func(string) error {
+		validators := kaguyamemorysourceDescSourceKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_key string) error {
+			for _, fn := range fns {
+				if err := fn(source_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemorysourceDescScopeKey is the schema descriptor for scope_key field.
+	kaguyamemorysourceDescScopeKey := kaguyamemorysourceFields[2].Descriptor()
+	// kaguyamemorysource.ScopeKeyValidator is a validator for the "scope_key" field. It is called by the builders before save.
+	kaguyamemorysource.ScopeKeyValidator = func() func(string) error {
+		validators := kaguyamemorysourceDescScopeKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(scope_key string) error {
+			for _, fn := range fns {
+				if err := fn(scope_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyamemorysourceDescConversationID is the schema descriptor for conversation_id field.
+	kaguyamemorysourceDescConversationID := kaguyamemorysourceFields[3].Descriptor()
+	// kaguyamemorysource.DefaultConversationID holds the default value on creation for the conversation_id field.
+	kaguyamemorysource.DefaultConversationID = kaguyamemorysourceDescConversationID.Default.(string)
+	// kaguyamemorysource.ConversationIDValidator is a validator for the "conversation_id" field. It is called by the builders before save.
+	kaguyamemorysource.ConversationIDValidator = kaguyamemorysourceDescConversationID.Validators[0].(func(string) error)
+	// kaguyamemorysourceDescTurnID is the schema descriptor for turn_id field.
+	kaguyamemorysourceDescTurnID := kaguyamemorysourceFields[4].Descriptor()
+	// kaguyamemorysource.DefaultTurnID holds the default value on creation for the turn_id field.
+	kaguyamemorysource.DefaultTurnID = kaguyamemorysourceDescTurnID.Default.(string)
+	// kaguyamemorysource.TurnIDValidator is a validator for the "turn_id" field. It is called by the builders before save.
+	kaguyamemorysource.TurnIDValidator = kaguyamemorysourceDescTurnID.Validators[0].(func(string) error)
+	// kaguyamemorysourceDescProjectionVersion is the schema descriptor for projection_version field.
+	kaguyamemorysourceDescProjectionVersion := kaguyamemorysourceFields[5].Descriptor()
+	// kaguyamemorysource.DefaultProjectionVersion holds the default value on creation for the projection_version field.
+	kaguyamemorysource.DefaultProjectionVersion = kaguyamemorysourceDescProjectionVersion.Default.(int)
+	// kaguyamemorysource.ProjectionVersionValidator is a validator for the "projection_version" field. It is called by the builders before save.
+	kaguyamemorysource.ProjectionVersionValidator = kaguyamemorysourceDescProjectionVersion.Validators[0].(func(int) error)
+	// kaguyamemorysourceDescCursorPart is the schema descriptor for cursor_part field.
+	kaguyamemorysourceDescCursorPart := kaguyamemorysourceFields[6].Descriptor()
+	// kaguyamemorysource.DefaultCursorPart holds the default value on creation for the cursor_part field.
+	kaguyamemorysource.DefaultCursorPart = kaguyamemorysourceDescCursorPart.Default.(int)
+	// kaguyamemorysource.CursorPartValidator is a validator for the "cursor_part" field. It is called by the builders before save.
+	kaguyamemorysource.CursorPartValidator = kaguyamemorysourceDescCursorPart.Validators[0].(func(int) error)
+	// kaguyamemorysourceDescContentHash is the schema descriptor for content_hash field.
+	kaguyamemorysourceDescContentHash := kaguyamemorysourceFields[7].Descriptor()
+	// kaguyamemorysource.DefaultContentHash holds the default value on creation for the content_hash field.
+	kaguyamemorysource.DefaultContentHash = kaguyamemorysourceDescContentHash.Default.(string)
+	// kaguyamemorysource.ContentHashValidator is a validator for the "content_hash" field. It is called by the builders before save.
+	kaguyamemorysource.ContentHashValidator = kaguyamemorysourceDescContentHash.Validators[0].(func(string) error)
+	// kaguyamemorysourceDescJobID is the schema descriptor for job_id field.
+	kaguyamemorysourceDescJobID := kaguyamemorysourceFields[9].Descriptor()
+	// kaguyamemorysource.DefaultJobID holds the default value on creation for the job_id field.
+	kaguyamemorysource.DefaultJobID = kaguyamemorysourceDescJobID.Default.(string)
+	// kaguyamemorysource.JobIDValidator is a validator for the "job_id" field. It is called by the builders before save.
+	kaguyamemorysource.JobIDValidator = kaguyamemorysourceDescJobID.Validators[0].(func(string) error)
+	// kaguyamemorysourceDescPolicyEpoch is the schema descriptor for policy_epoch field.
+	kaguyamemorysourceDescPolicyEpoch := kaguyamemorysourceFields[11].Descriptor()
+	// kaguyamemorysource.DefaultPolicyEpoch holds the default value on creation for the policy_epoch field.
+	kaguyamemorysource.DefaultPolicyEpoch = kaguyamemorysourceDescPolicyEpoch.Default.(int64)
+	// kaguyamemorysource.PolicyEpochValidator is a validator for the "policy_epoch" field. It is called by the builders before save.
+	kaguyamemorysource.PolicyEpochValidator = kaguyamemorysourceDescPolicyEpoch.Validators[0].(func(int64) error)
+	// kaguyamemorysourceDescID is the schema descriptor for id field.
+	kaguyamemorysourceDescID := kaguyamemorysourceMixinFields0[0].Descriptor()
+	// kaguyamemorysource.DefaultID holds the default value on creation for the id field.
+	kaguyamemorysource.DefaultID = kaguyamemorysourceDescID.Default.(func() string)
+	// kaguyamemorysource.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyamemorysource.IDValidator = func() func(string) error {
+		validators := kaguyamemorysourceDescID.Validators
 		fns := [...]func(string) error{
 			validators[0].(func(string) error),
 			validators[1].(func(string) error),
@@ -825,6 +1631,40 @@ func init() {
 	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[20].Descriptor()
 	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
 	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
+	// kaguyasysteminfoDescMemoryEnabled is the schema descriptor for memory_enabled field.
+	kaguyasysteminfoDescMemoryEnabled := kaguyasysteminfoFields[21].Descriptor()
+	// kaguyasysteminfo.DefaultMemoryEnabled holds the default value on creation for the memory_enabled field.
+	kaguyasysteminfo.DefaultMemoryEnabled = kaguyasysteminfoDescMemoryEnabled.Default.(bool)
+	// kaguyasysteminfoDescMemoryAutoCapture is the schema descriptor for memory_auto_capture field.
+	kaguyasysteminfoDescMemoryAutoCapture := kaguyasysteminfoFields[22].Descriptor()
+	// kaguyasysteminfo.DefaultMemoryAutoCapture holds the default value on creation for the memory_auto_capture field.
+	kaguyasysteminfo.DefaultMemoryAutoCapture = kaguyasysteminfoDescMemoryAutoCapture.Default.(bool)
+	// kaguyasysteminfoDescMemoryContextTokens is the schema descriptor for memory_context_tokens field.
+	kaguyasysteminfoDescMemoryContextTokens := kaguyasysteminfoFields[23].Descriptor()
+	// kaguyasysteminfo.DefaultMemoryContextTokens holds the default value on creation for the memory_context_tokens field.
+	kaguyasysteminfo.DefaultMemoryContextTokens = kaguyasysteminfoDescMemoryContextTokens.Default.(int)
+	// kaguyasysteminfo.MemoryContextTokensValidator is a validator for the "memory_context_tokens" field. It is called by the builders before save.
+	kaguyasysteminfo.MemoryContextTokensValidator = func() func(int) error {
+		validators := kaguyasysteminfoDescMemoryContextTokens.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(memory_context_tokens int) error {
+			for _, fn := range fns {
+				if err := fn(memory_context_tokens); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// kaguyasysteminfoDescMemoryPolicyEpoch is the schema descriptor for memory_policy_epoch field.
+	kaguyasysteminfoDescMemoryPolicyEpoch := kaguyasysteminfoFields[24].Descriptor()
+	// kaguyasysteminfo.DefaultMemoryPolicyEpoch holds the default value on creation for the memory_policy_epoch field.
+	kaguyasysteminfo.DefaultMemoryPolicyEpoch = kaguyasysteminfoDescMemoryPolicyEpoch.Default.(int64)
+	// kaguyasysteminfo.MemoryPolicyEpochValidator is a validator for the "memory_policy_epoch" field. It is called by the builders before save.
+	kaguyasysteminfo.MemoryPolicyEpochValidator = kaguyasysteminfoDescMemoryPolicyEpoch.Validators[0].(func(int64) error)
 	// kaguyasysteminfoDescID is the schema descriptor for id field.
 	kaguyasysteminfoDescID := kaguyasysteminfoFields[0].Descriptor()
 	// kaguyasysteminfo.DefaultID holds the default value on creation for the id field.

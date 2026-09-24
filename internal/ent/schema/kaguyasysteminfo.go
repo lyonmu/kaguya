@@ -42,6 +42,10 @@ func (KaguyaSystemInfo) Fields() []ent.Field {
 		field.Text("model_sync_last_error").Default(""),
 		field.String("default_model_id").Default("").Comment("默认聊天模型的本地记录 ID，空值表示未配置"),
 		field.String("task_model_id").Default("").Comment("后台任务模型的本地记录 ID，空值表示未配置"),
+		field.Bool("memory_enabled").Default(false).Comment("长期记忆总开关：关闭后停止自动召回、工具与编译"),
+		field.Bool("memory_auto_capture").Default(false).Comment("是否自动产生新来源；关闭只停止学习，不删除已有页面"),
+		field.Int("memory_context_tokens").Default(2000).Min(0).Max(100000).Comment("每轮自动召回注入上限（估算 token，不保证精确相等）"),
+		field.Int64("memory_policy_epoch").Default(0).NonNegative().Comment("记忆策略版本：隐私模式变化、删除记忆/来源、项目删除或换绑时单调递增"),
 	}
 }
 

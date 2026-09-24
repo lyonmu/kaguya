@@ -63,8 +63,16 @@ type KaguyaSystemInfo struct {
 	// 默认聊天模型的本地记录 ID，空值表示未配置
 	DefaultModelID string `json:"default_model_id,omitempty"`
 	// 后台任务模型的本地记录 ID，空值表示未配置
-	TaskModelID  string `json:"task_model_id,omitempty"`
-	selectValues sql.SelectValues
+	TaskModelID string `json:"task_model_id,omitempty"`
+	// 长期记忆总开关：关闭后停止自动召回、工具与编译
+	MemoryEnabled bool `json:"memory_enabled,omitempty"`
+	// 是否自动产生新来源；关闭只停止学习，不删除已有页面
+	MemoryAutoCapture bool `json:"memory_auto_capture,omitempty"`
+	// 每轮自动召回注入上限（估算 token，不保证精确相等）
+	MemoryContextTokens int `json:"memory_context_tokens,omitempty"`
+	// 记忆策略版本：隐私模式变化、删除记忆/来源、项目删除或换绑时单调递增
+	MemoryPolicyEpoch int64 `json:"memory_policy_epoch,omitempty"`
+	selectValues      sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -74,9 +82,9 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyasysteminfo.FieldGlobalAgentsPaths:
 			values[i] = new([]byte)
-		case kaguyasysteminfo.FieldModelSyncEnabled:
+		case kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldMemoryEnabled, kaguyasysteminfo.FieldMemoryAutoCapture:
 			values[i] = new(sql.NullBool)
-		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount:
+		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount, kaguyasysteminfo.FieldMemoryContextTokens, kaguyasysteminfo.FieldMemoryPolicyEpoch:
 			values[i] = new(sql.NullInt64)
 		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldProviderSyncURL, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldProviderCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
 			values[i] = new(sql.NullString)
@@ -246,6 +254,30 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.TaskModelID = value.String
 			}
+		case kaguyasysteminfo.FieldMemoryEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field memory_enabled", values[i])
+			} else if value.Valid {
+				_m.MemoryEnabled = value.Bool
+			}
+		case kaguyasysteminfo.FieldMemoryAutoCapture:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field memory_auto_capture", values[i])
+			} else if value.Valid {
+				_m.MemoryAutoCapture = value.Bool
+			}
+		case kaguyasysteminfo.FieldMemoryContextTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field memory_context_tokens", values[i])
+			} else if value.Valid {
+				_m.MemoryContextTokens = int(value.Int64)
+			}
+		case kaguyasysteminfo.FieldMemoryPolicyEpoch:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field memory_policy_epoch", values[i])
+			} else if value.Valid {
+				_m.MemoryPolicyEpoch = value.Int64
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -356,6 +388,18 @@ func (_m *KaguyaSystemInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("task_model_id=")
 	builder.WriteString(_m.TaskModelID)
+	builder.WriteString(", ")
+	builder.WriteString("memory_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemoryEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("memory_auto_capture=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemoryAutoCapture))
+	builder.WriteString(", ")
+	builder.WriteString("memory_context_tokens=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemoryContextTokens))
+	builder.WriteString(", ")
+	builder.WriteString("memory_policy_epoch=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemoryPolicyEpoch))
 	builder.WriteByte(')')
 	return builder.String()
 }

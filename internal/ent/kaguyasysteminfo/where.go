@@ -176,6 +176,26 @@ func TaskModelID(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldTaskModelID, v))
 }
 
+// MemoryEnabled applies equality check predicate on the "memory_enabled" field. It's identical to MemoryEnabledEQ.
+func MemoryEnabled(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryEnabled, v))
+}
+
+// MemoryAutoCapture applies equality check predicate on the "memory_auto_capture" field. It's identical to MemoryAutoCaptureEQ.
+func MemoryAutoCapture(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryAutoCapture, v))
+}
+
+// MemoryContextTokens applies equality check predicate on the "memory_context_tokens" field. It's identical to MemoryContextTokensEQ.
+func MemoryContextTokens(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryContextTokens, v))
+}
+
+// MemoryPolicyEpoch applies equality check predicate on the "memory_policy_epoch" field. It's identical to MemoryPolicyEpochEQ.
+func MemoryPolicyEpoch(v int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryPolicyEpoch, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldCreatedAt, v))
@@ -1317,6 +1337,106 @@ func TaskModelIDEqualFold(v string) predicate.KaguyaSystemInfo {
 // TaskModelIDContainsFold applies the ContainsFold predicate on the "task_model_id" field.
 func TaskModelIDContainsFold(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldTaskModelID, v))
+}
+
+// MemoryEnabledEQ applies the EQ predicate on the "memory_enabled" field.
+func MemoryEnabledEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryEnabled, v))
+}
+
+// MemoryEnabledNEQ applies the NEQ predicate on the "memory_enabled" field.
+func MemoryEnabledNEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldMemoryEnabled, v))
+}
+
+// MemoryAutoCaptureEQ applies the EQ predicate on the "memory_auto_capture" field.
+func MemoryAutoCaptureEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryAutoCapture, v))
+}
+
+// MemoryAutoCaptureNEQ applies the NEQ predicate on the "memory_auto_capture" field.
+func MemoryAutoCaptureNEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldMemoryAutoCapture, v))
+}
+
+// MemoryContextTokensEQ applies the EQ predicate on the "memory_context_tokens" field.
+func MemoryContextTokensEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryContextTokens, v))
+}
+
+// MemoryContextTokensNEQ applies the NEQ predicate on the "memory_context_tokens" field.
+func MemoryContextTokensNEQ(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldMemoryContextTokens, v))
+}
+
+// MemoryContextTokensIn applies the In predicate on the "memory_context_tokens" field.
+func MemoryContextTokensIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldMemoryContextTokens, vs...))
+}
+
+// MemoryContextTokensNotIn applies the NotIn predicate on the "memory_context_tokens" field.
+func MemoryContextTokensNotIn(vs ...int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldMemoryContextTokens, vs...))
+}
+
+// MemoryContextTokensGT applies the GT predicate on the "memory_context_tokens" field.
+func MemoryContextTokensGT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldMemoryContextTokens, v))
+}
+
+// MemoryContextTokensGTE applies the GTE predicate on the "memory_context_tokens" field.
+func MemoryContextTokensGTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldMemoryContextTokens, v))
+}
+
+// MemoryContextTokensLT applies the LT predicate on the "memory_context_tokens" field.
+func MemoryContextTokensLT(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldMemoryContextTokens, v))
+}
+
+// MemoryContextTokensLTE applies the LTE predicate on the "memory_context_tokens" field.
+func MemoryContextTokensLTE(v int) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldMemoryContextTokens, v))
+}
+
+// MemoryPolicyEpochEQ applies the EQ predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochEQ(v int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryPolicyEpoch, v))
+}
+
+// MemoryPolicyEpochNEQ applies the NEQ predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochNEQ(v int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldMemoryPolicyEpoch, v))
+}
+
+// MemoryPolicyEpochIn applies the In predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochIn(vs ...int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldMemoryPolicyEpoch, vs...))
+}
+
+// MemoryPolicyEpochNotIn applies the NotIn predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochNotIn(vs ...int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldMemoryPolicyEpoch, vs...))
+}
+
+// MemoryPolicyEpochGT applies the GT predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochGT(v int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldMemoryPolicyEpoch, v))
+}
+
+// MemoryPolicyEpochGTE applies the GTE predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochGTE(v int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldMemoryPolicyEpoch, v))
+}
+
+// MemoryPolicyEpochLT applies the LT predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochLT(v int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldMemoryPolicyEpoch, v))
+}
+
+// MemoryPolicyEpochLTE applies the LTE predicate on the "memory_policy_epoch" field.
+func MemoryPolicyEpochLTE(v int64) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldMemoryPolicyEpoch, v))
 }
 
 // And groups predicates with the AND operator between them.

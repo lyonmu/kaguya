@@ -3,6 +3,7 @@
 package kaguyaconversation
 
 import (
+	"fmt"
 	"time"
 
 	"entgo.io/ent"
@@ -29,6 +30,8 @@ const (
 	FieldAgentInstructions = "agent_instructions"
 	// FieldFavorite holds the string denoting the favorite field in the database.
 	FieldFavorite = "favorite"
+	// FieldMemoryMode holds the string denoting the memory_mode field in the database.
+	FieldMemoryMode = "memory_mode"
 	// FieldTurnCount holds the string denoting the turn_count field in the database.
 	FieldTurnCount = "turn_count"
 	// FieldLastMessageAt holds the string denoting the last_message_at field in the database.
@@ -83,6 +86,7 @@ var Columns = []string{
 	FieldProjectID,
 	FieldAgentInstructions,
 	FieldFavorite,
+	FieldMemoryMode,
 	FieldTurnCount,
 	FieldLastMessageAt,
 	FieldModelID,
@@ -161,6 +165,33 @@ var (
 	IDValidator func(string) error
 )
 
+// MemoryMode defines the type for the "memory_mode" enum field.
+type MemoryMode string
+
+// MemoryModeInherit is the default value of the MemoryMode enum.
+const DefaultMemoryMode = MemoryModeInherit
+
+// MemoryMode values.
+const (
+	MemoryModeInherit  MemoryMode = "inherit"
+	MemoryModeOff      MemoryMode = "off"
+	MemoryModeReadonly MemoryMode = "readonly"
+)
+
+func (mm MemoryMode) String() string {
+	return string(mm)
+}
+
+// MemoryModeValidator is a validator for the "memory_mode" field enum values. It is called by the builders before save.
+func MemoryModeValidator(mm MemoryMode) error {
+	switch mm {
+	case MemoryModeInherit, MemoryModeOff, MemoryModeReadonly:
+		return nil
+	default:
+		return fmt.Errorf("kaguyaconversation: invalid enum value for memory_mode field: %q", mm)
+	}
+}
+
 // OrderOption defines the ordering options for the KaguyaConversation queries.
 type OrderOption func(*sql.Selector)
 
@@ -202,6 +233,11 @@ func ByAgentInstructions(opts ...sql.OrderTermOption) OrderOption {
 // ByFavorite orders the results by the favorite field.
 func ByFavorite(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFavorite, opts...).ToFunc()
+}
+
+// ByMemoryMode orders the results by the memory_mode field.
+func ByMemoryMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldMemoryMode, opts...).ToFunc()
 }
 
 // ByTurnCount orders the results by the turn_count field.

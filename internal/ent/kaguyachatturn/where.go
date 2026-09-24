@@ -1395,6 +1395,16 @@ func CompactionCountLTE(v int) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldCompactionCount, v))
 }
 
+// MemoryRefsIsNil applies the IsNil predicate on the "memory_refs" field.
+func MemoryRefsIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldMemoryRefs))
+}
+
+// MemoryRefsNotNil applies the NotNil predicate on the "memory_refs" field.
+func MemoryRefsNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldMemoryRefs))
+}
+
 // HasConversation applies the HasEdge predicate on the "conversation" edge.
 func HasConversation() predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(func(s *sql.Selector) {

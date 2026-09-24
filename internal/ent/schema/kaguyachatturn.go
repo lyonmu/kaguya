@@ -1,7 +1,8 @@
 package schema
 
 import (
-	"charm.land/fantasy"
+		"charm.land/fantasy"
+	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"entgo.io/ent"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
@@ -32,6 +33,7 @@ func (KaguyaChatTurn) Fields() []ent.Field {
 		// 不使用展示块重建上下文：工具消息、推理签名和 provider metadata 必须无损保留。
 		field.JSON("context_messages", []fantasy.Message{}).Optional().Comment("发生压缩后的完整续聊快照；原始 messages 始终保留"),
 		field.Int("compaction_count").Default(0).NonNegative(),
+		field.JSON("memory_refs", dtomemory.TurnMemorySelection{}).Optional().Comment("本轮自动召回选择的页面版本与检索器版本；不复制正文，失败轮次为空"),
 		field.JSON("messages", []fantasy.Message{}).Comment("仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"),
 	}
 }

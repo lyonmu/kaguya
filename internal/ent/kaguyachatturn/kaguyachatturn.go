@@ -68,6 +68,8 @@ const (
 	FieldContextMessages = "context_messages"
 	// FieldCompactionCount holds the string denoting the compaction_count field in the database.
 	FieldCompactionCount = "compaction_count"
+	// FieldMemoryRefs holds the string denoting the memory_refs field in the database.
+	FieldMemoryRefs = "memory_refs"
 	// FieldMessages holds the string denoting the messages field in the database.
 	FieldMessages = "messages"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
@@ -121,6 +123,7 @@ var Columns = []string{
 	FieldContextWindow,
 	FieldContextMessages,
 	FieldCompactionCount,
+	FieldMemoryRefs,
 	FieldMessages,
 }
 

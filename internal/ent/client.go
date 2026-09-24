@@ -19,6 +19,14 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryattempt"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryevidence"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorylink"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorypage"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryrevision"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysearchdoc"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
@@ -40,6 +48,22 @@ type Client struct {
 	KaguyaConversation *KaguyaConversationClient
 	// KaguyaMCPServer is the client for interacting with the KaguyaMCPServer builders.
 	KaguyaMCPServer *KaguyaMCPServerClient
+	// KaguyaMemoryAttempt is the client for interacting with the KaguyaMemoryAttempt builders.
+	KaguyaMemoryAttempt *KaguyaMemoryAttemptClient
+	// KaguyaMemoryEvidence is the client for interacting with the KaguyaMemoryEvidence builders.
+	KaguyaMemoryEvidence *KaguyaMemoryEvidenceClient
+	// KaguyaMemoryJob is the client for interacting with the KaguyaMemoryJob builders.
+	KaguyaMemoryJob *KaguyaMemoryJobClient
+	// KaguyaMemoryLink is the client for interacting with the KaguyaMemoryLink builders.
+	KaguyaMemoryLink *KaguyaMemoryLinkClient
+	// KaguyaMemoryPage is the client for interacting with the KaguyaMemoryPage builders.
+	KaguyaMemoryPage *KaguyaMemoryPageClient
+	// KaguyaMemoryRevision is the client for interacting with the KaguyaMemoryRevision builders.
+	KaguyaMemoryRevision *KaguyaMemoryRevisionClient
+	// KaguyaMemorySearchDoc is the client for interacting with the KaguyaMemorySearchDoc builders.
+	KaguyaMemorySearchDoc *KaguyaMemorySearchDocClient
+	// KaguyaMemorySource is the client for interacting with the KaguyaMemorySource builders.
+	KaguyaMemorySource *KaguyaMemorySourceClient
 	// KaguyaModelsInfo is the client for interacting with the KaguyaModelsInfo builders.
 	KaguyaModelsInfo *KaguyaModelsInfoClient
 	// KaguyaProject is the client for interacting with the KaguyaProject builders.
@@ -63,6 +87,14 @@ func (c *Client) init() {
 	c.KaguyaChatTurn = NewKaguyaChatTurnClient(c.config)
 	c.KaguyaConversation = NewKaguyaConversationClient(c.config)
 	c.KaguyaMCPServer = NewKaguyaMCPServerClient(c.config)
+	c.KaguyaMemoryAttempt = NewKaguyaMemoryAttemptClient(c.config)
+	c.KaguyaMemoryEvidence = NewKaguyaMemoryEvidenceClient(c.config)
+	c.KaguyaMemoryJob = NewKaguyaMemoryJobClient(c.config)
+	c.KaguyaMemoryLink = NewKaguyaMemoryLinkClient(c.config)
+	c.KaguyaMemoryPage = NewKaguyaMemoryPageClient(c.config)
+	c.KaguyaMemoryRevision = NewKaguyaMemoryRevisionClient(c.config)
+	c.KaguyaMemorySearchDoc = NewKaguyaMemorySearchDocClient(c.config)
+	c.KaguyaMemorySource = NewKaguyaMemorySourceClient(c.config)
 	c.KaguyaModelsInfo = NewKaguyaModelsInfoClient(c.config)
 	c.KaguyaProject = NewKaguyaProjectClient(c.config)
 	c.KaguyaProviderInfo = NewKaguyaProviderInfoClient(c.config)
@@ -157,16 +189,24 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		KaguyaChatBlock:    NewKaguyaChatBlockClient(cfg),
-		KaguyaChatTurn:     NewKaguyaChatTurnClient(cfg),
-		KaguyaConversation: NewKaguyaConversationClient(cfg),
-		KaguyaMCPServer:    NewKaguyaMCPServerClient(cfg),
-		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
-		KaguyaProject:      NewKaguyaProjectClient(cfg),
-		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
-		KaguyaSystemInfo:   NewKaguyaSystemInfoClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		KaguyaChatBlock:       NewKaguyaChatBlockClient(cfg),
+		KaguyaChatTurn:        NewKaguyaChatTurnClient(cfg),
+		KaguyaConversation:    NewKaguyaConversationClient(cfg),
+		KaguyaMCPServer:       NewKaguyaMCPServerClient(cfg),
+		KaguyaMemoryAttempt:   NewKaguyaMemoryAttemptClient(cfg),
+		KaguyaMemoryEvidence:  NewKaguyaMemoryEvidenceClient(cfg),
+		KaguyaMemoryJob:       NewKaguyaMemoryJobClient(cfg),
+		KaguyaMemoryLink:      NewKaguyaMemoryLinkClient(cfg),
+		KaguyaMemoryPage:      NewKaguyaMemoryPageClient(cfg),
+		KaguyaMemoryRevision:  NewKaguyaMemoryRevisionClient(cfg),
+		KaguyaMemorySearchDoc: NewKaguyaMemorySearchDocClient(cfg),
+		KaguyaMemorySource:    NewKaguyaMemorySourceClient(cfg),
+		KaguyaModelsInfo:      NewKaguyaModelsInfoClient(cfg),
+		KaguyaProject:         NewKaguyaProjectClient(cfg),
+		KaguyaProviderInfo:    NewKaguyaProviderInfoClient(cfg),
+		KaguyaSystemInfo:      NewKaguyaSystemInfoClient(cfg),
 	}, nil
 }
 
@@ -184,16 +224,24 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                ctx,
-		config:             cfg,
-		KaguyaChatBlock:    NewKaguyaChatBlockClient(cfg),
-		KaguyaChatTurn:     NewKaguyaChatTurnClient(cfg),
-		KaguyaConversation: NewKaguyaConversationClient(cfg),
-		KaguyaMCPServer:    NewKaguyaMCPServerClient(cfg),
-		KaguyaModelsInfo:   NewKaguyaModelsInfoClient(cfg),
-		KaguyaProject:      NewKaguyaProjectClient(cfg),
-		KaguyaProviderInfo: NewKaguyaProviderInfoClient(cfg),
-		KaguyaSystemInfo:   NewKaguyaSystemInfoClient(cfg),
+		ctx:                   ctx,
+		config:                cfg,
+		KaguyaChatBlock:       NewKaguyaChatBlockClient(cfg),
+		KaguyaChatTurn:        NewKaguyaChatTurnClient(cfg),
+		KaguyaConversation:    NewKaguyaConversationClient(cfg),
+		KaguyaMCPServer:       NewKaguyaMCPServerClient(cfg),
+		KaguyaMemoryAttempt:   NewKaguyaMemoryAttemptClient(cfg),
+		KaguyaMemoryEvidence:  NewKaguyaMemoryEvidenceClient(cfg),
+		KaguyaMemoryJob:       NewKaguyaMemoryJobClient(cfg),
+		KaguyaMemoryLink:      NewKaguyaMemoryLinkClient(cfg),
+		KaguyaMemoryPage:      NewKaguyaMemoryPageClient(cfg),
+		KaguyaMemoryRevision:  NewKaguyaMemoryRevisionClient(cfg),
+		KaguyaMemorySearchDoc: NewKaguyaMemorySearchDocClient(cfg),
+		KaguyaMemorySource:    NewKaguyaMemorySourceClient(cfg),
+		KaguyaModelsInfo:      NewKaguyaModelsInfoClient(cfg),
+		KaguyaProject:         NewKaguyaProjectClient(cfg),
+		KaguyaProviderInfo:    NewKaguyaProviderInfoClient(cfg),
+		KaguyaSystemInfo:      NewKaguyaSystemInfoClient(cfg),
 	}, nil
 }
 
@@ -224,7 +272,10 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.KaguyaChatBlock, c.KaguyaChatTurn, c.KaguyaConversation, c.KaguyaMCPServer,
-		c.KaguyaModelsInfo, c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
+		c.KaguyaMemoryAttempt, c.KaguyaMemoryEvidence, c.KaguyaMemoryJob,
+		c.KaguyaMemoryLink, c.KaguyaMemoryPage, c.KaguyaMemoryRevision,
+		c.KaguyaMemorySearchDoc, c.KaguyaMemorySource, c.KaguyaModelsInfo,
+		c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
 	} {
 		n.Use(hooks...)
 	}
@@ -235,7 +286,10 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.KaguyaChatBlock, c.KaguyaChatTurn, c.KaguyaConversation, c.KaguyaMCPServer,
-		c.KaguyaModelsInfo, c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
+		c.KaguyaMemoryAttempt, c.KaguyaMemoryEvidence, c.KaguyaMemoryJob,
+		c.KaguyaMemoryLink, c.KaguyaMemoryPage, c.KaguyaMemoryRevision,
+		c.KaguyaMemorySearchDoc, c.KaguyaMemorySource, c.KaguyaModelsInfo,
+		c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -252,6 +306,22 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KaguyaConversation.mutate(ctx, m)
 	case *KaguyaMCPServerMutation:
 		return c.KaguyaMCPServer.mutate(ctx, m)
+	case *KaguyaMemoryAttemptMutation:
+		return c.KaguyaMemoryAttempt.mutate(ctx, m)
+	case *KaguyaMemoryEvidenceMutation:
+		return c.KaguyaMemoryEvidence.mutate(ctx, m)
+	case *KaguyaMemoryJobMutation:
+		return c.KaguyaMemoryJob.mutate(ctx, m)
+	case *KaguyaMemoryLinkMutation:
+		return c.KaguyaMemoryLink.mutate(ctx, m)
+	case *KaguyaMemoryPageMutation:
+		return c.KaguyaMemoryPage.mutate(ctx, m)
+	case *KaguyaMemoryRevisionMutation:
+		return c.KaguyaMemoryRevision.mutate(ctx, m)
+	case *KaguyaMemorySearchDocMutation:
+		return c.KaguyaMemorySearchDoc.mutate(ctx, m)
+	case *KaguyaMemorySourceMutation:
+		return c.KaguyaMemorySource.mutate(ctx, m)
 	case *KaguyaModelsInfoMutation:
 		return c.KaguyaModelsInfo.mutate(ctx, m)
 	case *KaguyaProjectMutation:
@@ -881,6 +951,1077 @@ func (c *KaguyaMCPServerClient) mutate(ctx context.Context, m *KaguyaMCPServerMu
 	}
 }
 
+// KaguyaMemoryAttemptClient is a client for the KaguyaMemoryAttempt schema.
+type KaguyaMemoryAttemptClient struct {
+	config
+}
+
+// NewKaguyaMemoryAttemptClient returns a client for the KaguyaMemoryAttempt from the given config.
+func NewKaguyaMemoryAttemptClient(c config) *KaguyaMemoryAttemptClient {
+	return &KaguyaMemoryAttemptClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemoryattempt.Hooks(f(g(h())))`.
+func (c *KaguyaMemoryAttemptClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemoryAttempt = append(c.hooks.KaguyaMemoryAttempt, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemoryattempt.Intercept(f(g(h())))`.
+func (c *KaguyaMemoryAttemptClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemoryAttempt = append(c.inters.KaguyaMemoryAttempt, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemoryAttempt entity.
+func (c *KaguyaMemoryAttemptClient) Create() *KaguyaMemoryAttemptCreate {
+	mutation := newKaguyaMemoryAttemptMutation(c.config, OpCreate)
+	return &KaguyaMemoryAttemptCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemoryAttempt entities.
+func (c *KaguyaMemoryAttemptClient) CreateBulk(builders ...*KaguyaMemoryAttemptCreate) *KaguyaMemoryAttemptCreateBulk {
+	return &KaguyaMemoryAttemptCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemoryAttemptClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemoryAttemptCreate, int)) *KaguyaMemoryAttemptCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemoryAttemptCreateBulk{err: fmt.Errorf("calling to KaguyaMemoryAttemptClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemoryAttemptCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemoryAttemptCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemoryAttempt.
+func (c *KaguyaMemoryAttemptClient) Update() *KaguyaMemoryAttemptUpdate {
+	mutation := newKaguyaMemoryAttemptMutation(c.config, OpUpdate)
+	return &KaguyaMemoryAttemptUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemoryAttemptClient) UpdateOne(_m *KaguyaMemoryAttempt) *KaguyaMemoryAttemptUpdateOne {
+	mutation := newKaguyaMemoryAttemptMutation(c.config, OpUpdateOne, withKaguyaMemoryAttempt(_m))
+	return &KaguyaMemoryAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemoryAttemptClient) UpdateOneID(id string) *KaguyaMemoryAttemptUpdateOne {
+	mutation := newKaguyaMemoryAttemptMutation(c.config, OpUpdateOne, withKaguyaMemoryAttemptID(id))
+	return &KaguyaMemoryAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemoryAttempt.
+func (c *KaguyaMemoryAttemptClient) Delete() *KaguyaMemoryAttemptDelete {
+	mutation := newKaguyaMemoryAttemptMutation(c.config, OpDelete)
+	return &KaguyaMemoryAttemptDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemoryAttemptClient) DeleteOne(_m *KaguyaMemoryAttempt) *KaguyaMemoryAttemptDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemoryAttemptClient) DeleteOneID(id string) *KaguyaMemoryAttemptDeleteOne {
+	builder := c.Delete().Where(kaguyamemoryattempt.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemoryAttemptDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemoryAttempt.
+func (c *KaguyaMemoryAttemptClient) Query() *KaguyaMemoryAttemptQuery {
+	return &KaguyaMemoryAttemptQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemoryAttempt},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemoryAttempt entity by its id.
+func (c *KaguyaMemoryAttemptClient) Get(ctx context.Context, id string) (*KaguyaMemoryAttempt, error) {
+	return c.Query().Where(kaguyamemoryattempt.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemoryAttemptClient) GetX(ctx context.Context, id string) *KaguyaMemoryAttempt {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemoryAttemptClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMemoryAttempt
+	return append(hooks[:len(hooks):len(hooks)], kaguyamemoryattempt.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemoryAttemptClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemoryAttempt
+}
+
+func (c *KaguyaMemoryAttemptClient) mutate(ctx context.Context, m *KaguyaMemoryAttemptMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemoryAttemptCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemoryAttemptUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemoryAttemptUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemoryAttemptDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemoryAttempt mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaMemoryEvidenceClient is a client for the KaguyaMemoryEvidence schema.
+type KaguyaMemoryEvidenceClient struct {
+	config
+}
+
+// NewKaguyaMemoryEvidenceClient returns a client for the KaguyaMemoryEvidence from the given config.
+func NewKaguyaMemoryEvidenceClient(c config) *KaguyaMemoryEvidenceClient {
+	return &KaguyaMemoryEvidenceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemoryevidence.Hooks(f(g(h())))`.
+func (c *KaguyaMemoryEvidenceClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemoryEvidence = append(c.hooks.KaguyaMemoryEvidence, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemoryevidence.Intercept(f(g(h())))`.
+func (c *KaguyaMemoryEvidenceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemoryEvidence = append(c.inters.KaguyaMemoryEvidence, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemoryEvidence entity.
+func (c *KaguyaMemoryEvidenceClient) Create() *KaguyaMemoryEvidenceCreate {
+	mutation := newKaguyaMemoryEvidenceMutation(c.config, OpCreate)
+	return &KaguyaMemoryEvidenceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemoryEvidence entities.
+func (c *KaguyaMemoryEvidenceClient) CreateBulk(builders ...*KaguyaMemoryEvidenceCreate) *KaguyaMemoryEvidenceCreateBulk {
+	return &KaguyaMemoryEvidenceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemoryEvidenceClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemoryEvidenceCreate, int)) *KaguyaMemoryEvidenceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemoryEvidenceCreateBulk{err: fmt.Errorf("calling to KaguyaMemoryEvidenceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemoryEvidenceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemoryEvidenceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemoryEvidence.
+func (c *KaguyaMemoryEvidenceClient) Update() *KaguyaMemoryEvidenceUpdate {
+	mutation := newKaguyaMemoryEvidenceMutation(c.config, OpUpdate)
+	return &KaguyaMemoryEvidenceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemoryEvidenceClient) UpdateOne(_m *KaguyaMemoryEvidence) *KaguyaMemoryEvidenceUpdateOne {
+	mutation := newKaguyaMemoryEvidenceMutation(c.config, OpUpdateOne, withKaguyaMemoryEvidence(_m))
+	return &KaguyaMemoryEvidenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemoryEvidenceClient) UpdateOneID(id string) *KaguyaMemoryEvidenceUpdateOne {
+	mutation := newKaguyaMemoryEvidenceMutation(c.config, OpUpdateOne, withKaguyaMemoryEvidenceID(id))
+	return &KaguyaMemoryEvidenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemoryEvidence.
+func (c *KaguyaMemoryEvidenceClient) Delete() *KaguyaMemoryEvidenceDelete {
+	mutation := newKaguyaMemoryEvidenceMutation(c.config, OpDelete)
+	return &KaguyaMemoryEvidenceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemoryEvidenceClient) DeleteOne(_m *KaguyaMemoryEvidence) *KaguyaMemoryEvidenceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemoryEvidenceClient) DeleteOneID(id string) *KaguyaMemoryEvidenceDeleteOne {
+	builder := c.Delete().Where(kaguyamemoryevidence.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemoryEvidenceDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemoryEvidence.
+func (c *KaguyaMemoryEvidenceClient) Query() *KaguyaMemoryEvidenceQuery {
+	return &KaguyaMemoryEvidenceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemoryEvidence},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemoryEvidence entity by its id.
+func (c *KaguyaMemoryEvidenceClient) Get(ctx context.Context, id string) (*KaguyaMemoryEvidence, error) {
+	return c.Query().Where(kaguyamemoryevidence.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemoryEvidenceClient) GetX(ctx context.Context, id string) *KaguyaMemoryEvidence {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemoryEvidenceClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMemoryEvidence
+	return append(hooks[:len(hooks):len(hooks)], kaguyamemoryevidence.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemoryEvidenceClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemoryEvidence
+}
+
+func (c *KaguyaMemoryEvidenceClient) mutate(ctx context.Context, m *KaguyaMemoryEvidenceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemoryEvidenceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemoryEvidenceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemoryEvidenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemoryEvidenceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemoryEvidence mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaMemoryJobClient is a client for the KaguyaMemoryJob schema.
+type KaguyaMemoryJobClient struct {
+	config
+}
+
+// NewKaguyaMemoryJobClient returns a client for the KaguyaMemoryJob from the given config.
+func NewKaguyaMemoryJobClient(c config) *KaguyaMemoryJobClient {
+	return &KaguyaMemoryJobClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemoryjob.Hooks(f(g(h())))`.
+func (c *KaguyaMemoryJobClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemoryJob = append(c.hooks.KaguyaMemoryJob, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemoryjob.Intercept(f(g(h())))`.
+func (c *KaguyaMemoryJobClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemoryJob = append(c.inters.KaguyaMemoryJob, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemoryJob entity.
+func (c *KaguyaMemoryJobClient) Create() *KaguyaMemoryJobCreate {
+	mutation := newKaguyaMemoryJobMutation(c.config, OpCreate)
+	return &KaguyaMemoryJobCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemoryJob entities.
+func (c *KaguyaMemoryJobClient) CreateBulk(builders ...*KaguyaMemoryJobCreate) *KaguyaMemoryJobCreateBulk {
+	return &KaguyaMemoryJobCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemoryJobClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemoryJobCreate, int)) *KaguyaMemoryJobCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemoryJobCreateBulk{err: fmt.Errorf("calling to KaguyaMemoryJobClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemoryJobCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemoryJobCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemoryJob.
+func (c *KaguyaMemoryJobClient) Update() *KaguyaMemoryJobUpdate {
+	mutation := newKaguyaMemoryJobMutation(c.config, OpUpdate)
+	return &KaguyaMemoryJobUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemoryJobClient) UpdateOne(_m *KaguyaMemoryJob) *KaguyaMemoryJobUpdateOne {
+	mutation := newKaguyaMemoryJobMutation(c.config, OpUpdateOne, withKaguyaMemoryJob(_m))
+	return &KaguyaMemoryJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemoryJobClient) UpdateOneID(id string) *KaguyaMemoryJobUpdateOne {
+	mutation := newKaguyaMemoryJobMutation(c.config, OpUpdateOne, withKaguyaMemoryJobID(id))
+	return &KaguyaMemoryJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemoryJob.
+func (c *KaguyaMemoryJobClient) Delete() *KaguyaMemoryJobDelete {
+	mutation := newKaguyaMemoryJobMutation(c.config, OpDelete)
+	return &KaguyaMemoryJobDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemoryJobClient) DeleteOne(_m *KaguyaMemoryJob) *KaguyaMemoryJobDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemoryJobClient) DeleteOneID(id string) *KaguyaMemoryJobDeleteOne {
+	builder := c.Delete().Where(kaguyamemoryjob.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemoryJobDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemoryJob.
+func (c *KaguyaMemoryJobClient) Query() *KaguyaMemoryJobQuery {
+	return &KaguyaMemoryJobQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemoryJob},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemoryJob entity by its id.
+func (c *KaguyaMemoryJobClient) Get(ctx context.Context, id string) (*KaguyaMemoryJob, error) {
+	return c.Query().Where(kaguyamemoryjob.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemoryJobClient) GetX(ctx context.Context, id string) *KaguyaMemoryJob {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemoryJobClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMemoryJob
+	return append(hooks[:len(hooks):len(hooks)], kaguyamemoryjob.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemoryJobClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemoryJob
+}
+
+func (c *KaguyaMemoryJobClient) mutate(ctx context.Context, m *KaguyaMemoryJobMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemoryJobCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemoryJobUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemoryJobUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemoryJobDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemoryJob mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaMemoryLinkClient is a client for the KaguyaMemoryLink schema.
+type KaguyaMemoryLinkClient struct {
+	config
+}
+
+// NewKaguyaMemoryLinkClient returns a client for the KaguyaMemoryLink from the given config.
+func NewKaguyaMemoryLinkClient(c config) *KaguyaMemoryLinkClient {
+	return &KaguyaMemoryLinkClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemorylink.Hooks(f(g(h())))`.
+func (c *KaguyaMemoryLinkClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemoryLink = append(c.hooks.KaguyaMemoryLink, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemorylink.Intercept(f(g(h())))`.
+func (c *KaguyaMemoryLinkClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemoryLink = append(c.inters.KaguyaMemoryLink, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemoryLink entity.
+func (c *KaguyaMemoryLinkClient) Create() *KaguyaMemoryLinkCreate {
+	mutation := newKaguyaMemoryLinkMutation(c.config, OpCreate)
+	return &KaguyaMemoryLinkCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemoryLink entities.
+func (c *KaguyaMemoryLinkClient) CreateBulk(builders ...*KaguyaMemoryLinkCreate) *KaguyaMemoryLinkCreateBulk {
+	return &KaguyaMemoryLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemoryLinkClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemoryLinkCreate, int)) *KaguyaMemoryLinkCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemoryLinkCreateBulk{err: fmt.Errorf("calling to KaguyaMemoryLinkClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemoryLinkCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemoryLinkCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemoryLink.
+func (c *KaguyaMemoryLinkClient) Update() *KaguyaMemoryLinkUpdate {
+	mutation := newKaguyaMemoryLinkMutation(c.config, OpUpdate)
+	return &KaguyaMemoryLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemoryLinkClient) UpdateOne(_m *KaguyaMemoryLink) *KaguyaMemoryLinkUpdateOne {
+	mutation := newKaguyaMemoryLinkMutation(c.config, OpUpdateOne, withKaguyaMemoryLink(_m))
+	return &KaguyaMemoryLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemoryLinkClient) UpdateOneID(id string) *KaguyaMemoryLinkUpdateOne {
+	mutation := newKaguyaMemoryLinkMutation(c.config, OpUpdateOne, withKaguyaMemoryLinkID(id))
+	return &KaguyaMemoryLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemoryLink.
+func (c *KaguyaMemoryLinkClient) Delete() *KaguyaMemoryLinkDelete {
+	mutation := newKaguyaMemoryLinkMutation(c.config, OpDelete)
+	return &KaguyaMemoryLinkDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemoryLinkClient) DeleteOne(_m *KaguyaMemoryLink) *KaguyaMemoryLinkDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemoryLinkClient) DeleteOneID(id string) *KaguyaMemoryLinkDeleteOne {
+	builder := c.Delete().Where(kaguyamemorylink.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemoryLinkDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemoryLink.
+func (c *KaguyaMemoryLinkClient) Query() *KaguyaMemoryLinkQuery {
+	return &KaguyaMemoryLinkQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemoryLink},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemoryLink entity by its id.
+func (c *KaguyaMemoryLinkClient) Get(ctx context.Context, id string) (*KaguyaMemoryLink, error) {
+	return c.Query().Where(kaguyamemorylink.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemoryLinkClient) GetX(ctx context.Context, id string) *KaguyaMemoryLink {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemoryLinkClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMemoryLink
+	return append(hooks[:len(hooks):len(hooks)], kaguyamemorylink.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemoryLinkClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemoryLink
+}
+
+func (c *KaguyaMemoryLinkClient) mutate(ctx context.Context, m *KaguyaMemoryLinkMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemoryLinkCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemoryLinkUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemoryLinkUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemoryLinkDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemoryLink mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaMemoryPageClient is a client for the KaguyaMemoryPage schema.
+type KaguyaMemoryPageClient struct {
+	config
+}
+
+// NewKaguyaMemoryPageClient returns a client for the KaguyaMemoryPage from the given config.
+func NewKaguyaMemoryPageClient(c config) *KaguyaMemoryPageClient {
+	return &KaguyaMemoryPageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemorypage.Hooks(f(g(h())))`.
+func (c *KaguyaMemoryPageClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemoryPage = append(c.hooks.KaguyaMemoryPage, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemorypage.Intercept(f(g(h())))`.
+func (c *KaguyaMemoryPageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemoryPage = append(c.inters.KaguyaMemoryPage, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemoryPage entity.
+func (c *KaguyaMemoryPageClient) Create() *KaguyaMemoryPageCreate {
+	mutation := newKaguyaMemoryPageMutation(c.config, OpCreate)
+	return &KaguyaMemoryPageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemoryPage entities.
+func (c *KaguyaMemoryPageClient) CreateBulk(builders ...*KaguyaMemoryPageCreate) *KaguyaMemoryPageCreateBulk {
+	return &KaguyaMemoryPageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemoryPageClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemoryPageCreate, int)) *KaguyaMemoryPageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemoryPageCreateBulk{err: fmt.Errorf("calling to KaguyaMemoryPageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemoryPageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemoryPageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemoryPage.
+func (c *KaguyaMemoryPageClient) Update() *KaguyaMemoryPageUpdate {
+	mutation := newKaguyaMemoryPageMutation(c.config, OpUpdate)
+	return &KaguyaMemoryPageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemoryPageClient) UpdateOne(_m *KaguyaMemoryPage) *KaguyaMemoryPageUpdateOne {
+	mutation := newKaguyaMemoryPageMutation(c.config, OpUpdateOne, withKaguyaMemoryPage(_m))
+	return &KaguyaMemoryPageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemoryPageClient) UpdateOneID(id string) *KaguyaMemoryPageUpdateOne {
+	mutation := newKaguyaMemoryPageMutation(c.config, OpUpdateOne, withKaguyaMemoryPageID(id))
+	return &KaguyaMemoryPageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemoryPage.
+func (c *KaguyaMemoryPageClient) Delete() *KaguyaMemoryPageDelete {
+	mutation := newKaguyaMemoryPageMutation(c.config, OpDelete)
+	return &KaguyaMemoryPageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemoryPageClient) DeleteOne(_m *KaguyaMemoryPage) *KaguyaMemoryPageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemoryPageClient) DeleteOneID(id string) *KaguyaMemoryPageDeleteOne {
+	builder := c.Delete().Where(kaguyamemorypage.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemoryPageDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemoryPage.
+func (c *KaguyaMemoryPageClient) Query() *KaguyaMemoryPageQuery {
+	return &KaguyaMemoryPageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemoryPage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemoryPage entity by its id.
+func (c *KaguyaMemoryPageClient) Get(ctx context.Context, id string) (*KaguyaMemoryPage, error) {
+	return c.Query().Where(kaguyamemorypage.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemoryPageClient) GetX(ctx context.Context, id string) *KaguyaMemoryPage {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemoryPageClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMemoryPage
+	return append(hooks[:len(hooks):len(hooks)], kaguyamemorypage.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemoryPageClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemoryPage
+}
+
+func (c *KaguyaMemoryPageClient) mutate(ctx context.Context, m *KaguyaMemoryPageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemoryPageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemoryPageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemoryPageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemoryPageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemoryPage mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaMemoryRevisionClient is a client for the KaguyaMemoryRevision schema.
+type KaguyaMemoryRevisionClient struct {
+	config
+}
+
+// NewKaguyaMemoryRevisionClient returns a client for the KaguyaMemoryRevision from the given config.
+func NewKaguyaMemoryRevisionClient(c config) *KaguyaMemoryRevisionClient {
+	return &KaguyaMemoryRevisionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemoryrevision.Hooks(f(g(h())))`.
+func (c *KaguyaMemoryRevisionClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemoryRevision = append(c.hooks.KaguyaMemoryRevision, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemoryrevision.Intercept(f(g(h())))`.
+func (c *KaguyaMemoryRevisionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemoryRevision = append(c.inters.KaguyaMemoryRevision, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemoryRevision entity.
+func (c *KaguyaMemoryRevisionClient) Create() *KaguyaMemoryRevisionCreate {
+	mutation := newKaguyaMemoryRevisionMutation(c.config, OpCreate)
+	return &KaguyaMemoryRevisionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemoryRevision entities.
+func (c *KaguyaMemoryRevisionClient) CreateBulk(builders ...*KaguyaMemoryRevisionCreate) *KaguyaMemoryRevisionCreateBulk {
+	return &KaguyaMemoryRevisionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemoryRevisionClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemoryRevisionCreate, int)) *KaguyaMemoryRevisionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemoryRevisionCreateBulk{err: fmt.Errorf("calling to KaguyaMemoryRevisionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemoryRevisionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemoryRevisionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemoryRevision.
+func (c *KaguyaMemoryRevisionClient) Update() *KaguyaMemoryRevisionUpdate {
+	mutation := newKaguyaMemoryRevisionMutation(c.config, OpUpdate)
+	return &KaguyaMemoryRevisionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemoryRevisionClient) UpdateOne(_m *KaguyaMemoryRevision) *KaguyaMemoryRevisionUpdateOne {
+	mutation := newKaguyaMemoryRevisionMutation(c.config, OpUpdateOne, withKaguyaMemoryRevision(_m))
+	return &KaguyaMemoryRevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemoryRevisionClient) UpdateOneID(id string) *KaguyaMemoryRevisionUpdateOne {
+	mutation := newKaguyaMemoryRevisionMutation(c.config, OpUpdateOne, withKaguyaMemoryRevisionID(id))
+	return &KaguyaMemoryRevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemoryRevision.
+func (c *KaguyaMemoryRevisionClient) Delete() *KaguyaMemoryRevisionDelete {
+	mutation := newKaguyaMemoryRevisionMutation(c.config, OpDelete)
+	return &KaguyaMemoryRevisionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemoryRevisionClient) DeleteOne(_m *KaguyaMemoryRevision) *KaguyaMemoryRevisionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemoryRevisionClient) DeleteOneID(id string) *KaguyaMemoryRevisionDeleteOne {
+	builder := c.Delete().Where(kaguyamemoryrevision.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemoryRevisionDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemoryRevision.
+func (c *KaguyaMemoryRevisionClient) Query() *KaguyaMemoryRevisionQuery {
+	return &KaguyaMemoryRevisionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemoryRevision},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemoryRevision entity by its id.
+func (c *KaguyaMemoryRevisionClient) Get(ctx context.Context, id string) (*KaguyaMemoryRevision, error) {
+	return c.Query().Where(kaguyamemoryrevision.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemoryRevisionClient) GetX(ctx context.Context, id string) *KaguyaMemoryRevision {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemoryRevisionClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMemoryRevision
+	return append(hooks[:len(hooks):len(hooks)], kaguyamemoryrevision.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemoryRevisionClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemoryRevision
+}
+
+func (c *KaguyaMemoryRevisionClient) mutate(ctx context.Context, m *KaguyaMemoryRevisionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemoryRevisionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemoryRevisionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemoryRevisionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemoryRevisionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemoryRevision mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaMemorySearchDocClient is a client for the KaguyaMemorySearchDoc schema.
+type KaguyaMemorySearchDocClient struct {
+	config
+}
+
+// NewKaguyaMemorySearchDocClient returns a client for the KaguyaMemorySearchDoc from the given config.
+func NewKaguyaMemorySearchDocClient(c config) *KaguyaMemorySearchDocClient {
+	return &KaguyaMemorySearchDocClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemorysearchdoc.Hooks(f(g(h())))`.
+func (c *KaguyaMemorySearchDocClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemorySearchDoc = append(c.hooks.KaguyaMemorySearchDoc, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemorysearchdoc.Intercept(f(g(h())))`.
+func (c *KaguyaMemorySearchDocClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemorySearchDoc = append(c.inters.KaguyaMemorySearchDoc, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemorySearchDoc entity.
+func (c *KaguyaMemorySearchDocClient) Create() *KaguyaMemorySearchDocCreate {
+	mutation := newKaguyaMemorySearchDocMutation(c.config, OpCreate)
+	return &KaguyaMemorySearchDocCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemorySearchDoc entities.
+func (c *KaguyaMemorySearchDocClient) CreateBulk(builders ...*KaguyaMemorySearchDocCreate) *KaguyaMemorySearchDocCreateBulk {
+	return &KaguyaMemorySearchDocCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemorySearchDocClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemorySearchDocCreate, int)) *KaguyaMemorySearchDocCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemorySearchDocCreateBulk{err: fmt.Errorf("calling to KaguyaMemorySearchDocClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemorySearchDocCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemorySearchDocCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemorySearchDoc.
+func (c *KaguyaMemorySearchDocClient) Update() *KaguyaMemorySearchDocUpdate {
+	mutation := newKaguyaMemorySearchDocMutation(c.config, OpUpdate)
+	return &KaguyaMemorySearchDocUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemorySearchDocClient) UpdateOne(_m *KaguyaMemorySearchDoc) *KaguyaMemorySearchDocUpdateOne {
+	mutation := newKaguyaMemorySearchDocMutation(c.config, OpUpdateOne, withKaguyaMemorySearchDoc(_m))
+	return &KaguyaMemorySearchDocUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemorySearchDocClient) UpdateOneID(id int64) *KaguyaMemorySearchDocUpdateOne {
+	mutation := newKaguyaMemorySearchDocMutation(c.config, OpUpdateOne, withKaguyaMemorySearchDocID(id))
+	return &KaguyaMemorySearchDocUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemorySearchDoc.
+func (c *KaguyaMemorySearchDocClient) Delete() *KaguyaMemorySearchDocDelete {
+	mutation := newKaguyaMemorySearchDocMutation(c.config, OpDelete)
+	return &KaguyaMemorySearchDocDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemorySearchDocClient) DeleteOne(_m *KaguyaMemorySearchDoc) *KaguyaMemorySearchDocDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemorySearchDocClient) DeleteOneID(id int64) *KaguyaMemorySearchDocDeleteOne {
+	builder := c.Delete().Where(kaguyamemorysearchdoc.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemorySearchDocDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemorySearchDoc.
+func (c *KaguyaMemorySearchDocClient) Query() *KaguyaMemorySearchDocQuery {
+	return &KaguyaMemorySearchDocQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemorySearchDoc},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemorySearchDoc entity by its id.
+func (c *KaguyaMemorySearchDocClient) Get(ctx context.Context, id int64) (*KaguyaMemorySearchDoc, error) {
+	return c.Query().Where(kaguyamemorysearchdoc.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemorySearchDocClient) GetX(ctx context.Context, id int64) *KaguyaMemorySearchDoc {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemorySearchDocClient) Hooks() []Hook {
+	return c.hooks.KaguyaMemorySearchDoc
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemorySearchDocClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemorySearchDoc
+}
+
+func (c *KaguyaMemorySearchDocClient) mutate(ctx context.Context, m *KaguyaMemorySearchDocMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemorySearchDocCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemorySearchDocUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemorySearchDocUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemorySearchDocDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemorySearchDoc mutation op: %q", m.Op())
+	}
+}
+
+// KaguyaMemorySourceClient is a client for the KaguyaMemorySource schema.
+type KaguyaMemorySourceClient struct {
+	config
+}
+
+// NewKaguyaMemorySourceClient returns a client for the KaguyaMemorySource from the given config.
+func NewKaguyaMemorySourceClient(c config) *KaguyaMemorySourceClient {
+	return &KaguyaMemorySourceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyamemorysource.Hooks(f(g(h())))`.
+func (c *KaguyaMemorySourceClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaMemorySource = append(c.hooks.KaguyaMemorySource, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyamemorysource.Intercept(f(g(h())))`.
+func (c *KaguyaMemorySourceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaMemorySource = append(c.inters.KaguyaMemorySource, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaMemorySource entity.
+func (c *KaguyaMemorySourceClient) Create() *KaguyaMemorySourceCreate {
+	mutation := newKaguyaMemorySourceMutation(c.config, OpCreate)
+	return &KaguyaMemorySourceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaMemorySource entities.
+func (c *KaguyaMemorySourceClient) CreateBulk(builders ...*KaguyaMemorySourceCreate) *KaguyaMemorySourceCreateBulk {
+	return &KaguyaMemorySourceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaMemorySourceClient) MapCreateBulk(slice any, setFunc func(*KaguyaMemorySourceCreate, int)) *KaguyaMemorySourceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaMemorySourceCreateBulk{err: fmt.Errorf("calling to KaguyaMemorySourceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaMemorySourceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaMemorySourceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaMemorySource.
+func (c *KaguyaMemorySourceClient) Update() *KaguyaMemorySourceUpdate {
+	mutation := newKaguyaMemorySourceMutation(c.config, OpUpdate)
+	return &KaguyaMemorySourceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaMemorySourceClient) UpdateOne(_m *KaguyaMemorySource) *KaguyaMemorySourceUpdateOne {
+	mutation := newKaguyaMemorySourceMutation(c.config, OpUpdateOne, withKaguyaMemorySource(_m))
+	return &KaguyaMemorySourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaMemorySourceClient) UpdateOneID(id string) *KaguyaMemorySourceUpdateOne {
+	mutation := newKaguyaMemorySourceMutation(c.config, OpUpdateOne, withKaguyaMemorySourceID(id))
+	return &KaguyaMemorySourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaMemorySource.
+func (c *KaguyaMemorySourceClient) Delete() *KaguyaMemorySourceDelete {
+	mutation := newKaguyaMemorySourceMutation(c.config, OpDelete)
+	return &KaguyaMemorySourceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaMemorySourceClient) DeleteOne(_m *KaguyaMemorySource) *KaguyaMemorySourceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaMemorySourceClient) DeleteOneID(id string) *KaguyaMemorySourceDeleteOne {
+	builder := c.Delete().Where(kaguyamemorysource.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaMemorySourceDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaMemorySource.
+func (c *KaguyaMemorySourceClient) Query() *KaguyaMemorySourceQuery {
+	return &KaguyaMemorySourceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaMemorySource},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaMemorySource entity by its id.
+func (c *KaguyaMemorySourceClient) Get(ctx context.Context, id string) (*KaguyaMemorySource, error) {
+	return c.Query().Where(kaguyamemorysource.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaMemorySourceClient) GetX(ctx context.Context, id string) *KaguyaMemorySource {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaMemorySourceClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaMemorySource
+	return append(hooks[:len(hooks):len(hooks)], kaguyamemorysource.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaMemorySourceClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaMemorySource
+}
+
+func (c *KaguyaMemorySourceClient) mutate(ctx context.Context, m *KaguyaMemorySourceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaMemorySourceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaMemorySourceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaMemorySourceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaMemorySourceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaMemorySource mutation op: %q", m.Op())
+	}
+}
+
 // KaguyaModelsInfoClient is a client for the KaguyaModelsInfo schema.
 type KaguyaModelsInfoClient struct {
 	config
@@ -1469,12 +2610,16 @@ func (c *KaguyaSystemInfoClient) mutate(ctx context.Context, m *KaguyaSystemInfo
 type (
 	hooks struct {
 		KaguyaChatBlock, KaguyaChatTurn, KaguyaConversation, KaguyaMCPServer,
-		KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
+		KaguyaMemoryAttempt, KaguyaMemoryEvidence, KaguyaMemoryJob, KaguyaMemoryLink,
+		KaguyaMemoryPage, KaguyaMemoryRevision, KaguyaMemorySearchDoc,
+		KaguyaMemorySource, KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
 		KaguyaSystemInfo []ent.Hook
 	}
 	inters struct {
 		KaguyaChatBlock, KaguyaChatTurn, KaguyaConversation, KaguyaMCPServer,
-		KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
+		KaguyaMemoryAttempt, KaguyaMemoryEvidence, KaguyaMemoryJob, KaguyaMemoryLink,
+		KaguyaMemoryPage, KaguyaMemoryRevision, KaguyaMemorySearchDoc,
+		KaguyaMemorySource, KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
 		KaguyaSystemInfo []ent.Interceptor
 	}
 )

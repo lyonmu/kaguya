@@ -11,6 +11,7 @@ import (
 	"charm.land/fantasy"
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 )
@@ -73,6 +74,8 @@ type KaguyaChatTurn struct {
 	ContextMessages []fantasy.Message `json:"context_messages,omitempty"`
 	// CompactionCount holds the value of the "compaction_count" field.
 	CompactionCount int `json:"compaction_count,omitempty"`
+	// 本轮自动召回选择的页面版本与检索器版本；不复制正文，失败轮次为空
+	MemoryRefs memory.TurnMemorySelection `json:"memory_refs,omitempty"`
 	// 仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端
 	Messages []fantasy.Message `json:"messages,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -117,7 +120,7 @@ func (*KaguyaChatTurn) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldMessages:
+		case kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldMemoryRefs, kaguyachatturn.FieldMessages:
 			values[i] = new([]byte)
 		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow, kaguyachatturn.FieldCompactionCount:
 			values[i] = new(sql.NullInt64)
@@ -306,6 +309,14 @@ func (_m *KaguyaChatTurn) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CompactionCount = int(value.Int64)
 			}
+		case kaguyachatturn.FieldMemoryRefs:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field memory_refs", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.MemoryRefs); err != nil {
+					return fmt.Errorf("unmarshal field memory_refs: %w", err)
+				}
+			}
 		case kaguyachatturn.FieldMessages:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field messages", values[i])
@@ -441,6 +452,9 @@ func (_m *KaguyaChatTurn) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("compaction_count=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CompactionCount))
+	builder.WriteString(", ")
+	builder.WriteString("memory_refs=")
+	builder.WriteString(fmt.Sprintf("%v", _m.MemoryRefs))
 	builder.WriteString(", ")
 	builder.WriteString("messages=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Messages))
