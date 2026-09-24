@@ -36,6 +36,7 @@ These screenshots were captured from the locally installed `Kaguya.app` on **202
 - **Model selection**: choose a provider and then a model in the composer. The collapsed control shows the model name; requests without an explicit choice use the system default chat model.
 - **Concurrent conversations**: running conversations continue while switching chats or visiting system pages. Inspect running conversations and stop them separately. Each conversation runs one turn at a time.
 - **Conversation management**: create, search by title prefix, continue, rename, and delete conversations. Reload or browse paginated history and inspect tokens, duration, and tool-call counts for each turn.
+- **Memory**: the header shows which memory pages the latest turn referenced; the conversation menu switches per-conversation memory mode (inherit / read-only / off), and each question or answer can be saved as a memory explicitly.
 - **Context management**: the composer shows context occupancy from the latest model call. At the configured threshold, earlier content is summarized while recent messages and original history are retained. The summary is saved with the successful turn and reused on continuation. Unknown model windows show unknown occupancy and skip automatic compaction.
 
 **Enter** sends; **Shift + Enter** inserts a newline. Stop an active response with the stop control. Stopped, failed, or disconnected turns retain their generated content and tool records. A continuation retains user questions from unfinished turns; partial assistant responses and tool records are display-only. Closing the application, refreshing the page, or losing the streaming connection interrupts the current turn.
@@ -125,6 +126,16 @@ New services are disabled. Enabling connects and discovers tools; application re
 
 Tool timeouts range from **1–600 seconds**. HTTP authentication is configured through headers. Local services inherit the application process environment, with additional variables configurable per service.
 
+### Long-term memory
+
+Open **System management → Long-term memory** (系统管理 → 长期记忆). Memories are traceable Markdown pages stored in the same encrypted database: every published revision keeps a full snapshot, claim evidence points back to the exact conversation segment it came from, and full-text search covers Chinese two-character words as well as identifiers, paths, and version numbers.
+
+- **Scopes**: personal, shared, and per-project (`project:<id>`). Ordinary conversations read personal + shared; project conversations read their own project + shared. Nothing crosses projects, and deleting a project keeps its memories in that project's scope instead of reassigning them.
+- **Manual saving**: in a conversation, save a question or answer as a memory (the source is located in the real turn), or create pages directly in the memory view. Edits use optimistic versioning; conflicts return a clear error instead of last-writer-wins. Pin keeps a page in the recall budget; lock blocks automatic overwrites. Deletion has two levels: disable (no longer recalled, restorable, content kept) and forget (removed from the index immediately, body/revisions/evidence purged, a minimal tombstone prevents silent resurrection). Old revisions restore as new versions.
+- **Recall and tools**: before each turn the app injects the most relevant pages as temporary reference material (never into the instruction snapshot or compaction history), with a conservative token budget; revoked pages drop out of later steps immediately. Both ordinary and project chats provide read-only `memory_search` / `memory_read` tools bound to the conversation's scope.
+- **Automatic organizing**: when enabled, completed turns enter a persistent outbox and a background worker compiles them with the **background-task model** (no tools, no MCP; the task model may belong to a different provider than the chat model). Extraction and merge run as two bounded calls with strict JSON contracts, deterministic validation of quotes and scopes, and single-transaction publishing. Empty output is a normal no-op; conflicts, locked pages, and weakly supported claims become review proposals you approve or reject. Deletions and privacy changes invalidate in-flight work immediately.
+- **Tasks and cost**: the tasks tab shows pending/blocked/failed/review states with retry, and a separate **Background tasks / Memory** usage label. Compiling costs are recorded per attempt (including failed calls) and never counted into chat usage.
+
 ### System configuration
 
 Open **System management → System configuration** (系统管理 → 系统配置).
@@ -139,6 +150,9 @@ Open **System management → System configuration** (系统管理 → 系统配�
 | Context compaction percentage | Defaults to `90%`, range `10–95%`; the rest of the window is reserved for output |
 | Global AGENTS.md paths | Loads personal instructions in order; clear the list to disable global file loading |
 | Catalog synchronization | Provider catalog defaults to `https://models.dev/api.json` and model catalog to `https://models.dev/models.json`, both complete HTTP(S) URLs; sync manually or enable an interval from `1–720` hours, and one sync updates both catalogs. **AI configuration → Provider catalog** sorts A→Z by name, while **Model catalog** supports searching by name, identifier, provider, family, or description and sorts by release date newest first |
+| Enable long-term memory | Master switch for recall, memory tools, and background compiling |
+| Auto-organize memories | Lets the background-task model distill completed conversations; turning it off only stops learning and keeps existing memories |
+| Memory injection limit | Per-turn recall budget in estimated tokens (default `2000`); estimates are conservative and not tokenizer-exact |
 | Global base prompt | Editable base persona used by new chat requests; it may be empty |
 | Additional system prompt | Appended to the base prompt for chat |
 
@@ -158,7 +172,7 @@ Open **System management → Usage analytics** (系统管理 → 用量分析).
 
 ![Token composition by model across all history](images/screenshots/desktop-2026-09-13/usage-composition.jpg)
 
-Dates use **UTC**. Only successfully completed chat turns count, including historical consumption from deleted conversations. Context-summary usage counts toward chat turns; title tasks and unfinished turns are excluded. This page therefore reflects chat usage recorded by the application.
+Dates use **UTC**. Only successfully completed chat turns count, including historical consumption from deleted conversations. Context-summary usage counts toward chat turns; title tasks, memory-compile attempts, and unfinished turns are excluded (memory compile usage is labeled separately on the memory status tab). This page therefore reflects chat usage recorded by the application.
 
 ## Installation and building
 
