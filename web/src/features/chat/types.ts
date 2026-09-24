@@ -1,3 +1,4 @@
+import type { MemoryRefs } from '../memory/types'
 export interface Usage {
   input_tokens: number
   output_tokens: number
@@ -78,6 +79,8 @@ export interface Conversation {
   id: string
   title: string
   favorite: boolean
+  memory_mode?: string
+  memory_refs?: MemoryRefs
   turn_count: number
   model_id: string
   model_name: string
@@ -92,8 +95,10 @@ export interface Conversation {
 export type TurnStatus = 'streaming' | 'done' | 'error' | 'stopped' | 'running' | 'completed' | 'interrupted' | 'canceled' | 'failed'
 
 export interface Turn {
+  id?: string
   turn_index: number
   user_content: string
+  memory_refs?: MemoryRefs
   model_name: string
   model_id: string
   api_protocol: string

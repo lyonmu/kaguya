@@ -26,7 +26,7 @@ export function fetchTurns(id: string, before = 0, signal?: AbortSignal) {
 export function fetchTurnPage(id: string, page: number, signal?: AbortSignal) {
   return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: HISTORY_PAGE_SIZE, compact: true }, signal, turnPageGuard)
 }
-export function updateConversation(id: string, payload: { title?: string; favorite?: boolean }) {
+export function updateConversation(id: string, payload: { title?: string; favorite?: boolean; memory_mode?: string }) {
   return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload, conversationGuard)
 }
 // stopConversation 标记用户主动停止该会话的当前轮次，供服务端区分 canceled 与断联；

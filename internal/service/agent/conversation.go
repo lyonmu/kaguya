@@ -616,7 +616,7 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 	}
 	for i := len(rows) - 1; i >= 0; i-- {
 		row := rows[i]
-		turn := dtochat.StoredTurn{TurnIndex: row.TurnIndex, UserContent: row.UserContent, ProviderName: row.ProviderName,
+		turn := dtochat.StoredTurn{ID: row.ID, TurnIndex: row.TurnIndex, UserContent: row.UserContent, ProviderName: row.ProviderName,
 			ModelID: row.ModelID, ModelName: row.ModelName, APIProtocol: row.APIProtocol, StartedAt: row.StartedAt, FinishedAt: row.FinishedAt,
 			DurationMS: row.DurationMs, ToolCalls: row.ToolCalls, FinishReason: row.FinishReason, Status: string(row.Status),
 			Usage:  dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)},

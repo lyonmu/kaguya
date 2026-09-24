@@ -202,6 +202,17 @@ it('copies the user question from its own message', async () => {
   } finally { navigator.clipboard.writeText = write }
 })
 
+it('offers explicit save-as-memory with the turn as source', async () => {
+  const saved: Array<{ text: string; id?: string }> = []
+  const turn = { id: 'turn-7', turn_index: 1, user_content: '这个项目继续用 SQLCipher', model_id: 'm', model_name: 'model', api_protocol: 'openai', started_at: new Date().toISOString(), blocks: [{ type: 'text' as const, sequence: 1, text: '好的，保持 SQLCipher。' }], finish_reason: 'stop', duration_ms: 1, tool_calls: 0, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, cached_tokens: 0, reasoning_tokens: 0 } }
+  const view = render(<MessageList turns={[turn]} loading={false} streaming={false} page={1} totalPages={1} initialEnd onPageChange={async () => {}} onSaveMemory={(text, item) => { saved.push({ text, id: item.id }) }} />)
+  await act(async () => { fireEvent.click(view.getByLabelText('把提问保存为记忆')) })
+  assert.equal(saved[0]?.text, '这个项目继续用 SQLCipher')
+  assert.equal(saved[0]?.id, 'turn-7')
+  await act(async () => { fireEvent.click(view.getByLabelText('把回答保存为记忆')) })
+  assert.ok(saved[1]?.text.includes('保持 SQLCipher'))
+})
+
 it('offers continuation only on the last saved page and never while streaming', () => {
   const turn = { turn_index: 1, user_content: 'task', model_id: 'm', model_name: 'model', api_protocol: 'openai', started_at: new Date().toISOString(), blocks: [], finish_reason: 'step_limit', duration_ms: 1, tool_calls: 0, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, cached_tokens: 0, reasoning_tokens: 0 } }
   let continued = 0

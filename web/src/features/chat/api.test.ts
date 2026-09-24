@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { fetchBlock, fetchTurnPage, streamChat } from './api'
+import { fetchBlock, fetchTurnPage, streamChat, updateConversation } from './api'
 import { isBlock } from './guards'
 
 const originalFetch = globalThis.fetch
@@ -58,4 +58,17 @@ describe('chat API', () => {
     await assert.rejects(streamChat('', '你好', controller.signal, () => {}), { name: 'AbortError' })
     assert.equal(calls, 1)
   })
+})
+
+it('updates the per-conversation memory mode', async () => {
+  let payload: Record<string, unknown> | undefined
+  globalThis.fetch = (async (url, init) => {
+    assert.ok(String(url).endsWith('/v1/chat/conversation/c-1'))
+    assert.equal(init?.method, 'PUT')
+    payload = JSON.parse(String(init.body))
+    return Response.json({ code: 100000, data: { id: 'c-1', title: 't', is_project: false, favorite: false, memory_mode: String(payload?.memory_mode ?? 'inherit') } })
+  }) as typeof fetch
+  const result = await updateConversation('c-1', { memory_mode: 'readonly' })
+  assert.equal(payload?.memory_mode, 'readonly')
+  assert.equal(result.memory_mode, 'readonly')
 })

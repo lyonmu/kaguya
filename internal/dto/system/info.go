@@ -17,10 +17,14 @@ type SystemInfoSaveReq struct {
 	ModelSyncIntervalHours   *int     `json:"model_sync_interval_hours,omitempty" binding:"omitempty,min=1,max=720"`
 	DefaultModelID           string   `json:"default_model_id" binding:"max=64"`
 	TaskModelID              string   `json:"task_model_id" binding:"max=64"`
+	MemoryEnabled            bool     `json:"memory_enabled"`
+	MemoryAutoCapture        bool     `json:"memory_auto_capture"`
+	MemoryContextTokens      *int     `json:"memory_context_tokens,omitempty" binding:"omitempty,min=0,max=100000"`
 }
 
 type SystemInfoResp struct {
 	SystemInfoSaveReq
+	MemoryPolicyEpoch      int64      `json:"memory_policy_epoch"`
 	ModelSyncCatalogCount  int        `json:"model_sync_catalog_count"`
 	ProviderCatalogCount   int        `json:"provider_catalog_count"`
 	ModelSyncLastAttemptAt *time.Time `json:"model_sync_last_attempt_at,omitempty"`

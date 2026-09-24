@@ -32,6 +32,7 @@ func (s *SystemSvc) Info(ctx context.Context) (*dtosystem.SystemInfoResp, error)
 			kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount, kaguyasysteminfo.FieldModelSyncLastAttemptAt,
 			kaguyasysteminfo.FieldModelSyncLastSuccessAt, kaguyasysteminfo.FieldModelSyncLastError,
 			kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID,
+			kaguyasysteminfo.FieldMemoryEnabled, kaguyasysteminfo.FieldMemoryAutoCapture, kaguyasysteminfo.FieldMemoryContextTokens,
 		).Only(ctx)
 	if err != nil {
 		return nil, err
@@ -50,6 +51,9 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	if utf8.RuneCountInString(req.SystemPrompt) > 20000 || req.GlobalSystemPrompt != nil && utf8.RuneCountInString(*req.GlobalSystemPrompt) > 20000 || len(req.DefaultModelID) > 64 || len(req.TaskModelID) > 64 {
 		return nil, ErrInvalidSystemInfo
 	}
+	if req.MemoryContextTokens != nil && (*req.MemoryContextTokens < 0 || *req.MemoryContextTokens > 100000) {
+		return nil, ErrInvalidSystemInfo
+	}
 	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || req.ChatMaxRetries != nil && (*req.ChatMaxRetries < 0 || *req.ChatMaxRetries > 20) || req.ModelSyncIntervalHours != nil && (*req.ModelSyncIntervalHours < 1 || *req.ModelSyncIntervalHours > 720) || len(req.GlobalAgentsPaths) > 32 {
 		return nil, ErrInvalidSystemInfo
 	}
@@ -61,7 +65,8 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 			return nil, ErrInvalidSystemInfo
 		}
 	}
-	if _, err := s.Info(ctx); err != nil {
+	current, err := s.Info(ctx)
+	if err != nil {
 		return nil, err
 	}
 	tx, err := db.EntClient.Tx(ctx)
@@ -73,7 +78,8 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	// 校验失败时整体回滚，未提交配置不会对其他请求可见。
 	update := tx.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
 		SetSystemPrompt(req.SystemPrompt).SetModelSyncEnabled(req.ModelSyncEnabled).
-		SetDefaultModelID(req.DefaultModelID).SetTaskModelID(req.TaskModelID)
+		SetDefaultModelID(req.DefaultModelID).SetTaskModelID(req.TaskModelID).
+		SetMemoryEnabled(req.MemoryEnabled).SetMemoryAutoCapture(req.MemoryAutoCapture)
 	if req.GlobalSystemPrompt != nil {
 		update.SetGlobalSystemPrompt(*req.GlobalSystemPrompt)
 	}
@@ -100,6 +106,13 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	}
 	if req.GlobalAgentsPaths != nil {
 		update.SetGlobalAgentsPaths(req.GlobalAgentsPaths)
+	}
+	if req.MemoryContextTokens != nil {
+		update.SetMemoryContextTokens(*req.MemoryContextTokens)
+	}
+	// 记忆隐私开关变化同事务提升策略版本，使在途提案不能再发布。
+	if current.MemoryEnabled != req.MemoryEnabled || current.MemoryAutoCapture != req.MemoryAutoCapture {
+		update.AddMemoryPolicyEpoch(1)
 	}
 	row, err := update.Save(ctx)
 	if err != nil {
@@ -132,7 +145,10 @@ func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {
 			AgentMaxSteps: &row.AgentMaxSteps, CommandTimeoutSeconds: &row.CommandTimeoutSeconds, ChatMaxRetries: &row.ChatMaxRetries, GlobalAgentsPaths: defaultAgentsPaths(row.GlobalAgentsPaths),
 			ModelSyncEnabled: row.ModelSyncEnabled, ModelSyncURL: row.ModelSyncURL, ProviderSyncURL: row.ProviderSyncURL, ModelSyncIntervalHours: &row.ModelSyncIntervalHours,
 			DefaultModelID: row.DefaultModelID, TaskModelID: row.TaskModelID,
+			MemoryEnabled: row.MemoryEnabled, MemoryAutoCapture: row.MemoryAutoCapture,
+			MemoryContextTokens: &row.MemoryContextTokens,
 		},
+		MemoryPolicyEpoch:     row.MemoryPolicyEpoch,
 		ModelSyncCatalogCount: row.ModelCatalogCount, ProviderCatalogCount: row.ProviderCatalogCount,
 		ModelSyncLastAttemptAt: row.ModelSyncLastAttemptAt,
 		ModelSyncLastSuccessAt: row.ModelSyncLastSuccessAt, ModelSyncLastError: row.ModelSyncLastError,

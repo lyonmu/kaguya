@@ -273,3 +273,26 @@ it('runs two conversations through assistant-ui and retains them across system n
   await waitFor(() => assert.equal(streams[1].signal.aborted, true))
   assert.equal(streams[0].signal.aborted, false)
 })
+
+it('shows memory references and switches per-conversation memory mode', async () => {
+  let updated: Record<string, unknown> | undefined
+  const conversation = {
+    is_project: false, project_id: null, id: 'c-1', title: '记忆会话', favorite: false, turn_count: 1,
+    model_id: 'm', model_name: '模型', created_at: new Date().toISOString(), last_message_at: new Date().toISOString(),
+    duration_ms: 1, tool_calls: 0, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, cached_tokens: 0, reasoning_tokens: 0 },
+    memory_mode: 'inherit',
+    memory_refs: { retriever_version: 1, estimated_tokens: 42, items: [{ page_id: 'p-1', version: 3, title: 'Memory 使用 SQLCipher', status: 'active', deleted: false }] },
+  }
+  globalThis.fetch = (async (url, init) => {
+    const target = String(url)
+    if (target.includes('/model/label')) return response([])
+    if (init?.method === 'PUT') { updated = JSON.parse(String(init.body)); return response({ ...conversation, memory_mode: String(updated?.memory_mode ?? 'inherit') }) }
+    if (target.includes('/conversation/page')) return response({ items: [conversation], total: 1 })
+    if (target.includes('/turns')) return response({ total: 0, page: 1, page_size: 5, total_pages: 0, items: [], has_more: false, next_before: 0 })
+    return response(conversation)
+  }) as typeof fetch
+  const view = render(<App><ChatPage /></App>)
+  fireEvent.click(await view.findByRole('button', { name: /记忆会话/ }))
+  await waitFor(() => assert.ok(view.getByText(/本轮参考了 1 条记忆/)))
+  assert.ok(view.getByTitle('Memory 使用 SQLCipher（v3）'))
+})

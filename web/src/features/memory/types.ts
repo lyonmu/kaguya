@@ -117,9 +117,30 @@ export interface MemoryStatus {
   memory_usage_known: boolean
 }
 
+export interface MemoryRefItem {
+  page_id: string
+  version: number
+  title: string
+  status: string
+  deleted: boolean
+}
+
+export interface MemoryRefs {
+  retriever_version: number
+  estimated_tokens: number
+  items: MemoryRefItem[]
+}
+
 export interface MemoryExport {
   filename: string
   markdown: string
+}
+
+export interface MemorySourceRef {
+  conversation_id: string
+  turn_id: string
+  part_key: string
+  quote: string
 }
 
 export interface MemoryPagePayload {
@@ -135,6 +156,7 @@ export interface MemoryPagePayload {
   user_locked?: boolean
   related_ids?: string[]
   reason?: string
+  source?: MemorySourceRef
 }
 
 export interface MemoryPagePatch extends Partial<MemoryPagePayload> {

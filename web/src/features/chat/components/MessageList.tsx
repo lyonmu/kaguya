@@ -20,6 +20,7 @@ interface Props {
   totalPages: number;
   initialEnd: boolean;
   onContinue?: () => void;
+  onSaveMemory?: (text: string, turn: Turn) => void;
   onPageChange: (page: number, fromEnd?: boolean) => Promise<void>;
 }
 
@@ -33,6 +34,7 @@ export function MessageList({
   initialEnd,
   onPageChange,
   onContinue,
+  onSaveMemory,
 }: Props) {
   const rail = useRef<HTMLElement>(null);
   const viewport = useRef<HTMLDivElement>(null)
@@ -71,7 +73,7 @@ export function MessageList({
 
         </div>
       )}
-      <ContinueContext.Provider value={{ onContinue: page === totalPages ? onContinue : undefined, streaming, conversationId }}>
+      <ContinueContext.Provider value={{ onContinue: page === totalPages ? onContinue : undefined, streaming, conversationId, onSaveMemory }}>
         <ThreadPrimitive.Viewport ref={viewport} key={`${page}:${initialEnd}`} className="chat-messages" autoScroll={initialEnd} tabIndex={0}
           onWheel={event => { if (event.deltaY) boundary(event.deltaY < 0 ? -1 : 1) }}
           onTouchStart={event => { touchY.current = event.touches[0].clientY }}
@@ -107,7 +109,7 @@ export function MessageList({
   );
 }
 
-const ContinueContext = createContext<{ onContinue?: () => void; streaming: boolean; conversationId?: string }>({ streaming: false })
+const ContinueContext = createContext<{ onContinue?: () => void; streaming: boolean; conversationId?: string; onSaveMemory?: (text: string, turn: Turn) => void }>({ streaming: false })
 function RuntimeMessage() {
   const turn = useAuiState(state => state.message.metadata.custom.turn) as Turn
   const role = useAuiState(state => state.message.role)
@@ -131,7 +133,7 @@ function RuntimeMessage() {
                   你 · {new Date(turn.started_at).toLocaleString()}
                 </div>
                 <div className="chat-user-text">{turn.user_content}</div>
-                <div className="chat-response-actions"><CopyButton label="复制提问" text={turn.user_content} /></div>
+                <div className="chat-response-actions"><CopyButton label="复制提问" text={turn.user_content} />{context.onSaveMemory && !running && <button type="button" aria-label="把提问保存为记忆" onClick={() => context.onSaveMemory?.(turn.user_content, turn)}>保存为记忆</button>}</div>
               </div>
             </article>}
             {role === "assistant" && <article className="chat-message">
@@ -158,7 +160,7 @@ function RuntimeMessage() {
                   />
                 )}
                 {turn.finish_reason === 'step_limit' && <div className="chat-paused" role="status"><span>达到本轮步数上限，执行进度已保存。</span>{onContinue && <button type="button" onClick={onContinue} disabled={streaming}>继续执行 →</button>}</div>}
-                {!running && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} /></div>}
+                {!running && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} />{context.onSaveMemory && <button type="button" aria-label="把回答保存为记忆" onClick={() => context.onSaveMemory?.(turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n'), turn)}>保存为记忆</button>}</div>}
                 {isCompleteStatus(turn.status) && turn.usage && (
                   <div className="chat-turn-meta">
                     {turn.usage.total_tokens.toLocaleString()} tokens ·{" "}
