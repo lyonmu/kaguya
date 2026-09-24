@@ -14,6 +14,10 @@ import (
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/lyonmu/kaguya/internal/db"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/migrate"
+	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
+	"github.com/lyonmu/kaguya/internal/global"
+	"go.uber.org/zap"
 )
 
 type runtimeCloseDriver struct {
@@ -153,5 +157,39 @@ func TestAdmissionHandlerWaitsForInflight(t *testing.T) {
 	defer cancel()
 	if err := rt.gate.Wait(waitCtx); err != nil {
 		t.Fatalf("wait after handler exit: %v", err)
+	}
+}
+
+// 关停顺序：Memory worker 退出后才关闭数据库。
+func TestRuntimeWaitsForMemoryWorkerBeforeClosingDatabase(t *testing.T) {
+	rt := newAppRuntime(context.Background())
+	raw, err := sql.Open("sqlite3", "file:runtime-memory-worker?mode=memory&cache=shared&_foreign_keys=on")
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := &runtimeCloseDriver{Driver: entsql.OpenDB(dialect.SQLite, raw)}
+	client := ent.NewClient(ent.Driver(driver))
+	oldClient, oldLogger := db.EntClient, global.Logger
+	db.EntClient, global.Logger = client, zap.NewNop()
+	defer func() { db.EntClient, global.Logger = oldClient, oldLogger }()
+	if err := client.Schema.Create(context.Background(), migrate.WithForeignKeys(false)); err != nil {
+		t.Fatal(err)
+	}
+	rt.dbReady = true
+	rt.startMemoryWorker()
+	closed := make(chan struct{})
+	go func() { rt.close(); close(closed) }()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("close did not finish")
+	}
+	select {
+	case <-rt.memoryDone:
+	default:
+		t.Fatal("memory worker still running after close")
+	}
+	if driver.closes.Load() == 0 {
+		t.Fatal("database was not closed")
 	}
 }
