@@ -45,6 +45,7 @@ const (
 	OriginUserStatement      = "user_statement"
 	OriginAssistantAssertion = "assistant_assertion"
 	OriginToolObservation    = "tool_observation"
+	OriginDocumentStatement  = "document_statement"
 )
 
 // SourceProjection 是后台提炼使用的有界、版本化可见来源投影。
@@ -151,6 +152,11 @@ func BuildNoteSegments(body string) []Segment {
 	return splitSegments("note", OriginUserStatement, body)
 }
 
+// BuildDocumentSegments 是显式导入资料的投影；资料陈述不自动等于外部事实已核实。
+func BuildDocumentSegments(content string) []Segment {
+	return splitSegments("document", OriginDocumentStatement, content)
+}
+
 func truncateRunes(text string, limit int) string {
 	runes := []rune(text)
 	if len(runes) <= limit {
@@ -160,10 +166,24 @@ func truncateRunes(text string, limit int) string {
 }
 
 // LoadSourceSegments 重建单个来源的完整片段集合。
-// turn 来源从轮次行重建；note 来源从其页面正文重建。
+// turn 来源从轮次行重建；note 来源从其页面正文重建；import 来源读取导入快照。
 func LoadSourceSegments(ctx context.Context, client *ent.Client, src *ent.KaguyaMemorySource) ([]Segment, error) {
 	segments, _, _, err := loadSourceContent(ctx, client, src)
 	return segments, err
+}
+
+// deriveSourceHash 在后台首次处理来源时补全内容哈希；捕获事务不读投影，
+// 所有可异步推导的数据都放在 Worker 阶段。内容不变的来源重复处理保持幂等。
+func deriveSourceHash(ctx context.Context, client *ent.Client, src *ent.KaguyaMemorySource, segments []Segment) error {
+	hash := ProjectionHash(segments)
+	if src.ContentHash == hash {
+		return nil
+	}
+	if err := client.KaguyaMemorySource.UpdateOneID(src.ID).SetContentHash(hash).Exec(ctx); err != nil {
+		return err
+	}
+	src.ContentHash = hash
+	return nil
 }
 
 // loadSourceContent 重建片段并携带轮次状态与结束原因（step_limit 不代表任务完成）。
@@ -179,6 +199,9 @@ func loadSourceContent(ctx context.Context, client *ent.Client, src *ent.KaguyaM
 			return nil, "", "", err
 		}
 		return BuildNoteSegments(page.Body), "", "", nil
+	case kaguyamemorysource.KindImport:
+		// 导入快照与来源同事务落库；文件后续变化不回写历史证据。
+		return BuildDocumentSegments(src.RawContent), "", "", nil
 	default:
 		if src.TurnID == "" {
 			return nil, "", "", fmt.Errorf("memory source %q has no turn", src.ID)

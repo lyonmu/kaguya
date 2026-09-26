@@ -1,7 +1,8 @@
 import { del, get, patch, post, guardFailure, guardSuccess, isArrayOf, isBoolean, isNumber, isRecord, isString, type PayloadGuard } from '../../api/http'
 import type {
-  MemoryClaim, MemoryEvidence, MemoryExport, MemoryJob, MemoryJobList, MemoryPageDetail,
-  MemoryPageItem, MemoryPageList, MemoryPagePatch, MemoryPagePayload, MemoryRevision, MemoryStatus,
+  MemoryBackfillResult, MemoryClaim, MemoryDiff, MemoryEvidence, MemoryExport, MemoryImportResult, MemoryJob, MemoryJobList,
+  MemoryPageDetail, MemoryPageItem, MemoryPageList, MemoryPagePatch, MemoryPagePayload, MemoryRevision,
+  MemorySourceDetail, MemorySourceList, MemoryStatus,
 } from './types'
 
 const isMemoryPageItem = (value: unknown): value is MemoryPageItem =>
@@ -57,6 +58,49 @@ const guardStatus: PayloadGuard<MemoryStatus> = value => {
 const guardExport: PayloadGuard<MemoryExport> = value => {
   if (!isRecord(value) || !isString(value.markdown)) return guardFailure('记忆导出响应格式异常')
   return guardSuccess({ filename: String(value.filename ?? 'memory.md'), markdown: value.markdown })
+}
+
+const isSourcePart = (value: unknown): value is MemorySourceDetail['parts'][number] =>
+  isRecord(value) && isString(value.part_key) && isString(value.text)
+
+const isSourceItem = (value: unknown): value is MemorySourceDetail =>
+  isRecord(value) && isString(value.id) && isString(value.kind) && isString(value.state) &&
+  isBoolean(value.available) && isArrayOf(value.parts, isSourcePart)
+
+const guardSourceList: PayloadGuard<MemorySourceList> = value => {
+  const check = (item: unknown): item is MemorySourceList['items'][number] =>
+    isRecord(item) && isString(item.id) && isString(item.kind) && isString(item.state)
+  if (!isRecord(value) || !isNumber(value.total) || !isArrayOf(value.items, check)) {
+    return guardFailure('记忆来源响应格式异常')
+  }
+  return guardSuccess({ total: value.total, page: Number(value.page ?? 1), page_size: Number(value.page_size ?? 20), items: value.items })
+}
+
+const guardSourceDetail: PayloadGuard<MemorySourceDetail> = value => {
+  if (!isSourceItem(value)) return guardFailure('记忆来源详情响应格式异常')
+  return guardSuccess(value)
+}
+
+const guardBackfill: PayloadGuard<MemoryBackfillResult> = value => {
+  if (!isRecord(value) || !isString(value.job_id) || !isString(value.status) || !isNumber(value.created)) {
+    return guardFailure('历史回填响应格式异常')
+  }
+  return guardSuccess(value as unknown as MemoryBackfillResult)
+}
+
+const guardImport: PayloadGuard<MemoryImportResult> = value => {
+  if (!isRecord(value) || !isString(value.source_id) || !isString(value.state) || !isBoolean(value.deduplicated)) {
+    return guardFailure('资料导入响应格式异常')
+  }
+  return guardSuccess(value as unknown as MemoryImportResult)
+}
+
+const guardDiff: PayloadGuard<MemoryDiff> = value => {
+  if (!isRecord(value) || !isRecord(value.from) || !isRecord(value.to) ||
+    !isArrayOf(value.content_changes, isRecord) || !isArrayOf(value.claim_changes, isRecord)) {
+    return guardFailure('版本对比响应格式异常')
+  }
+  return guardSuccess(value as unknown as MemoryDiff)
 }
 
 export interface MemoryPageQuery {
@@ -121,4 +165,32 @@ export function fetchMemoryStatus(signal?: AbortSignal) {
 
 export function exportMemory(scopeKeys: string[]) {
   return post<MemoryExport>('/v1/memory/export', { scope_keys: scopeKeys }, undefined, guardExport)
+}
+
+export function startMemoryBackfill(payload: { scope_key: string; conversation_id?: string; max_sources?: number; after?: string; before?: string }) {
+  return post<MemoryBackfillResult>('/v1/memory/backfill', payload, undefined, guardBackfill)
+}
+
+export function importMemoryDocument(payload: { scope_key: string; path: string }) {
+  return post<MemoryImportResult>('/v1/memory/import', payload, undefined, guardImport)
+}
+
+export interface MemorySourceQuery {
+  scope_key?: string
+  kind?: string
+  state?: string
+  page?: number
+  page_size?: number
+}
+
+export function fetchMemorySources(query: MemorySourceQuery = {}, signal?: AbortSignal) {
+  return get<MemorySourceList>('/v1/memory/sources', { ...query }, signal, guardSourceList)
+}
+
+export function fetchMemorySource(id: string, signal?: AbortSignal) {
+  return get<MemorySourceDetail>(`/v1/memory/sources/${encodeURIComponent(id)}`, undefined, signal, guardSourceDetail)
+}
+
+export function fetchMemoryPageDiff(id: string, from: number, to?: number, signal?: AbortSignal) {
+  return get<MemoryDiff>(`/v1/memory/pages/${encodeURIComponent(id)}/diff`, { from, to }, signal, guardDiff)
 }

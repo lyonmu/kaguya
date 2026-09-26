@@ -3,20 +3,24 @@ import {
   DownloadOutlined, LockOutlined, PlusOutlined, PushpinOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import {
-  Alert, App, Button, Card, Descriptions, Drawer, Empty, Form, Input, List,
+  Alert, App, Button, Card, DatePicker, Descriptions, Drawer, Empty, Form, Input, List,
   Modal, Popconfirm, Select, Space, Spin, Switch, Table, Tabs, Tag, Typography,
 } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import dayjs from 'dayjs'
 import {
   approveMemoryJob, compileMemory, createMemoryPage, deleteMemoryPage, exportMemory,
-  fetchMemoryJobs, fetchMemoryPage, fetchMemoryPages, fetchMemoryRevisions, fetchMemoryStatus,
-  rejectMemoryJob, restoreMemoryRevision, retryMemoryJob, updateMemoryPage,
+  fetchMemoryJobs, fetchMemoryPage, fetchMemoryPageDiff, fetchMemoryPages, fetchMemoryRevisions,
+  fetchMemorySource, fetchMemoryStatus, importMemoryDocument, rejectMemoryJob, restoreMemoryRevision,
+  retryMemoryJob, startMemoryBackfill, updateMemoryPage,
 } from '../../features/memory/api'
 import {
   MEMORY_KINDS, MEMORY_STATUSES, basisLabel, statusLabel,
-  type MemoryJob, type MemoryPageDetail, type MemoryPageItem, type MemoryRevision, type MemoryStatus,
+  type MemoryDiff, type MemoryJob, type MemoryPageDetail, type MemoryPageItem, type MemoryRevision,
+  type MemorySourceDetail, type MemoryStatus,
 } from '../../features/memory/types'
+import { fetchProjects } from '../../features/project/api'
 
 const SCOPE_OPTIONS = [
   { value: '', label: '全部范围' },
@@ -36,6 +40,21 @@ interface EditorValues {
   user_locked: boolean
 }
 
+interface BackfillValues {
+  scope_key: string
+  max_sources: number
+  range?: [dayjs.Dayjs, dayjs.Dayjs]
+}
+
+interface ImportValues {
+  scope_key: string
+  path: string
+}
+
+const diffChangeLabel: Record<string, string> = {
+  added: '新增', removed: '移除', changed: '变更',
+}
+
 export function MemoryPage() {
   const { message } = App.useApp()
   const [scope, setScope] = useState('')
@@ -51,7 +70,18 @@ export function MemoryPage() {
   const [editing, setEditing] = useState<'create' | 'edit' | null>(null)
   const [jobs, setJobs] = useState<MemoryJob[]>([])
   const [memoryStatus, setMemoryStatus] = useState<MemoryStatus | null>(null)
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
+  const [backfillOpen, setBackfillOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [sourceDetail, setSourceDetail] = useState<MemorySourceDetail | null>(null)
+  const [sourceOpen, setSourceOpen] = useState(false)
+  const [diff, setDiff] = useState<MemoryDiff | null>(null)
+  const [diffOpen, setDiffOpen] = useState(false)
   const [form] = Form.useForm<EditorValues>()
+  const [backfillForm] = Form.useForm<BackfillValues>()
+  const [importForm] = Form.useForm<ImportValues>()
+
+  const projectScopes = projects.map(project => ({ value: `project:${project.id}`, label: `项目：${project.name}` }))
 
   const loadList = useCallback(async () => {
     setLoading(true)
@@ -98,6 +128,66 @@ export function MemoryPage() {
   useEffect(() => { void loadList() }, [loadList])
   useEffect(() => { void loadDetail(selectedId) }, [loadDetail, selectedId])
   useEffect(() => { void loadJobs(); void loadStatus() }, [loadJobs, loadStatus])
+  useEffect(() => {
+    void (async () => {
+      try {
+        const page = await fetchProjects('', 1)
+        setProjects(page.items.map(item => ({ id: item.id, name: item.name })))
+      } catch {
+        setProjects([])
+      }
+    })()
+  }, [])
+
+  const submitBackfill = async () => {
+    const values = await backfillForm.validateFields()
+    try {
+      const result = await startMemoryBackfill({
+        scope_key: values.scope_key,
+        max_sources: values.max_sources,
+        after: values.range?.[0]?.startOf('day').toISOString(),
+        before: values.range?.[1]?.endOf('day').toISOString(),
+      })
+      message.success(`历史回填已登记（任务 ${result.job_id}），可在任务与待审中查看进度`)
+      setBackfillOpen(false)
+      await Promise.all([loadJobs(), loadStatus()])
+    } catch (error) {
+      message.error(String(error instanceof Error ? error.message : error))
+    }
+  }
+
+  const submitImport = async () => {
+    const values = await importForm.validateFields()
+    try {
+      const result = await importMemoryDocument({
+        scope_key: values.scope_key, path: values.path,
+      })
+      message.success(result.deduplicated ? '该资料已导入过，沿用已有来源' : '资料已导入并进入整理队列')
+      setImportOpen(false)
+      await Promise.all([loadJobs(), loadStatus()])
+    } catch (error) {
+      message.error(String(error instanceof Error ? error.message : error))
+    }
+  }
+
+  const openSource = async (sourceID: string) => {
+    try {
+      setSourceDetail(await fetchMemorySource(sourceID))
+      setSourceOpen(true)
+    } catch (error) {
+      message.error(String(error instanceof Error ? error.message : error))
+    }
+  }
+
+  const openDiff = async (from: number, to?: number) => {
+    if (!detail) return
+    try {
+      setDiff(await fetchMemoryPageDiff(detail.id, from, to))
+      setDiffOpen(true)
+    } catch (error) {
+      message.error(String(error instanceof Error ? error.message : error))
+    }
+  }
 
   const openEditor = (mode: 'create' | 'edit') => {
     setEditing(mode)
@@ -281,6 +371,7 @@ export function MemoryPage() {
               {claim.evidence.map((evidence, index) => (
                 <Typography.Paragraph key={`${claim.key}-${index}`} className="ml-4! mb-0!" type="secondary">
                   {evidence.source}（{evidence.part_key}）：{evidence.quote}
+                  <Button className="ml-2!" size="small" type="link" onClick={() => void openSource(evidence.source_id)}>查看来源</Button>
                 </Typography.Paragraph>
               ))}
             </div>
@@ -338,6 +429,11 @@ export function MemoryPage() {
           { title: '尝试', dataIndex: 'attempt' },
           { title: '调用', dataIndex: 'calls' },
           { title: '用量', dataIndex: 'total_tokens' },
+          {
+            title: '进度', key: 'progress', render: (_, row) => row.progress
+              ? `扫描 ${row.progress.scanned} / 新增 ${row.progress.created} / 跳过 ${row.progress.skipped}${row.progress.limited ? '（达到上限）' : ''}`
+              : '—',
+          },
           { title: '错误', dataIndex: 'error_summary', render: (value: string) => value || '—' },
           {
             title: '操作', key: 'actions', render: (_, row) => (
@@ -400,6 +496,8 @@ export function MemoryPage() {
         <Input.Search allowClear aria-label="搜索" className="w-64" enterButton onSearch={setKeyword} placeholder="搜索标题或摘要" />
         <Button icon={<PlusOutlined />} onClick={() => openEditor('create')} type="primary">保存为记忆</Button>
         <Button onClick={() => void compileNow()}>立即整理</Button>
+        <Button onClick={() => { backfillForm.setFieldsValue({ scope_key: scope || 'personal', max_sources: 500 }); setBackfillOpen(true) }}>历史回填</Button>
+        <Button onClick={() => { importForm.setFieldsValue({ scope_key: projectScopes[0]?.value ?? '', path: '' }); setImportOpen(true) }}>导入资料</Button>
         <Button icon={<DownloadOutlined />} onClick={() => void exportMarkdown()}>导出 Markdown</Button>
         <Button icon={<ReloadOutlined />} onClick={() => void loadList()}>刷新</Button>
       </Space>
@@ -468,6 +566,7 @@ export function MemoryPage() {
           renderItem={(item: MemoryRevision) => (
             <List.Item
               actions={[
+                <Button key="diff" size="small" onClick={() => void openDiff(item.version, detail?.version)}>对比当前</Button>,
                 <Button key="restore" size="small" onClick={() => void restore(item.version)}>恢复</Button>,
               ]}
             >
@@ -486,6 +585,128 @@ export function MemoryPage() {
           )}
         />
       </Drawer>
+      <Modal
+        onCancel={() => setBackfillOpen(false)}
+        onOk={() => void submitBackfill()}
+        open={backfillOpen}
+        title="历史回填"
+      >
+        <Alert className="mb-3" message="显式选择范围与成本上限；私密/只读会话与已删除会话不参与。回填按页扫描，可中断并幂等重跑。" showIcon type="info" />
+        <Form form={backfillForm} labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+          <Form.Item label="范围" name="scope_key" rules={[{ required: true }]}>
+            <Select options={[{ value: 'personal', label: '个人' }, ...projectScopes]} />
+          </Form.Item>
+          <Form.Item label="最多新增来源" name="max_sources" rules={[{ required: true }]}>
+            <Input aria-label="最多新增来源" type="number" />
+          </Form.Item>
+          <Form.Item label="时间范围（可选）" name="range">
+            <DatePicker.RangePicker aria-label="回填时间范围" />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        onCancel={() => setImportOpen(false)}
+        onOk={() => void submitImport()}
+        open={importOpen}
+        title="导入项目资料"
+      >
+        <Alert className="mb-3" message="复用项目路径校验、忽略规则与大小限制；同路径同内容重复导入不会产生新来源。" showIcon type="info" />
+        <Form form={importForm} labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+          <Form.Item label="项目范围" name="scope_key" rules={[{ required: true }]}>
+            <Select options={projectScopes} />
+          </Form.Item>
+          <Form.Item label="项目内路径" name="path" rules={[{ required: true }]}>
+            <Input aria-label="资料路径" placeholder="例如 docs/design.md" />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Drawer
+        onClose={() => setSourceOpen(false)}
+        open={sourceOpen}
+        title="来源导航"
+        width={620}
+      >
+        {sourceDetail && (
+          <Space className="w-full" direction="vertical" size="middle">
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="类型">{sourceDetail.kind}</Descriptions.Item>
+              <Descriptions.Item label="状态">{sourceDetail.state}</Descriptions.Item>
+              <Descriptions.Item label="范围">{sourceDetail.scope_key}</Descriptions.Item>
+              {sourceDetail.conversation_id && <Descriptions.Item label="会话">{sourceDetail.conversation_id}</Descriptions.Item>}
+              {sourceDetail.turn_id && <Descriptions.Item label="轮次">{sourceDetail.turn_id}</Descriptions.Item>}
+              {sourceDetail.turn_status && <Descriptions.Item label="轮次状态">{sourceDetail.turn_status}{sourceDetail.finish_reason ? ` / ${sourceDetail.finish_reason}` : ''}</Descriptions.Item>}
+              {sourceDetail.document_path && <Descriptions.Item label="资料路径">{sourceDetail.document_path}</Descriptions.Item>}
+            </Descriptions>{" "}
+            {!sourceDetail.available && (
+              <Alert message={sourceDetail.unavailable_reason || '来源不可用'} showIcon type="warning" />
+            )}
+            {sourceDetail.parts.map(part => (
+              <Card key={part.part_key} size="small" title={`${part.part_key}（${part.origin}）`}>
+                <Typography.Paragraph className="whitespace-pre-wrap">
+                  {part.text}{part.truncated ? '…（已截断）' : ''}
+                </Typography.Paragraph>
+              </Card>
+            ))}
+          </Space>
+        )}
+      </Drawer>
+      <Modal footer={null} onCancel={() => setDiffOpen(false)} open={diffOpen} title="版本对比" width={720}>
+        {diff && (
+          <Space className="w-full" direction="vertical" size="middle">
+            <Descriptions column={2} size="small">
+              <Descriptions.Item label="从">v{diff.from.version}（{diff.from.actor}，{diff.from.created_at}）</Descriptions.Item>
+              <Descriptions.Item label="到">v{diff.to.version}（{diff.to.actor}，{diff.to.created_at}）</Descriptions.Item>
+            </Descriptions>
+            {[['内容变化', diff.content_changes], ['元数据变化', diff.metadata_changes]].map(([title, changes]) => (
+              <Card key={String(title)} size="small" title={String(title)}>
+                {(changes as typeof diff.content_changes).length === 0 ? <Typography.Text type="secondary">无</Typography.Text> : (
+                  <List
+                    dataSource={changes as typeof diff.content_changes}
+                    renderItem={change => (
+                      <List.Item>
+                        <Typography.Text strong>{change.field}</Typography.Text>：{change.from || '（空）'} → {change.to || '（空）'}
+                      </List.Item>
+                    )}
+                  />
+                )}
+              </Card>
+            ))}
+            <Card size="small" title="主张变化">
+              {diff.claim_changes.length === 0 ? <Typography.Text type="secondary">无</Typography.Text> : (
+                <List
+                  dataSource={diff.claim_changes}
+                  renderItem={change => (
+                    <List.Item>
+                      <Space wrap>
+                        <Tag>{diffChangeLabel[change.change] ?? change.change}</Tag>
+                        <Typography.Text strong>{change.key}</Typography.Text>
+                        <span>{change.from || '—'} → {change.to || '—'}</span>
+                      </Space>
+                    </List.Item>
+                  )}
+                />
+              )}
+            </Card>
+            <Card size="small" title="证据变化">
+              {diff.evidence_changes.length === 0 ? <Typography.Text type="secondary">无</Typography.Text> : (
+                <List
+                  dataSource={diff.evidence_changes}
+                  renderItem={change => (
+                    <List.Item>
+                      <Space wrap>
+                        <Tag>{diffChangeLabel[change.change] ?? change.change}</Tag>
+                        <Typography.Text strong>{change.claim_key}</Typography.Text>
+                        <Typography.Text type="secondary">{change.source_id}/{change.part_key}</Typography.Text>
+                        {change.quote && <span>{change.quote}</span>}
+                      </Space>
+                    </List.Item>
+                  )}
+                />
+              )}
+            </Card>
+          </Space>
+        )}
+      </Modal>
     </div>
   )
 }

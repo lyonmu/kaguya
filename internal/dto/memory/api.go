@@ -119,22 +119,174 @@ type MemoryExportResp struct {
 
 // MemoryJobResp 任务状态、错误码与成本；不返回原始 Prompt。
 type MemoryJobResp struct {
-	ID             string     `json:"id"`
-	Kind           string     `json:"kind"`
-	ScopeKey       string     `json:"scope_key"`
-	ConversationID string     `json:"conversation_id,omitempty"`
-	Status         string     `json:"status"`
-	Attempt        int        `json:"attempt"`
-	ErrorCode      string     `json:"error_code,omitempty"`
-	ErrorSummary   string     `json:"error_summary,omitempty"`
-	Proposal       any        `json:"proposal,omitempty"` // needs_review 的有界 PatchPlan
-	CreatedAt      time.Time  `json:"created_at"`
-	StartedAt      *time.Time `json:"started_at,omitempty"`
-	FinishedAt     *time.Time `json:"finished_at,omitempty"`
-	InputTokens    int64      `json:"input_tokens"`
-	OutputTokens   int64      `json:"output_tokens"`
-	TotalTokens    int64      `json:"total_tokens"`
-	Calls          int        `json:"calls"`
+	ID             string              `json:"id"`
+	Kind           string              `json:"kind"`
+	ScopeKey       string              `json:"scope_key"`
+	ConversationID string              `json:"conversation_id,omitempty"`
+	Status         string              `json:"status"`
+	Attempt        int                 `json:"attempt"`
+	ErrorCode      string              `json:"error_code,omitempty"`
+	ErrorSummary   string              `json:"error_summary,omitempty"`
+	Proposal       any                 `json:"proposal,omitempty"` // needs_review 的有界 PatchPlan
+	Progress       *MemoryJobProgress  `json:"progress,omitempty"` // backfill 进度
+	CreatedAt      time.Time           `json:"created_at"`
+	StartedAt      *time.Time          `json:"started_at,omitempty"`
+	FinishedAt     *time.Time          `json:"finished_at,omitempty"`
+	InputTokens    int64               `json:"input_tokens"`
+	OutputTokens   int64               `json:"output_tokens"`
+	TotalTokens    int64               `json:"total_tokens"`
+	Calls          int                 `json:"calls"`
+}
+
+// MemoryJobProgress 是 backfill 作业的扫描进度；成本上限达到时 limited=true。
+type MemoryJobProgress struct {
+	Scanned  int  `json:"scanned"`
+	Created  int  `json:"created"`
+	Skipped  int  `json:"skipped"`
+	Limited  bool `json:"limited"`
+	Finished bool `json:"finished"`
+}
+
+// MemoryBackfillReq 用户显式选择的历史回填；必须给出范围与成本上限。
+type MemoryBackfillReq struct {
+	ScopeKey       string     `json:"scope_key" binding:"required,max=128"`
+	ConversationID string     `json:"conversation_id" binding:"omitempty,max=64"`
+	After          *time.Time `json:"after"`
+	Before         *time.Time `json:"before"`
+	MaxSources     int        `json:"max_sources" binding:"min=1,max=100000"`
+}
+
+// MemoryBackfillResp 是回填作业的进度；重复请求返回同一进行中作业。
+type MemoryBackfillResp struct {
+	JobID      string `json:"job_id"`
+	ScopeKey   string `json:"scope_key"`
+	Status     string `json:"status"`
+	Scanned    int    `json:"scanned"`
+	Created    int    `json:"created"`
+	Skipped    int    `json:"skipped"`
+	MaxSources int    `json:"max_sources"`
+	Limited    bool   `json:"limited"`
+	Finished   bool   `json:"finished"`
+	ErrorCode  string `json:"error_code,omitempty"`
+}
+
+// MemoryImportReq 小范围项目资料导入；路径由服务端复用项目路径校验与忽略规则。
+type MemoryImportReq struct {
+	ScopeKey string `json:"scope_key" binding:"required,max=128"`
+	Path     string `json:"path" binding:"required,max=4096"`
+}
+
+// MemoryImportResp 是导入来源的状态；同路径同内容重复导入返回已存在来源。
+type MemoryImportResp struct {
+	SourceID     string `json:"source_id"`
+	State        string `json:"state"`
+	Path         string `json:"path"`
+	Size         int64  `json:"size"`
+	Deduplicated bool   `json:"deduplicated"`
+}
+
+// MemorySourceListReq 来源列表；用于导入/回填状态与错误追踪。
+type MemorySourceListReq struct {
+	ScopeKey string `form:"scope_key" binding:"omitempty,max=128"`
+	Kind     string `form:"kind" binding:"omitempty,oneof=turn note import"`
+	State    string `form:"state" binding:"omitempty,oneof=pending claimed processed noop failed excluded"`
+	Page     int    `form:"page,default=1" binding:"min=1,max=1000000"`
+	PageSize int    `form:"page_size,default=20" binding:"min=1,max=100"`
+}
+
+// MemorySourceItemResp 是来源列表项摘要。
+type MemorySourceItemResp struct {
+	ID             string    `json:"id"`
+	Kind           string    `json:"kind"`
+	ScopeKey       string    `json:"scope_key"`
+	State          string    `json:"state"`
+	SourceKey      string    `json:"source_key"`
+	ConversationID string    `json:"conversation_id,omitempty"`
+	TurnID         string    `json:"turn_id,omitempty"`
+	DocumentPath   string    `json:"document_path,omitempty"`
+	ContentHash    string    `json:"content_hash,omitempty"`
+	JobID          string    `json:"job_id,omitempty"`
+	PolicyEpoch    int64     `json:"policy_epoch"`
+	CapturedAt     time.Time `json:"captured_at"`
+}
+
+// MemorySourceListResp 来源分页。
+type MemorySourceListResp struct {
+	Total    int                    `json:"total"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"page_size"`
+	Items    []MemorySourceItemResp `json:"items"`
+}
+
+// MemorySourcePartResp 是来源片段的有限展示；正文只返回截断后的安全文本。
+type MemorySourcePartResp struct {
+	PartKey   string `json:"part_key"`
+	Origin    string `json:"origin"`
+	Text      string `json:"text"`
+	Truncated bool   `json:"truncated"`
+}
+
+// MemorySourceDetailResp 是来源导航结果：从 Memory 定位到轮次/笔记/导入资料。
+type MemorySourceDetailResp struct {
+	MemorySourceItemResp
+	Available         bool                   `json:"available"`
+	UnavailableReason string                 `json:"unavailable_reason,omitempty"`
+	TurnStatus        string                 `json:"turn_status,omitempty"`
+	FinishReason      string                 `json:"finish_reason,omitempty"`
+	Parts             []MemorySourcePartResp `json:"parts"`
+}
+
+// MemoryDiffResp 是任意两个修订的结构化对比；顺序稳定、可解释。
+type MemoryDiffResp struct {
+	PageID          string                     `json:"page_id"`
+	From            MemoryDiffSideResp         `json:"from"`
+	To              MemoryDiffSideResp         `json:"to"`
+	ContentChanges  []MemoryFieldChangeResp    `json:"content_changes"`
+	MetadataChanges []MemoryFieldChangeResp    `json:"metadata_changes"`
+	ClaimChanges    []MemoryClaimChangeResp    `json:"claim_changes"`
+	EvidenceChanges []MemoryEvidenceChangeResp `json:"evidence_changes"`
+}
+
+// MemoryDiffSideResp 是版本对比的一侧完整快照。
+type MemoryDiffSideResp struct {
+	Version   int64     `json:"version"`
+	Actor     string    `json:"actor"`
+	Reason    string    `json:"reason"`
+	CreatedAt time.Time `json:"created_at"`
+	Title     string    `json:"title"`
+	Summary   string    `json:"summary"`
+	Body      string    `json:"body"`
+	Kind      string    `json:"kind"`
+	Status    string    `json:"status"`
+	Aliases   []string  `json:"aliases"`
+}
+
+// MemoryFieldChangeResp 是字段级变化。
+type MemoryFieldChangeResp struct {
+	Field string `json:"field"`
+	From  string `json:"from"`
+	To    string `json:"to"`
+}
+
+// MemoryClaimChangeResp 是主张级变化。
+type MemoryClaimChangeResp struct {
+	Key       string `json:"key"`
+	Change    string `json:"change"` // added / removed / changed
+	From      string `json:"from,omitempty"`
+	To        string `json:"to,omitempty"`
+	FromBasis string `json:"from_basis,omitempty"`
+	ToBasis   string `json:"to_basis,omitempty"`
+}
+
+// MemoryEvidenceChangeResp 是证据级变化。
+type MemoryEvidenceChangeResp struct {
+	ClaimKey string `json:"claim_key"`
+	Change   string `json:"change"` // added / removed / changed
+	SourceID string `json:"source_id"`
+	PartKey  string `json:"part_key"`
+	Quote    string `json:"quote,omitempty"`
+	Relation string `json:"relation,omitempty"`
+	Basis    string `json:"basis,omitempty"`
 }
 
 // MemoryJobListResp 任务分页。

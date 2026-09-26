@@ -40,6 +40,10 @@ type KaguyaMemorySource struct {
 	CursorPart int `json:"cursor_part,omitempty"`
 	// 投影内容哈希，用于排除与去重；不保证拦截同义改写
 	ContentHash string `json:"content_hash,omitempty"`
+	// 显式导入资料的稳定快照；turn/note 来源为空，Worker 从轮次或页面正文重建投影
+	RawContent string `json:"-"`
+	// 导入资料的项目内相对路径，仅用于来源导航
+	DocumentPath string `json:"document_path,omitempty"`
 	// pending→claimed→processed/noop/failed；excluded 表示隐私关闭、删除或来源失效
 	State kaguyamemorysource.State `json:"state,omitempty"`
 	// 当前/最近领取该来源的作业
@@ -58,7 +62,7 @@ func (*KaguyaMemorySource) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyamemorysource.FieldProjectionVersion, kaguyamemorysource.FieldCursorPart, kaguyamemorysource.FieldPolicyEpoch:
 			values[i] = new(sql.NullInt64)
-		case kaguyamemorysource.FieldID, kaguyamemorysource.FieldSourceKey, kaguyamemorysource.FieldKind, kaguyamemorysource.FieldScopeKey, kaguyamemorysource.FieldConversationID, kaguyamemorysource.FieldTurnID, kaguyamemorysource.FieldContentHash, kaguyamemorysource.FieldState, kaguyamemorysource.FieldJobID:
+		case kaguyamemorysource.FieldID, kaguyamemorysource.FieldSourceKey, kaguyamemorysource.FieldKind, kaguyamemorysource.FieldScopeKey, kaguyamemorysource.FieldConversationID, kaguyamemorysource.FieldTurnID, kaguyamemorysource.FieldContentHash, kaguyamemorysource.FieldRawContent, kaguyamemorysource.FieldDocumentPath, kaguyamemorysource.FieldState, kaguyamemorysource.FieldJobID:
 			values[i] = new(sql.NullString)
 		case kaguyamemorysource.FieldCreatedAt, kaguyamemorysource.FieldUpdatedAt, kaguyamemorysource.FieldDeletedAt, kaguyamemorysource.FieldCapturedAt:
 			values[i] = new(sql.NullTime)
@@ -149,6 +153,18 @@ func (_m *KaguyaMemorySource) assignValues(columns []string, values []any) error
 				return fmt.Errorf("unexpected type %T for field content_hash", values[i])
 			} else if value.Valid {
 				_m.ContentHash = value.String
+			}
+		case kaguyamemorysource.FieldRawContent:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field raw_content", values[i])
+			} else if value.Valid {
+				_m.RawContent = value.String
+			}
+		case kaguyamemorysource.FieldDocumentPath:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field document_path", values[i])
+			} else if value.Valid {
+				_m.DocumentPath = value.String
 			}
 		case kaguyamemorysource.FieldState:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -244,6 +260,11 @@ func (_m *KaguyaMemorySource) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("content_hash=")
 	builder.WriteString(_m.ContentHash)
+	builder.WriteString(", ")
+	builder.WriteString("raw_content=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("document_path=")
+	builder.WriteString(_m.DocumentPath)
 	builder.WriteString(", ")
 	builder.WriteString("state=")
 	builder.WriteString(fmt.Sprintf("%v", _m.State))

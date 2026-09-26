@@ -9,4 +9,5 @@ var (
 	MemoryJobNotFound     = Response{Code: 108004, Message: "记忆任务不存在"}
 	MemoryJobNotReview    = Response{Code: 108005, Message: "该任务不在待审状态"}
 	MemoryDisabled        = Response{Code: 108006, Message: "长期记忆功能未启用"}
+	MemorySourceNotFound  = Response{Code: 108007, Message: "记忆来源不存在或已清除"}
 )

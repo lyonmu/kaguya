@@ -16,7 +16,7 @@ import (
 // 捕获：completed 入队；running/failed/canceled/interrupted 不入队；
 // 重复捕获由唯一约束去重；会话记忆模式与全局开关生效。
 func TestCaptureCompletedTurnOutbox(t *testing.T) {
-	ctx, _, client := setupMemoryTest(t)
+	ctx, svc, client := setupMemoryTest(t)
 	setupPolicy(t, ctx, client, true, true)
 	conv := makeConversation(t, ctx, client, "conv-1", "", kaguyaconversation.MemoryModeInherit)
 	turnID := makeTurn(t, ctx, client, conv, "这个项目继续用 SQLCipher，不引入第二个数据库。", "好的，记录该约束。")
@@ -31,8 +31,26 @@ func TestCaptureCompletedTurnOutbox(t *testing.T) {
 	}
 	src := sources[0]
 	if src.SourceKey != "turn:"+turnID+":projection-v1" || src.State != kaguyamemorysource.StatePending ||
-		src.ScopeKey != ScopePersonal || src.ContentHash == "" {
+		src.ScopeKey != ScopePersonal {
 		t.Fatalf("source=%+v", src)
+	}
+	// 轻量 Outbox：捕获事务不读来源投影，内容哈希留给 Worker 异步推导。
+	if src.ContentHash != "" {
+		t.Fatalf("capture must not read the source projection: %+v", src)
+	}
+	backdateSources(t, ctx, client, 2*time.Minute)
+	if job, _ := NewWorker(svc).claimReadyBatch(ctx, ""); job == nil {
+		t.Fatal("expected claimed job")
+	} else {
+		derived, err := client.KaguyaMemorySource.Get(ctx, src.ID)
+		if err != nil || derived.ContentHash == "" {
+			t.Fatalf("worker did not derive source hash: %+v err=%v", derived, err)
+		}
+	}
+	// 已领取来源不重复入队，回退为待处理以便后续断言计数。
+	if err := client.KaguyaMemorySource.Update().
+		SetState(kaguyamemorysource.StatePending).SetJobID("").Exec(ctx); err != nil {
+		t.Fatal(err)
 	}
 	// 重复捕获不重复入队。
 	captureTurn(t, ctx, client, conv, turnID)

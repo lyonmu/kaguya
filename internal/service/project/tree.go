@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	dto "github.com/lyonmu/kaguya/internal/dto/project"
+	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 )
 
 const (
@@ -184,6 +185,58 @@ func (s *ProjectSvc) Content(ctx context.Context, id, path string) (*dto.Content
 	}
 	resp.Content = string(data)
 	return resp, nil
+}
+
+// ReadDocument 读取项目内资料快照供长期记忆导入；复用路径校验、忽略规则、
+// 非阻塞读取、二进制探测与大小限制。超限、二进制或忽略文件直接拒绝，
+// 不截断后假装导入成功。
+func (s *ProjectSvc) ReadDocument(ctx context.Context, projectID, path string, maxBytes int64) (*memorysvc.Document, error) {
+	if maxBytes <= 0 {
+		maxBytes = maxContentBytes
+	}
+	dir, err := s.Workspace(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	rel, err := cleanRelative(path)
+	if err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	if newIgnoreMatcher(root).ignored(rel, false) {
+		return nil, ErrInvalid
+	}
+	file, err := openReadFile(root, rel)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	clearNonblock(file)
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, ErrInvalid
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, ErrInvalid
+	}
+	if bytes.IndexByte(data[:min(len(data), binarySniffBytes)], 0) >= 0 || !utf8.Valid(data) {
+		return nil, ErrInvalid
+	}
+	return &memorysvc.Document{Path: rel, Content: string(data), Size: info.Size()}, nil
 }
 
 // validUTF8Prefix 去掉截断读取在末尾留下的不完整编码；文件本身非法时不改动数据。

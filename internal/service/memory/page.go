@@ -427,6 +427,18 @@ func (s *Service) ManageRestore(ctx context.Context, id string, version int64) (
 	return s.RestoreRevision(ctx, []string{row.ScopeKey}, id, version)
 }
 
+// ManageDiff 管理版本对比；读取闭包绑定页面自身作用域。
+func (s *Service) ManageDiff(ctx context.Context, id string, from, to int64) (*dtomemory.MemoryDiffResp, error) {
+	row, err := s.client.KaguyaMemoryPage.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return nil, ErrPageNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s.CompareRevisions(ctx, []string{row.ScopeKey}, id, from, to)
+}
+
 // ListPages 管理界面查询：可显式查看所有范围（聊天自动召回不能如此）。
 func (s *Service) ListPages(ctx context.Context, req *dtomemory.MemoryPageListReq) (*dtomemory.MemoryPageListResp, error) {
 	query := s.client.KaguyaMemoryPage.Query().Where(kaguyamemorypage.DeletedAtIsNil())

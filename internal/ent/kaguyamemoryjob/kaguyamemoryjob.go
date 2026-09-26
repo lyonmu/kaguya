@@ -31,6 +31,8 @@ const (
 	FieldInputSourceIds = "input_source_ids"
 	// FieldInputHash holds the string denoting the input_hash field in the database.
 	FieldInputHash = "input_hash"
+	// FieldSourceBudget holds the string denoting the source_budget field in the database.
+	FieldSourceBudget = "source_budget"
 	// FieldCompilerVersion holds the string denoting the compiler_version field in the database.
 	FieldCompilerVersion = "compiler_version"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -70,6 +72,7 @@ var Columns = []string{
 	FieldConversationID,
 	FieldInputSourceIds,
 	FieldInputHash,
+	FieldSourceBudget,
 	FieldCompilerVersion,
 	FieldStatus,
 	FieldAttempt,
@@ -117,6 +120,10 @@ var (
 	DefaultInputHash string
 	// InputHashValidator is a validator for the "input_hash" field. It is called by the builders before save.
 	InputHashValidator func(string) error
+	// DefaultSourceBudget holds the default value on creation for the "source_budget" field.
+	DefaultSourceBudget int
+	// SourceBudgetValidator is a validator for the "source_budget" field. It is called by the builders before save.
+	SourceBudgetValidator func(int) error
 	// DefaultCompilerVersion holds the default value on creation for the "compiler_version" field.
 	DefaultCompilerVersion string
 	// CompilerVersionValidator is a validator for the "compiler_version" field. It is called by the builders before save.
@@ -246,6 +253,11 @@ func ByConversationID(opts ...sql.OrderTermOption) OrderOption {
 // ByInputHash orders the results by the input_hash field.
 func ByInputHash(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldInputHash, opts...).ToFunc()
+}
+
+// BySourceBudget orders the results by the source_budget field.
+func BySourceBudget(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceBudget, opts...).ToFunc()
 }
 
 // ByCompilerVersion orders the results by the compiler_version field.

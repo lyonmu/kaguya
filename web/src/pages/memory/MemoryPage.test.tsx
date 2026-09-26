@@ -18,6 +18,16 @@ const { App } = await import('antd')
 const { MemoryPage } = await import('./MemoryPage')
 const originalFetch = globalThis.fetch
 const response = (data: unknown) => Response.json({ code: 100000, data })
+
+// waitForText 在 happy-dom 下轮询异步挂载的抽屉/弹层内容；测试环境的
+// waitFor 有时看不到 portal 中刚提交的节点。
+async function waitForText(view: ReturnType<typeof render>, matcher: string | RegExp) {
+  for (let i = 0; i < 100; i++) {
+    if (view.queryByText(matcher)) return
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)) })
+  }
+  throw new Error(`text not found: ${String(matcher)}`)
+}
 afterEach(async () => {
   cleanup()
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
@@ -82,4 +92,65 @@ it('renders pages with evidence and resolves review jobs', async () => {
   fireEvent.click(view.getByRole('tab', { name: '状态与用量' }))
   await waitFor(() => assert.notEqual(view.queryByText(/独立于聊天口径/), null))
   assert.notEqual(view.queryByText('含未知用量，不按 0 计'), null)
+})
+
+it('navigates from evidence to source', async () => {
+  const source = {
+    id: 's-1', kind: 'turn', scope_key: 'personal', state: 'processed', source_key: 'turn:t-7:projection-v1',
+    conversation_id: 'c-1', turn_id: 't-7', turn_status: 'completed', policy_epoch: 0,
+    captured_at: '2026-09-24T00:00:00Z', available: true,
+    parts: [{ part_key: 'user', origin: 'user_statement', text: '继续用 SQLCipher', truncated: false }],
+  }
+  globalThis.fetch = (async url => {
+    const target = String(url)
+    if (target.includes('/sources/s-1')) return response(source)
+    if (target.includes('/pages/p-1/revisions')) return response([])
+    if (target.includes('/pages/p-1')) return response(detail)
+    if (target.includes('/pages')) return response({ total: 1, page: 1, page_size: 20, items: [pageItem] })
+    if (target.includes('/jobs')) return response({ total: 0, page: 1, page_size: 20, items: [] })
+    if (target.includes('/project')) return response({ total: 0, page: 1, page_size: 20, items: [] })
+    return response(status)
+  }) as typeof fetch
+  const view = render(<App><MemoryPage /></App>)
+  await waitFor(() => assert.notEqual(view.queryByText('Memory 使用 SQLCipher'), null))
+  fireEvent.click(view.getAllByText('Memory 使用 SQLCipher')[0]!)
+  await waitFor(() => assert.notEqual(view.queryByText('继续使用 SQLCipher。'), null))
+  // 来源导航：从证据跳到原始轮次片段。
+  fireEvent.click(view.getByRole('button', { name: '查看来源' }))
+  await waitFor(() => assert.notEqual(view.queryByText('继续用 SQLCipher'), null))
+})
+
+it('compares a historical revision with the current version', async () => {
+  const diff = {
+    page_id: 'p-1',
+    from: { version: 1, actor: 'user', reason: '', created_at: '2026-09-24T00:00:00Z', title: '旧标题', summary: '', body: '旧正文', kind: 'decision', status: 'active', aliases: [] },
+    to: { version: 2, actor: 'task_model', reason: '整合', created_at: '2026-09-24T01:00:00Z', title: '新标题', summary: '', body: '新正文', kind: 'decision', status: 'active', aliases: [] },
+    content_changes: [{ field: 'body', from: '旧正文', to: '新正文' }],
+    metadata_changes: [{ field: 'aliases', from: '', to: '检索' }],
+    claim_changes: [{ key: 'storage', change: 'added', to: '新主张' }],
+    evidence_changes: [],
+  }
+  const revisions = [{
+    version: 1, actor: 'user', reason: '', title: '旧标题', summary: '', body: '旧正文',
+    status: 'active', claim_keys: [], created_at: '2026-09-24T00:00:00Z',
+  }]
+  globalThis.fetch = (async url => {
+    const target = String(url)
+    if (target.includes('/diff')) return response(diff)
+    if (target.includes('/pages/p-1/revisions')) return response(revisions)
+    if (target.includes('/pages/p-1')) return response(detail)
+    if (target.includes('/pages')) return response({ total: 1, page: 1, page_size: 20, items: [pageItem] })
+    if (target.includes('/jobs')) return response({ total: 0, page: 1, page_size: 20, items: [] })
+    if (target.includes('/project')) return response({ total: 0, page: 1, page_size: 20, items: [] })
+    return response(status)
+  }) as typeof fetch
+  const view = render(<App><MemoryPage /></App>)
+  await waitFor(() => assert.notEqual(view.queryByText('Memory 使用 SQLCipher'), null))
+  fireEvent.click(view.getAllByText('Memory 使用 SQLCipher')[0]!)
+  await waitFor(() => assert.notEqual(view.queryByText('继续使用 SQLCipher。'), null))
+  fireEvent.click(view.getByRole('button', { name: /版\s*本/ }))
+  await waitForText(view, '旧标题')
+  fireEvent.click(view.getByRole('button', { name: '对比当前' }))
+  await waitForText(view, /新正文/)
+  assert.notEqual(view.queryByText('版本对比'), null)
 })

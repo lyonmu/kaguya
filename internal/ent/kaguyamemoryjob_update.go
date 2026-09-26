@@ -130,6 +130,27 @@ func (_u *KaguyaMemoryJobUpdate) SetNillableInputHash(v *string) *KaguyaMemoryJo
 	return _u
 }
 
+// SetSourceBudget sets the "source_budget" field.
+func (_u *KaguyaMemoryJobUpdate) SetSourceBudget(v int) *KaguyaMemoryJobUpdate {
+	_u.mutation.ResetSourceBudget()
+	_u.mutation.SetSourceBudget(v)
+	return _u
+}
+
+// SetNillableSourceBudget sets the "source_budget" field if the given value is not nil.
+func (_u *KaguyaMemoryJobUpdate) SetNillableSourceBudget(v *int) *KaguyaMemoryJobUpdate {
+	if v != nil {
+		_u.SetSourceBudget(*v)
+	}
+	return _u
+}
+
+// AddSourceBudget adds value to the "source_budget" field.
+func (_u *KaguyaMemoryJobUpdate) AddSourceBudget(v int) *KaguyaMemoryJobUpdate {
+	_u.mutation.AddSourceBudget(v)
+	return _u
+}
+
 // SetCompilerVersion sets the "compiler_version" field.
 func (_u *KaguyaMemoryJobUpdate) SetCompilerVersion(v string) *KaguyaMemoryJobUpdate {
 	_u.mutation.SetCompilerVersion(v)
@@ -405,6 +426,11 @@ func (_u *KaguyaMemoryJobUpdate) check() error {
 			return &ValidationError{Name: "input_hash", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.input_hash": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SourceBudget(); ok {
+		if err := kaguyamemoryjob.SourceBudgetValidator(v); err != nil {
+			return &ValidationError{Name: "source_budget", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.source_budget": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CompilerVersion(); ok {
 		if err := kaguyamemoryjob.CompilerVersionValidator(v); err != nil {
 			return &ValidationError{Name: "compiler_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.compiler_version": %w`, err)}
@@ -487,6 +513,12 @@ func (_u *KaguyaMemoryJobUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.InputHash(); ok {
 		_spec.SetField(kaguyamemoryjob.FieldInputHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceBudget(); ok {
+		_spec.SetField(kaguyamemoryjob.FieldSourceBudget, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSourceBudget(); ok {
+		_spec.AddField(kaguyamemoryjob.FieldSourceBudget, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CompilerVersion(); ok {
 		_spec.SetField(kaguyamemoryjob.FieldCompilerVersion, field.TypeString, value)
@@ -661,6 +693,27 @@ func (_u *KaguyaMemoryJobUpdateOne) SetNillableInputHash(v *string) *KaguyaMemor
 	if v != nil {
 		_u.SetInputHash(*v)
 	}
+	return _u
+}
+
+// SetSourceBudget sets the "source_budget" field.
+func (_u *KaguyaMemoryJobUpdateOne) SetSourceBudget(v int) *KaguyaMemoryJobUpdateOne {
+	_u.mutation.ResetSourceBudget()
+	_u.mutation.SetSourceBudget(v)
+	return _u
+}
+
+// SetNillableSourceBudget sets the "source_budget" field if the given value is not nil.
+func (_u *KaguyaMemoryJobUpdateOne) SetNillableSourceBudget(v *int) *KaguyaMemoryJobUpdateOne {
+	if v != nil {
+		_u.SetSourceBudget(*v)
+	}
+	return _u
+}
+
+// AddSourceBudget adds value to the "source_budget" field.
+func (_u *KaguyaMemoryJobUpdateOne) AddSourceBudget(v int) *KaguyaMemoryJobUpdateOne {
+	_u.mutation.AddSourceBudget(v)
 	return _u
 }
 
@@ -952,6 +1005,11 @@ func (_u *KaguyaMemoryJobUpdateOne) check() error {
 			return &ValidationError{Name: "input_hash", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.input_hash": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SourceBudget(); ok {
+		if err := kaguyamemoryjob.SourceBudgetValidator(v); err != nil {
+			return &ValidationError{Name: "source_budget", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.source_budget": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.CompilerVersion(); ok {
 		if err := kaguyamemoryjob.CompilerVersionValidator(v); err != nil {
 			return &ValidationError{Name: "compiler_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.compiler_version": %w`, err)}
@@ -1051,6 +1109,12 @@ func (_u *KaguyaMemoryJobUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaM
 	}
 	if value, ok := _u.mutation.InputHash(); ok {
 		_spec.SetField(kaguyamemoryjob.FieldInputHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SourceBudget(); ok {
+		_spec.SetField(kaguyamemoryjob.FieldSourceBudget, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedSourceBudget(); ok {
+		_spec.AddField(kaguyamemoryjob.FieldSourceBudget, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.CompilerVersion(); ok {
 		_spec.SetField(kaguyamemoryjob.FieldCompilerVersion, field.TypeString, value)

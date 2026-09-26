@@ -119,6 +119,20 @@ func (_c *KaguyaMemoryJobCreate) SetNillableInputHash(v *string) *KaguyaMemoryJo
 	return _c
 }
 
+// SetSourceBudget sets the "source_budget" field.
+func (_c *KaguyaMemoryJobCreate) SetSourceBudget(v int) *KaguyaMemoryJobCreate {
+	_c.mutation.SetSourceBudget(v)
+	return _c
+}
+
+// SetNillableSourceBudget sets the "source_budget" field if the given value is not nil.
+func (_c *KaguyaMemoryJobCreate) SetNillableSourceBudget(v *int) *KaguyaMemoryJobCreate {
+	if v != nil {
+		_c.SetSourceBudget(*v)
+	}
+	return _c
+}
+
 // SetCompilerVersion sets the "compiler_version" field.
 func (_c *KaguyaMemoryJobCreate) SetCompilerVersion(v string) *KaguyaMemoryJobCreate {
 	_c.mutation.SetCompilerVersion(v)
@@ -364,6 +378,10 @@ func (_c *KaguyaMemoryJobCreate) defaults() error {
 		v := kaguyamemoryjob.DefaultInputHash
 		_c.mutation.SetInputHash(v)
 	}
+	if _, ok := _c.mutation.SourceBudget(); !ok {
+		v := kaguyamemoryjob.DefaultSourceBudget
+		_c.mutation.SetSourceBudget(v)
+	}
 	if _, ok := _c.mutation.CompilerVersion(); !ok {
 		v := kaguyamemoryjob.DefaultCompilerVersion
 		_c.mutation.SetCompilerVersion(v)
@@ -444,6 +462,14 @@ func (_c *KaguyaMemoryJobCreate) check() error {
 	if v, ok := _c.mutation.InputHash(); ok {
 		if err := kaguyamemoryjob.InputHashValidator(v); err != nil {
 			return &ValidationError{Name: "input_hash", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.input_hash": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SourceBudget(); !ok {
+		return &ValidationError{Name: "source_budget", err: errors.New(`ent: missing required field "KaguyaMemoryJob.source_budget"`)}
+	}
+	if v, ok := _c.mutation.SourceBudget(); ok {
+		if err := kaguyamemoryjob.SourceBudgetValidator(v); err != nil {
+			return &ValidationError{Name: "source_budget", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemoryJob.source_budget": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CompilerVersion(); !ok {
@@ -572,6 +598,10 @@ func (_c *KaguyaMemoryJobCreate) createSpec() (*KaguyaMemoryJob, *sqlgraph.Creat
 	if value, ok := _c.mutation.InputHash(); ok {
 		_spec.SetField(kaguyamemoryjob.FieldInputHash, field.TypeString, value)
 		_node.InputHash = value
+	}
+	if value, ok := _c.mutation.SourceBudget(); ok {
+		_spec.SetField(kaguyamemoryjob.FieldSourceBudget, field.TypeInt, value)
+		_node.SourceBudget = value
 	}
 	if value, ok := _c.mutation.CompilerVersion(); ok {
 		_spec.SetField(kaguyamemoryjob.FieldCompilerVersion, field.TypeString, value)
@@ -766,6 +796,24 @@ func (u *KaguyaMemoryJobUpsert) SetInputHash(v string) *KaguyaMemoryJobUpsert {
 // UpdateInputHash sets the "input_hash" field to the value that was provided on create.
 func (u *KaguyaMemoryJobUpsert) UpdateInputHash() *KaguyaMemoryJobUpsert {
 	u.SetExcluded(kaguyamemoryjob.FieldInputHash)
+	return u
+}
+
+// SetSourceBudget sets the "source_budget" field.
+func (u *KaguyaMemoryJobUpsert) SetSourceBudget(v int) *KaguyaMemoryJobUpsert {
+	u.Set(kaguyamemoryjob.FieldSourceBudget, v)
+	return u
+}
+
+// UpdateSourceBudget sets the "source_budget" field to the value that was provided on create.
+func (u *KaguyaMemoryJobUpsert) UpdateSourceBudget() *KaguyaMemoryJobUpsert {
+	u.SetExcluded(kaguyamemoryjob.FieldSourceBudget)
+	return u
+}
+
+// AddSourceBudget adds v to the "source_budget" field.
+func (u *KaguyaMemoryJobUpsert) AddSourceBudget(v int) *KaguyaMemoryJobUpsert {
+	u.Add(kaguyamemoryjob.FieldSourceBudget, v)
 	return u
 }
 
@@ -1109,6 +1157,27 @@ func (u *KaguyaMemoryJobUpsertOne) SetInputHash(v string) *KaguyaMemoryJobUpsert
 func (u *KaguyaMemoryJobUpsertOne) UpdateInputHash() *KaguyaMemoryJobUpsertOne {
 	return u.Update(func(s *KaguyaMemoryJobUpsert) {
 		s.UpdateInputHash()
+	})
+}
+
+// SetSourceBudget sets the "source_budget" field.
+func (u *KaguyaMemoryJobUpsertOne) SetSourceBudget(v int) *KaguyaMemoryJobUpsertOne {
+	return u.Update(func(s *KaguyaMemoryJobUpsert) {
+		s.SetSourceBudget(v)
+	})
+}
+
+// AddSourceBudget adds v to the "source_budget" field.
+func (u *KaguyaMemoryJobUpsertOne) AddSourceBudget(v int) *KaguyaMemoryJobUpsertOne {
+	return u.Update(func(s *KaguyaMemoryJobUpsert) {
+		s.AddSourceBudget(v)
+	})
+}
+
+// UpdateSourceBudget sets the "source_budget" field to the value that was provided on create.
+func (u *KaguyaMemoryJobUpsertOne) UpdateSourceBudget() *KaguyaMemoryJobUpsertOne {
+	return u.Update(func(s *KaguyaMemoryJobUpsert) {
+		s.UpdateSourceBudget()
 	})
 }
 
@@ -1649,6 +1718,27 @@ func (u *KaguyaMemoryJobUpsertBulk) SetInputHash(v string) *KaguyaMemoryJobUpser
 func (u *KaguyaMemoryJobUpsertBulk) UpdateInputHash() *KaguyaMemoryJobUpsertBulk {
 	return u.Update(func(s *KaguyaMemoryJobUpsert) {
 		s.UpdateInputHash()
+	})
+}
+
+// SetSourceBudget sets the "source_budget" field.
+func (u *KaguyaMemoryJobUpsertBulk) SetSourceBudget(v int) *KaguyaMemoryJobUpsertBulk {
+	return u.Update(func(s *KaguyaMemoryJobUpsert) {
+		s.SetSourceBudget(v)
+	})
+}
+
+// AddSourceBudget adds v to the "source_budget" field.
+func (u *KaguyaMemoryJobUpsertBulk) AddSourceBudget(v int) *KaguyaMemoryJobUpsertBulk {
+	return u.Update(func(s *KaguyaMemoryJobUpsert) {
+		s.AddSourceBudget(v)
+	})
+}
+
+// UpdateSourceBudget sets the "source_budget" field to the value that was provided on create.
+func (u *KaguyaMemoryJobUpsertBulk) UpdateSourceBudget() *KaguyaMemoryJobUpsertBulk {
+	return u.Update(func(s *KaguyaMemoryJobUpsert) {
+		s.UpdateSourceBudget()
 	})
 }
 

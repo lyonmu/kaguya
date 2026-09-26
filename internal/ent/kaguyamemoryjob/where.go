@@ -94,6 +94,11 @@ func InputHash(v string) predicate.KaguyaMemoryJob {
 	return predicate.KaguyaMemoryJob(sql.FieldEQ(FieldInputHash, v))
 }
 
+// SourceBudget applies equality check predicate on the "source_budget" field. It's identical to SourceBudgetEQ.
+func SourceBudget(v int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldEQ(FieldSourceBudget, v))
+}
+
 // CompilerVersion applies equality check predicate on the "compiler_version" field. It's identical to CompilerVersionEQ.
 func CompilerVersion(v string) predicate.KaguyaMemoryJob {
 	return predicate.KaguyaMemoryJob(sql.FieldEQ(FieldCompilerVersion, v))
@@ -502,6 +507,46 @@ func InputHashEqualFold(v string) predicate.KaguyaMemoryJob {
 // InputHashContainsFold applies the ContainsFold predicate on the "input_hash" field.
 func InputHashContainsFold(v string) predicate.KaguyaMemoryJob {
 	return predicate.KaguyaMemoryJob(sql.FieldContainsFold(FieldInputHash, v))
+}
+
+// SourceBudgetEQ applies the EQ predicate on the "source_budget" field.
+func SourceBudgetEQ(v int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldEQ(FieldSourceBudget, v))
+}
+
+// SourceBudgetNEQ applies the NEQ predicate on the "source_budget" field.
+func SourceBudgetNEQ(v int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldNEQ(FieldSourceBudget, v))
+}
+
+// SourceBudgetIn applies the In predicate on the "source_budget" field.
+func SourceBudgetIn(vs ...int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldIn(FieldSourceBudget, vs...))
+}
+
+// SourceBudgetNotIn applies the NotIn predicate on the "source_budget" field.
+func SourceBudgetNotIn(vs ...int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldNotIn(FieldSourceBudget, vs...))
+}
+
+// SourceBudgetGT applies the GT predicate on the "source_budget" field.
+func SourceBudgetGT(v int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldGT(FieldSourceBudget, v))
+}
+
+// SourceBudgetGTE applies the GTE predicate on the "source_budget" field.
+func SourceBudgetGTE(v int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldGTE(FieldSourceBudget, v))
+}
+
+// SourceBudgetLT applies the LT predicate on the "source_budget" field.
+func SourceBudgetLT(v int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldLT(FieldSourceBudget, v))
+}
+
+// SourceBudgetLTE applies the LTE predicate on the "source_budget" field.
+func SourceBudgetLTE(v int) predicate.KaguyaMemoryJob {
+	return predicate.KaguyaMemoryJob(sql.FieldLTE(FieldSourceBudget, v))
 }
 
 // CompilerVersionEQ applies the EQ predicate on the "compiler_version" field.

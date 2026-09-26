@@ -9118,6 +9118,8 @@ type KaguyaMemoryJobMutation struct {
 	input_source_ids       *[]string
 	appendinput_source_ids []string
 	input_hash             *string
+	source_budget          *int
+	addsource_budget       *int
 	compiler_version       *string
 	status                 *kaguyamemoryjob.Status
 	attempt                *int
@@ -9570,6 +9572,62 @@ func (m *KaguyaMemoryJobMutation) OldInputHash(ctx context.Context) (v string, e
 // ResetInputHash resets all changes to the "input_hash" field.
 func (m *KaguyaMemoryJobMutation) ResetInputHash() {
 	m.input_hash = nil
+}
+
+// SetSourceBudget sets the "source_budget" field.
+func (m *KaguyaMemoryJobMutation) SetSourceBudget(i int) {
+	m.source_budget = &i
+	m.addsource_budget = nil
+}
+
+// SourceBudget returns the value of the "source_budget" field in the mutation.
+func (m *KaguyaMemoryJobMutation) SourceBudget() (r int, exists bool) {
+	v := m.source_budget
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceBudget returns the old "source_budget" field's value of the KaguyaMemoryJob entity.
+// If the KaguyaMemoryJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMemoryJobMutation) OldSourceBudget(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceBudget is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceBudget requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceBudget: %w", err)
+	}
+	return oldValue.SourceBudget, nil
+}
+
+// AddSourceBudget adds i to the "source_budget" field.
+func (m *KaguyaMemoryJobMutation) AddSourceBudget(i int) {
+	if m.addsource_budget != nil {
+		*m.addsource_budget += i
+	} else {
+		m.addsource_budget = &i
+	}
+}
+
+// AddedSourceBudget returns the value that was added to the "source_budget" field in this mutation.
+func (m *KaguyaMemoryJobMutation) AddedSourceBudget() (r int, exists bool) {
+	v := m.addsource_budget
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSourceBudget resets all changes to the "source_budget" field.
+func (m *KaguyaMemoryJobMutation) ResetSourceBudget() {
+	m.source_budget = nil
+	m.addsource_budget = nil
 }
 
 // SetCompilerVersion sets the "compiler_version" field.
@@ -10130,7 +10188,7 @@ func (m *KaguyaMemoryJobMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaMemoryJobMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.created_at != nil {
 		fields = append(fields, kaguyamemoryjob.FieldCreatedAt)
 	}
@@ -10154,6 +10212,9 @@ func (m *KaguyaMemoryJobMutation) Fields() []string {
 	}
 	if m.input_hash != nil {
 		fields = append(fields, kaguyamemoryjob.FieldInputHash)
+	}
+	if m.source_budget != nil {
+		fields = append(fields, kaguyamemoryjob.FieldSourceBudget)
 	}
 	if m.compiler_version != nil {
 		fields = append(fields, kaguyamemoryjob.FieldCompilerVersion)
@@ -10215,6 +10276,8 @@ func (m *KaguyaMemoryJobMutation) Field(name string) (ent.Value, bool) {
 		return m.InputSourceIds()
 	case kaguyamemoryjob.FieldInputHash:
 		return m.InputHash()
+	case kaguyamemoryjob.FieldSourceBudget:
+		return m.SourceBudget()
 	case kaguyamemoryjob.FieldCompilerVersion:
 		return m.CompilerVersion()
 	case kaguyamemoryjob.FieldStatus:
@@ -10264,6 +10327,8 @@ func (m *KaguyaMemoryJobMutation) OldField(ctx context.Context, name string) (en
 		return m.OldInputSourceIds(ctx)
 	case kaguyamemoryjob.FieldInputHash:
 		return m.OldInputHash(ctx)
+	case kaguyamemoryjob.FieldSourceBudget:
+		return m.OldSourceBudget(ctx)
 	case kaguyamemoryjob.FieldCompilerVersion:
 		return m.OldCompilerVersion(ctx)
 	case kaguyamemoryjob.FieldStatus:
@@ -10352,6 +10417,13 @@ func (m *KaguyaMemoryJobMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetInputHash(v)
+		return nil
+	case kaguyamemoryjob.FieldSourceBudget:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceBudget(v)
 		return nil
 	case kaguyamemoryjob.FieldCompilerVersion:
 		v, ok := value.(string)
@@ -10445,6 +10517,9 @@ func (m *KaguyaMemoryJobMutation) SetField(name string, value ent.Value) error {
 // this mutation.
 func (m *KaguyaMemoryJobMutation) AddedFields() []string {
 	var fields []string
+	if m.addsource_budget != nil {
+		fields = append(fields, kaguyamemoryjob.FieldSourceBudget)
+	}
 	if m.addattempt != nil {
 		fields = append(fields, kaguyamemoryjob.FieldAttempt)
 	}
@@ -10459,6 +10534,8 @@ func (m *KaguyaMemoryJobMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *KaguyaMemoryJobMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case kaguyamemoryjob.FieldSourceBudget:
+		return m.AddedSourceBudget()
 	case kaguyamemoryjob.FieldAttempt:
 		return m.AddedAttempt()
 	case kaguyamemoryjob.FieldPolicyEpoch:
@@ -10472,6 +10549,13 @@ func (m *KaguyaMemoryJobMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *KaguyaMemoryJobMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case kaguyamemoryjob.FieldSourceBudget:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourceBudget(v)
+		return nil
 	case kaguyamemoryjob.FieldAttempt:
 		v, ok := value.(int)
 		if !ok {
@@ -10575,6 +10659,9 @@ func (m *KaguyaMemoryJobMutation) ResetField(name string) error {
 		return nil
 	case kaguyamemoryjob.FieldInputHash:
 		m.ResetInputHash()
+		return nil
+	case kaguyamemoryjob.FieldSourceBudget:
+		m.ResetSourceBudget()
 		return nil
 	case kaguyamemoryjob.FieldCompilerVersion:
 		m.ResetCompilerVersion()
@@ -14686,6 +14773,8 @@ type KaguyaMemorySourceMutation struct {
 	cursor_part           *int
 	addcursor_part        *int
 	content_hash          *string
+	raw_content           *string
+	document_path         *string
 	state                 *kaguyamemorysource.State
 	job_id                *string
 	captured_at           *time.Time
@@ -15250,6 +15339,78 @@ func (m *KaguyaMemorySourceMutation) ResetContentHash() {
 	m.content_hash = nil
 }
 
+// SetRawContent sets the "raw_content" field.
+func (m *KaguyaMemorySourceMutation) SetRawContent(s string) {
+	m.raw_content = &s
+}
+
+// RawContent returns the value of the "raw_content" field in the mutation.
+func (m *KaguyaMemorySourceMutation) RawContent() (r string, exists bool) {
+	v := m.raw_content
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRawContent returns the old "raw_content" field's value of the KaguyaMemorySource entity.
+// If the KaguyaMemorySource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMemorySourceMutation) OldRawContent(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRawContent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRawContent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRawContent: %w", err)
+	}
+	return oldValue.RawContent, nil
+}
+
+// ResetRawContent resets all changes to the "raw_content" field.
+func (m *KaguyaMemorySourceMutation) ResetRawContent() {
+	m.raw_content = nil
+}
+
+// SetDocumentPath sets the "document_path" field.
+func (m *KaguyaMemorySourceMutation) SetDocumentPath(s string) {
+	m.document_path = &s
+}
+
+// DocumentPath returns the value of the "document_path" field in the mutation.
+func (m *KaguyaMemorySourceMutation) DocumentPath() (r string, exists bool) {
+	v := m.document_path
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDocumentPath returns the old "document_path" field's value of the KaguyaMemorySource entity.
+// If the KaguyaMemorySource object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMemorySourceMutation) OldDocumentPath(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDocumentPath is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDocumentPath requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDocumentPath: %w", err)
+	}
+	return oldValue.DocumentPath, nil
+}
+
+// ResetDocumentPath resets all changes to the "document_path" field.
+func (m *KaguyaMemorySourceMutation) ResetDocumentPath() {
+	m.document_path = nil
+}
+
 // SetState sets the "state" field.
 func (m *KaguyaMemorySourceMutation) SetState(k kaguyamemorysource.State) {
 	m.state = &k
@@ -15448,7 +15609,7 @@ func (m *KaguyaMemorySourceMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaMemorySourceMutation) Fields() []string {
-	fields := make([]string, 0, 15)
+	fields := make([]string, 0, 17)
 	if m.created_at != nil {
 		fields = append(fields, kaguyamemorysource.FieldCreatedAt)
 	}
@@ -15481,6 +15642,12 @@ func (m *KaguyaMemorySourceMutation) Fields() []string {
 	}
 	if m.content_hash != nil {
 		fields = append(fields, kaguyamemorysource.FieldContentHash)
+	}
+	if m.raw_content != nil {
+		fields = append(fields, kaguyamemorysource.FieldRawContent)
+	}
+	if m.document_path != nil {
+		fields = append(fields, kaguyamemorysource.FieldDocumentPath)
 	}
 	if m.state != nil {
 		fields = append(fields, kaguyamemorysource.FieldState)
@@ -15524,6 +15691,10 @@ func (m *KaguyaMemorySourceMutation) Field(name string) (ent.Value, bool) {
 		return m.CursorPart()
 	case kaguyamemorysource.FieldContentHash:
 		return m.ContentHash()
+	case kaguyamemorysource.FieldRawContent:
+		return m.RawContent()
+	case kaguyamemorysource.FieldDocumentPath:
+		return m.DocumentPath()
 	case kaguyamemorysource.FieldState:
 		return m.State()
 	case kaguyamemorysource.FieldJobID:
@@ -15563,6 +15734,10 @@ func (m *KaguyaMemorySourceMutation) OldField(ctx context.Context, name string) 
 		return m.OldCursorPart(ctx)
 	case kaguyamemorysource.FieldContentHash:
 		return m.OldContentHash(ctx)
+	case kaguyamemorysource.FieldRawContent:
+		return m.OldRawContent(ctx)
+	case kaguyamemorysource.FieldDocumentPath:
+		return m.OldDocumentPath(ctx)
 	case kaguyamemorysource.FieldState:
 		return m.OldState(ctx)
 	case kaguyamemorysource.FieldJobID:
@@ -15656,6 +15831,20 @@ func (m *KaguyaMemorySourceMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContentHash(v)
+		return nil
+	case kaguyamemorysource.FieldRawContent:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRawContent(v)
+		return nil
+	case kaguyamemorysource.FieldDocumentPath:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDocumentPath(v)
 		return nil
 	case kaguyamemorysource.FieldState:
 		v, ok := value.(kaguyamemorysource.State)
@@ -15814,6 +16003,12 @@ func (m *KaguyaMemorySourceMutation) ResetField(name string) error {
 		return nil
 	case kaguyamemorysource.FieldContentHash:
 		m.ResetContentHash()
+		return nil
+	case kaguyamemorysource.FieldRawContent:
+		m.ResetRawContent()
+		return nil
+	case kaguyamemorysource.FieldDocumentPath:
+		m.ResetDocumentPath()
 		return nil
 	case kaguyamemorysource.FieldState:
 		m.ResetState()

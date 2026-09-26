@@ -246,3 +246,6 @@ func memoryServiceWith(svc *Service, caller *fakeCaller) *Service {
 func pageBody(marker string) string {
 	return fmt.Sprintf("## 决定\n%s\n\n## 原因\n测试依据。", marker)
 }
+
+// ptrString 返回字符串指针，用于可选编辑字段。
+func ptrString(value string) *string { return &value }

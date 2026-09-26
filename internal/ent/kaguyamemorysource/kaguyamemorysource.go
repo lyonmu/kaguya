@@ -37,6 +37,10 @@ const (
 	FieldCursorPart = "cursor_part"
 	// FieldContentHash holds the string denoting the content_hash field in the database.
 	FieldContentHash = "content_hash"
+	// FieldRawContent holds the string denoting the raw_content field in the database.
+	FieldRawContent = "raw_content"
+	// FieldDocumentPath holds the string denoting the document_path field in the database.
+	FieldDocumentPath = "document_path"
 	// FieldState holds the string denoting the state field in the database.
 	FieldState = "state"
 	// FieldJobID holds the string denoting the job_id field in the database.
@@ -63,6 +67,8 @@ var Columns = []string{
 	FieldProjectionVersion,
 	FieldCursorPart,
 	FieldContentHash,
+	FieldRawContent,
+	FieldDocumentPath,
 	FieldState,
 	FieldJobID,
 	FieldCapturedAt,
@@ -116,6 +122,12 @@ var (
 	DefaultContentHash string
 	// ContentHashValidator is a validator for the "content_hash" field. It is called by the builders before save.
 	ContentHashValidator func(string) error
+	// DefaultRawContent holds the default value on creation for the "raw_content" field.
+	DefaultRawContent string
+	// DefaultDocumentPath holds the default value on creation for the "document_path" field.
+	DefaultDocumentPath string
+	// DocumentPathValidator is a validator for the "document_path" field. It is called by the builders before save.
+	DocumentPathValidator func(string) error
 	// DefaultJobID holds the default value on creation for the "job_id" field.
 	DefaultJobID string
 	// JobIDValidator is a validator for the "job_id" field. It is called by the builders before save.
@@ -248,6 +260,16 @@ func ByCursorPart(opts ...sql.OrderTermOption) OrderOption {
 // ByContentHash orders the results by the content_hash field.
 func ByContentHash(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContentHash, opts...).ToFunc()
+}
+
+// ByRawContent orders the results by the raw_content field.
+func ByRawContent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRawContent, opts...).ToFunc()
+}
+
+// ByDocumentPath orders the results by the document_path field.
+func ByDocumentPath(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDocumentPath, opts...).ToFunc()
 }
 
 // ByState orders the results by the state field.

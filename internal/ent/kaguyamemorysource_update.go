@@ -181,6 +181,34 @@ func (_u *KaguyaMemorySourceUpdate) SetNillableContentHash(v *string) *KaguyaMem
 	return _u
 }
 
+// SetRawContent sets the "raw_content" field.
+func (_u *KaguyaMemorySourceUpdate) SetRawContent(v string) *KaguyaMemorySourceUpdate {
+	_u.mutation.SetRawContent(v)
+	return _u
+}
+
+// SetNillableRawContent sets the "raw_content" field if the given value is not nil.
+func (_u *KaguyaMemorySourceUpdate) SetNillableRawContent(v *string) *KaguyaMemorySourceUpdate {
+	if v != nil {
+		_u.SetRawContent(*v)
+	}
+	return _u
+}
+
+// SetDocumentPath sets the "document_path" field.
+func (_u *KaguyaMemorySourceUpdate) SetDocumentPath(v string) *KaguyaMemorySourceUpdate {
+	_u.mutation.SetDocumentPath(v)
+	return _u
+}
+
+// SetNillableDocumentPath sets the "document_path" field if the given value is not nil.
+func (_u *KaguyaMemorySourceUpdate) SetNillableDocumentPath(v *string) *KaguyaMemorySourceUpdate {
+	if v != nil {
+		_u.SetDocumentPath(*v)
+	}
+	return _u
+}
+
 // SetState sets the "state" field.
 func (_u *KaguyaMemorySourceUpdate) SetState(v kaguyamemorysource.State) *KaguyaMemorySourceUpdate {
 	_u.mutation.SetState(v)
@@ -333,6 +361,11 @@ func (_u *KaguyaMemorySourceUpdate) check() error {
 			return &ValidationError{Name: "content_hash", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.content_hash": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DocumentPath(); ok {
+		if err := kaguyamemorysource.DocumentPathValidator(v); err != nil {
+			return &ValidationError{Name: "document_path", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.document_path": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.State(); ok {
 		if err := kaguyamemorysource.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.state": %w`, err)}
@@ -407,6 +440,12 @@ func (_u *KaguyaMemorySourceUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if value, ok := _u.mutation.ContentHash(); ok {
 		_spec.SetField(kaguyamemorysource.FieldContentHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RawContent(); ok {
+		_spec.SetField(kaguyamemorysource.FieldRawContent, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DocumentPath(); ok {
+		_spec.SetField(kaguyamemorysource.FieldDocumentPath, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(kaguyamemorysource.FieldState, field.TypeEnum, value)
@@ -597,6 +636,34 @@ func (_u *KaguyaMemorySourceUpdateOne) SetNillableContentHash(v *string) *Kaguya
 	return _u
 }
 
+// SetRawContent sets the "raw_content" field.
+func (_u *KaguyaMemorySourceUpdateOne) SetRawContent(v string) *KaguyaMemorySourceUpdateOne {
+	_u.mutation.SetRawContent(v)
+	return _u
+}
+
+// SetNillableRawContent sets the "raw_content" field if the given value is not nil.
+func (_u *KaguyaMemorySourceUpdateOne) SetNillableRawContent(v *string) *KaguyaMemorySourceUpdateOne {
+	if v != nil {
+		_u.SetRawContent(*v)
+	}
+	return _u
+}
+
+// SetDocumentPath sets the "document_path" field.
+func (_u *KaguyaMemorySourceUpdateOne) SetDocumentPath(v string) *KaguyaMemorySourceUpdateOne {
+	_u.mutation.SetDocumentPath(v)
+	return _u
+}
+
+// SetNillableDocumentPath sets the "document_path" field if the given value is not nil.
+func (_u *KaguyaMemorySourceUpdateOne) SetNillableDocumentPath(v *string) *KaguyaMemorySourceUpdateOne {
+	if v != nil {
+		_u.SetDocumentPath(*v)
+	}
+	return _u
+}
+
 // SetState sets the "state" field.
 func (_u *KaguyaMemorySourceUpdateOne) SetState(v kaguyamemorysource.State) *KaguyaMemorySourceUpdateOne {
 	_u.mutation.SetState(v)
@@ -762,6 +829,11 @@ func (_u *KaguyaMemorySourceUpdateOne) check() error {
 			return &ValidationError{Name: "content_hash", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.content_hash": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.DocumentPath(); ok {
+		if err := kaguyamemorysource.DocumentPathValidator(v); err != nil {
+			return &ValidationError{Name: "document_path", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.document_path": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.State(); ok {
 		if err := kaguyamemorysource.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.state": %w`, err)}
@@ -853,6 +925,12 @@ func (_u *KaguyaMemorySourceUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	}
 	if value, ok := _u.mutation.ContentHash(); ok {
 		_spec.SetField(kaguyamemorysource.FieldContentHash, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RawContent(); ok {
+		_spec.SetField(kaguyamemorysource.FieldRawContent, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DocumentPath(); ok {
+		_spec.SetField(kaguyamemorysource.FieldDocumentPath, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.State(); ok {
 		_spec.SetField(kaguyamemorysource.FieldState, field.TypeEnum, value)

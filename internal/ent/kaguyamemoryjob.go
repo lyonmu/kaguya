@@ -35,6 +35,8 @@ type KaguyaMemoryJob struct {
 	InputSourceIds []string `json:"input_source_ids,omitempty"`
 	// InputHash holds the value of the "input_hash" field.
 	InputHash string `json:"input_hash,omitempty"`
+	// 领取时冻结的来源字节预算，保证 input_hash 可确定性重建
+	SourceBudget int `json:"source_budget,omitempty"`
 	// CompilerVersion holds the value of the "compiler_version" field.
 	CompilerVersion string `json:"compiler_version,omitempty"`
 	// Status holds the value of the "status" field.
@@ -69,7 +71,7 @@ func (*KaguyaMemoryJob) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyamemoryjob.FieldInputSourceIds:
 			values[i] = new([]byte)
-		case kaguyamemoryjob.FieldAttempt, kaguyamemoryjob.FieldPolicyEpoch:
+		case kaguyamemoryjob.FieldSourceBudget, kaguyamemoryjob.FieldAttempt, kaguyamemoryjob.FieldPolicyEpoch:
 			values[i] = new(sql.NullInt64)
 		case kaguyamemoryjob.FieldID, kaguyamemoryjob.FieldKind, kaguyamemoryjob.FieldScopeKey, kaguyamemoryjob.FieldConversationID, kaguyamemoryjob.FieldInputHash, kaguyamemoryjob.FieldCompilerVersion, kaguyamemoryjob.FieldStatus, kaguyamemoryjob.FieldLeaseToken, kaguyamemoryjob.FieldErrorCode, kaguyamemoryjob.FieldErrorSummary, kaguyamemoryjob.FieldResultJSON:
 			values[i] = new(sql.NullString)
@@ -146,6 +148,12 @@ func (_m *KaguyaMemoryJob) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field input_hash", values[i])
 			} else if value.Valid {
 				_m.InputHash = value.String
+			}
+		case kaguyamemoryjob.FieldSourceBudget:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field source_budget", values[i])
+			} else if value.Valid {
+				_m.SourceBudget = int(value.Int64)
 			}
 		case kaguyamemoryjob.FieldCompilerVersion:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -284,6 +292,9 @@ func (_m *KaguyaMemoryJob) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("input_hash=")
 	builder.WriteString(_m.InputHash)
+	builder.WriteString(", ")
+	builder.WriteString("source_budget=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SourceBudget))
 	builder.WriteString(", ")
 	builder.WriteString("compiler_version=")
 	builder.WriteString(_m.CompilerVersion)

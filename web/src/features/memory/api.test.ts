@@ -1,6 +1,9 @@
 import { afterEach, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { approveMemoryJob, createMemoryPage, fetchMemoryPages, updateMemoryPage } from './api'
+import {
+  approveMemoryJob, createMemoryPage, fetchMemoryPageDiff, fetchMemoryPages, fetchMemorySource,
+  fetchMemorySources, importMemoryDocument, startMemoryBackfill, updateMemoryPage,
+} from './api'
 
 const originalFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = originalFetch })
@@ -38,4 +41,36 @@ it('sends create and patch payloads with expected_version', async () => {
   assert.deepEqual(requests[1]?.body, { expected_version: 1, pinned: true })
   await approveMemoryJob('j-1')
   assert.equal(requests[2]?.url.endsWith('/v1/memory/jobs/j-1/approve'), true)
+})
+
+it('guards backfill, import, source and diff payloads', async () => {
+  const requests: Array<{ url: string; body?: unknown }> = []
+  const responses: Record<string, unknown> = {
+    '/v1/memory/backfill': { job_id: 'j-1', scope_key: 'personal', status: 'pending', scanned: 0, created: 0, skipped: 0, max_sources: 5, limited: false, finished: false },
+    '/v1/memory/import': { source_id: 's-1', state: 'pending', path: 'docs/spec.md', size: 10, deduplicated: false },
+    '/v1/memory/sources': { total: 1, page: 1, page_size: 20, items: [{ id: 's-1', kind: 'turn', scope_key: 'personal', state: 'pending', source_key: 'turn:t:projection-v1', policy_epoch: 0, captured_at: '2026-09-24T00:00:00Z' }] },
+    '/v1/memory/sources/s-1': { id: 's-1', kind: 'turn', scope_key: 'personal', state: 'pending', source_key: 'turn:t:projection-v1', policy_epoch: 0, captured_at: '2026-09-24T00:00:00Z', available: true, parts: [{ part_key: 'user', origin: 'user_statement', text: '内容', truncated: false }] },
+    '/v1/memory/pages/p-1/diff': { page_id: 'p-1', from: { version: 1 }, to: { version: 2 }, content_changes: [], metadata_changes: [], claim_changes: [], evidence_changes: [] },
+  }
+  globalThis.fetch = (async (url, init) => {
+    const target = String(url).split('?')[0] ?? ''
+    requests.push({ url: String(url), body: init?.body ? JSON.parse(String(init.body)) : undefined })
+    const key = Object.keys(responses).find(candidate => target.endsWith(candidate))
+    return Response.json({ code: 100000, data: key ? responses[key] : null })
+  }) as typeof fetch
+  const backfill = await startMemoryBackfill({ scope_key: 'personal', max_sources: 5 })
+  assert.equal(backfill.job_id, 'j-1')
+  const imported = await importMemoryDocument({ scope_key: 'project:p-1', path: 'docs/spec.md' })
+  assert.equal(imported.deduplicated, false)
+  const sources = await fetchMemorySources({ kind: 'turn' })
+  assert.equal(sources.items[0]?.id, 's-1')
+  const source = await fetchMemorySource('s-1')
+  assert.equal(source.available, true)
+  assert.equal(source.parts[0]?.part_key, 'user')
+  const diff = await fetchMemoryPageDiff('p-1', 1, 2)
+  assert.equal(diff.from.version, 1)
+  assert.equal(requests[0]?.body && (requests[0].body as Record<string, unknown>).max_sources, 5)
+
+  globalThis.fetch = (async () => Response.json({ code: 100000, data: { job_id: 1 } })) as typeof fetch
+  await assert.rejects(() => startMemoryBackfill({ scope_key: 'personal' }), /历史回填响应格式异常/)
 })

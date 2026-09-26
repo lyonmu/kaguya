@@ -21,6 +21,8 @@ func (KaguyaMemorySource) Fields() []ent.Field {
 		field.Int("projection_version").Default(1).Positive().Comment("来源投影版本，投影契约变化时递增"),
 		field.Int("cursor_part").Default(0).NonNegative().Comment("投影 segment 游标：超预算切分后剩余部分仍待处理"),
 		field.String("content_hash").MaxLen(64).Default("").Comment("投影内容哈希，用于排除与去重；不保证拦截同义改写"),
+		field.Text("raw_content").Sensitive().Default("").Comment("显式导入资料的稳定快照；turn/note 来源为空，Worker 从轮次或页面正文重建投影"),
+		field.String("document_path").MaxLen(4096).Default("").Comment("导入资料的项目内相对路径，仅用于来源导航"),
 		field.Enum("state").Values("pending", "claimed", "processed", "noop", "failed", "excluded").
 			Default("pending").Comment("pending→claimed→processed/noop/failed；excluded 表示隐私关闭、删除或来源失效"),
 		field.String("job_id").MaxLen(64).Default("").Comment("当前/最近领取该来源的作业"),

@@ -161,6 +161,34 @@ func (_c *KaguyaMemorySourceCreate) SetNillableContentHash(v *string) *KaguyaMem
 	return _c
 }
 
+// SetRawContent sets the "raw_content" field.
+func (_c *KaguyaMemorySourceCreate) SetRawContent(v string) *KaguyaMemorySourceCreate {
+	_c.mutation.SetRawContent(v)
+	return _c
+}
+
+// SetNillableRawContent sets the "raw_content" field if the given value is not nil.
+func (_c *KaguyaMemorySourceCreate) SetNillableRawContent(v *string) *KaguyaMemorySourceCreate {
+	if v != nil {
+		_c.SetRawContent(*v)
+	}
+	return _c
+}
+
+// SetDocumentPath sets the "document_path" field.
+func (_c *KaguyaMemorySourceCreate) SetDocumentPath(v string) *KaguyaMemorySourceCreate {
+	_c.mutation.SetDocumentPath(v)
+	return _c
+}
+
+// SetNillableDocumentPath sets the "document_path" field if the given value is not nil.
+func (_c *KaguyaMemorySourceCreate) SetNillableDocumentPath(v *string) *KaguyaMemorySourceCreate {
+	if v != nil {
+		_c.SetDocumentPath(*v)
+	}
+	return _c
+}
+
 // SetState sets the "state" field.
 func (_c *KaguyaMemorySourceCreate) SetState(v kaguyamemorysource.State) *KaguyaMemorySourceCreate {
 	_c.mutation.SetState(v)
@@ -298,6 +326,14 @@ func (_c *KaguyaMemorySourceCreate) defaults() error {
 		v := kaguyamemorysource.DefaultContentHash
 		_c.mutation.SetContentHash(v)
 	}
+	if _, ok := _c.mutation.RawContent(); !ok {
+		v := kaguyamemorysource.DefaultRawContent
+		_c.mutation.SetRawContent(v)
+	}
+	if _, ok := _c.mutation.DocumentPath(); !ok {
+		v := kaguyamemorysource.DefaultDocumentPath
+		_c.mutation.SetDocumentPath(v)
+	}
 	if _, ok := _c.mutation.State(); !ok {
 		v := kaguyamemorysource.DefaultState
 		_c.mutation.SetState(v)
@@ -390,6 +426,17 @@ func (_c *KaguyaMemorySourceCreate) check() error {
 	if v, ok := _c.mutation.ContentHash(); ok {
 		if err := kaguyamemorysource.ContentHashValidator(v); err != nil {
 			return &ValidationError{Name: "content_hash", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.content_hash": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.RawContent(); !ok {
+		return &ValidationError{Name: "raw_content", err: errors.New(`ent: missing required field "KaguyaMemorySource.raw_content"`)}
+	}
+	if _, ok := _c.mutation.DocumentPath(); !ok {
+		return &ValidationError{Name: "document_path", err: errors.New(`ent: missing required field "KaguyaMemorySource.document_path"`)}
+	}
+	if v, ok := _c.mutation.DocumentPath(); ok {
+		if err := kaguyamemorysource.DocumentPathValidator(v); err != nil {
+			return &ValidationError{Name: "document_path", err: fmt.Errorf(`ent: validator failed for field "KaguyaMemorySource.document_path": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.State(); !ok {
@@ -503,6 +550,14 @@ func (_c *KaguyaMemorySourceCreate) createSpec() (*KaguyaMemorySource, *sqlgraph
 	if value, ok := _c.mutation.ContentHash(); ok {
 		_spec.SetField(kaguyamemorysource.FieldContentHash, field.TypeString, value)
 		_node.ContentHash = value
+	}
+	if value, ok := _c.mutation.RawContent(); ok {
+		_spec.SetField(kaguyamemorysource.FieldRawContent, field.TypeString, value)
+		_node.RawContent = value
+	}
+	if value, ok := _c.mutation.DocumentPath(); ok {
+		_spec.SetField(kaguyamemorysource.FieldDocumentPath, field.TypeString, value)
+		_node.DocumentPath = value
 	}
 	if value, ok := _c.mutation.State(); ok {
 		_spec.SetField(kaguyamemorysource.FieldState, field.TypeEnum, value)
@@ -707,6 +762,30 @@ func (u *KaguyaMemorySourceUpsert) SetContentHash(v string) *KaguyaMemorySourceU
 // UpdateContentHash sets the "content_hash" field to the value that was provided on create.
 func (u *KaguyaMemorySourceUpsert) UpdateContentHash() *KaguyaMemorySourceUpsert {
 	u.SetExcluded(kaguyamemorysource.FieldContentHash)
+	return u
+}
+
+// SetRawContent sets the "raw_content" field.
+func (u *KaguyaMemorySourceUpsert) SetRawContent(v string) *KaguyaMemorySourceUpsert {
+	u.Set(kaguyamemorysource.FieldRawContent, v)
+	return u
+}
+
+// UpdateRawContent sets the "raw_content" field to the value that was provided on create.
+func (u *KaguyaMemorySourceUpsert) UpdateRawContent() *KaguyaMemorySourceUpsert {
+	u.SetExcluded(kaguyamemorysource.FieldRawContent)
+	return u
+}
+
+// SetDocumentPath sets the "document_path" field.
+func (u *KaguyaMemorySourceUpsert) SetDocumentPath(v string) *KaguyaMemorySourceUpsert {
+	u.Set(kaguyamemorysource.FieldDocumentPath, v)
+	return u
+}
+
+// UpdateDocumentPath sets the "document_path" field to the value that was provided on create.
+func (u *KaguyaMemorySourceUpsert) UpdateDocumentPath() *KaguyaMemorySourceUpsert {
+	u.SetExcluded(kaguyamemorysource.FieldDocumentPath)
 	return u
 }
 
@@ -973,6 +1052,34 @@ func (u *KaguyaMemorySourceUpsertOne) SetContentHash(v string) *KaguyaMemorySour
 func (u *KaguyaMemorySourceUpsertOne) UpdateContentHash() *KaguyaMemorySourceUpsertOne {
 	return u.Update(func(s *KaguyaMemorySourceUpsert) {
 		s.UpdateContentHash()
+	})
+}
+
+// SetRawContent sets the "raw_content" field.
+func (u *KaguyaMemorySourceUpsertOne) SetRawContent(v string) *KaguyaMemorySourceUpsertOne {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.SetRawContent(v)
+	})
+}
+
+// UpdateRawContent sets the "raw_content" field to the value that was provided on create.
+func (u *KaguyaMemorySourceUpsertOne) UpdateRawContent() *KaguyaMemorySourceUpsertOne {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.UpdateRawContent()
+	})
+}
+
+// SetDocumentPath sets the "document_path" field.
+func (u *KaguyaMemorySourceUpsertOne) SetDocumentPath(v string) *KaguyaMemorySourceUpsertOne {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.SetDocumentPath(v)
+	})
+}
+
+// UpdateDocumentPath sets the "document_path" field to the value that was provided on create.
+func (u *KaguyaMemorySourceUpsertOne) UpdateDocumentPath() *KaguyaMemorySourceUpsertOne {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.UpdateDocumentPath()
 	})
 }
 
@@ -1415,6 +1522,34 @@ func (u *KaguyaMemorySourceUpsertBulk) SetContentHash(v string) *KaguyaMemorySou
 func (u *KaguyaMemorySourceUpsertBulk) UpdateContentHash() *KaguyaMemorySourceUpsertBulk {
 	return u.Update(func(s *KaguyaMemorySourceUpsert) {
 		s.UpdateContentHash()
+	})
+}
+
+// SetRawContent sets the "raw_content" field.
+func (u *KaguyaMemorySourceUpsertBulk) SetRawContent(v string) *KaguyaMemorySourceUpsertBulk {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.SetRawContent(v)
+	})
+}
+
+// UpdateRawContent sets the "raw_content" field to the value that was provided on create.
+func (u *KaguyaMemorySourceUpsertBulk) UpdateRawContent() *KaguyaMemorySourceUpsertBulk {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.UpdateRawContent()
+	})
+}
+
+// SetDocumentPath sets the "document_path" field.
+func (u *KaguyaMemorySourceUpsertBulk) SetDocumentPath(v string) *KaguyaMemorySourceUpsertBulk {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.SetDocumentPath(v)
+	})
+}
+
+// UpdateDocumentPath sets the "document_path" field to the value that was provided on create.
+func (u *KaguyaMemorySourceUpsertBulk) UpdateDocumentPath() *KaguyaMemorySourceUpsertBulk {
+	return u.Update(func(s *KaguyaMemorySourceUpsert) {
+		s.UpdateDocumentPath()
 	})
 }
 

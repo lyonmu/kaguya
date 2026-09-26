@@ -8,6 +8,7 @@ import (
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/global"
 	svcmemory "github.com/lyonmu/kaguya/internal/service/memory"
+	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
 )
 
 // memoryIDReq 路径参数。
@@ -37,6 +38,8 @@ func memoryFailure(c *gin.Context, err error, fallback dtocode.Response) bool {
 		dtocode.MemoryVersionConflict.Failure(c)
 	case errors.Is(err, svcmemory.ErrJobNotFound):
 		dtocode.MemoryJobNotFound.Failure(c)
+	case errors.Is(err, svcmemory.ErrSourceNotFound):
+		dtocode.MemorySourceNotFound.Failure(c)
 	case errors.Is(err, svcmemory.ErrPlanInvalid), errors.Is(err, svcmemory.ErrStaleLease):
 		dtocode.RequestParameterError.Failure(c)
 	default:
@@ -327,6 +330,127 @@ func (b *MemoryApiV1Group) MemoryJobReject(c *gin.Context) {
 // @Router /v1/memory/status [get]
 func (b *MemoryApiV1Group) MemoryStatus(c *gin.Context) {
 	resp, err := memorysvc().Status(c.Request.Context())
+	if !memoryFailure(c, err, dtocode.MemoryQueryFailure) {
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// MemoryPageDiff
+// @Tags Memory
+// @Summary 版本对比
+// @Description 任意两个修订的结构化对比（from=0 表示 to 的前一个版本）；内容、元数据、主张与证据变化顺序稳定。受删除与范围权限约束。
+// @Param id path string true "页面 ID"
+// @Param from query integer true "起始版本；0 表示前一个版本"
+// @Param to query integer false "目标版本；缺省为当前版本"
+// @Success 200 {object} dtocode.Response{data=dtomemory.MemoryDiffResp}
+// @Router /v1/memory/pages/{id}/diff [get]
+func (b *MemoryApiV1Group) MemoryPageDiff(c *gin.Context) {
+	var uri memoryIDReq
+	if err := c.ShouldBindUri(&uri); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	var req struct {
+		From int64 `form:"from" binding:"min=0"`
+		To   int64 `form:"to" binding:"min=0"`
+	}
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := memorysvc().ManageDiff(c.Request.Context(), uri.ID, req.From, req.To)
+	if !memoryFailure(c, err, dtocode.MemoryQueryFailure) {
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// MemoryBackfill
+// @Tags Memory
+// @Summary 历史回填
+// @Description 用户显式选择范围与成本上限后，后台分页扫描 completed 轮次并幂等入队来源；同一范围进行中作业幂等返回。私密/只读会话与已删除会话不参与。
+// @Param data body dtomemory.MemoryBackfillReq true "范围与成本上限"
+// @Success 200 {object} dtocode.Response{data=dtomemory.MemoryBackfillResp}
+// @Router /v1/memory/backfill [post]
+func (b *MemoryApiV1Group) MemoryBackfill(c *gin.Context) {
+	var req dtomemory.MemoryBackfillReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := memorysvc().StartBackfill(c.Request.Context(), &req)
+	if !memoryFailure(c, err, dtocode.MemoryFailure) {
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// MemoryImport
+// @Tags Memory
+// @Summary 导入项目资料
+// @Description 复用项目路径校验、忽略规则与大小限制读取资料快照并生成 import 来源；同路径同内容重复导入幂等返回已有来源，内容变化产生新来源。
+// @Param data body dtomemory.MemoryImportReq true "范围与资料路径"
+// @Success 200 {object} dtocode.Response{data=dtomemory.MemoryImportResp}
+// @Router /v1/memory/import [post]
+func (b *MemoryApiV1Group) MemoryImport(c *gin.Context) {
+	var req dtomemory.MemoryImportReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := memorysvc().ImportDocument(c.Request.Context(), &req)
+	if err != nil {
+		if errors.Is(err, projectsvc.ErrInvalid) {
+			dtocode.RequestParameterError.Failure(c)
+			return
+		}
+		if errors.Is(err, projectsvc.ErrNotFound) {
+			dtocode.ProjectNotFound.Failure(c)
+			return
+		}
+		memoryFailure(c, err, dtocode.MemoryFailure)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// MemorySourceList
+// @Tags Memory
+// @Summary 来源列表
+// @Description 按范围、类型与状态分页查看来源，用于导入/回填进度与错误追踪；不返回正文。
+// @Param data query dtomemory.MemorySourceListReq true "分页/筛选"
+// @Success 200 {object} dtocode.Response{data=dtomemory.MemorySourceListResp}
+// @Router /v1/memory/sources [get]
+func (b *MemoryApiV1Group) MemorySourceList(c *gin.Context) {
+	var req dtomemory.MemorySourceListReq
+	if err := c.ShouldBindQuery(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := memorysvc().ListSources(c.Request.Context(), &req)
+	if !memoryFailure(c, err, dtocode.MemoryQueryFailure) {
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// MemorySourceDetail
+// @Tags Memory
+// @Summary 来源导航
+// @Description 从 Memory 证据定位到原始轮次/笔记/导入资料；返回有界脱敏片段，已删除或失效来源明确标记不可用。
+// @Param id path string true "来源 ID"
+// @Success 200 {object} dtocode.Response{data=dtomemory.MemorySourceDetailResp}
+// @Router /v1/memory/sources/{id} [get]
+func (b *MemoryApiV1Group) MemorySourceDetail(c *gin.Context) {
+	var uri memoryIDReq
+	if err := c.ShouldBindUri(&uri); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := memorysvc().SourceDetail(c.Request.Context(), uri.ID)
 	if !memoryFailure(c, err, dtocode.MemoryQueryFailure) {
 		return
 	}

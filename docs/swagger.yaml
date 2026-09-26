@@ -471,6 +471,64 @@ definitions:
       source_id:
         type: string
     type: object
+  memory.MemoryBackfillReq:
+    properties:
+      after:
+        type: string
+      before:
+        type: string
+      conversation_id:
+        maxLength: 64
+        type: string
+      max_sources:
+        maximum: 100000
+        minimum: 1
+        type: integer
+      scope_key:
+        maxLength: 128
+        type: string
+    required:
+    - scope_key
+    type: object
+  memory.MemoryBackfillResp:
+    properties:
+      created:
+        type: integer
+      error_code:
+        type: string
+      finished:
+        type: boolean
+      job_id:
+        type: string
+      limited:
+        type: boolean
+      max_sources:
+        type: integer
+      scanned:
+        type: integer
+      scope_key:
+        type: string
+      skipped:
+        type: integer
+      status:
+        type: string
+    type: object
+  memory.MemoryClaimChangeResp:
+    properties:
+      change:
+        description: added / removed / changed
+        type: string
+      from:
+        type: string
+      from_basis:
+        type: string
+      key:
+        type: string
+      to:
+        type: string
+      to_basis:
+        type: string
+    type: object
   memory.MemoryCompileReq:
     properties:
       scope_key:
@@ -478,6 +536,74 @@ definitions:
         type: string
     required:
     - scope_key
+    type: object
+  memory.MemoryDiffResp:
+    properties:
+      claim_changes:
+        items:
+          $ref: '#/definitions/memory.MemoryClaimChangeResp'
+        type: array
+      content_changes:
+        items:
+          $ref: '#/definitions/memory.MemoryFieldChangeResp'
+        type: array
+      evidence_changes:
+        items:
+          $ref: '#/definitions/memory.MemoryEvidenceChangeResp'
+        type: array
+      from:
+        $ref: '#/definitions/memory.MemoryDiffSideResp'
+      metadata_changes:
+        items:
+          $ref: '#/definitions/memory.MemoryFieldChangeResp'
+        type: array
+      page_id:
+        type: string
+      to:
+        $ref: '#/definitions/memory.MemoryDiffSideResp'
+    type: object
+  memory.MemoryDiffSideResp:
+    properties:
+      actor:
+        type: string
+      aliases:
+        items:
+          type: string
+        type: array
+      body:
+        type: string
+      created_at:
+        type: string
+      kind:
+        type: string
+      reason:
+        type: string
+      status:
+        type: string
+      summary:
+        type: string
+      title:
+        type: string
+      version:
+        type: integer
+    type: object
+  memory.MemoryEvidenceChangeResp:
+    properties:
+      basis:
+        type: string
+      change:
+        description: added / removed / changed
+        type: string
+      claim_key:
+        type: string
+      part_key:
+        type: string
+      quote:
+        type: string
+      relation:
+        type: string
+      source_id:
+        type: string
     type: object
   memory.MemoryExportReq:
     properties:
@@ -501,6 +627,40 @@ definitions:
       markdown:
         type: string
     type: object
+  memory.MemoryFieldChangeResp:
+    properties:
+      field:
+        type: string
+      from:
+        type: string
+      to:
+        type: string
+    type: object
+  memory.MemoryImportReq:
+    properties:
+      path:
+        maxLength: 4096
+        type: string
+      scope_key:
+        maxLength: 128
+        type: string
+    required:
+    - path
+    - scope_key
+    type: object
+  memory.MemoryImportResp:
+    properties:
+      deduplicated:
+        type: boolean
+      path:
+        type: string
+      size:
+        type: integer
+      source_id:
+        type: string
+      state:
+        type: string
+    type: object
   memory.MemoryJobListResp:
     properties:
       items:
@@ -512,6 +672,19 @@ definitions:
       page_size:
         type: integer
       total:
+        type: integer
+    type: object
+  memory.MemoryJobProgress:
+    properties:
+      created:
+        type: integer
+      finished:
+        type: boolean
+      limited:
+        type: boolean
+      scanned:
+        type: integer
+      skipped:
         type: integer
     type: object
   memory.MemoryJobResp:
@@ -538,6 +711,10 @@ definitions:
         type: string
       output_tokens:
         type: integer
+      progress:
+        allOf:
+        - $ref: '#/definitions/memory.MemoryJobProgress'
+        description: backfill 进度
       proposal:
         description: needs_review 的有界 PatchPlan
       scope_key:
@@ -798,6 +975,96 @@ definitions:
         type: string
       version:
         type: integer
+    type: object
+  memory.MemorySourceDetailResp:
+    properties:
+      available:
+        type: boolean
+      captured_at:
+        type: string
+      content_hash:
+        type: string
+      conversation_id:
+        type: string
+      document_path:
+        type: string
+      finish_reason:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      kind:
+        type: string
+      parts:
+        items:
+          $ref: '#/definitions/memory.MemorySourcePartResp'
+        type: array
+      policy_epoch:
+        type: integer
+      scope_key:
+        type: string
+      source_key:
+        type: string
+      state:
+        type: string
+      turn_id:
+        type: string
+      turn_status:
+        type: string
+      unavailable_reason:
+        type: string
+    type: object
+  memory.MemorySourceItemResp:
+    properties:
+      captured_at:
+        type: string
+      content_hash:
+        type: string
+      conversation_id:
+        type: string
+      document_path:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      kind:
+        type: string
+      policy_epoch:
+        type: integer
+      scope_key:
+        type: string
+      source_key:
+        type: string
+      state:
+        type: string
+      turn_id:
+        type: string
+    type: object
+  memory.MemorySourceListResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/memory.MemorySourceItemResp'
+        type: array
+      page:
+        type: integer
+      page_size:
+        type: integer
+      total:
+        type: integer
+    type: object
+  memory.MemorySourcePartResp:
+    properties:
+      origin:
+        type: string
+      part_key:
+        type: string
+      text:
+        type: string
+      truncated:
+        type: boolean
     type: object
   memory.MemorySourceRefReq:
     properties:
@@ -1934,6 +2201,29 @@ paths:
       summary: ChatSSE
       tags:
       - Chat
+  /v1/memory/backfill:
+    post:
+      description: 用户显式选择范围与成本上限后，后台分页扫描 completed 轮次并幂等入队来源；同一范围进行中作业幂等返回。私密/只读会话与已删除会话不参与。
+      parameters:
+      - description: 范围与成本上限
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/memory.MemoryBackfillReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryBackfillResp'
+              type: object
+      summary: 历史回填
+      tags:
+      - Memory
   /v1/memory/compile:
     post:
       description: 登记后由后台 Worker 跳过防抖立即处理该范围的待处理来源；响应不是编译结果。
@@ -1973,6 +2263,29 @@ paths:
                   $ref: '#/definitions/memory.MemoryExportResp'
               type: object
       summary: Markdown 导出
+      tags:
+      - Memory
+  /v1/memory/import:
+    post:
+      description: 复用项目路径校验、忽略规则与大小限制读取资料快照并生成 import 来源；同路径同内容重复导入幂等返回已有来源，内容变化产生新来源。
+      parameters:
+      - description: 范围与资料路径
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/memory.MemoryImportReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryImportResp'
+              type: object
+      summary: 导入项目资料
       tags:
       - Memory
   /v1/memory/jobs:
@@ -2210,6 +2523,37 @@ paths:
       summary: 编辑/置顶/锁定记忆
       tags:
       - Memory
+  /v1/memory/pages/{id}/diff:
+    get:
+      description: 任意两个修订的结构化对比（from=0 表示 to 的前一个版本）；内容、元数据、主张与证据变化顺序稳定。受删除与范围权限约束。
+      parameters:
+      - description: 页面 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 起始版本；0 表示前一个版本
+        in: query
+        name: from
+        required: true
+        type: integer
+      - description: 目标版本；缺省为当前版本
+        in: query
+        name: to
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemoryDiffResp'
+              type: object
+      summary: 版本对比
+      tags:
+      - Memory
   /v1/memory/pages/{id}/restore:
     post:
       description: 以旧内容新建恢复修订，不回退版本号；被遗忘且已物理清除的修订不能恢复。
@@ -2260,6 +2604,76 @@ paths:
                   type: array
               type: object
       summary: 修订历史
+      tags:
+      - Memory
+  /v1/memory/sources:
+    get:
+      description: 按范围、类型与状态分页查看来源，用于导入/回填进度与错误追踪；不返回正文。
+      parameters:
+      - enum:
+        - turn
+        - note
+        - import
+        in: query
+        name: kind
+        type: string
+      - in: query
+        maximum: 1000000
+        minimum: 1
+        name: page
+        type: integer
+      - in: query
+        maximum: 100
+        minimum: 1
+        name: page_size
+        type: integer
+      - in: query
+        maxLength: 128
+        name: scope_key
+        type: string
+      - enum:
+        - pending
+        - claimed
+        - processed
+        - noop
+        - failed
+        - excluded
+        in: query
+        name: state
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemorySourceListResp'
+              type: object
+      summary: 来源列表
+      tags:
+      - Memory
+  /v1/memory/sources/{id}:
+    get:
+      description: 从 Memory 证据定位到原始轮次/笔记/导入资料；返回有界脱敏片段，已删除或失效来源明确标记不可用。
+      parameters:
+      - description: 来源 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/memory.MemorySourceDetailResp'
+              type: object
+      summary: 来源导航
       tags:
       - Memory
   /v1/memory/status:

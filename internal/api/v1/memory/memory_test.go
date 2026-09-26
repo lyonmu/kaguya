@@ -61,7 +61,12 @@ func setupMemoryAPITest(t *testing.T) *gin.Engine {
 	router.PATCH("/pages/:id", api.MemoryPageUpdate)
 	router.DELETE("/pages/:id", api.MemoryPageDelete)
 	router.GET("/pages/:id/revisions", api.MemoryPageRevisions)
+	router.GET("/pages/:id/diff", api.MemoryPageDiff)
 	router.POST("/pages/:id/restore", api.MemoryPageRestore)
+	router.GET("/sources", api.MemorySourceList)
+	router.GET("/sources/:id", api.MemorySourceDetail)
+	router.POST("/backfill", api.MemoryBackfill)
+	router.POST("/import", api.MemoryImport)
 	router.GET("/jobs", api.MemoryJobList)
 	router.POST("/jobs/:id/retry", api.MemoryJobRetry)
 	router.POST("/jobs/:id/approve", api.MemoryJobApprove)
@@ -148,6 +153,62 @@ func TestMemoryAPIPageLifecycle(t *testing.T) {
 	memoryAPIRequest(t, router, "DELETE", "/pages/"+id+"?mode=forget", "", dtocode.SystemSuccess.Code)
 	memoryAPIRequest(t, router, "GET", "/pages/"+id, "", dtocode.MemoryPageNotFound.Code)
 	memoryAPIRequest(t, router, "GET", "/pages/"+id+"?version=1", "", dtocode.MemoryPageNotFound.Code)
+}
+
+// 新增接口：版本对比、来源导航、历史回填与导入边界。
+func TestMemoryAPIDiffSourcesBackfill(t *testing.T) {
+	router := setupMemoryAPITest(t)
+	created := memoryAPIRequest(t, router, "POST", "/pages", `{
+		"scope_key":"personal","kind":"decision","title":"对比页面",
+		"summary":"第一版","body":"第一版正文","aliases":["对比"]
+	}`, dtocode.SystemSuccess.Code)
+	id, _ := created["id"].(string)
+	if id == "" {
+		t.Fatalf("create: %+v", created)
+	}
+	memoryAPIRequest(t, router, "PATCH", "/pages/"+id,
+		`{"expected_version":1,"summary":"第二版","body":"第二版正文"}`, dtocode.SystemSuccess.Code)
+
+	diff := memoryAPIRequest(t, router, "GET", "/pages/"+id+"/diff?from=1&to=2", "", dtocode.SystemSuccess.Code)
+	changes, _ := diff["content_changes"].([]any)
+	if len(changes) == 0 {
+		t.Fatalf("diff: %+v", diff)
+	}
+	previous := memoryAPIRequest(t, router, "GET", "/pages/"+id+"/diff?from=0&to=2", "", dtocode.SystemSuccess.Code)
+	if from, _ := previous["from"].(map[string]any); from["version"] != float64(1) {
+		t.Fatalf("previous: %+v", previous)
+	}
+	memoryAPIRequest(t, router, "GET", "/pages/ghost/diff?from=1", "", dtocode.MemoryPageNotFound.Code)
+
+	sources := memoryAPIRequest(t, router, "GET", "/sources?kind=note", "", dtocode.SystemSuccess.Code)
+	if sources["total"] != float64(1) {
+		t.Fatalf("sources: %+v", sources)
+	}
+	items, _ := sources["items"].([]any)
+	first, _ := items[0].(map[string]any)
+	sourceID, _ := first["id"].(string)
+	detail := memoryAPIRequest(t, router, "GET", "/sources/"+sourceID, "", dtocode.SystemSuccess.Code)
+	if detail["available"] != true || detail["kind"] != "note" {
+		t.Fatalf("source detail: %+v", detail)
+	}
+	memoryAPIRequest(t, router, "GET", "/sources/ghost", "", dtocode.MemorySourceNotFound.Code)
+
+	backfill := memoryAPIRequest(t, router, "POST", "/backfill",
+		`{"scope_key":"personal","max_sources":5}`, dtocode.SystemSuccess.Code)
+	if backfill["job_id"] == "" || backfill["status"] != "pending" {
+		t.Fatalf("backfill: %+v", backfill)
+	}
+	// 同一范围进行中作业幂等返回。
+	again := memoryAPIRequest(t, router, "POST", "/backfill",
+		`{"scope_key":"personal","max_sources":5}`, dtocode.SystemSuccess.Code)
+	if again["job_id"] != backfill["job_id"] {
+		t.Fatalf("backfill not idempotent: %+v vs %+v", backfill, again)
+	}
+	memoryAPIRequest(t, router, "POST", "/backfill",
+		`{"scope_key":"shared","max_sources":5}`, dtocode.RequestParameterError.Code)
+	// 导入必须项目范围且注入读取器；个人范围明确拒绝。
+	memoryAPIRequest(t, router, "POST", "/import",
+		`{"scope_key":"personal","path":"docs/spec.md"}`, dtocode.RequestParameterError.Code)
 }
 
 // 任务接口：空列表、立即整理入队、未知任务的错误码。

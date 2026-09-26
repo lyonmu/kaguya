@@ -18,6 +18,7 @@ func (KaguyaMemoryJob) Fields() []ent.Field {
 		field.String("conversation_id").MaxLen(64).Default(""),
 		field.JSON("input_source_ids", []string{}).Optional().Comment("冻结的输入来源 ID 集合，领取后不再变化"),
 		field.String("input_hash").MaxLen(64).Default(""),
+		field.Int("source_budget").Default(0).NonNegative().Comment("领取时冻结的来源字节预算，保证 input_hash 可确定性重建"),
 		field.String("compiler_version").MaxLen(32).Default(""),
 		field.Enum("status").Values(
 			"pending", "running", "succeeded", "retry_wait", "blocked", "needs_review", "failed", "canceled",

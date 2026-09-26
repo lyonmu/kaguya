@@ -743,40 +743,46 @@ func init() {
 	kaguyamemoryjob.DefaultInputHash = kaguyamemoryjobDescInputHash.Default.(string)
 	// kaguyamemoryjob.InputHashValidator is a validator for the "input_hash" field. It is called by the builders before save.
 	kaguyamemoryjob.InputHashValidator = kaguyamemoryjobDescInputHash.Validators[0].(func(string) error)
+	// kaguyamemoryjobDescSourceBudget is the schema descriptor for source_budget field.
+	kaguyamemoryjobDescSourceBudget := kaguyamemoryjobFields[5].Descriptor()
+	// kaguyamemoryjob.DefaultSourceBudget holds the default value on creation for the source_budget field.
+	kaguyamemoryjob.DefaultSourceBudget = kaguyamemoryjobDescSourceBudget.Default.(int)
+	// kaguyamemoryjob.SourceBudgetValidator is a validator for the "source_budget" field. It is called by the builders before save.
+	kaguyamemoryjob.SourceBudgetValidator = kaguyamemoryjobDescSourceBudget.Validators[0].(func(int) error)
 	// kaguyamemoryjobDescCompilerVersion is the schema descriptor for compiler_version field.
-	kaguyamemoryjobDescCompilerVersion := kaguyamemoryjobFields[5].Descriptor()
+	kaguyamemoryjobDescCompilerVersion := kaguyamemoryjobFields[6].Descriptor()
 	// kaguyamemoryjob.DefaultCompilerVersion holds the default value on creation for the compiler_version field.
 	kaguyamemoryjob.DefaultCompilerVersion = kaguyamemoryjobDescCompilerVersion.Default.(string)
 	// kaguyamemoryjob.CompilerVersionValidator is a validator for the "compiler_version" field. It is called by the builders before save.
 	kaguyamemoryjob.CompilerVersionValidator = kaguyamemoryjobDescCompilerVersion.Validators[0].(func(string) error)
 	// kaguyamemoryjobDescAttempt is the schema descriptor for attempt field.
-	kaguyamemoryjobDescAttempt := kaguyamemoryjobFields[7].Descriptor()
+	kaguyamemoryjobDescAttempt := kaguyamemoryjobFields[8].Descriptor()
 	// kaguyamemoryjob.DefaultAttempt holds the default value on creation for the attempt field.
 	kaguyamemoryjob.DefaultAttempt = kaguyamemoryjobDescAttempt.Default.(int)
 	// kaguyamemoryjob.AttemptValidator is a validator for the "attempt" field. It is called by the builders before save.
 	kaguyamemoryjob.AttemptValidator = kaguyamemoryjobDescAttempt.Validators[0].(func(int) error)
 	// kaguyamemoryjobDescLeaseToken is the schema descriptor for lease_token field.
-	kaguyamemoryjobDescLeaseToken := kaguyamemoryjobFields[8].Descriptor()
+	kaguyamemoryjobDescLeaseToken := kaguyamemoryjobFields[9].Descriptor()
 	// kaguyamemoryjob.DefaultLeaseToken holds the default value on creation for the lease_token field.
 	kaguyamemoryjob.DefaultLeaseToken = kaguyamemoryjobDescLeaseToken.Default.(string)
 	// kaguyamemoryjob.LeaseTokenValidator is a validator for the "lease_token" field. It is called by the builders before save.
 	kaguyamemoryjob.LeaseTokenValidator = kaguyamemoryjobDescLeaseToken.Validators[0].(func(string) error)
 	// kaguyamemoryjobDescErrorCode is the schema descriptor for error_code field.
-	kaguyamemoryjobDescErrorCode := kaguyamemoryjobFields[11].Descriptor()
+	kaguyamemoryjobDescErrorCode := kaguyamemoryjobFields[12].Descriptor()
 	// kaguyamemoryjob.DefaultErrorCode holds the default value on creation for the error_code field.
 	kaguyamemoryjob.DefaultErrorCode = kaguyamemoryjobDescErrorCode.Default.(string)
 	// kaguyamemoryjob.ErrorCodeValidator is a validator for the "error_code" field. It is called by the builders before save.
 	kaguyamemoryjob.ErrorCodeValidator = kaguyamemoryjobDescErrorCode.Validators[0].(func(string) error)
 	// kaguyamemoryjobDescErrorSummary is the schema descriptor for error_summary field.
-	kaguyamemoryjobDescErrorSummary := kaguyamemoryjobFields[12].Descriptor()
+	kaguyamemoryjobDescErrorSummary := kaguyamemoryjobFields[13].Descriptor()
 	// kaguyamemoryjob.DefaultErrorSummary holds the default value on creation for the error_summary field.
 	kaguyamemoryjob.DefaultErrorSummary = kaguyamemoryjobDescErrorSummary.Default.(string)
 	// kaguyamemoryjobDescResultJSON is the schema descriptor for result_json field.
-	kaguyamemoryjobDescResultJSON := kaguyamemoryjobFields[13].Descriptor()
+	kaguyamemoryjobDescResultJSON := kaguyamemoryjobFields[14].Descriptor()
 	// kaguyamemoryjob.DefaultResultJSON holds the default value on creation for the result_json field.
 	kaguyamemoryjob.DefaultResultJSON = kaguyamemoryjobDescResultJSON.Default.(string)
 	// kaguyamemoryjobDescPolicyEpoch is the schema descriptor for policy_epoch field.
-	kaguyamemoryjobDescPolicyEpoch := kaguyamemoryjobFields[14].Descriptor()
+	kaguyamemoryjobDescPolicyEpoch := kaguyamemoryjobFields[15].Descriptor()
 	// kaguyamemoryjob.DefaultPolicyEpoch holds the default value on creation for the policy_epoch field.
 	kaguyamemoryjob.DefaultPolicyEpoch = kaguyamemoryjobDescPolicyEpoch.Default.(int64)
 	// kaguyamemoryjob.PolicyEpochValidator is a validator for the "policy_epoch" field. It is called by the builders before save.
@@ -1215,14 +1221,24 @@ func init() {
 	kaguyamemorysource.DefaultContentHash = kaguyamemorysourceDescContentHash.Default.(string)
 	// kaguyamemorysource.ContentHashValidator is a validator for the "content_hash" field. It is called by the builders before save.
 	kaguyamemorysource.ContentHashValidator = kaguyamemorysourceDescContentHash.Validators[0].(func(string) error)
+	// kaguyamemorysourceDescRawContent is the schema descriptor for raw_content field.
+	kaguyamemorysourceDescRawContent := kaguyamemorysourceFields[8].Descriptor()
+	// kaguyamemorysource.DefaultRawContent holds the default value on creation for the raw_content field.
+	kaguyamemorysource.DefaultRawContent = kaguyamemorysourceDescRawContent.Default.(string)
+	// kaguyamemorysourceDescDocumentPath is the schema descriptor for document_path field.
+	kaguyamemorysourceDescDocumentPath := kaguyamemorysourceFields[9].Descriptor()
+	// kaguyamemorysource.DefaultDocumentPath holds the default value on creation for the document_path field.
+	kaguyamemorysource.DefaultDocumentPath = kaguyamemorysourceDescDocumentPath.Default.(string)
+	// kaguyamemorysource.DocumentPathValidator is a validator for the "document_path" field. It is called by the builders before save.
+	kaguyamemorysource.DocumentPathValidator = kaguyamemorysourceDescDocumentPath.Validators[0].(func(string) error)
 	// kaguyamemorysourceDescJobID is the schema descriptor for job_id field.
-	kaguyamemorysourceDescJobID := kaguyamemorysourceFields[9].Descriptor()
+	kaguyamemorysourceDescJobID := kaguyamemorysourceFields[11].Descriptor()
 	// kaguyamemorysource.DefaultJobID holds the default value on creation for the job_id field.
 	kaguyamemorysource.DefaultJobID = kaguyamemorysourceDescJobID.Default.(string)
 	// kaguyamemorysource.JobIDValidator is a validator for the "job_id" field. It is called by the builders before save.
 	kaguyamemorysource.JobIDValidator = kaguyamemorysourceDescJobID.Validators[0].(func(string) error)
 	// kaguyamemorysourceDescPolicyEpoch is the schema descriptor for policy_epoch field.
-	kaguyamemorysourceDescPolicyEpoch := kaguyamemorysourceFields[11].Descriptor()
+	kaguyamemorysourceDescPolicyEpoch := kaguyamemorysourceFields[13].Descriptor()
 	// kaguyamemorysource.DefaultPolicyEpoch holds the default value on creation for the policy_epoch field.
 	kaguyamemorysource.DefaultPolicyEpoch = kaguyamemorysourceDescPolicyEpoch.Default.(int64)
 	// kaguyamemorysource.PolicyEpochValidator is a validator for the "policy_epoch" field. It is called by the builders before save.

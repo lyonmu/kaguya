@@ -405,6 +405,7 @@ var (
 		{Name: "conversation_id", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "input_source_ids", Type: field.TypeJSON, Nullable: true, Comment: "冻结的输入来源 ID 集合，领取后不再变化"},
 		{Name: "input_hash", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "source_budget", Type: field.TypeInt, Comment: "领取时冻结的来源字节预算，保证 input_hash 可确定性重建", Default: 0},
 		{Name: "compiler_version", Type: field.TypeString, Size: 32, Default: ""},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "running", "succeeded", "retry_wait", "blocked", "needs_review", "failed", "canceled"}, Default: "pending"},
 		{Name: "attempt", Type: field.TypeInt, Comment: "已执行尝试次数", Default: 0},
@@ -448,7 +449,7 @@ var (
 			{
 				Name:    "kaguyamemoryjob_status_next_attempt_at",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaMemoryJobColumns[10], KaguyaMemoryJobColumns[14]},
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[11], KaguyaMemoryJobColumns[15]},
 			},
 			{
 				Name:    "kaguyamemoryjob_conversation_id_scope_key",
@@ -458,7 +459,7 @@ var (
 			{
 				Name:    "kaguyamemoryjob_lease_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaMemoryJobColumns[13]},
+				Columns: []*schema.Column{KaguyaMemoryJobColumns[14]},
 			},
 		},
 	}
@@ -665,6 +666,8 @@ var (
 		{Name: "projection_version", Type: field.TypeInt, Comment: "来源投影版本，投影契约变化时递增", Default: 1},
 		{Name: "cursor_part", Type: field.TypeInt, Comment: "投影 segment 游标：超预算切分后剩余部分仍待处理", Default: 0},
 		{Name: "content_hash", Type: field.TypeString, Size: 64, Comment: "投影内容哈希，用于排除与去重；不保证拦截同义改写", Default: ""},
+		{Name: "raw_content", Type: field.TypeString, Size: 2147483647, Comment: "显式导入资料的稳定快照；turn/note 来源为空，Worker 从轮次或页面正文重建投影", Default: ""},
+		{Name: "document_path", Type: field.TypeString, Size: 4096, Comment: "导入资料的项目内相对路径，仅用于来源导航", Default: ""},
 		{Name: "state", Type: field.TypeEnum, Comment: "pending→claimed→processed/noop/failed；excluded 表示隐私关闭、删除或来源失效", Enums: []string{"pending", "claimed", "processed", "noop", "failed", "excluded"}, Default: "pending"},
 		{Name: "job_id", Type: field.TypeString, Size: 64, Comment: "当前/最近领取该来源的作业", Default: ""},
 		{Name: "captured_at", Type: field.TypeTime, Comment: "来源捕获时间"},
@@ -705,7 +708,7 @@ var (
 			{
 				Name:    "kaguyamemorysource_state_captured_at",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaMemorySourceColumns[12], KaguyaMemorySourceColumns[14]},
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[14], KaguyaMemorySourceColumns[16]},
 			},
 			{
 				Name:    "kaguyamemorysource_conversation_id",
@@ -715,7 +718,7 @@ var (
 			{
 				Name:    "kaguyamemorysource_job_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaMemorySourceColumns[13]},
+				Columns: []*schema.Column{KaguyaMemorySourceColumns[15]},
 			},
 		},
 	}

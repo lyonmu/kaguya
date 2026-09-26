@@ -72,6 +72,14 @@ export interface MemoryRevision {
   created_at: string
 }
 
+export interface MemoryJobProgress {
+  scanned: number
+  created: number
+  skipped: number
+  limited: boolean
+  finished: boolean
+}
+
 export interface MemoryJob {
   id: string
   kind: string
@@ -82,6 +90,7 @@ export interface MemoryJob {
   error_code?: string
   error_summary?: string
   proposal?: unknown
+  progress?: MemoryJobProgress
   created_at: string
   started_at?: string
   finished_at?: string
@@ -134,6 +143,112 @@ export interface MemoryRefs {
 export interface MemoryExport {
   filename: string
   markdown: string
+}
+
+export interface MemorySourceItem {
+  id: string
+  kind: string
+  scope_key: string
+  state: string
+  source_key: string
+  conversation_id?: string
+  turn_id?: string
+  document_path?: string
+  content_hash?: string
+  job_id?: string
+  policy_epoch: number
+  captured_at: string
+}
+
+export interface MemorySourceList {
+  total: number
+  page: number
+  page_size: number
+  items: MemorySourceItem[]
+}
+
+export interface MemorySourcePart {
+  part_key: string
+  origin: string
+  text: string
+  truncated: boolean
+}
+
+export interface MemorySourceDetail extends MemorySourceItem {
+  available: boolean
+  unavailable_reason?: string
+  turn_status?: string
+  finish_reason?: string
+  parts: MemorySourcePart[]
+}
+
+export interface MemoryBackfillResult {
+  job_id: string
+  scope_key: string
+  status: string
+  scanned: number
+  created: number
+  skipped: number
+  max_sources: number
+  limited: boolean
+  finished: boolean
+  error_code?: string
+}
+
+export interface MemoryImportResult {
+  source_id: string
+  state: string
+  path: string
+  size: number
+  deduplicated: boolean
+}
+
+export interface MemoryDiffSide {
+  version: number
+  actor: string
+  reason: string
+  created_at: string
+  title: string
+  summary: string
+  body: string
+  kind: string
+  status: string
+  aliases: string[]
+}
+
+export interface MemoryFieldChange {
+  field: string
+  from: string
+  to: string
+}
+
+export interface MemoryClaimChange {
+  key: string
+  change: string
+  from?: string
+  to?: string
+  from_basis?: string
+  to_basis?: string
+}
+
+export interface MemoryEvidenceChange {
+  claim_key: string
+  change: string
+  source_id: string
+  part_key: string
+  quote?: string
+  relation?: string
+  basis?: string
+}
+
+export interface MemoryDiff {
+  page_id: string
+  from: MemoryDiffSide
+  to: MemoryDiffSide
+  content_changes: MemoryFieldChange[]
+  metadata_changes: MemoryFieldChange[]
+  claim_changes: MemoryClaimChange[]
+  evidence_changes: MemoryEvidenceChange[]
 }
 
 export interface MemorySourceRef {

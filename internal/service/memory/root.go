@@ -42,6 +42,7 @@ type Service struct {
 	logger     *zap.Logger
 	caller     ModelCaller
 	taskModels TaskModelResolver
+	documents  DocumentReader
 }
 
 // NewService 装配记忆服务；模型调用与任务模型解析默认走真实实现，可由测试覆盖。

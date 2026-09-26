@@ -114,6 +114,16 @@ func ContentHash(v string) predicate.KaguyaMemorySource {
 	return predicate.KaguyaMemorySource(sql.FieldEQ(FieldContentHash, v))
 }
 
+// RawContent applies equality check predicate on the "raw_content" field. It's identical to RawContentEQ.
+func RawContent(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldEQ(FieldRawContent, v))
+}
+
+// DocumentPath applies equality check predicate on the "document_path" field. It's identical to DocumentPathEQ.
+func DocumentPath(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldEQ(FieldDocumentPath, v))
+}
+
 // JobID applies equality check predicate on the "job_id" field. It's identical to JobIDEQ.
 func JobID(v string) predicate.KaguyaMemorySource {
 	return predicate.KaguyaMemorySource(sql.FieldEQ(FieldJobID, v))
@@ -682,6 +692,136 @@ func ContentHashEqualFold(v string) predicate.KaguyaMemorySource {
 // ContentHashContainsFold applies the ContainsFold predicate on the "content_hash" field.
 func ContentHashContainsFold(v string) predicate.KaguyaMemorySource {
 	return predicate.KaguyaMemorySource(sql.FieldContainsFold(FieldContentHash, v))
+}
+
+// RawContentEQ applies the EQ predicate on the "raw_content" field.
+func RawContentEQ(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldEQ(FieldRawContent, v))
+}
+
+// RawContentNEQ applies the NEQ predicate on the "raw_content" field.
+func RawContentNEQ(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldNEQ(FieldRawContent, v))
+}
+
+// RawContentIn applies the In predicate on the "raw_content" field.
+func RawContentIn(vs ...string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldIn(FieldRawContent, vs...))
+}
+
+// RawContentNotIn applies the NotIn predicate on the "raw_content" field.
+func RawContentNotIn(vs ...string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldNotIn(FieldRawContent, vs...))
+}
+
+// RawContentGT applies the GT predicate on the "raw_content" field.
+func RawContentGT(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldGT(FieldRawContent, v))
+}
+
+// RawContentGTE applies the GTE predicate on the "raw_content" field.
+func RawContentGTE(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldGTE(FieldRawContent, v))
+}
+
+// RawContentLT applies the LT predicate on the "raw_content" field.
+func RawContentLT(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldLT(FieldRawContent, v))
+}
+
+// RawContentLTE applies the LTE predicate on the "raw_content" field.
+func RawContentLTE(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldLTE(FieldRawContent, v))
+}
+
+// RawContentContains applies the Contains predicate on the "raw_content" field.
+func RawContentContains(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldContains(FieldRawContent, v))
+}
+
+// RawContentHasPrefix applies the HasPrefix predicate on the "raw_content" field.
+func RawContentHasPrefix(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldHasPrefix(FieldRawContent, v))
+}
+
+// RawContentHasSuffix applies the HasSuffix predicate on the "raw_content" field.
+func RawContentHasSuffix(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldHasSuffix(FieldRawContent, v))
+}
+
+// RawContentEqualFold applies the EqualFold predicate on the "raw_content" field.
+func RawContentEqualFold(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldEqualFold(FieldRawContent, v))
+}
+
+// RawContentContainsFold applies the ContainsFold predicate on the "raw_content" field.
+func RawContentContainsFold(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldContainsFold(FieldRawContent, v))
+}
+
+// DocumentPathEQ applies the EQ predicate on the "document_path" field.
+func DocumentPathEQ(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldEQ(FieldDocumentPath, v))
+}
+
+// DocumentPathNEQ applies the NEQ predicate on the "document_path" field.
+func DocumentPathNEQ(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldNEQ(FieldDocumentPath, v))
+}
+
+// DocumentPathIn applies the In predicate on the "document_path" field.
+func DocumentPathIn(vs ...string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldIn(FieldDocumentPath, vs...))
+}
+
+// DocumentPathNotIn applies the NotIn predicate on the "document_path" field.
+func DocumentPathNotIn(vs ...string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldNotIn(FieldDocumentPath, vs...))
+}
+
+// DocumentPathGT applies the GT predicate on the "document_path" field.
+func DocumentPathGT(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldGT(FieldDocumentPath, v))
+}
+
+// DocumentPathGTE applies the GTE predicate on the "document_path" field.
+func DocumentPathGTE(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldGTE(FieldDocumentPath, v))
+}
+
+// DocumentPathLT applies the LT predicate on the "document_path" field.
+func DocumentPathLT(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldLT(FieldDocumentPath, v))
+}
+
+// DocumentPathLTE applies the LTE predicate on the "document_path" field.
+func DocumentPathLTE(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldLTE(FieldDocumentPath, v))
+}
+
+// DocumentPathContains applies the Contains predicate on the "document_path" field.
+func DocumentPathContains(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldContains(FieldDocumentPath, v))
+}
+
+// DocumentPathHasPrefix applies the HasPrefix predicate on the "document_path" field.
+func DocumentPathHasPrefix(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldHasPrefix(FieldDocumentPath, v))
+}
+
+// DocumentPathHasSuffix applies the HasSuffix predicate on the "document_path" field.
+func DocumentPathHasSuffix(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldHasSuffix(FieldDocumentPath, v))
+}
+
+// DocumentPathEqualFold applies the EqualFold predicate on the "document_path" field.
+func DocumentPathEqualFold(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldEqualFold(FieldDocumentPath, v))
+}
+
+// DocumentPathContainsFold applies the ContainsFold predicate on the "document_path" field.
+func DocumentPathContainsFold(v string) predicate.KaguyaMemorySource {
+	return predicate.KaguyaMemorySource(sql.FieldContainsFold(FieldDocumentPath, v))
 }
 
 // StateEQ applies the EQ predicate on the "state" field.

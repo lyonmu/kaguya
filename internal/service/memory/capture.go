@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/lyonmu/kaguya/internal/ent"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryevidence"
@@ -62,10 +61,8 @@ func CaptureCompletedTx(ctx context.Context, client *ent.Client, in CaptureInput
 	if turn.Status != kaguyachatturn.StatusCompleted {
 		return nil
 	}
-	segments, err := turnSegmentsTx(ctx, client, in.TurnID)
-	if err != nil {
-		return err
-	}
+	// 轻量 Outbox：只写后续处理真正需要的稳定标识与范围；投影、内容哈希与
+	// 脱敏全部留给 Worker 异步推导，捕获事务不读来源投影。
 	return client.KaguyaMemorySource.Create().
 		SetSourceKey(fmt.Sprintf("turn:%s:projection-v%d", in.TurnID, ProjectionVersion)).
 		SetKind(kaguyamemorysource.KindTurn).
@@ -73,23 +70,12 @@ func CaptureCompletedTx(ctx context.Context, client *ent.Client, in CaptureInput
 		SetConversationID(in.ConversationID).
 		SetTurnID(in.TurnID).
 		SetProjectionVersion(ProjectionVersion).
-		SetContentHash(ProjectionHash(segments)).
 		SetState(kaguyamemorysource.StatePending).
 		SetCapturedAt(nowTime()).
 		SetPolicyEpoch(in.PolicyEpoch).
 		OnConflictColumns(kaguyamemorysource.FieldSourceKey).
 		Ignore().
 		Exec(ctx)
-}
-
-func turnSegmentsTx(ctx context.Context, client *ent.Client, turnID string) ([]Segment, error) {
-	turn, err := client.KaguyaChatTurn.Query().Where(kaguyachatturn.IDEQ(turnID)).
-		WithBlocks(func(q *ent.KaguyaChatBlockQuery) { q.Order(kaguyachatblock.BySequence()) }).
-		Only(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return BuildTurnSegments(turn.UserContent, turn.Edges.Blocks), nil
 }
 
 // EnsureTurnSourceTx 为人工保存的记忆建立（或复用）轮次来源引用，
@@ -115,8 +101,10 @@ func EnsureTurnSourceTx(ctx context.Context, client *ent.Client, conversationID,
 	if conv.ProjectID != nil {
 		projectID = *conv.ProjectID
 	}
-	segments, err := turnSegmentsTx(ctx, client, turnID)
-	if err != nil {
+	// 只校验轮次确实属于该会话；投影与哈希在需要时异步推导。
+	if _, err := client.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.IDEQ(turnID), kaguyachatturn.ConversationIDEQ(conversationID)).
+		Select(kaguyachatturn.FieldID).Only(ctx); err != nil {
 		return nil, err
 	}
 	// 人工保存是用户明确动作，来源直接标记已处理，不进入自动编译循环。
@@ -127,7 +115,6 @@ func EnsureTurnSourceTx(ctx context.Context, client *ent.Client, conversationID,
 		SetConversationID(conversationID).
 		SetTurnID(turnID).
 		SetProjectionVersion(ProjectionVersion).
-		SetContentHash(ProjectionHash(segments)).
 		SetState(kaguyamemorysource.StateProcessed).
 		SetCapturedAt(nowTime()).
 		SetPolicyEpoch(0).
