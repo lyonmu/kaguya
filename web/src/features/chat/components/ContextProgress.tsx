@@ -42,7 +42,7 @@ export function ContextProgress({ conversationId, turnCount }: { conversationId?
   </>
   return <Tooltip title={title} placement="top">
     <span className="chat-context-progress" tabIndex={0} aria-label={known ? `上下文占用 ${percent.toFixed(1)}%` : '上下文占用未知'}>
-      {loading ? <Spin size="small" /> : <Progress type="circle" size={22} strokeWidth={16} percent={Math.min(percent ?? 0, 100)} status={known && percent >= 100 ? 'exception' : 'normal'} strokeColor={known && percent >= 100 ? '#ff4d4f' : known && percent >= 80 ? '#faad14' : undefined} showInfo={false} />}
+      {loading ? <Spin size="small" /> : <Progress type="circle" size={22} strokeWidth={16} percent={Math.min(percent ?? 0, 100)} status={known && percent >= 100 ? 'exception' : 'normal'} strokeColor={known && percent >= 100 ? 'var(--k-danger)' : known && percent >= 80 ? 'var(--k-warning)' : 'var(--k-context)'} showInfo={false} />}
     </span>
   </Tooltip>
 }

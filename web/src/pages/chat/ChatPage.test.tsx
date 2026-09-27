@@ -79,8 +79,8 @@ it('groups navigation with refresh and keeps it accessible after collapsing the 
   assert.equal(view.queryByLabelText('Console ready'), null)
   assert.equal(view.queryByText('K'), null)
   const footer = within(view.container.querySelector('.chat-sidebar-footer')! as HTMLElement)
-  for (const name of ['Kaguya', '对话管理', '系统管理', '切换颜色模式', '刷新列表']) assert.ok(footer.getByRole('button', { name }))
-  fireEvent.click(footer.getByLabelText('系统管理'))
+  for (const name of ['Kaguya', '对话管理', '偏好与配置', '切换颜色模式', '刷新列表']) assert.ok(footer.getByRole('button', { name }))
+  fireEvent.click(footer.getByLabelText('偏好与配置'))
   assert.equal(page, 'ai-providers')
   fireEvent.click(footer.getByLabelText('切换颜色模式'))
   assert.equal(toggles, 1)
@@ -188,15 +188,13 @@ it('links recent running sessions to their project or ordinary list without canc
   assert.ok(streams.every(stream => !stream.signal.aborted))
 })
 
-it('uses the supplied images for conversation avatars and the welcome logo', () => {
+it('uses the Lunar glyph for welcome and replies while retaining the user avatar', () => {
   const props = { loading: false, streaming: false, page: 1, totalPages: 1, initialEnd: false, onPageChange: async () => {} }
   const view = render(<MessageList {...props} turns={[]} />)
-  const welcomeSource = view.getByAltText('Kaguya').getAttribute('src')
-  assert.ok(welcomeSource?.endsWith('/assets/kaguya-144.webp'))
-  const welcomeSrcSet = view.getByAltText('Kaguya').getAttribute('srcset')
-  assert.ok(welcomeSrcSet?.includes('kaguya-288.webp 2x'))
+  assert.ok(view.getByRole('heading', { name: 'Kaguya' }))
+  assert.ok(view.container.querySelector('.chat-welcome .lunar-glyph'))
   view.rerender(<MessageList {...props} turns={[{ turn_index: 1, user_content: '你好', model_name: '', model_id: '', api_protocol: '', started_at: new Date().toISOString(), duration_ms: 0, tool_calls: 0, blocks: [] }]} />)
-  assert.equal(view.getByAltText('Kaguya 头像').getAttribute('src'), welcomeSource)
+  assert.ok(view.container.querySelector('.chat-avatar.ai .lunar-glyph'))
   assert.ok(view.getByAltText('用户头像').getAttribute('src')?.endsWith('/assets/lyonmu-144.webp'))
   assert.equal(view.getByAltText('用户头像').getAttribute('width'), '28')
 })
@@ -217,7 +215,7 @@ it('shows one dash per message page and synchronizes the selected page', () => {
 it('opens AI providers when entering system settings', () => {
   let page = ''
   const view = render(<AppLayout colorMode="light" currentPage="system-info" onPageChange={value => { page = value }} onToggleColorMode={() => {}} />)
-  fireEvent.click(view.getByLabelText('系统管理'))
+  fireEvent.click(view.getByLabelText('偏好与配置'))
   assert.equal(page, 'ai-providers')
 })
 
@@ -258,7 +256,7 @@ it('runs two conversations through assistant-ui and retains them across system n
   assert.ok(view.getByText('second answer'))
   assert.equal(view.queryByText('first answer'), null)
   const footer = within(view.container.querySelector('.chat-sidebar-footer')! as HTMLElement)
-  fireEvent.click(footer.getByLabelText('系统管理'))
+  fireEvent.click(footer.getByLabelText('偏好与配置'))
   assert.ok(view.getByText('配置页面'))
   assert.ok(streams.every(stream => !stream.signal.aborted))
   await act(async () => { streams[0].emit('done') })
@@ -294,5 +292,8 @@ it('shows memory references and switches per-conversation memory mode', async ()
   const view = render(<App><ChatPage /></App>)
   fireEvent.click(await view.findByRole('button', { name: /记忆会话/ }))
   await waitFor(() => assert.ok(view.getByText(/本轮提供 1 条记忆目录/)))
-  assert.ok(view.getByTitle('Memory 使用 SQLCipher（v3）'))
+  fireEvent.click(view.getByRole('button', { name: '本轮提供 1 条记忆目录' }))
+  assert.ok(await view.findByText('Memory 使用 SQLCipher'))
+  assert.ok(view.getByText('v3'))
+  assert.ok(view.getByText(/正文是否读取，请查看 memory_read 执行记录/))
 })

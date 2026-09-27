@@ -82,7 +82,7 @@ export function ModelCatalogPage() {
       title: '能力', key: 'capabilities', width: 175,
       render: (_: unknown, item: ModelCatalogItem) => {
         const values = [item.reasoning_enabled === 1 && '推理', item.capability_tool_use === 1 && 'Tool', item.capability_vision === 1 && '视觉', item.capability_structured_output === 1 && 'JSON'].filter(Boolean) as string[]
-        return values.length ? <Space size={[0, 4]} wrap>{values.map(value => <Tag color="blue" key={value}>{value}</Tag>)}</Space> : '—'
+        return values.length ? <Space size={[0, 4]} wrap>{values.map(value => <Tag className="lunar-tag" key={value}>{value}</Tag>)}</Space> : '—'
       },
     },
     { title: '发布日期', dataIndex: 'release_date', key: 'release', width: 112, render: (value: string) => value || '—' },
@@ -92,7 +92,7 @@ export function ModelCatalogPage() {
 
   return <div className="mx-auto w-full max-w-[1480px] px-6 py-5 max-[620px]:px-3.5">
     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-      <div><h2 className="m-0 text-[20px] font-semibold text-k-text">模型目录</h2><p className="mt-1 mb-0 text-sm text-k-text-muted">来自 models.dev 模型目录（models.json），已按模型去重，默认按发布日期从新到旧排列</p></div>
+      <div><h2 className="m-0 text-[22px] font-medium text-k-text">模型目录</h2><p className="mt-1 mb-0 text-sm text-k-text-muted">来自 models.dev 模型目录（models.json），已按模型去重，默认按发布日期从新到旧排列</p></div>
       <Space wrap>
         <Button icon={<ReloadOutlined />} loading={loading} onClick={() => setRevision(value => value + 1)}>重新加载</Button>
         <Button icon={<SyncOutlined />} loading={syncing} onClick={syncNow}>立即同步</Button>
@@ -128,7 +128,7 @@ export function ModelCatalogPage() {
     >
       {selectedModel && <div>
         <div className="mb-5 border-b border-k-border-soft pb-4">
-          <h3 className="m-0 text-xl font-semibold text-k-text">{selectedModel.name}</h3>
+          <h3 className="m-0 text-base font-medium text-k-text">{selectedModel.name}</h3>
           <Typography.Text className="mt-1 block! font-mono text-xs!" copyable={{ text: selectedModel.id }} type="secondary">{selectedModel.id}</Typography.Text>
           <Typography.Paragraph className="mt-3 mb-0! text-sm!" type="secondary">{selectedModel.description || '暂无模型描述'}</Typography.Paragraph>
         </div>
@@ -158,5 +158,5 @@ export function ModelCatalogPage() {
 }
 
 function CapabilityStatus({ enabled }: { enabled: boolean }) {
-  return enabled ? <Tag color="green">支持</Tag> : <Tag>不支持</Tag>
+  return enabled ? <Tag className="lunar-tag lunar-tag-success">支持</Tag> : <Tag>不支持</Tag>
 }

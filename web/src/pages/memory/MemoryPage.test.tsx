@@ -87,7 +87,7 @@ it('renders pages with evidence and resolves review jobs', async () => {
   assert.notEqual(view.queryByText(/conversation c-1/), null)
   // 待审区：批准走任务接口。
   fireEvent.click(view.getByRole('tab', { name: '任务与待审' }))
-  await waitFor(() => assert.notEqual(view.queryByText('needs_review'), null))
+  await waitFor(() => assert.notEqual(view.queryByText('待审核'), null))
   fireEvent.click(view.getByRole('button', { name: /Expand row|展开行/ }))
   await waitFor(() => assert.notEqual(view.queryByText('待审正文'), null))
   fireEvent.click(view.getByRole('button', { name: /批\s*准/ }))
@@ -206,4 +206,19 @@ it('compares a historical revision with the current version', async () => {
   fireEvent.click(view.getByRole('button', { name: '对比当前' }))
   await waitForText(view, /新正文/)
   assert.notEqual(view.queryByText('版本对比'), null)
+})
+
+it('explains output exhaustion and deliberate no-op sources', async () => {
+  globalThis.fetch = (async url => {
+    const target = String(url)
+    if (target.includes('/jobs')) return response({ total: 1, page: 1, page_size: 20, items: [{ ...job, status: 'blocked', error_code: 'output_limit', error_summary: 'output_limit' }] })
+    if (target.includes('/sources')) return response({ total: 1, page: 1, page_size: 20, items: [{ id: 's-noop', kind: 'turn', scope_key: 'personal', state: 'noop', captured_at: '2026-09-27T00:00:00Z' }] })
+    if (target.includes('/pages') || target.includes('/project')) return response({ total: 0, page: 1, page_size: 20, items: [] })
+    return response(status)
+  }) as typeof fetch
+  const view = render(<App><MemoryPage /></App>)
+  fireEvent.click(view.getByRole('tab', { name: '任务与待审' }))
+  await waitForText(view, '达到任务模型输出上限（含推理），调整模型输出配置后重试')
+  fireEvent.click(view.getByRole('tab', { name: '来源' }))
+  await waitForText(view, '模型判断无新增长期知识')
 })

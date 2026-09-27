@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent"
@@ -14,19 +13,8 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
 )
 
-// 页面大小与批次限额（docs/memory-design.md 5.2），评测后可调整。
-const (
-	maxTitleRunes      = 120
-	maxSummaryRunes    = 300
-	maxBodyBytes       = 8 << 10
-	maxBatchPages      = 8
-	maxAliases         = 12
-	maxLinksPerPage    = 8
-	maxClaimsPerPage   = 24
-	maxEvidencePerPlan = 32
-	maxReasonRunes     = 500
-	maxCanonicalRunes  = 160
-)
+// 主题键是数据库索引标识；知识页正文、主张和数量由任务模型决定。
+const maxCanonicalBytes = 160
 
 // ErrPlanInvalid 表示 PatchPlan 未通过确定性校验；
 // 结构、权限与引用真实性问题整体拒绝，不能伪装成 noop。
@@ -102,9 +90,6 @@ func ValidatePlan(in ValidatePlanInput) error {
 	if in.Plan.SchemaVersion != dtomemory.ContractSchemaVersion {
 		return fmt.Errorf("%w: schema_version %d", ErrPlanInvalid, in.Plan.SchemaVersion)
 	}
-	if len(in.Plan.Changes) > maxBatchPages {
-		return fmt.Errorf("%w: %d changes exceed limit %d", ErrPlanInvalid, len(in.Plan.Changes), maxBatchPages)
-	}
 	for i := range in.Plan.Changes {
 		change := &in.Plan.Changes[i]
 		// Claim keys identify claims within one page, not across the wiki.
@@ -133,12 +118,15 @@ func validatePatch(change *dtomemory.PagePatch, in ValidatePlanInput, seenKeys m
 	if err := validatePageShape(change); err != nil {
 		return err
 	}
+	if strings.TrimSpace(change.Summary) == "" || strings.TrimSpace(change.Body) == "" {
+		return fmt.Errorf("%w: wiki pages require summary and body", ErrPlanInvalid)
+	}
 	if err := validateNoSecrets(change); err != nil {
 		return err
 	}
 	switch change.Action {
 	case "create":
-		if strings.TrimSpace(change.CanonicalKey) == "" || utf8.RuneCountInString(change.CanonicalKey) > maxCanonicalRunes {
+		if strings.TrimSpace(change.CanonicalKey) == "" || len(change.CanonicalKey) > maxCanonicalBytes {
 			return fmt.Errorf("%w: invalid canonical_key", ErrPlanInvalid)
 		}
 	case "update", "conflict":
@@ -158,14 +146,11 @@ func validatePatch(change *dtomemory.PagePatch, in ValidatePlanInput, seenKeys m
 			return fmt.Errorf("%w: duplicate claim key %q", ErrPlanInvalid, claim.Key)
 		}
 		seenKeys[claim.Key] = true
-		if claim.Key == "" || claim.Statement == "" || !validBasis[claim.Basis] {
+		if strings.TrimSpace(claim.Key) == "" || len(claim.Key) > 200 || strings.TrimSpace(claim.Statement) == "" || !validBasis[claim.Basis] {
 			return fmt.Errorf("%w: invalid claim %q", ErrPlanInvalid, claim.Key)
 		}
 		if len(claim.Evidence) == 0 {
 			return fmt.Errorf("%w: claim %q has no evidence", ErrPlanInvalid, claim.Key)
-		}
-		if len(claim.Evidence) > maxEvidencePerPlan {
-			return fmt.Errorf("%w: claim %q has too many evidence refs", ErrPlanInvalid, claim.Key)
 		}
 		for _, ev := range claim.Evidence {
 			if !validRel[ev.Relation] {
@@ -175,9 +160,6 @@ func validatePatch(change *dtomemory.PagePatch, in ValidatePlanInput, seenKeys m
 				return fmt.Errorf("%w: evidence %q/%q is outside the allowed set", ErrPlanInvalid, ev.SourceID, ev.PartKey)
 			}
 		}
-	}
-	if len(change.RelatedIDs) > maxLinksPerPage {
-		return fmt.Errorf("%w: too many related pages", ErrPlanInvalid)
 	}
 	for _, related := range change.RelatedIDs {
 		page, ok := in.RelatedPages[related]
@@ -224,28 +206,13 @@ func validatePageShape(change *dtomemory.PagePatch) error {
 	if !validKinds[change.Kind] {
 		return fmt.Errorf("%w: invalid kind %q", ErrPlanInvalid, change.Kind)
 	}
-	if utf8.RuneCountInString(change.Title) == 0 || utf8.RuneCountInString(change.Title) > maxTitleRunes {
-		return fmt.Errorf("%w: invalid title", ErrPlanInvalid)
-	}
-	if utf8.RuneCountInString(change.Summary) > maxSummaryRunes {
-		return fmt.Errorf("%w: invalid summary", ErrPlanInvalid)
-	}
-	if len(change.Body) > maxBodyBytes {
-		return fmt.Errorf("%w: body exceeds %d bytes", ErrPlanInvalid, maxBodyBytes)
-	}
-	if len(change.Aliases) > maxAliases {
-		return fmt.Errorf("%w: too many aliases", ErrPlanInvalid)
+	if strings.TrimSpace(change.Title) == "" {
+		return fmt.Errorf("%w: missing title", ErrPlanInvalid)
 	}
 	for _, alias := range change.Aliases {
-		if strings.TrimSpace(alias) == "" || utf8.RuneCountInString(alias) > maxTitleRunes {
-			return fmt.Errorf("%w: invalid alias", ErrPlanInvalid)
+		if strings.TrimSpace(alias) == "" {
+			return fmt.Errorf("%w: empty alias", ErrPlanInvalid)
 		}
-	}
-	if utf8.RuneCountInString(change.Reason) > maxReasonRunes {
-		return fmt.Errorf("%w: invalid reason", ErrPlanInvalid)
-	}
-	if len(change.Claims) > maxClaimsPerPage {
-		return fmt.Errorf("%w: too many claims", ErrPlanInvalid)
 	}
 	return nil
 }
@@ -293,15 +260,12 @@ func LoadRetainedEvidence(ctx context.Context, client *ent.Client, index *Eviden
 	return nil
 }
 
-// ValidateCandidates 在候选检索前限制提炼结果的规模和证据权限。
+// ValidateCandidates 在候选检索前校验结构与证据权限，不限制知识数量。
 func ValidateCandidates(candidates []dtomemory.Candidate, projections []*SourceProjection) error {
-	if len(candidates) > maxBatchPages {
-		return fmt.Errorf("%w: too many candidates", ErrPlanInvalid)
-	}
 	index := NewEvidenceIndex(projections)
 	seen := map[string]bool{}
 	for _, candidate := range candidates {
-		if candidate.Key == "" || seen[candidate.Key] || !validBasis[candidate.Basis] || len(candidate.Evidence) == 0 || len(candidate.Evidence) > maxEvidencePerPlan {
+		if candidate.Key == "" || seen[candidate.Key] || !validBasis[candidate.Basis] || len(candidate.Evidence) == 0 {
 			return fmt.Errorf("%w: invalid candidate", ErrPlanInvalid)
 		}
 		seen[candidate.Key] = true
@@ -322,7 +286,7 @@ func ValidateCandidates(candidates []dtomemory.Candidate, projections []*SourceP
 	return nil
 }
 
-// ValidateManualPage 校验人工保存的页面内容（复用同一限额）。
+// ValidateManualPage 校验人工保存的页面结构，不限制知识内容长度。
 func ValidateManualPage(title, summary, body, canonicalKey string, aliases []string) error {
 	change := &dtomemory.PagePatch{
 		Kind: "fact", Title: title, Summary: summary, Body: body,
@@ -331,7 +295,7 @@ func ValidateManualPage(title, summary, body, canonicalKey string, aliases []str
 	if err := validatePageShape(change); err != nil {
 		return err
 	}
-	if strings.TrimSpace(canonicalKey) == "" || utf8.RuneCountInString(canonicalKey) > maxCanonicalRunes {
+	if strings.TrimSpace(canonicalKey) == "" || len(canonicalKey) > maxCanonicalBytes {
 		return fmt.Errorf("%w: invalid canonical_key", ErrPlanInvalid)
 	}
 	return nil

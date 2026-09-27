@@ -9,17 +9,17 @@ type MemoryPageSaveReq struct {
 	ScopeKey      string              `json:"scope_key" binding:"required,max=128"`
 	Kind          string              `json:"kind" binding:"required,oneof=preference fact decision procedure lesson"`
 	CanonicalKey  string              `json:"canonical_key" binding:"omitempty,max=160"`
-	Title         string              `json:"title" binding:"required,max=120"`
-	Summary       string              `json:"summary" binding:"omitempty,max=300"`
+	Title         string              `json:"title" binding:"required"`
+	Summary       string              `json:"summary" binding:"omitempty"`
 	Body          string              `json:"body"`
-	Aliases       []string            `json:"aliases" binding:"omitempty,max=12,dive,max=120"`
+	Aliases       []string            `json:"aliases" binding:"omitempty,dive,required"`
 	ExpiresAt     *time.Time          `json:"expires_at"`
 	Pinned        *bool               `json:"pinned"`
 	UserLocked    *bool               `json:"user_locked"`
-	RelatedIDs    []string            `json:"related_ids" binding:"omitempty,max=8,dive,max=64"`
-	SupersedesIDs []string            `json:"supersedes_ids" binding:"omitempty,max=8,dive,max=64"` // 显式替代关系
-	Source        *MemorySourceRefReq `json:"source"`                                               // 用户选中文字的来源定位
-	Reason        string              `json:"reason" binding:"omitempty,max=500"`
+	RelatedIDs    []string            `json:"related_ids" binding:"omitempty,dive,max=64"`
+	SupersedesIDs []string            `json:"supersedes_ids" binding:"omitempty,dive,max=64"` // 显式替代关系
+	Source        *MemorySourceRefReq `json:"source"`                                         // 用户选中文字的来源定位
+	Reason        string              `json:"reason" binding:"omitempty"`
 }
 
 // MemorySourceRefReq 定位一次选中文字的来源；必须来自真实轮次投影。
@@ -36,18 +36,18 @@ type MemoryPageUpdateReq struct {
 	ExpectedVersion int64               `json:"expected_version" binding:"required,min=1"`
 	Kind            string              `json:"kind" binding:"omitempty,oneof=preference fact decision procedure lesson"`
 	CanonicalKey    string              `json:"canonical_key" binding:"omitempty,max=160"`
-	Title           string              `json:"title" binding:"omitempty,max=120"`
-	Summary         *string             `json:"summary" binding:"omitempty,max=300"`
+	Title           string              `json:"title" binding:"omitempty"`
+	Summary         *string             `json:"summary" binding:"omitempty"`
 	Body            *string             `json:"body"`
-	Aliases         []string            `json:"aliases" binding:"omitempty,max=12,dive,max=120"`
+	Aliases         []string            `json:"aliases" binding:"omitempty,dive,required"`
 	ExpiresAt       *time.Time          `json:"expires_at"`
 	ClearExpiresAt  bool                `json:"clear_expires_at"`
 	Pinned          *bool               `json:"pinned"`
 	UserLocked      *bool               `json:"user_locked"`
 	ScopeKey        string              `json:"scope_key" binding:"omitempty,max=128"` // 仅支持显式提升到 shared
-	RelatedIDs      []string            `json:"related_ids" binding:"omitempty,max=8,dive,max=64"`
-	SupersedesIDs   []string            `json:"supersedes_ids" binding:"omitempty,max=8,dive,max=64"` // 显式替代关系
-	Reason          string              `json:"reason" binding:"omitempty,max=500"`
+	RelatedIDs      []string            `json:"related_ids" binding:"omitempty,dive,max=64"`
+	SupersedesIDs   []string            `json:"supersedes_ids" binding:"omitempty,dive,max=64"` // 显式替代关系
+	Reason          string              `json:"reason" binding:"omitempty"`
 	Source          *MemorySourceRefReq `json:"source"`
 }
 
@@ -119,23 +119,23 @@ type MemoryExportResp struct {
 
 // MemoryJobResp 任务状态、错误码与成本；不返回原始 Prompt。
 type MemoryJobResp struct {
-	ID             string              `json:"id"`
-	Kind           string              `json:"kind"`
-	ScopeKey       string              `json:"scope_key"`
-	ConversationID string              `json:"conversation_id,omitempty"`
-	Status         string              `json:"status"`
-	Attempt        int                 `json:"attempt"`
-	ErrorCode      string              `json:"error_code,omitempty"`
-	ErrorSummary   string              `json:"error_summary,omitempty"`
-	Proposal       any                 `json:"proposal,omitempty"` // needs_review 的有界 PatchPlan
-	Progress       *MemoryJobProgress  `json:"progress,omitempty"` // backfill 进度
-	CreatedAt      time.Time           `json:"created_at"`
-	StartedAt      *time.Time          `json:"started_at,omitempty"`
-	FinishedAt     *time.Time          `json:"finished_at,omitempty"`
-	InputTokens    int64               `json:"input_tokens"`
-	OutputTokens   int64               `json:"output_tokens"`
-	TotalTokens    int64               `json:"total_tokens"`
-	Calls          int                 `json:"calls"`
+	ID             string             `json:"id"`
+	Kind           string             `json:"kind"`
+	ScopeKey       string             `json:"scope_key"`
+	ConversationID string             `json:"conversation_id,omitempty"`
+	Status         string             `json:"status"`
+	Attempt        int                `json:"attempt"`
+	ErrorCode      string             `json:"error_code,omitempty"`
+	ErrorSummary   string             `json:"error_summary,omitempty"`
+	Proposal       any                `json:"proposal,omitempty"` // needs_review 的有界 PatchPlan
+	Progress       *MemoryJobProgress `json:"progress,omitempty"` // backfill 进度
+	CreatedAt      time.Time          `json:"created_at"`
+	StartedAt      *time.Time         `json:"started_at,omitempty"`
+	FinishedAt     *time.Time         `json:"finished_at,omitempty"`
+	InputTokens    int64              `json:"input_tokens"`
+	OutputTokens   int64              `json:"output_tokens"`
+	TotalTokens    int64              `json:"total_tokens"`
+	Calls          int                `json:"calls"`
 }
 
 // MemoryJobProgress 是 backfill 作业的扫描进度；成本上限达到时 limited=true。

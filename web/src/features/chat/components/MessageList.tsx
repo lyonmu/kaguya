@@ -5,7 +5,8 @@ import { Markdown, CopyButton } from "./Markdown";
 import { ActivityBlock } from "./ActivityBlock";
 import { isCanceledStatus, isCompleteStatus, isFailedStatus, isInterruptedStatus, isRunningStatus } from "../status";
 import type { Block, Turn } from "../types";
-import { kaguyaAvatar, userAvatar } from "../../../assets/avatars";
+import { userAvatar } from "../../../assets/avatars";
+import { LunarGlyph } from "../../../components/LunarGlyph";
 
 export function ContentBlock({ block, streaming = false, conversationId, turnIndex }: { block: Block; streaming?: boolean; conversationId?: string; turnIndex?: number }) {
  return block.type === 'text' ? <Markdown text={block.text ?? ''} streaming={streaming && block.phase !== 'block_end'} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
@@ -64,10 +65,11 @@ export function MessageList({
       {!loading && !turns.length && (
         <div className="chat-welcome">
           <div className="chat-welcome-logo">
-            <img alt="Kaguya" decoding="async" height={56} src={kaguyaAvatar.src} srcSet={kaguyaAvatar.srcSet} width={56} />
+            <LunarGlyph />
           </div>
-          <h1>今天有什么需要我帮忙的吗？</h1>
-          <p>告诉 Kaguya 你在想什么，我会和你一起找到答案。</p>
+          <h1>Kaguya</h1>
+          <p>从一个问题，到一件完成的事。</p>
+          <small>Enter 发送 · Shift + Enter 换行</small>
 
         </div>
       )}
@@ -136,7 +138,7 @@ function RuntimeMessage() {
             </article>}
             {role === "assistant" && <article className="chat-message">
               <div className="chat-avatar ai">
-                <img alt="Kaguya 头像" decoding="async" height={28} src={kaguyaAvatar.src} srcSet={kaguyaAvatar.srcSet} width={28} />
+                <LunarGlyph />
               </div>
               <div className="chat-message-body">
                 <div className="chat-message-name">

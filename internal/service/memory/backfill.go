@@ -50,7 +50,7 @@ func encodeBackfillState(state backfillState) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(raw) > maxResultBytes {
+	if len(raw) > 64<<10 {
 		return "", fmt.Errorf("%w: backfill state exceeds size limit", ErrPlanInvalid)
 	}
 	return string(raw), nil

@@ -11,7 +11,7 @@ const NormalizerVersion = 1
 
 const (
 	// maxQueryTerms 限制一次检索的检索词数量。
-	maxQueryTerms = 16
+	maxQueryTerms = 64
 	// maxQueryRunes 限制原始查询长度，超长直接截断后再分析。
 	maxQueryRunes = 400
 )
@@ -88,13 +88,18 @@ func BuildFTSQuery(raw string) (string, bool) {
 		seen[phrase] = true
 		*list = append(*list, phrase)
 	}
-	for _, chunk := range splitQuery(raw) {
+	chunks := splitQuery(raw)
+	// 标识符与明确引用优先，避免前面的中文问句耗尽检索词预算。
+	for _, chunk := range chunks {
 		switch chunk.kind {
 		case chunkQuoted:
 			add(&phrases, chunk.text)
 		case chunkASCII:
 			add(&terms, chunk.text)
-		case chunkCJK:
+		}
+	}
+	for _, chunk := range chunks {
+		if chunk.kind == chunkCJK {
 			for _, candidate := range cjkCandidates(chunk.text) {
 				add(&terms, candidate)
 			}
@@ -106,8 +111,7 @@ func BuildFTSQuery(raw string) (string, bool) {
 	// 引号短语必须全部命中；其余检索词任一命中即可参与排序。
 	group := terms
 	if len(group) == 0 {
-		group = phrases
-		phrases = nil
+		return strings.Join(phrases, " AND "), true
 	}
 	or := strings.Join(group, " OR ")
 	switch {
@@ -175,35 +179,22 @@ func splitQuery(raw string) []queryChunk {
 	return chunks
 }
 
-// cjkCandidates 为无空格中文片段生成有界短词候选：
-// 短片段整体作为一个候选；长片段取 2–4 字滑动窗口并过滤低信息常用词，
-// 优先保留更长、覆盖更完整的候选。这是启发式，不是成熟中文分词。
+// cjkCandidates 保留短主题原词，再按两字片段检索。四字窗口优先会让
+// “怎么加密”匹配不到“加密”，长问句也会在走到两字词前耗尽预算。
+// 仅查询算法变化，索引中的单字 token 不需要迁移。
 func cjkCandidates(text string) []string {
 	runes := []rune(text)
-	if len(runes) == 0 {
+	if len(runes) < 2 || lowInformationFragments[text] {
 		return nil
-	}
-	if len(runes) <= 4 {
-		if lowInformationFragments[text] {
-			return nil
-		}
-		return []string{text}
 	}
 	var out []string
 	if len(runes) <= 8 {
 		out = append(out, text)
 	}
-	const window = 4
-	for size := window; size >= 2; size-- {
-		for start := 0; start+size <= len(runes); start++ {
-			piece := string(runes[start : start+size])
-			if lowInformationFragments[piece] {
-				continue
-			}
+	for start := 0; start+2 <= len(runes); start++ {
+		piece := string(runes[start : start+2])
+		if !lowInformationFragments[piece] {
 			out = append(out, piece)
-			if len(out) >= maxQueryTerms {
-				return out
-			}
 		}
 	}
 	return out

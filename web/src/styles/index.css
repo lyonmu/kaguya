@@ -15,49 +15,36 @@
   --color-k-text-muted: var(--k-text-muted);
   --color-k-text-subtle: var(--k-text-subtle);
   --color-k-primary: var(--k-primary);
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    'PingFang SC', 'Microsoft YaHei', sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    'Liberation Mono', monospace;
+  --color-k-context: var(--k-context);
+  --color-k-context-soft: var(--k-context-soft);
+  --color-k-success: var(--k-success);
+  --color-k-warning: var(--k-warning);
+  --color-k-danger: var(--k-danger);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Segoe UI', sans-serif;
+  --font-mono: 'SFMono-Regular', 'SF Mono', Menlo, Monaco, Consolas, monospace;
 }
 
 :root {
-  --k-canvas: #f4f7fb;
-  --k-panel: #f8fafc;
-  --k-rail: #ffffff;
-  --k-surface: #ffffff;
-  --k-elevated: #f7f9fc;
-  --k-selected: #e8f1ff;
-  --k-border: #d9e1eb;
-  --k-border-soft: #e8edf3;
-  --k-text: #172033;
-  --k-text-muted: #64748b;
-  --k-text-subtle: #94a3b8;
-  --k-primary: #2563eb;
+  /* 颜色由 app/lunar.ts 在首次绘制前设置，组件库和自定义样式共用。 */
+  --k-radius-sm: 6px;
+  --k-radius-md: 9px;
+  --k-radius-lg: 12px;
+  --k-radius-xl: 16px;
+  --k-motion-fast: 120ms;
+  --k-motion-normal: 180ms;
+  --k-motion-panel: 220ms;
+  --k-font-caption: 12px;
+  --k-font-secondary: 13px;
+  --k-font-body: 14px;
+  --k-font-section: 16px;
+  --k-font-title: 22px;
   color: var(--k-text);
   background: var(--k-canvas);
-  color-scheme: light;
   font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-:root.dark {
-  --k-canvas: #0e1116;
-  --k-panel: #101318;
-  --k-rail: #0c0f13;
-  --k-surface: #11161d;
-  --k-elevated: #151b23;
-  --k-selected: #192230;
-  --k-border: #29323d;
-  --k-border-soft: #202731;
-  --k-text: #edf2f7;
-  --k-text-muted: #8e99a8;
-  --k-text-subtle: #647081;
-  --k-primary: #6ea8fe;
-  color-scheme: dark;
 }
 
 @layer base {
@@ -88,8 +75,8 @@
   }
 
   ::selection {
-    color: #f8fbff;
-    background: rgb(37 99 235 / 35%);
+    color: var(--k-text);
+    background: var(--k-selected);
   }
 
   *::-webkit-scrollbar {
@@ -109,9 +96,41 @@
   }
 }
 
-:root { --k-success: #23764b; --k-danger: #bd303b; }
-:root.dark { --k-success: #7dce9f; --k-danger: #f28b94; }
 /* Mouse interaction stays quiet; keyboard navigation retains an intentional focus ring. */
 button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:focus:not(:focus-visible) { outline: none; }
 button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--k-primary); outline-offset: 3px; }
 .ant-btn:focus:not(:focus-visible) { box-shadow: none; }
+
+.lunar-glyph { display: inline-block; width: 24px; height: 24px; flex-shrink: 0; color: var(--k-primary); vertical-align: middle; }
+.lunar-brand { display: flex; align-items: center; gap: 9px; }
+.lunar-brand strong { font-size: 16px; font-weight: 500; letter-spacing: .02em; }
+.lunar-navigation .ant-menu-item-selected { box-shadow: inset 2px 0 var(--k-primary); }
+.lunar-navigation .ant-menu-title-content { font-size: 13px; }
+.lunar-navigation-caption { margin: 0 0 6px; font-size: 12px; color: var(--k-text-muted); }
+.lunar-navigation-footer { margin: 18px 10px 2px; font-size: 12px; line-height: 1.8; color: var(--k-text-muted); }
+.lunar-navigation-footer small { display: block; font-size: 11px; letter-spacing: .08em; }
+.lunar-bottom-actions { display: flex; align-items: center; gap: 4px; padding: 8px 10px; }
+.lunar-bottom-actions .is-active { color: var(--k-primary); background: var(--k-selected); }
+.lunar-bottom-actions .ant-btn:last-child { margin-left: auto; }
+.lunar-page-title { margin: 0; font-size: var(--k-font-title); font-weight: 500; letter-spacing: -.02em; }
+.lunar-tag { color: var(--k-text-muted); background: var(--k-panel); border-color: var(--k-border); }
+.lunar-tag-context { color: var(--k-context); background: var(--k-context-soft); border-color: transparent; }
+.lunar-tag-primary { color: var(--k-primary); background: var(--k-selected); border-color: transparent; }
+.lunar-tag-success { color: var(--k-success); background: var(--k-success-soft); border-color: transparent; }
+.lunar-tag-warning { color: var(--k-warning); background: var(--k-warning-soft); border-color: transparent; }
+.lunar-tag-danger { color: var(--k-danger); background: var(--k-danger-soft); border-color: transparent; }
+.lunar-source-link.ant-btn { color: var(--k-context); }
+.lunar-source-link.ant-btn:hover { color: var(--k-context); background: var(--k-context-soft); }
+.ant-modal-title, .ant-drawer-title { font-weight: 500; }
+.ant-tooltip-inner { border: 1px solid var(--k-border-strong); }
+.ant-popover-inner, .ant-select-dropdown { border: 1px solid var(--k-border); }
+.ant-table { font-size: 13px; }
+.ant-table-thead > tr > th { font-size: 12px; }
+.ant-card-head-title { font-weight: 500; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+@media (pointer: coarse) {
+  .lunar-bottom-actions .ant-btn { min-width: 44px; min-height: 44px; }
+}

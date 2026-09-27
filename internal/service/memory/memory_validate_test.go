@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -62,9 +63,6 @@ func TestValidatePlanRejectsBadEvidence(t *testing.T) {
 		"非法枚举":      func(c *dtomemory.PagePatch) { c.Kind = "secret" },
 		"空主张证据":     func(c *dtomemory.PagePatch) { c.Claims[0].Evidence = nil },
 		"秘密内容":      func(c *dtomemory.PagePatch) { c.Body += " api_key=sk-abcdefgh12345678" },
-		"超长标题":      func(c *dtomemory.PagePatch) { c.Title = strings.Repeat("题", maxTitleRunes+1) },
-		"超限别名":      func(c *dtomemory.PagePatch) { c.Aliases = make([]string, maxAliases+1) },
-		"超限正文":      func(c *dtomemory.PagePatch) { c.Body = strings.Repeat("a", maxBodyBytes+1) },
 		"伪造页面 ID":   func(c *dtomemory.PagePatch) { c.Action = "update"; c.PageID = "ghost"; c.BaseVersion = 1 },
 	}
 	for name, mutate := range cases {
@@ -129,13 +127,15 @@ func TestValidatePlanCandidateBounds(t *testing.T) {
 		t.Fatal("cross-scope related page must be rejected")
 	}
 
-	// 超过批次页数上限拒绝。
+	// 知识页数量由模型决定；超过旧的八页阈值仍可发布。
 	many := &dtomemory.PatchPlan{SchemaVersion: 1}
-	for i := 0; i <= maxBatchPages; i++ {
-		many.Changes = append(many.Changes, validChange())
+	for i := 0; i < 12; i++ {
+		change := validChange()
+		change.CanonicalKey = fmt.Sprintf("topic-%d", i)
+		many.Changes = append(many.Changes, change)
 	}
-	if err := ValidatePlan(validationInput(many, projections)); err == nil {
-		t.Fatal("oversized batch must be rejected")
+	if err := ValidatePlan(validationInput(many, projections)); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -175,10 +175,7 @@ func TestManualValidationDiffersFromCompiler(t *testing.T) {
 	if err := validateNoSecrets(&change); err == nil {
 		t.Fatal("compiler output containing secrets must be rejected")
 	}
-	if err := ValidateManualPage(strings.Repeat("长", maxTitleRunes+1), "", "body", "key", nil); err == nil {
-		t.Fatal("manual save must enforce title limit")
-	}
-	if err := ValidateManualPage("标题", "", "body", strings.Repeat("k", maxCanonicalRunes+1), nil); err == nil {
+	if err := ValidateManualPage("标题", "", "body", strings.Repeat("k", maxCanonicalBytes+1), nil); err == nil {
 		t.Fatal("manual save must enforce canonical_key limit")
 	}
 }

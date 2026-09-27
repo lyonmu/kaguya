@@ -21,6 +21,7 @@ import {
 } from '../../features/memory/types'
 import { fetchProjects } from '../../features/project/api'
 import { isRecord } from '../../api/http'
+import './memory.css'
 
 const SCOPE_OPTIONS = [
   { value: '', label: '全部范围' },
@@ -49,6 +50,31 @@ interface BackfillValues {
 interface ImportValues {
   scope_key: string
   path: string
+}
+
+const jobStatusLabel: Record<string, string> = {
+  pending: '排队中', running: '整理中', succeeded: '已完成', retry_wait: '等待重试',
+  blocked: '已阻塞', needs_review: '待审核', failed: '失败', canceled: '已取消',
+}
+
+const jobErrorLabel: Record<string, string> = {
+  config: '后台任务模型不可用，请检查系统配置',
+  auth: '任务模型认证失败，请检查提供商密钥',
+  output_limit: '达到任务模型输出上限（含推理），调整模型输出配置后重试',
+  input_budget: '资料与已有知识超过任务模型上下文，请使用更大窗口模型',
+  timeout: '任务模型响应超时，可稍后重试',
+  canceled: '整理被中断，等待重试',
+  rate_limited: '提供商限流，等待重试',
+  provider_error: '模型调用失败，可检查提供商后重试',
+  invalid_output: '模型输出未通过格式或来源校验，修复后仍不合法',
+  invalid_request: '提供商拒绝请求，请检查模型与协议配置',
+  budget: '达到每日后台调用预算，次日自动继续',
+  attempts_exhausted: '已达到重试次数，可检查配置后手动重试',
+}
+
+const sourceStateLabel: Record<string, string> = {
+  pending: '等待整理', claimed: '正在整理', processed: '已整理',
+  noop: '模型判断无新增长期知识', failed: '整理失败', excluded: '已排除',
 }
 
 const diffChangeLabel: Record<string, string> = {
@@ -107,6 +133,7 @@ export function MemoryPage() {
   const [importForm] = Form.useForm<ImportValues>()
 
   const projectScopes = projects.map(project => ({ value: `project:${project.id}`, label: `项目：${project.name}` }))
+  const scopeLabel = (value: string) => [...SCOPE_OPTIONS, ...projectScopes].find(item => item.value === value)?.label ?? value
 
   const loadList = useCallback(async () => {
     const request = ++listRequest.current
@@ -378,7 +405,7 @@ export function MemoryPage() {
 
   const detailPanel = detail ? (
     <Card
-      className="min-h-0 flex-1 overflow-auto"
+      className="memory-detail min-h-0 flex-1 overflow-auto"
       extra={
         <Space wrap>
           <Button size="small" onClick={() => openEditor('edit')}>编辑</Button>
@@ -401,34 +428,34 @@ export function MemoryPage() {
         </Space>
       }
       title={
-        <Space>
+        <Space wrap>
           <span>{detail.title}</span>
-          <Tag>{statusLabel[detail.status] ?? detail.status}</Tag>
-          <Tag color="blue">v{detail.version}</Tag>
+          <Tag className="memory-status" data-status={detail.status}>{statusLabel[detail.status] ?? detail.status}</Tag>
+          <Tag className="lunar-tag lunar-tag-context">v{detail.version}</Tag>
         </Space>
       }
     >
       <Descriptions column={2} size="small">
-        <Descriptions.Item label="范围">{detail.scope_key}</Descriptions.Item>
+        <Descriptions.Item label="范围"><span className="memory-scope">{scopeLabel(detail.scope_key)}</span></Descriptions.Item>
         <Descriptions.Item label="类型">{detail.kind}</Descriptions.Item>
         <Descriptions.Item label="别名">{detail.aliases.join('、') || '—'}</Descriptions.Item>
         <Descriptions.Item label="来源数">{detail.source_count}</Descriptions.Item>
       </Descriptions>
-      <Typography.Paragraph className="mt-3">{detail.summary}</Typography.Paragraph>
+      <Typography.Paragraph className="memory-summary">{detail.summary}</Typography.Paragraph>
       <Markdown text={detail.body} />
       {detail.claims.length > 0 && (
         <>
           <Typography.Title level={5}>依据</Typography.Title>
           {detail.claims.map(claim => (
-            <div key={claim.key} className="mb-2">
+            <div key={claim.key} className="memory-claim">
               <Space wrap>
-                <Tag color="geekblue">{basisLabel[claim.basis] ?? claim.basis}</Tag>
+                <Tag className="lunar-tag lunar-tag-context">{basisLabel[claim.basis] ?? claim.basis}</Tag>
                 <span>{claim.statement}</span>
               </Space>
               {claim.evidence.map((evidence, index) => (
-                <Typography.Paragraph key={`${claim.key}-${index}`} className="ml-4! mb-0!" type="secondary">
+                <Typography.Paragraph key={`${claim.key}-${index}`} className="memory-evidence" type="secondary">
                   {evidence.source}（{evidence.part_key}）：{evidence.quote}
-                  <Button className="ml-2!" size="small" type="link" onClick={() => void openSource(evidence.source_id)}>查看来源</Button>
+                  <Button className="lunar-source-link" size="small" type="link" onClick={() => void openSource(evidence.source_id)}>查看来源</Button>
                 </Typography.Paragraph>
               ))}
             </div>
@@ -437,7 +464,7 @@ export function MemoryPage() {
       )}
       {detail.related_ids.length > 0 && (
         <Space wrap><Typography.Text type="secondary">关联记忆：</Typography.Text>{detail.related_ids.map(id =>
-          <Button key={id} type="link" onClick={() => setSelectedId(id)}>{items.find(item => item.id === id)?.title ?? id}</Button>
+          <Button key={id} className="lunar-source-link" type="link" onClick={() => setSelectedId(id)}>{items.find(item => item.id === id)?.title ?? id}</Button>
         )}</Space>
       )}
     </Card>
@@ -446,8 +473,8 @@ export function MemoryPage() {
   )
 
   const pagesTab = (
-    <div className="flex h-full min-h-0 gap-3">
-      <Card className="w-80 shrink-0 overflow-auto" size="small"
+    <div className="memory-columns">
+      <Card className="memory-list" size="small"
         extra={<Typography.Text type="secondary">{total} 条</Typography.Text>} title="记忆列表">
         <List
           dataSource={items}
@@ -455,19 +482,18 @@ export function MemoryPage() {
           pagination={{ current: page, pageSize: 20, total, onChange: setPage, showSizeChanger: false, size: 'small' }}
           locale={{ emptyText: '暂无记忆' }}
           renderItem={(item: MemoryPageItem) => (
-            <List.Item className="cursor-pointer!" onClick={() => setSelectedId(item.id)}
-              style={item.id === selectedId ? { background: 'rgba(22,119,255,0.08)' } : undefined}>
-              <List.Item.Meta
-                description={
-                  <Space size={4} wrap>
-                    <Tag>{statusLabel[item.status] ?? item.status}</Tag>
-                    <Tag color="blue">v{item.version}</Tag>
-                    {item.pinned && <Tag color="gold">置顶</Tag>}
-                    {item.user_locked && <Tag color="red">锁定</Tag>}
-                  </Space>
-                }
-                title={item.title}
-              />
+            <List.Item>
+              <button type="button" className={`memory-list-item${item.id === selectedId ? ' is-selected' : ''}`} aria-pressed={item.id === selectedId} onClick={() => setSelectedId(item.id)}>
+                <strong>{item.title}</strong>
+                <span className="memory-list-summary">{item.summary}</span>
+                <span className="memory-list-meta">
+                  <span className="memory-scope">{scopeLabel(item.scope_key)}</span>
+                  <span>v{item.version}</span>
+                  <span className="memory-status-text" data-status={item.status}>{statusLabel[item.status] ?? item.status}</span>
+                  {item.pinned && <span>置顶</span>}
+                  {item.user_locked && <span>锁定</span>}
+                </span>
+              </button>
             </List.Item>
           )}
         />
@@ -484,8 +510,8 @@ export function MemoryPage() {
       />
       <Table<MemoryJob>
         columns={[
-          { title: '范围', dataIndex: 'scope_key' },
-          { title: '状态', dataIndex: 'status', render: (value: string) => <Tag>{value}</Tag> },
+          { title: '范围', dataIndex: 'scope_key', render: (value: string) => scopeLabel(value) },
+          { title: '状态', dataIndex: 'status', render: (value: string) => <Tag className="memory-status" data-status={value}>{jobStatusLabel[value] ?? value}</Tag> },
           { title: '尝试', dataIndex: 'attempt' },
           { title: '调用', dataIndex: 'calls' },
           { title: '用量', dataIndex: 'total_tokens' },
@@ -494,7 +520,7 @@ export function MemoryPage() {
               ? `扫描 ${row.progress.scanned} / 新增 ${row.progress.created} / 跳过 ${row.progress.skipped}${row.progress.limited ? '（达到上限）' : ''}`
               : '—',
           },
-          { title: '错误', dataIndex: 'error_summary', render: (value: string) => value || '—' },
+          { title: '错误', dataIndex: 'error_summary', render: (value: string, row: MemoryJob) => jobErrorLabel[row.error_code ?? ''] ?? value ?? '—' },
           {
             title: '操作', key: 'actions', render: (_, row) => (
               <Space>
@@ -549,7 +575,7 @@ export function MemoryPage() {
   ) : <Spin />
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+    <div className="memory-page flex h-full min-h-0 flex-col gap-3 p-4">
       <Typography.Text type="secondary">对话完成后自动积累来源，由后台模型整理为有标题、说明、证据和关联的知识页。聊天按需检索并读取正文。</Typography.Text>
       {memoryStatus && (!memoryStatus.enabled || !memoryStatus.auto_capture || !memoryStatus.task_model_set) &&
         <Alert showIcon type="warning" title={!memoryStatus.enabled ? '长期记忆已关闭' : !memoryStatus.auto_capture ? '自动整理已关闭' : '尚未配置后台任务模型'}
@@ -568,18 +594,18 @@ export function MemoryPage() {
         <Button icon={<ReloadOutlined />} onClick={() => { void loadList(); void loadJobs(); void loadStatus(); void loadSources(); void loadDetail(selectedId) }}>刷新</Button>
       </Space>
       <Tabs
-        className="min-h-0 flex-1"
+        className="memory-tabs min-h-0 flex-1"
         items={[
-          { key: 'pages', label: '记忆', children: <div className="flex h-full min-h-0">{pagesTab}</div> },
+          { key: 'pages', label: '记忆', children: pagesTab },
           { key: 'jobs', label: '任务与待审', children: jobsTab },
           { key: 'sources', label: '来源', children: <Table<MemorySourceItem> rowKey="id" size="small" dataSource={sources}
             pagination={{ current: sourcePage, pageSize: 20, total: sourceTotal, onChange: setSourcePage, showSizeChanger: false }}
             columns={[
               { title: '来源', key: 'source', render: (_, row) => row.document_path || (row.conversation_id ? `对话 ${row.conversation_id}` : '知识笔记') },
-              { title: '状态', dataIndex: 'state' },
-              { title: '范围', dataIndex: 'scope_key' },
+              { title: '状态', dataIndex: 'state', render: (value: string) => sourceStateLabel[value] ?? value },
+              { title: '范围', dataIndex: 'scope_key', render: (value: string) => scopeLabel(value) },
               { title: '采集时间', dataIndex: 'captured_at', render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm') },
-              { title: '详情', key: 'detail', render: (_, row) => <Button type="link" onClick={() => void openSource(row.id)}>查看来源</Button> },
+              { title: '详情', key: 'detail', render: (_, row) => <Button className="lunar-source-link" type="link" onClick={() => void openSource(row.id)}>查看来源</Button> },
             ]} /> },
           { key: 'status', label: '状态与用量', children: statusTab },
         ]}
@@ -599,10 +625,10 @@ export function MemoryPage() {
           <Form.Item label="类型" name="kind" rules={[{ required: true }]}>
             <Select options={MEMORY_KINDS.map(item => ({ value: item, label: item }))} />
           </Form.Item>
-          <Form.Item label="标题" name="title" rules={[{ required: true, max: 120 }]}>
+          <Form.Item label="标题" name="title" rules={[{ required: true }]}>
             <Input aria-label="记忆标题" />
           </Form.Item>
-          <Form.Item label="摘要" name="summary" rules={[{ max: 300 }]}>
+          <Form.Item label="摘要" name="summary">
             <Input aria-label="记忆摘要" />
           </Form.Item>
           <Form.Item label="正文" name="body">
@@ -654,7 +680,7 @@ export function MemoryPage() {
                     <Typography.Text type="secondary">{item.summary || item.body.slice(0, 60)}</Typography.Text>
                   </Space>
                 }
-                title={<Space><Tag color="blue">v{item.version}</Tag>{item.title}</Space>}
+                title={<Space><Tag className="lunar-tag lunar-tag-context">v{item.version}</Tag>{item.title}</Space>}
               />
             </List.Item>
           )}
@@ -706,7 +732,7 @@ export function MemoryPage() {
             <Descriptions column={1} size="small">
               <Descriptions.Item label="类型">{sourceDetail.kind}</Descriptions.Item>
               <Descriptions.Item label="状态">{sourceDetail.state}</Descriptions.Item>
-              <Descriptions.Item label="范围">{sourceDetail.scope_key}</Descriptions.Item>
+              <Descriptions.Item label="范围">{scopeLabel(sourceDetail.scope_key)}</Descriptions.Item>
               {sourceDetail.conversation_id && <Descriptions.Item label="会话">{sourceDetail.conversation_id}</Descriptions.Item>}
               {sourceDetail.turn_id && <Descriptions.Item label="轮次">{sourceDetail.turn_id}</Descriptions.Item>}
               {sourceDetail.turn_status && <Descriptions.Item label="轮次状态">{sourceDetail.turn_status}{sourceDetail.finish_reason ? ` / ${sourceDetail.finish_reason}` : ''}</Descriptions.Item>}

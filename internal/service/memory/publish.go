@@ -164,13 +164,8 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 		if !ent.IsNotFound(err) {
 			return changeDropped, err
 		}
-		if !strongEvidence(change) && !opts.approved {
-			return changeReview, nil
-		}
-		status := publishedStatus(change)
-		if opts.approved {
-			status = kaguyamemorypage.StatusActive
-		}
+		// 任务模型决定是否值得保存；推断以 basis 保留，不冒充已核实事实。
+		status := kaguyamemorypage.StatusActive
 		page, err := client.KaguyaMemoryPage.Create().
 			SetScopeKey(job.ScopeKey).SetCanonicalKey(change.CanonicalKey).
 			SetKind(kaguyamemorypage.Kind(change.Kind)).
@@ -207,6 +202,10 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 		if page.Status == kaguyamemorypage.StatusDeleted {
 			return changeDropped, nil
 		}
+		if page.Status == kaguyamemorypage.StatusArchived && !opts.approved {
+			// 用户停用的知识不能因下一次自动整理而重新启用。
+			return changeDropped, nil
+		}
 		if page.Version != change.BaseVersion {
 			// 冻结候选之后的用户编辑不能被旧冲突提案下线。
 			return changeReview, nil
@@ -228,13 +227,7 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 			// 人工锁定页面被新资料挑战：待审修订，不自动改正文。
 			return changeReview, nil
 		}
-		status := page.Status
-		if strongEvidence(change) || opts.approved {
-			status = kaguyamemorypage.StatusActive
-		} else if status == kaguyamemorypage.StatusActive {
-			// 助手推断不得自动替换已确认页面，交给用户审阅。
-			return changeReview, nil
-		}
+		status := kaguyamemorypage.StatusActive
 		updated, err := client.KaguyaMemoryPage.UpdateOneID(page.ID).
 			SetKind(kaguyamemorypage.Kind(change.Kind)).
 			SetTitle(change.Title).SetSummary(change.Summary).SetBody(change.Body).
@@ -261,15 +254,6 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 		return changePublished, nil
 	}
 	return changeDropped, nil
-}
-
-// publishedStatus 决定编译结果的初始状态：没有可核验证据的敏感/推测内容
-// 保留 proposed，不能自动激活。
-func publishedStatus(change *dtomemory.PagePatch) kaguyamemorypage.Status {
-	if strongEvidence(change) {
-		return kaguyamemorypage.StatusActive
-	}
-	return kaguyamemorypage.StatusProposed
 }
 
 // strongEvidence 要求每条主张都有强支持证据；不能用一条用户陈述
@@ -593,9 +577,6 @@ func saveReviewProposalTx(ctx context.Context, client *ent.Client, job *ent.Kagu
 	payload, err := json.Marshal(dtomemory.PatchPlan{SchemaVersion: dtomemory.ContractSchemaVersion, Changes: review})
 	if err != nil {
 		return err
-	}
-	if len(payload) > maxResultBytes {
-		return fmt.Errorf("%w: review proposal exceeds size limit", ErrPlanInvalid)
 	}
 	return client.KaguyaMemoryJob.UpdateOneID(job.ID).SetResultJSON(string(payload)).Exec(ctx)
 }

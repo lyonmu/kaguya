@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
@@ -64,7 +65,13 @@ func (r *ScopedReader) SearchMemory(ctx context.Context, query string, limit int
 	if err := r.checkPolicy(ctx); err != nil {
 		return "", err
 	}
-	pages, err := r.svc.SearchPages(ctx, r.scopes, query, limit, true)
+	var pages []RetrievedPage
+	var err error
+	if strings.TrimSpace(query) == "" {
+		pages, err = r.svc.CatalogPages(ctx, r.scopes, limit)
+	} else {
+		pages, err = r.svc.SearchPages(ctx, r.scopes, query, limit, true)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -101,7 +108,7 @@ func (r *ScopedReader) SearchMemory(ctx context.Context, query string, limit int
 }
 
 // ReadMemory 返回有界正文、主张证据摘要与关联页面 ID；版本参数用于核验时效。
-func (r *ScopedReader) ReadMemory(ctx context.Context, pageID string, version int64) (string, error) {
+func (r *ScopedReader) ReadMemory(ctx context.Context, pageID string, version int64, window ...int) (string, error) {
 	if err := r.checkPolicy(ctx); err != nil {
 		return "", err
 	}
@@ -109,7 +116,26 @@ func (r *ScopedReader) ReadMemory(ctx context.Context, pageID string, version in
 	if err != nil {
 		return "", err
 	}
+	offset, limit := 0, 8000
+	if len(window) > 0 {
+		offset = window[0]
+	}
+	if len(window) > 1 {
+		limit = window[1]
+	}
+	body := []rune(detail.Body)
+	if offset < 0 || offset > len(body) || limit < 1 || limit > 16000 {
+		return "", errors.New("invalid memory body window")
+	}
+	end := min(offset+limit, len(body))
+	var next *int
+	if end < len(body) {
+		next = &end
+	}
 	type readItem struct {
+		Offset     int           `json:"offset"`
+		NextOffset *int          `json:"next_offset"`
+		TotalChars int           `json:"total_chars"`
 		ID         string        `json:"id"`
 		Version    int64         `json:"version"`
 		Kind       string        `json:"kind"`
@@ -124,8 +150,9 @@ func (r *ScopedReader) ReadMemory(ctx context.Context, pageID string, version in
 	expired := detail.ExpiresAt != nil && detail.ExpiresAt.Before(nowTime())
 	data, err := json.Marshal(readItem{
 		ID: detail.ID, Version: detail.Version, Kind: detail.Kind,
-		Title: detail.Title, Summary: detail.Summary, Body: detail.Body,
+		Title: detail.Title, Summary: detail.Summary, Body: string(body[offset:end]),
 		Status: detail.Status, Expired: expired,
+		Offset: offset, NextOffset: next, TotalChars: len(body),
 		Claims: detail.Claims, RelatedIDs: detail.RelatedIDs,
 	})
 	if err != nil {

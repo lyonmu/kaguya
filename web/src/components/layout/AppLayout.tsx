@@ -1,6 +1,5 @@
 import { useState, type PropsWithChildren } from 'react'
 import {
-  ApiOutlined,
   BarChartOutlined,
   DatabaseOutlined,
   MenuOutlined,
@@ -12,7 +11,7 @@ import { Breadcrumb, Button, Drawer, Layout, Menu } from 'antd'
 import { BottomActions } from './BottomActions'
 import { BottomActionsContext } from './bottomActionsContext'
 import type { ColorMode } from '../../app/colorMode'
-import { kaguyaAvatar } from '../../assets/avatars'
+import { LunarGlyph } from '../LunarGlyph'
 
 const { Content, Header, Sider } = Layout
 
@@ -50,13 +49,13 @@ export function AppLayout({
       toggleCollapsed: () => setActionsCollapsed(value => !value),
       onChat: () => onPageChange('chat'), onSettings: () => onPageChange('ai-providers'),
       onToggleColorMode,
-      avatar: <img alt="Kaguya" className="h-6 w-6 rounded-md object-cover" decoding="async" height={24} src={kaguyaAvatar.src} srcSet={kaguyaAvatar.srcSet} width={24} />,
+      avatar: <LunarGlyph />,
     }}>
     <Layout className="h-svh w-full overflow-hidden bg-k-canvas">
 
       {currentPage === 'chat' ? <Content className="min-h-0 min-w-0">{children}</Content> : <Layout className="min-h-0 min-w-0 flex-1 bg-k-canvas" hasSider>
         <Sider
-          className="border-r border-k-border bg-k-panel! max-[720px]:hidden!"
+          className="lunar-navigation border-r border-k-border bg-k-panel! max-[720px]:hidden!"
           theme={isDark ? 'dark' : 'light'}
           width={216}
           collapsed={systemCollapsed}
@@ -65,18 +64,11 @@ export function AppLayout({
         >
           <div className="flex h-full flex-col px-2.5 pb-3">
             <div className="border-b border-k-border-soft px-2.5 pt-5 pb-4">
-              <span className="mb-1.5 block text-[9px] font-bold tracking-[1.3px] text-k-text-subtle">
-                KAGUYA CONSOLE
-              </span>
-              <h1 className="m-0 text-[16px] font-semibold text-k-text">
-                系统管理
-              </h1>
-              <p className="mt-0.5 mb-0 text-[11px] text-k-text-subtle">
-                System workspace
-              </p>
+              <div className="lunar-brand"><LunarGlyph /><strong>Kaguya</strong></div>
+              <h1 className="mt-2 mb-0 text-[13px] font-normal text-k-text-muted">偏好与配置</h1>
             </div>
 
-            <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
+            <div className="px-2.5 pt-4 pb-1.5 text-[12px] font-semibold tracking-[0.7px] text-k-text-subtle">
               AI 配置
             </div>
             <Menu
@@ -88,7 +80,7 @@ export function AppLayout({
               theme={isDark ? 'dark' : 'light'}
             />
 
-            <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
+            <div className="px-2.5 pt-4 pb-1.5 text-[12px] font-semibold tracking-[0.7px] text-k-text-subtle">
               长期记忆
             </div>
             <Menu
@@ -100,8 +92,8 @@ export function AppLayout({
               theme={isDark ? 'dark' : 'light'}
             />
 
-            <div className="px-2.5 pt-4 pb-1.5 text-[10px] font-semibold tracking-[0.7px] text-k-text-subtle">
-              日志与审计
+            <div className="px-2.5 pt-4 pb-1.5 text-[12px] font-semibold tracking-[0.7px] text-k-text-subtle">
+              使用记录
             </div>
             <Menu
               className="border-0! bg-transparent!"
@@ -115,23 +107,14 @@ export function AppLayout({
             />
 
             <div className="flex-1" />
-            <div className="mx-1 mt-2 flex items-center gap-2.5 rounded-[10px] border border-k-border bg-k-elevated p-2">
-              <span className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg border border-k-border bg-k-selected text-k-primary">
-                <ApiOutlined />
-              </span>
-              <span className="min-w-0">
-                <strong className="block truncate text-[11px] font-semibold text-k-text-muted">
-                  System API
-                </strong>
-                <small className="mt-0.5 block truncate font-mono text-[9px] text-k-text-subtle">
-                  /kaguya/api
-                </small>
-              </span>
+            <div className="lunar-navigation-footer">
+              <small>QUIET INTELLIGENCE</small>
+              安静的智能，清晰的控制。
             </div>
           </div>
         </Sider>
 
-        <Drawer title="系统管理" placement="left" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
+        <Drawer title="偏好与配置" placement="left" open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)}>
           <Menu selectedKeys={[currentPage]} items={[
             ...configurationItems,
             ...memoryItems,
@@ -145,7 +128,7 @@ export function AppLayout({
             <Button className="min-[721px]:hidden!" type="text" aria-label="打开系统菜单" aria-expanded={mobileMenuOpen} icon={<MenuOutlined />} onClick={() => setMobileMenuOpen(true)} />
             <Breadcrumb
               items={[
-                { title: '系统管理' },
+                { title: '偏好与配置' },
                 { title: currentPage === 'ai-providers' ? 'AI 配置' : currentPage === 'system-info' ? '系统配置' : currentPage === 'memory' ? '长期记忆' : '用量分析' },
               ]}
               separator={<RightOutlined className="text-[8px]" />}

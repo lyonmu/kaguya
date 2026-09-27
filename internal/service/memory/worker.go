@@ -17,6 +17,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryattempt"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryevidence"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorylink"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorypage"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryrevision"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
@@ -32,12 +33,12 @@ const (
 	batchMaxWait        = 10 * time.Minute
 	batchReadyCount     = 6
 	maxBatchSourceChars = 48000
-	// maxPlanInputBytes 是阶段 C 单次调用的输入上限（来源 + 候选 + 完整旧页面）。
+	// maxPlanInputBytes 是模型窗口未知时使用的单次输入预算，不是页面存储上限。
 	// 超过预算自动拆批，而不是阻塞；单个候选页仍完整提供。
 	maxPlanInputBytes = 128 << 10
-	// planInputReserve 为系统提示与 JSON 包装预留，minPageReserve 保证一个完整页面能进入批次。
+	// planInputReserve 为系统提示与 JSON 包装预留，minPageReserve 预留合并输入空间。
 	planInputReserve = 4 << 10
-	minPageReserve   = maxBodyBytes + 2<<10
+	minPageReserve   = 10 << 10
 	minSourceBatch   = 4 << 10
 	maxJobAttempts   = 3
 	leaseDuration    = 10 * time.Minute
@@ -55,7 +56,7 @@ func modelInputBudget(target *servicesystem.TaskModel, reserve int) int {
 	}
 	// 窗口的 3/4 可用于输入；window token × 4 byte/token 后即 window×3 字节。
 	limit := target.TokenContextWindow*3 - reserve
-	return min(maxPlanInputBytes, max(limit, 1))
+	return max(limit, 1)
 }
 
 // sourceBudgetForModel 把来源批次收缩到模型可接受的规模；来源超预算时按
@@ -130,7 +131,7 @@ func (w *Worker) Run(ctx context.Context) {
 // tick 执行一轮领取/处理并返回下一次唤醒间隔。
 func (w *Worker) tick(ctx context.Context) time.Duration {
 	next := w.processOnce(ctx)
-	return max(time.Until(next), time.Second)
+	return min(max(time.Until(next), time.Second), baseRetryDelay)
 }
 
 // processOnce 处理一个到期批次（或回收一个到期作业），返回下一个事件时间。
@@ -168,15 +169,17 @@ func (w *Worker) processOnce(ctx context.Context) time.Time {
 		}
 		if job, _ := w.claimReadyBatch(ctx, scope); job != nil {
 			w.svc.runJob(ctx, job)
+			// 一次点击持续处理该范围的剩余批次，直到没有可领取来源。
+			RequestCompile(scope)
 			return nowTime().Add(time.Second)
 		}
-	}
-	if !policy.AutoCapture {
-		return nowTime().Add(batchMaxWait)
 	}
 	if job := w.claimDueJob(ctx); job != nil {
 		w.svc.runJob(ctx, job)
 		return nowTime().Add(time.Second)
+	}
+	if !policy.AutoCapture {
+		return nowTime().Add(batchMaxWait)
 	}
 	if job, next := w.claimReadyBatch(ctx, ""); job != nil {
 		w.svc.runJob(ctx, job)
@@ -662,8 +665,6 @@ func newLeaseToken() string {
 // runJob 执行一次作业尝试：提炼 → 检索候选 → 合并提案 → 校验 → 原子发布。
 // 所有分支都保存已知调用用量（callTracked 内完成），错误不伪装成 noop。
 func (s *Service) runJob(ctx context.Context, job *ent.KaguyaMemoryJob) {
-	ctx, cancel := context.WithTimeout(ctx, leaseDuration-30*time.Second)
-	defer cancel()
 	if ctx.Err() != nil {
 		s.retryLater(context.Background(), job, time.Second, "canceled")
 		return
@@ -687,29 +688,14 @@ func (s *Service) runJob(ctx context.Context, job *ent.KaguyaMemoryJob) {
 
 	extracted, err := s.Extract(ctx, job, target, input)
 	if err != nil {
-		// 格式错误最多一次有界修复，总调用次数仍受预算控制。
-		var broken *contractError
-		if errors.As(err, &broken) {
-			extracted, err = s.repairExtract(ctx, job, target, broken.raw)
-		}
-		if err != nil {
-			if isContractError(err) {
-				s.invalidJob(ctx, job, "invalid extract JSON")
-				return
-			}
+		if isContractError(err) {
+			s.invalidJob(ctx, job, "extract validation failed")
+		} else {
 			s.recordFailure(ctx, job, err)
-			return
 		}
-	}
-	if extracted.SchemaVersion != dtomemory.ContractSchemaVersion {
-		s.invalidJob(ctx, job, "schema_version mismatch")
 		return
 	}
 	projections := projectionsFromPayload(input)
-	if err := ValidateCandidates(extracted.Candidates, projections); err != nil {
-		s.invalidJob(ctx, job, "candidate validation failed")
-		return
-	}
 	if len(extracted.Candidates) == 0 {
 		// 合法空输出标记 noop：原子推进来源与作业状态，未覆盖分段仍待处理。
 		s.noopJob(ctx, job, projections)
@@ -810,6 +796,7 @@ func projectionsFromPayload(payload []byte) []*SourceProjection {
 // mergeCandidates 是阶段 B 的确定性候选检索结果：合并页面集合、每个候选命中的
 // 页面优先级顺序，以及阶段 C 输入与证据校验共用的冻结修订快照。
 type mergeCandidates struct {
+	related          map[string]*ent.KaguyaMemoryPage
 	pages            map[string]*ent.KaguyaMemoryPage
 	pagesByCandidate map[string][]string
 	data             map[string]candidatePageData
@@ -817,9 +804,10 @@ type mergeCandidates struct {
 
 // candidatePageData 是候选页当前修订的冻结快照（阶段 C 输入与证据校验共用）。
 type candidatePageData struct {
-	claims   []dtomemory.MemoryClaim
-	retained []retainedEvidence
-	rows     []*ent.KaguyaMemoryEvidence
+	relatedIDs []string
+	claims     []dtomemory.MemoryClaim
+	retained   []retainedEvidence
+	rows       []*ent.KaguyaMemoryEvidence
 }
 
 // findMergeCandidates 对每个 candidate 做同 scope 的 canonical key 精确候选与
@@ -829,7 +817,7 @@ func (s *Service) findMergeCandidates(ctx context.Context, scope string,
 	candidates []dtomemory.Candidate) (*mergeCandidates, error) {
 	out := &mergeCandidates{
 		pages: map[string]*ent.KaguyaMemoryPage{}, pagesByCandidate: map[string][]string{},
-		data: map[string]candidatePageData{},
+		data: map[string]candidatePageData{}, related: map[string]*ent.KaguyaMemoryPage{},
 	}
 	add := func(page *ent.KaguyaMemoryPage, ids *[]string, seen map[string]bool) {
 		if page == nil {
@@ -882,6 +870,18 @@ func (s *Service) findMergeCandidates(ctx context.Context, scope string,
 			return nil, err
 		}
 		out.data[id] = data
+		if len(data.relatedIDs) > 0 {
+			linked, err := s.client.KaguyaMemoryPage.Query().Where(
+				kaguyamemorypage.IDIn(data.relatedIDs...), kaguyamemorypage.ScopeKeyEQ(scope),
+				kaguyamemorypage.DeletedAtIsNil(), kaguyamemorypage.StatusNEQ(kaguyamemorypage.StatusDeleted),
+			).All(ctx)
+			if err != nil {
+				return nil, err
+			}
+			for _, row := range linked {
+				out.related[row.ID] = row
+			}
+		}
 	}
 	return out, nil
 }
@@ -889,6 +889,14 @@ func (s *Service) findMergeCandidates(ctx context.Context, scope string,
 // loadCandidatePageData 读取候选页当前修订的主张与证据行。
 func loadCandidatePageData(ctx context.Context, client *ent.Client, page *ent.KaguyaMemoryPage) (candidatePageData, error) {
 	var data candidatePageData
+	links, err := client.KaguyaMemoryLink.Query().Where(kaguyamemorylink.FromPageIDEQ(page.ID), kaguyamemorylink.RelationEQ(kaguyamemorylink.RelationRelated)).Order(ent.Asc(kaguyamemorylink.FieldToPageID)).All(ctx)
+	if err != nil {
+		return data, err
+	}
+	data.relatedIDs = []string{}
+	for _, link := range links {
+		data.relatedIDs = append(data.relatedIDs, link.ToPageID)
+	}
 	revision, err := client.KaguyaMemoryRevision.Query().
 		Where(kaguyamemoryrevision.PageIDEQ(page.ID), kaguyamemoryrevision.VersionEQ(page.Version)).Only(ctx)
 	if err != nil && !ent.IsNotFound(err) {
@@ -951,7 +959,7 @@ func composePlanPayload(scope string, input []byte, candidates []dtomemory.Candi
 			"page_id": id, "version": page.Version, "canonical_key": redactSecrets(page.CanonicalKey),
 			"kind": page.Kind, "title": redactSecrets(page.Title), "summary": redactSecrets(page.Summary),
 			"body": redactSecrets(page.Body), "aliases": aliases,
-			"evidence": evidence, "claims": claims,
+			"evidence": evidence, "claims": claims, "related_ids": data[id].relatedIDs,
 		}
 	}
 	return json.Marshal(map[string]any{
@@ -1160,60 +1168,31 @@ func (s *Service) planInBatches(ctx context.Context, job *ent.KaguyaMemoryJob, t
 		if err != nil {
 			return nil, err
 		}
-		plan, err := s.Plan(ctx, job, target, payload)
-		if err != nil {
-			var broken *contractError
-			if errors.As(err, &broken) {
-				plan, err = s.repairPlan(ctx, job, target, broken.raw)
-			}
-			if err != nil {
-				return nil, err
-			}
-		}
-		// 校验使用生成前冻结的候选集合，不能生成后重新检索扩大权限。
+		// 生成和修复共用生成前冻结的候选集，不扩大页面与证据权限。
 		index := NewEvidenceIndex(projections)
 		for id := range batch.pages {
 			index.AddRetained(id, found.data[id].rows)
 		}
-		if err := ValidatePlan(ValidatePlanInput{
-			SchemaVersionScope: job.ScopeKey,
-			Projections:        projections,
-			CandidatePages:     batch.pages,
-			RelatedPages:       batch.pages,
-			CandidateKeys:      candidateKeySet(batch.candidates),
-			Evidence:           index,
-			Plan:               plan,
-		}); err != nil {
+		related := make(map[string]*ent.KaguyaMemoryPage, len(batch.pages)+len(found.related))
+		for id, page := range batch.pages {
+			related[id] = page
+		}
+		for id, page := range found.related {
+			related[id] = page
+		}
+		plan, err := s.Plan(ctx, job, target, payload, func(plan *dtomemory.PatchPlan) error {
+			return ValidatePlan(ValidatePlanInput{
+				SchemaVersionScope: job.ScopeKey, Projections: projections,
+				CandidatePages: batch.pages, RelatedPages: related,
+				CandidateKeys: candidateKeySet(batch.candidates), Evidence: index, Plan: plan,
+			})
+		})
+		if err != nil {
 			return nil, err
 		}
 		combined.Changes = append(combined.Changes, plan.Changes...)
 	}
 	return combined, nil
-}
-
-// repairExtract / repairPlan 各执行一次有界格式修复。
-func (s *Service) repairExtract(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, broken string) (*dtomemory.ExtractResult, error) {
-	raw, err := s.Repair(ctx, job, target, broken)
-	if err != nil {
-		return nil, err
-	}
-	var extracted dtomemory.ExtractResult
-	if err := strictDecodeJSON(raw, &extracted); err != nil {
-		return nil, &contractError{raw: raw, err: err}
-	}
-	return &extracted, nil
-}
-
-func (s *Service) repairPlan(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, broken string) (*dtomemory.PatchPlan, error) {
-	raw, err := s.Repair(ctx, job, target, broken, planSystemPrompt)
-	if err != nil {
-		return nil, err
-	}
-	var plan dtomemory.PatchPlan
-	if err := strictDecodeJSON(raw, &plan); err != nil {
-		return nil, &contractError{raw: raw, err: err}
-	}
-	return &plan, nil
 }
 
 // recordFailure 分类失败：认证/预算 blocked，瞬时错误指数退避重试，
@@ -1222,6 +1201,7 @@ func (s *Service) recordFailure(ctx context.Context, job *ent.KaguyaMemoryJob, c
 	if errors.Is(cause, ErrStaleLease) {
 		return
 	}
+	s.logger.Warn("memory compilation failed", zap.String("job_id", job.ID), zap.String("error_code", classifyCode(cause)), zap.Int("attempt", job.Attempt))
 	if callBlocked(cause) {
 		s.blockJob(job, classifyCode(cause), cause.Error())
 		return
@@ -1255,6 +1235,8 @@ func retryDelay(attempt int, cause error) (time.Duration, string) {
 }
 
 func (s *Service) retryLater(ctx context.Context, job *ent.KaguyaMemoryJob, delay time.Duration, code string) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
 	if err := s.client.KaguyaMemoryJob.UpdateOneID(job.ID).
 		Where(kaguyamemoryjob.StatusEQ(kaguyamemoryjob.StatusRunning), kaguyamemoryjob.LeaseTokenEQ(job.LeaseToken)).
 		SetStatus(kaguyamemoryjob.StatusRetryWait).

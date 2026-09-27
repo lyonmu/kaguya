@@ -34,7 +34,7 @@ function providerInitial(name: string) {
 }
 
 const headCellClass =
-  'border-b border-k-border-soft bg-k-canvas/60 px-4 py-2.5 text-left text-[11px] font-normal tracking-[0.06em] text-k-text-subtle'
+  'border-b border-k-border-soft bg-k-canvas/60 px-4 py-2.5 text-left text-[12px] font-normal tracking-[0.06em] text-k-text-subtle'
 const bodyCellClass = 'border-b border-k-border-soft px-4 py-3 align-middle'
 
 export function ProviderCatalogPage() {
@@ -84,7 +84,7 @@ export function ProviderCatalogPage() {
     <div className="mx-auto w-full max-w-[1480px] px-6 py-5 max-[620px]:px-3.5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="m-0 text-[20px] font-semibold text-k-text">提供商目录</h2>
+          <h2 className="m-0 text-[22px] font-medium text-k-text">提供商目录</h2>
           <p className="mt-1 mb-0 text-sm text-k-text-muted">
             来自 models.dev 的提供商目录（api.json），按名称 A→Z 排列；新增提供商请在「提供商与模型」中搜索添加
           </p>
@@ -126,12 +126,12 @@ export function ProviderCatalogPage() {
                   <tr className="transition-colors hover:bg-k-selected/40" key={item.id}>
                     <td className={bodyCellClass}>
                       <div className="flex items-center gap-2.5">
-                        <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-k-border-soft bg-k-selected font-mono text-[11px] font-semibold uppercase text-k-primary">
+                        <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-k-border-soft bg-k-selected font-mono text-[12px] font-semibold uppercase text-k-primary">
                           {providerInitial(item.name)}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate font-medium text-k-text" title={item.name}>{item.name}</span>
-                          <span className="mt-0.5 block truncate font-mono text-[10px] text-k-text-subtle">{item.id}</span>
+                          <span className="mt-0.5 block truncate font-mono text-[12px] text-k-text-subtle">{item.id}</span>
                         </span>
                       </div>
                     </td>
@@ -163,7 +163,7 @@ export function ProviderCatalogPage() {
                           />
                         </Tooltip>
                       ) : (
-                        <span className="text-[11px] text-k-text-subtle">—</span>
+                        <span className="text-[12px] text-k-text-subtle">—</span>
                       )}
                     </td>
                   </tr>
@@ -180,7 +180,7 @@ export function ProviderCatalogPage() {
             </div>
           ) : null}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-k-border-soft px-4 py-2.5">
-            <span className="text-[11px] text-k-text-subtle">共 {data.total.toLocaleString()} 个提供商</span>
+            <span className="text-[12px] text-k-text-subtle">共 {data.total.toLocaleString()} 个提供商</span>
             <Pagination
               current={page}
               onChange={setPage}

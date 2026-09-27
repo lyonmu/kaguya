@@ -7,14 +7,16 @@ import { aggregateActivity, activityPieces, type ActivityMode } from '../../feat
 import { compositionLabelWidth } from '../../features/usage/composition'
 import { UsageChart } from '../../features/usage/UsageChart'
 import { usageDateRange } from '../../features/usage/range'
+import { lunarChartColors, lunarPalettes } from '../../app/lunar'
 import './token-usage.css'
 
 const compact = (value: number) => new Intl.NumberFormat('zh-CN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
-// 热力图分档颜色：由浅到深，最低档也保持不透明，确保有使用的日期不会看起来像空白。
-const activityColors = ['#c6ddff', '#82b8ff', '#448cef', '#245aca']
 
 export function TokenUsagePage() {
   const { token } = theme.useToken()
+  const modeColors = token.colorBgLayout === lunarPalettes.dark.canvas ? 'dark' : 'light'
+  const palette = lunarPalettes[modeColors]
+  const chartColors = lunarChartColors[modeColors]
   const [data, setData] = useState<TokenUsage>()
   const [range, setRange] = useState<[string, string]>()
   const [mode, setMode] = useState<ActivityMode>('daily')
@@ -42,7 +44,7 @@ export function TokenUsagePage() {
     const values = aggregateActivity(data.days, mode)
     // 分位数分档：值差异极大时低用量日期仍保留可见颜色，并与空白日期区分。
     // 零用量日期使用主题弱填充色，透明会与卡片背景重合（明亮模式等同于一片空白）。
-    const pieces = activityPieces(values.map(([, value]) => value), activityColors, compact, token.colorFillSecondary)
+    const pieces = activityPieces(values.map(([, value]) => value), chartColors.activity, compact, token.colorFillSecondary)
     const base = {
       animation: false, aria: { enabled: true }, textStyle: { color: token.colorTextSecondary },
       tooltip: { trigger: 'item', renderMode: 'richText', backgroundColor: token.colorBgElevated, textStyle: { color: token.colorText },
@@ -61,7 +63,7 @@ export function TokenUsagePage() {
       yAxis: { type: 'category', data: [''], show: false },
       series: [{ type: 'heatmap', data: values.map(([, value], index) => [index, 0, value]), itemStyle: { borderColor: token.colorBgContainer, borderWidth: 4, borderRadius: 5 } }],
     }
-  }, [data, mode, token])
+  }, [data, mode, token, chartColors])
 
   // 构成图按容器实测宽度计算标签宽度，窗口缩放时图表始终铺满卡片，不产生横向滚动。
   const measureComposition = useCallback((element: HTMLDivElement | null) => {
@@ -76,15 +78,15 @@ export function TokenUsagePage() {
   const composition = useMemo<EChartsCoreOption>(() => {
     const rows = compositionRows
     return {
-      aria: { enabled: true }, color: ['#80b2fa', '#2862ce', '#4a8de5', '#c2dbff'],
+      aria: { enabled: true }, color: [palette.context, palette.primary, chartColors.reasoning, chartColors.cached],
       tooltip: { trigger: 'axis', renderMode: 'richText', axisPointer: { type: 'shadow' }, backgroundColor: token.colorBgElevated, textStyle: { color: token.colorText } },
       legend: { top: 0, textStyle: { color: token.colorTextSecondary }, icon: 'roundRect' },
       grid: { left: 65, right: 20, top: 45, bottom: 80 },
-      xAxis: { type: 'category', data: rows.map(row => row.name || row.id), axisTick: { show: false }, axisLine: { lineStyle: { color: token.colorBorderSecondary } }, axisLabel: { interval: 0, fontSize: 11, width: compositionLabel, overflow: 'truncate', color: token.colorTextSecondary } },
+      xAxis: { type: 'category', data: rows.map(row => row.name || row.id), axisTick: { show: false }, axisLine: { lineStyle: { color: token.colorBorderSecondary } }, axisLabel: { interval: 0, fontSize: 12, width: compositionLabel, overflow: 'truncate', color: token.colorTextSecondary } },
       yAxis: { type: 'value', axisLabel: { formatter: compact, color: token.colorTextSecondary }, splitLine: { lineStyle: { color: token.colorBorderSecondary, type: 'dashed' } } },
       series: ([['输入', 'input_tokens'], ['输出', 'output_tokens'], ['思考', 'reasoning_tokens'], ['缓存', 'cached_tokens']] as const).map(([name, key]) => ({ name, type: 'bar', stack: 'tokens', barMaxWidth: 36, data: rows.map(row => row[key]) })),
     }
-  }, [compositionLabel, compositionRows, token])
+  }, [compositionLabel, compositionRows, token, palette, chartColors])
   const stats = data ? [
     ['累计 Token 数', data.total_tokens, '所选时间段内全部模型累计使用量'],
     ['日峰值 Token 数', data.peak_tokens, data.peak_tokens_date || '暂无活动'],

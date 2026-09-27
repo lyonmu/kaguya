@@ -163,12 +163,18 @@ func TestNoteSourcesRemainImmutableAndAreForgotten(t *testing.T) {
 	}
 }
 
-func TestWeakMemoryReviewActuallyPublishesAndChecksSources(t *testing.T) {
+func TestLockedMemoryReviewPublishesAndChecksSources(t *testing.T) {
 	for _, excluded := range []bool{false, true} {
 		t.Run(map[bool]string{false: "approve", true: "excluded"}[excluded], func(t *testing.T) {
 			caller := &fakeCaller{}
 			f := setupCompile(t, caller)
+			locked := true
+			existing, err := f.svc.CreatePage(f.ctx, &dtomemory.MemoryPageSaveReq{ScopeKey: f.scope, Kind: "decision", CanonicalKey: "memory-storage", Title: "锁定的知识", Body: "原始正文", UserLocked: &locked})
+			if err != nil {
+				t.Fatal(err)
+			}
 			change := testCreateChange(f.sourceID)
+			change.Action, change.PageID, change.BaseVersion = "update", existing.ID, existing.Version
 			change.Claims[0].Basis = "synthesis"
 			caller.steps = []func(int) (CallResult, error){
 				func(int) (CallResult, error) { return okResult(extractJSON(testCandidate(f.sourceID))), nil },
@@ -179,8 +185,8 @@ func TestWeakMemoryReviewActuallyPublishesAndChecksSources(t *testing.T) {
 			if err != nil || job.Status != kaguyamemoryjob.StatusNeedsReview {
 				t.Fatalf("missing review: %+v %v", job, err)
 			}
-			if count, _ := f.client.KaguyaMemoryPage.Query().Count(f.ctx); count != 0 {
-				t.Fatal("weak claims published before approval")
+			if count, _ := f.client.KaguyaMemoryPage.Query().Count(f.ctx); count != 1 {
+				t.Fatal("locked page replaced before approval")
 			}
 			if excluded {
 				if err := f.client.KaguyaMemorySource.UpdateOneID(f.sourceID).SetState(kaguyamemorysource.StateExcluded).Exec(f.ctx); err != nil {

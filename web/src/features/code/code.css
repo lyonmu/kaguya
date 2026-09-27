@@ -19,12 +19,12 @@
 .code-tree-title { display: inline-flex; align-items: center; gap: 6px; width: 100%; min-width: 0; }
 .code-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .code-file-icon { flex-shrink: 0; }
-.code-badge { flex-shrink: 0; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 4px; font-size: 10px; font-weight: 600; color: #fff; }
-.code-badge-modified { background: #d99127; }
-.code-badge-added, .code-badge-untracked { background: #37a86b; }
-.code-badge-deleted { background: #e5484d; }
-.code-badge-renamed, .code-badge-copied { background: #2563eb; }
-.code-badge-conflicted { background: #a855f7; }
+.code-badge { flex-shrink: 0; width: 16px; height: 16px; line-height: 16px; text-align: center; border-radius: 4px; font-size: 12px; font-weight: 600; color: var(--k-text); }
+.code-badge-modified { color: var(--k-warning); background: var(--k-warning-soft); }
+.code-badge-added, .code-badge-untracked { color: var(--k-success); background: var(--k-success-soft); }
+.code-badge-deleted { color: var(--k-danger); background: var(--k-danger-soft); }
+.code-badge-renamed, .code-badge-copied { color: var(--k-primary); background: var(--k-selected); }
+.code-badge-conflicted { color: var(--k-danger); background: var(--k-danger-soft); }
 
 .code-view-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 46px; padding: 8px 14px; border-bottom: 1px solid var(--k-border-soft); }
 .code-view-title { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; }
@@ -36,7 +36,7 @@
 .code-view-body { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .code-loading { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: var(--k-surface); }
 
-.code-lines { flex: 1; min-height: 0; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; line-height: 20px; background: var(--k-surface); }
+.code-lines { flex: 1; min-height: 0; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13px; line-height: 20px; background: var(--k-surface); }
 .code-lines-canvas { position: relative; width: max-content; min-width: 100%; }
 .code-lines-window { position: absolute; top: 0; left: 0; min-width: 100%; }
 .code-line { display: flex; height: 20px; white-space: pre; }
@@ -45,18 +45,18 @@
 
 /* 文件查看器复用聊天代码块的 highlight.js 配色，保持两处语法高亮一致。 */
 .code-lines .hljs-comment, .code-lines .hljs-quote { color: var(--k-text-muted); font-style: italic; }
-.code-lines .hljs-keyword, .code-lines .hljs-selector-tag, .code-lines .hljs-built_in { color: #7c3db2; }
-.code-lines .hljs-string, .code-lines .hljs-addition, .code-lines .hljs-attr { color: #216e45; }
-.code-lines .hljs-number, .code-lines .hljs-literal, .code-lines .hljs-deletion { color: #ac383b; }
-.code-lines .hljs-title, .code-lines .hljs-type, .code-lines .hljs-name { color: #1c65b0; }
-.dark .code-lines .hljs-keyword, .dark .code-lines .hljs-selector-tag, .dark .code-lines .hljs-built_in { color: #cca8f5; }
-.dark .code-lines .hljs-string, .dark .code-lines .hljs-addition, .dark .code-lines .hljs-attr { color: #98cfa5; }
-.dark .code-lines .hljs-number, .dark .code-lines .hljs-literal, .dark .code-lines .hljs-deletion { color: #f2a2a4; }
-.dark .code-lines .hljs-title, .dark .code-lines .hljs-type, .dark .code-lines .hljs-name { color: #8fc5fa; }
+.code-lines .hljs-keyword, .code-lines .hljs-selector-tag, .code-lines .hljs-built_in { color: var(--k-primary); }
+.code-lines .hljs-string, .code-lines .hljs-addition, .code-lines .hljs-attr { color: var(--k-success); }
+.code-lines .hljs-number, .code-lines .hljs-literal, .code-lines .hljs-deletion { color: var(--k-danger); }
+.code-lines .hljs-title, .code-lines .hljs-type, .code-lines .hljs-name { color: var(--k-context); }
+.dark .code-lines .hljs-keyword, .dark .code-lines .hljs-selector-tag, .dark .code-lines .hljs-built_in { color: var(--k-primary); }
+.dark .code-lines .hljs-string, .dark .code-lines .hljs-addition, .dark .code-lines .hljs-attr { color: var(--k-success); }
+.dark .code-lines .hljs-number, .dark .code-lines .hljs-literal, .dark .code-lines .hljs-deletion { color: var(--k-danger); }
+.dark .code-lines .hljs-title, .dark .code-lines .hljs-type, .dark .code-lines .hljs-name { color: var(--k-context); }
 
 .code-empty { margin: auto; }
 .code-diff { flex: 1; min-height: 0; overflow: auto; }
-.code-diff-truncated { padding: 4px 12px; font-size: 12px; color: #d99127; }
+.code-diff-truncated { padding: 4px 12px; font-size: 12px; color: var(--k-warning); }
 .code-diff-large { margin: auto; padding: 24px; text-align: center; color: var(--k-text-muted); }
 .code-diff-large p { margin: 0 0 12px; }
 
@@ -64,4 +64,37 @@
   .code-browser { flex-direction: column; }
   .code-browser-side { width: 100%; height: 38%; border-bottom: 1px solid var(--k-border-soft); }
   .code-resizer { display: none; }
+}
+
+.code-toolbar-title strong { font-weight: 500; }
+.code-tree .ant-tree-node-selected { box-shadow: inset 2px 0 var(--k-primary); }
+
+/* 差异库的表面、行号与增删语义接入共享主题；语法高亮仍由库解析。 */
+.code-diff .diff-tailwindcss-wrapper[data-theme] .diff-style-root {
+  --diff-border--: var(--k-border);
+  --diff-add-content--: var(--k-success-soft);
+  --diff-del-content--: var(--k-danger-soft);
+  --diff-add-lineNumber--: color-mix(in srgb, var(--k-success) 20%, var(--k-surface));
+  --diff-del-lineNumber--: color-mix(in srgb, var(--k-danger) 20%, var(--k-surface));
+  --diff-plain-content--: var(--k-surface);
+  --diff-expand-content--: var(--k-panel);
+  --diff-plain-lineNumber--: var(--k-panel);
+  --diff-expand-lineNumber--: var(--k-panel);
+  --diff-plain-lineNumber-color--: var(--k-text-muted);
+  --diff-expand-lineNumber-color--: var(--k-text-muted);
+  --diff-hunk-content--: var(--k-selected);
+  --diff-hunk-lineNumber--: var(--k-selected);
+  --diff-hunk-lineNumber-hover--: var(--k-primary);
+  --diff-add-content-highlight--: color-mix(in srgb, var(--k-success) 25%, var(--k-surface));
+  --diff-del-content-highlight--: color-mix(in srgb, var(--k-danger) 25%, var(--k-surface));
+  --diff-add-widget--: var(--k-primary);
+  --diff-add-widget-color--: var(--k-on-primary);
+  --diff-empty-content--: var(--k-panel);
+  --diff-hunk-content-color--: var(--k-text-muted);
+}
+.code-diff .diff-tailwindcss-wrapper[data-theme] [data-state] { color: var(--k-text); }
+@media (max-width: 760px) {
+  .code-toolbar, .code-view-head { flex-wrap: wrap; }
+  .code-toolbar-actions, .code-view-actions { flex-wrap: wrap; }
+  .code-toolbar-title, .code-view-title { max-width: 100%; }
 }

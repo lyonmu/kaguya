@@ -23,8 +23,8 @@ function toolSummary(block: Block) {
     const parsed: unknown = JSON.parse(block.input || '{}')
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) input = parsed as Record<string, unknown>
   } catch { /* Partial streaming JSON. */ }
-  const names: Record<string, string> = { read: '读取文件', bash: '执行命令', edit: '修改文件', write: '写入文件', grep: '搜索内容', find: '查找文件', ls: '浏览目录' }
-  const detail = input.command ?? input.path ?? input.query ?? input.pattern ?? ''
+  const names: Record<string, string> = { read: '读取文件', bash: '执行命令', edit: '修改文件', write: '写入文件', grep: '搜索内容', find: '查找文件', ls: '浏览目录', memory_read: '读取记忆', memory_search: '检索记忆' }
+  const detail = input.command ?? input.path ?? input.query ?? input.pattern ?? input.page_id ?? ''
   return { label: names[block.tool_name || ''] || block.tool_name || '工具调用', detail: typeof detail === 'string' ? detail : '', input }
 }
 
@@ -56,7 +56,7 @@ export function ActivityBlock({ block: summary, streaming = false, conversationI
   const input = Object.keys(info.input).length ? JSON.stringify(info.input, null, 2) : block.input || '（无参数）'
   const inputAction = block.tool_name === 'bash' && typeof info.input.command === 'string' ? info.input.command : input
   const outputAction = block.output && block.output.type !== 'media' ? block.output.text || '（空输出）' : block.error_message || ''
-  return <details className={`chat-activity ${thinking ? 'chat-reasoning' : 'chat-tool-card'} is-${state}`} open={open} onToggle={event => setOpen(event.currentTarget.open)}>
+  return <details className={`chat-activity ${thinking ? 'chat-reasoning' : 'chat-tool-card'} is-${state}${block.tool_name?.startsWith('memory_') ? ' is-memory' : ''}`} open={open} onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>
       <span className="chat-activity-icon">{running ? <LoadingOutlined spin /> : thinking ? <BulbOutlined /> : failed ? <CloseCircleOutlined /> : block.tool_name === 'bash' ? <CodeOutlined /> : <FileTextOutlined />}</span>
       <span className="chat-activity-heading"><strong>{thinking ? '思考过程' : info.label}</strong>{!thinking && info.detail && <code title={info.detail}>{info.detail}</code>}</span>

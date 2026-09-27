@@ -392,11 +392,11 @@ export function ProviderManagementPage() {
       width: 180,
       render: (_, provider) => {
         const protocols = Array.from(new Set((provider.models ?? []).map(model => model.api_protocol)))
-        if (!protocols.length) return <span className="text-[11px] text-k-text-subtle">—</span>
+        if (!protocols.length) return <span className="text-[12px] text-k-text-subtle">—</span>
         return (
           <Space size={[0, 4]} wrap>
             {protocols.map(protocol => (
-              <Tag color={protocol === 'anthropic' ? 'orange' : 'blue'} key={protocol}>
+              <Tag className="lunar-tag" key={protocol}>
                 {protocolLabel[protocol] ?? protocol}
               </Tag>
             ))}
@@ -411,7 +411,7 @@ export function ProviderManagementPage() {
       ellipsis: true,
       render: (value: string) => (
         <Tooltip title={value || '未配置 Base URL'}>
-          <span className="font-mono text-[11px] text-k-text-muted">
+          <span className="font-mono text-[12px] text-k-text-muted">
             {value || '未配置'}
           </span>
         </Tooltip>
@@ -426,7 +426,7 @@ export function ProviderManagementPage() {
         record.api_key_set ? (
           <Space size={2}>
             {/* 后端只返回掩码，明文需要显式查看。 */}
-            <span className="font-mono text-[11px] text-k-text-muted">{value}</span>
+            <span className="font-mono text-[12px] text-k-text-muted">{value}</span>
             <Tooltip title="查看完整 API Key">
               <Button
                 aria-label={`查看 ${record.provider_name} 的 API Key`}
@@ -439,7 +439,7 @@ export function ProviderManagementPage() {
             </Tooltip>
           </Space>
         ) : (
-          <span className="text-[11px] text-k-text-subtle">未配置</span>
+          <span className="text-[12px] text-k-text-subtle">未配置</span>
         ),
     },
     {
@@ -507,7 +507,7 @@ export function ProviderManagementPage() {
       key: 'api_protocol',
       width: 100,
       render: (value: ProviderProtocol) => (
-        <Tag color={value === 'anthropic' ? 'orange' : 'blue'}>{protocolLabel[value] ?? value}</Tag>
+        <Tag className="lunar-tag">{protocolLabel[value] ?? value}</Tag>
       ),
     },
     {
@@ -516,14 +516,14 @@ export function ProviderManagementPage() {
       key: 'request_path',
       width: 200,
       ellipsis: true,
-      render: (value: string) => <Tooltip title={value}><span className="font-mono text-[11px] text-k-text-muted">{value}</span></Tooltip>,
+      render: (value: string) => <Tooltip title={value}><span className="font-mono text-[12px] text-k-text-muted">{value}</span></Tooltip>,
     },
     {
       title: '推理',
       key: 'reasoning',
       width: 110,
       render: (_, model) =>
-        model.reasoning_enabled === 1 ? <Tag color="purple">{model.reasoning_effort}</Tag> : <Tag>关闭</Tag>,
+        model.reasoning_enabled === 1 ? <Tag className="lunar-tag lunar-tag-primary">{model.reasoning_effort}</Tag> : <Tag>关闭</Tag>,
     },
     {
       title: '上下文',
@@ -564,8 +564,8 @@ export function ProviderManagementPage() {
     <div className="mx-auto w-full max-w-[1480px] px-6 pt-5 pb-8 max-[900px]:px-5 max-[620px]:px-3.5 max-[620px]:pt-5">
       <div className="mb-4 flex items-end justify-between gap-6 max-[620px]:items-start">
         <div>
-          <span className="mb-1.5 block text-[9px] font-bold tracking-[1.4px] text-k-text-subtle">SYSTEM / AI CONFIGURATION</span>
-          <h2 className="m-0 text-[20px] font-semibold tracking-[-0.25px] text-k-text">AI 提供商管理</h2>
+          <span className="mb-1.5 block text-[12px] font-medium tracking-[1px] text-k-text-subtle">SYSTEM / AI CONFIGURATION</span>
+          <h2 className="m-0 text-[22px] font-medium tracking-[-0.25px] text-k-text">AI 提供商管理</h2>
         </div>
         <Space>
           <Button icon={<ReloadOutlined />} loading={loading} onClick={reload}>刷新</Button>
@@ -573,7 +573,7 @@ export function ProviderManagementPage() {
         </Space>
       </div>
 
-      <Card className="mb-3 border-k-border! bg-k-surface! shadow-sm shadow-black/5">
+      <Card className="mb-3 border-k-border! bg-k-surface! shadow-none">
         <Form
           form={filterForm}
           layout="vertical"
@@ -601,11 +601,11 @@ export function ProviderManagementPage() {
 
       {error ? <Alert className="mb-3" title="提供商加载失败" description={error} showIcon type="error" /> : null}
 
-      <Card className="overflow-hidden border-k-border! bg-k-surface! shadow-sm shadow-black/5" styles={{ body: { padding: 0 } }}>
+      <Card className="overflow-hidden border-k-border! bg-k-surface! shadow-none" styles={{ body: { padding: 0 } }}>
         <div className="flex min-h-14 items-center justify-between border-b border-k-border-soft px-4 py-2.5">
           <div>
             <h3 className="m-0 text-[13px] font-semibold text-k-text">提供商列表</h3>
-            <p className="mt-1 mb-0 text-[10px] text-k-text-subtle">共 {data.total.toLocaleString()} 个提供商</p>
+            <p className="mt-1 mb-0 text-[12px] text-k-text-subtle">共 {data.total.toLocaleString()} 个提供商</p>
           </div>
         </div>
         <Table<AIProvider>
@@ -771,7 +771,7 @@ export function ProviderManagementPage() {
               rules={[{ required: true, message: '请输入请求路径' }, { pattern: /^\//, message: '请求路径需以 / 开头' }]}
               tooltip="与提供商 Base URL 拼接成最终请求地址；切换协议会填入默认路径，可直接修改。"
               extra={selectedProvider?.base_url && watchedPath ? (
-                <span className="text-[11px]">最终请求：<span className="font-mono">{joinRequestURL(selectedProvider.base_url, watchedPath)}</span></span>
+                <span className="text-[12px]">最终请求：<span className="font-mono">{joinRequestURL(selectedProvider.base_url, watchedPath)}</span></span>
               ) : undefined}
             >
               <Input className="font-mono" placeholder={protocolDefaultPath[watchedProtocol ?? 'openai-chat']} />

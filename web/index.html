@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/webp" href="/kaguya-favicon.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b0d10" />
+    <meta name="theme-color" content="#0b0e14" />
     <meta
       name="description"
       content="Kaguya 是一位冷静、理性、可靠且始终保持克制的智能助手。"
@@ -17,8 +17,12 @@
           'dark',
           savedMode === 'dark' || (savedMode !== 'light' && prefersDark),
         )
+        document.documentElement.dataset.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+        document.documentElement.style.colorScheme = document.documentElement.dataset.theme
       } catch (_) {
         document.documentElement.classList.add('dark')
+        document.documentElement.dataset.theme = 'dark'
+        document.documentElement.style.colorScheme = 'dark'
       }
     </script>
     <title>Kaguya</title>

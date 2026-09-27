@@ -36,7 +36,7 @@ export function DiffViewer({ path, diff, binary, truncated, mode, theme }: {
         diffViewTheme={theme}
         diffViewHighlight
         diffViewWrap={false}
-        diffViewFontSize={12}
+        diffViewFontSize={13}
       />
     </div>
   )

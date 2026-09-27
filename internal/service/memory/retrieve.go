@@ -18,7 +18,7 @@ import (
 )
 
 // RetrieverVersion 是召回排序与注入格式的版本，随轮次元数据保存。
-const RetrieverVersion = 2
+const RetrieverVersion = 3
 
 // 召回与注入的有界参数（docs/memory-design.md 10.2）。
 const (
@@ -189,6 +189,31 @@ func (s *Service) loadHits(ctx context.Context, hits []searchHit, limit int) ([]
 		if len(out) >= limit {
 			break
 		}
+	}
+	return out, nil
+}
+
+// CatalogPages 提供显式 Wiki 目录浏览；不依赖用户知道已存知识的关键词。
+// 与全文检索相同，范围、状态与过期检查先于数量限制。
+func (s *Service) CatalogPages(ctx context.Context, scopes []string, limit int) ([]RetrievedPage, error) {
+	if err := validateScopes(scopes); err != nil {
+		return nil, err
+	}
+	limit = min(max(limit, 1), 10)
+	rows, err := s.client.KaguyaMemoryPage.Query().Where(
+		kaguyamemorypage.ScopeKeyIn(scopes...), kaguyamemorypage.StatusEQ(kaguyamemorypage.StatusActive),
+		kaguyamemorypage.DeletedAtIsNil(),
+		kaguyamemorypage.Or(kaguyamemorypage.ExpiresAtIsNil(), kaguyamemorypage.ExpiresAtGT(nowTime())),
+	).Order(ent.Desc(kaguyamemorypage.FieldUpdatedAt), ent.Desc(kaguyamemorypage.FieldID)).Limit(limit).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RetrievedPage, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, RetrievedPage{
+			ID: row.ID, Version: row.Version, ScopeKey: row.ScopeKey, Kind: string(row.Kind),
+			Title: row.Title, Summary: row.Summary, Status: string(row.Status),
+		})
 	}
 	return out, nil
 }

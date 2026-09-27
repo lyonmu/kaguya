@@ -120,7 +120,7 @@ export function MCPManagementPanel() {
 
   return <div className="mx-auto w-full max-w-[1480px] px-6 pt-4 pb-8 max-[620px]:px-3.5">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-      <div><h2 className="m-0 text-[20px] font-semibold text-k-text">MCP 管理</h2><Typography.Text type="secondary">连接外部工具服务，动态启停，无需重启应用。</Typography.Text></div>
+      <div><h2 className="m-0 text-[22px] font-medium text-k-text">MCP 管理</h2><Typography.Text type="secondary">连接外部工具服务，动态启停，无需重启应用。</Typography.Text></div>
       <Space><Button icon={<ReloadOutlined />} onClick={reload} loading={loading}>刷新</Button><Button type="primary" icon={<PlusOutlined />} disabled={!!busy || saving} onClick={() => { setEditing(undefined); form.resetFields(); form.setFieldsValue(toMCPForm()); setOpen(true) }}>新增 MCP</Button></Space>
     </div>
     <Card>
@@ -131,7 +131,7 @@ export function MCPManagementPanel() {
         columns={[
           { title: '名称', dataIndex: 'name', width: 180, render: (name, server) => <Button type="link" className="px-0!" onClick={() => setDetails(server)}>{name}</Button> },
           { title: '传输', dataIndex: 'transport', width: 150 },
-          { title: '运行状态', width: 200, render: (_, server) => <div><Tag color={server.status.state === 'running' ? 'green' : server.status.state === 'error' ? 'red' : 'default'}>{server.status.state === 'running' ? '运行中' : server.status.state === 'error' ? '连接异常' : server.enabled ? '等待连接' : '已停用'}</Tag>{server.status.message && <div className="mt-1 text-xs text-k-text-muted">{server.status.message}</div>}</div> },
+          { title: '运行状态', width: 200, render: (_, server) => <div><Tag className={`lunar-tag${server.status.state === 'running' ? ' lunar-tag-success' : server.status.state === 'error' ? ' lunar-tag-danger' : ''}`}>{server.status.state === 'running' ? '运行中' : server.status.state === 'error' ? '连接异常' : server.enabled ? '等待连接' : '已停用'}</Tag>{server.status.message && <div className="mt-1 text-xs text-k-text-muted">{server.status.message}</div>}</div> },
           { title: '工具数', width: 70, render: (_, server) => server.status.tools.length },
           { title: <Space size={4}>启用<Tooltip trigger={['hover', 'focus']} title="启用的 MCP 工具对所有聊天生效；新启用的工具从下一轮对话可用。停用会中断正在执行的 MCP 请求，已产生的外部操作不会撤销。"><QuestionCircleOutlined tabIndex={0} aria-label="启停说明" className="text-k-text-muted" /></Tooltip></Space>, width: 90, render: (_, server) => <Switch aria-label={`启用 ${server.name}`} checked={server.enabled} loading={busy === server.id} disabled={!!busy || saving} onChange={enabled => void toggle(server, enabled)} /> },
           { title: '操作', width: 160, fixed: 'right', render: (_, server) => <Space size={0}><Button type="link" disabled={!!busy || saving} onClick={() => void edit(server)}>编辑</Button>{server.status.state === 'error' && <Button type="link" disabled={!!busy || saving} onClick={() => void toggle(server, true)}>重试</Button>}<Popconfirm title={`删除 ${server.name}？`} description="运行中的连接会同时关闭。" okText="删除" cancelText="取消" onConfirm={() => remove(server)}><Button danger type="link" disabled={!!busy || saving}>删除</Button></Popconfirm></Space> },

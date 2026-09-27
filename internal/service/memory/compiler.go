@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -16,19 +17,14 @@ import (
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryattempt"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 	"go.uber.org/zap"
 )
 
-// 单次编译调用的响应与输出预算；maxOutput 取批次预算、模型输出上限和
-// 保守窗口余量的交集。byte/4 估算不是 tokenizer，中文场景按保守余量处理。
-const (
-	maxResultBytes     = 64 << 10
-	maxPlanOutputChars = 24000
-)
-
 var errInputBudget = errors.New("memory input exceeds budget")
 var errDailyBudget = errors.New("daily memory budget exhausted")
+var errOutputLimit = errors.New("task model reached its output token limit before completing memory JSON")
 
 // CallResult 是一次任务模型调用的结果与用量。
 // 生成错误路径未返回上游用量时 UsageKnown=false，不能按 0 计入确认消耗。
@@ -58,9 +54,14 @@ func (RuntimeCaller) Call(ctx context.Context, cfg agentruntime.ProviderConfig, 
 		return CallResult{}, err
 	}
 	retries := 0
-	result, err := ag.Generate(ctx, fantasy.AgentCall{
+	var outputLimit *int64
+	if maxOutput > 0 {
+		outputLimit = &maxOutput
+	}
+	// 流式接收推理与正文，避免非流式长推理一直等不到响应头而在两分钟超时。
+	result, err := ag.Stream(ctx, fantasy.AgentStreamCall{
 		Prompt:          payload,
-		MaxOutputTokens: &maxOutput,
+		MaxOutputTokens: outputLimit,
 		MaxRetries:      &retries,
 	})
 	if err != nil {
@@ -74,13 +75,13 @@ func (RuntimeCaller) Call(ctx context.Context, cfg agentruntime.ProviderConfig, 
 		UsageKnown:   true,
 		FinishReason: string(result.Response.FinishReason),
 	}
+	if result.Response.FinishReason == fantasy.FinishReasonLength {
+		return call, errOutputLimit
+	}
 	if result.Response.FinishReason != fantasy.FinishReasonStop {
 		return call, fmt.Errorf("memory generation did not finish normally (finish reason: %s)", result.Response.FinishReason)
 	}
 	raw := result.Response.Content.Text()
-	if len(raw) > maxResultBytes {
-		return call, errors.New("memory result exceeds size limit")
-	}
 	call.Text = raw
 	return call, nil
 }
@@ -128,6 +129,17 @@ func (s *Service) callTracked(ctx context.Context, job *ent.KaguyaMemoryJob, pha
 	if target.TokenContextWindow > 0 && (len(payload)+len(systemPrompt)+3)/4+256 >= target.TokenContextWindow*3/4 {
 		return CallResult{}, errInputBudget
 	}
+	// 每次调用续租；慢速提炼不应耗尽后续整合阶段的执行时间。
+	if err := s.client.KaguyaMemoryJob.UpdateOneID(job.ID).
+		Where(kaguyamemoryjob.StatusEQ(kaguyamemoryjob.StatusRunning), kaguyamemoryjob.LeaseTokenEQ(job.LeaseToken)).
+		SetLeaseExpiresAt(nowTime().Add(leaseDuration)).Exec(ctx); err != nil {
+		if ent.IsNotFound(err) {
+			return CallResult{}, ErrStaleLease
+		}
+		return CallResult{}, err
+	}
+	ctx, cancelCall := context.WithTimeout(ctx, leaseDuration-30*time.Second)
+	defer cancelCall()
 	maxOutput := callOutputLimit(target, len(payload)+len(systemPrompt))
 	startedAt := time.Now()
 	result, err := s.caller.Call(ctx, target.Config, systemPrompt, payload, maxOutput)
@@ -135,7 +147,7 @@ func (s *Service) callTracked(ctx context.Context, job *ent.KaguyaMemoryJob, pha
 	resultCode := "ok"
 	switch {
 	case err == nil:
-	case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, context.Canceled):
 		resultCode = "canceled"
 	default:
 		resultCode, _ = classifyCallError(err)
@@ -180,25 +192,33 @@ func (s *Service) callTracked(ctx context.Context, job *ent.KaguyaMemoryJob, pha
 	return result, err
 }
 
-// callOutputLimit 计算一次调用的输出上限：批次预算、模型输出上限与
-// 保守窗口余量的交集；窗口未知时按小型固定上限。
+// callOutputLimit 使用用户配置的模型能力，包含推理 token，不设记忆专属输出上限。
+// 两项均未知时返回 0，让提供商使用默认值；不能臆造一个 6000 token 上限。
 func callOutputLimit(target *servicesystem.TaskModel, payloadBytes int) int64 {
-	limit := int64(maxPlanOutputChars / 4)
-	if target.TokenMaxOutputTokens > 0 {
-		limit = min(limit, int64(target.TokenMaxOutputTokens))
-	}
+	limit := int64(target.TokenMaxOutputTokens)
 	if target.TokenContextWindow > 0 {
-		// 输入按 byte/4 保守估算，窗口的 3/4 可用于输出与协议开销。
-		room := int64(target.TokenContextWindow)*3/4 - int64(payloadBytes)/4
-		limit = min(limit, max(room, 1))
+		room := max(int64(target.TokenContextWindow)*3/4-int64(payloadBytes)/4, 1)
+		if limit <= 0 || room < limit {
+			limit = room
+		}
 	}
-	return max(limit, 1)
+	return max(limit, 0)
 }
 
 // classifyCallError 把上游错误映射为安全错误码与重试策略：
 // 认证失败与输入预算问题直接 blocked，429/5xx/网络问题指数退避重试，
 // 尊重可用的 Retry-After。
 func classifyCallError(err error) (code string, retryAfter time.Duration) {
+	if errors.Is(err, errOutputLimit) {
+		return "output_limit", 0
+	}
+	if errors.Is(err, context.Canceled) {
+		return "canceled", 0
+	}
+	var timeout net.Error
+	if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &timeout) && timeout.Timeout()) {
+		return "timeout", 0
+	}
 	if errors.Is(err, errInputBudget) {
 		return "input_budget", 0
 	}
@@ -229,7 +249,7 @@ func classifyCallError(err error) (code string, retryAfter time.Duration) {
 func callRetryable(err error) bool {
 	code, _ := classifyCallError(err)
 	switch code {
-	case "auth", "input_budget", "invalid_request":
+	case "auth", "input_budget", "output_limit", "invalid_request":
 		return false
 	default:
 		return true
@@ -239,7 +259,7 @@ func callRetryable(err error) bool {
 // callBlocked 决定错误是否应转为 blocked 等待用户修复。
 func callBlocked(err error) bool {
 	code, _ := classifyCallError(err)
-	return code == "auth" || code == "input_budget" || code == "budget"
+	return code == "auth" || code == "input_budget" || code == "output_limit" || code == "budget"
 }
 
 func retryAfterSeconds(headers map[string]string) time.Duration {
@@ -263,42 +283,64 @@ func httpParseTime(value string) (time.Time, error) {
 	return time.Parse(time.RFC1123, value)
 }
 
-// Extract 是阶段 A：从有界来源投影提炼小量 typed claims，不写页面。
+// generateValidated 对格式和内容使用同一个校验入口，失败后最多修复一次。
+// 修复保留原始资料与具体错误，否则模型无法纠正引用或旧页面版本。
+func (s *Service) generateValidated(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel,
+	phase kaguyamemoryattempt.Phase, prompt string, payload []byte, validate func(string) error) error {
+	result, err := s.callTracked(ctx, job, phase, target, prompt, string(payload))
+	if err != nil {
+		return err
+	}
+	if err = validate(result.Text); err == nil {
+		return nil
+	}
+	repair, marshalErr := json.Marshal(map[string]any{
+		"input":             json.RawMessage(payload),
+		"previous_response": result.Text,
+		"validation_error":  err.Error(),
+		"instruction":       "Correct the response using the original input. Return the complete JSON contract only. Do not invent evidence or omit useful candidates to bypass validation.",
+	})
+	if marshalErr != nil {
+		return marshalErr
+	}
+	result, err = s.callTracked(ctx, job, kaguyamemoryattempt.PhaseRepair, target, prompt, string(repair))
+	if err != nil {
+		return err
+	}
+	if err := validate(result.Text); err != nil {
+		return &contractError{raw: result.Text, err: err}
+	}
+	return nil
+}
+
+// Extract 提炼少量有来源的主张；显式空数组才表示没有长期知识。
 func (s *Service) Extract(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, payload []byte) (*dtomemory.ExtractResult, error) {
-	result, err := s.callTracked(ctx, job, kaguyamemoryattempt.PhaseExtract, target, extractSystemPrompt, string(payload))
-	if err != nil {
-		return nil, err
-	}
 	var extracted dtomemory.ExtractResult
-	if err := strictDecodeJSON(result.Text, &extracted); err != nil {
-		return nil, err
-	}
-	return &extracted, nil
+	err := s.generateValidated(ctx, job, target, kaguyamemoryattempt.PhaseExtract, extractSystemPrompt, payload, func(raw string) error {
+		extracted = dtomemory.ExtractResult{}
+		if err := strictDecodeJSON(raw, &extracted); err != nil {
+			return err
+		}
+		if extracted.SchemaVersion != dtomemory.ContractSchemaVersion || extracted.Candidates == nil {
+			return errors.New("schema_version must be 1 and candidates must be an array (use [] for no durable knowledge)")
+		}
+		return ValidateCandidates(extracted.Candidates, projectionsFromPayload(payload))
+	})
+	return &extracted, err
 }
 
-// Repair 是阶段 A/C 的一次有界格式修复调用；总调用次数仍受任务预算控制。
-func (s *Service) Repair(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, broken string, prompts ...string) (string, error) {
-	systemPrompt := extractSystemPrompt
-	if len(prompts) > 0 {
-		systemPrompt = prompts[0]
-	}
-	payload := "The previous response did not match the required JSON contract. Return only the corrected JSON.\nPrevious response:\n" + truncateRunes(broken, 8000)
-	result, err := s.callTracked(ctx, job, kaguyamemoryattempt.PhaseRepair, target, systemPrompt, payload)
-	if err != nil {
-		return "", err
-	}
-	return result.Text, nil
-}
-
-// Plan 是阶段 C：检索候选后生成 PatchPlan，不执行任意工具。
-func (s *Service) Plan(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, payload []byte) (*dtomemory.PatchPlan, error) {
-	result, err := s.callTracked(ctx, job, kaguyamemoryattempt.PhasePlan, target, planSystemPrompt, string(payload))
-	if err != nil {
-		return nil, err
-	}
+// Plan 生成完整知识页变更，修复后仍使用同一冻结候选与证据校验。
+func (s *Service) Plan(ctx context.Context, job *ent.KaguyaMemoryJob, target *servicesystem.TaskModel, payload []byte, validate func(*dtomemory.PatchPlan) error) (*dtomemory.PatchPlan, error) {
 	var plan dtomemory.PatchPlan
-	if err := strictDecodeJSON(result.Text, &plan); err != nil {
-		return nil, err
-	}
-	return &plan, nil
+	err := s.generateValidated(ctx, job, target, kaguyamemoryattempt.PhasePlan, planSystemPrompt, payload, func(raw string) error {
+		plan = dtomemory.PatchPlan{}
+		if err := strictDecodeJSON(raw, &plan); err != nil {
+			return err
+		}
+		if plan.SchemaVersion != dtomemory.ContractSchemaVersion || plan.Changes == nil {
+			return errors.New("schema_version must be 1 and changes must be an array (use [] for no changes)")
+		}
+		return validate(&plan)
+	})
+	return &plan, err
 }

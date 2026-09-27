@@ -76,7 +76,7 @@ func TestEvidenceCannotUpgradeAssistantAssertion(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strongEvidence(&plan.Changes[0]) {
-		t.Fatal("synthesis must not activate page")
+		t.Fatal("synthesis must not be treated as strong evidence")
 	}
 }
 

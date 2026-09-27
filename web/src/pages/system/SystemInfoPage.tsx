@@ -90,7 +90,7 @@ export function SystemInfoPage() {
   const formatTime = (value?: string) => value ? new Date(value).toLocaleString() : '尚未同步'
   return <div className="mx-auto w-full max-w-[1180px] px-6 py-5 max-[620px]:px-3.5">
     <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="m-0 text-[20px] font-semibold text-k-text">系统配置</h2>
+      <h2 className="m-0 text-[22px] font-medium text-k-text">系统配置</h2>
       <Button icon={<ReloadOutlined />} disabled={saving} loading={loading} onClick={() => setRevision(value => value + 1)}>重新加载</Button>
     </div>
     {error && <Alert type="error" title={error} showIcon className="mb-3" />}

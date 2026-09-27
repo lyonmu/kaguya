@@ -27,7 +27,7 @@ const (
 )
 
 // CompilerVersion 是提炼/合并提示词与 JSON 契约的联合版本，记录到每次 Job。
-const CompilerVersion = "1"
+const CompilerVersion = "2"
 
 // TaskModelResolver 在每次执行尝试开始时解析任务模型调用快照。
 type TaskModelResolver func(ctx context.Context, client *ent.Client, conversationID string) (*servicesystem.TaskModel, error)

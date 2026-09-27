@@ -5,12 +5,12 @@ import { CommentOutlined, LeftOutlined, MenuOutlined, MoonOutlined, ReloadOutlin
 
 export function BottomActions({ onRefresh, loading }: { onRefresh?: () => void; loading?: boolean }) {
   const navigation = useContext(BottomActionsContext)
-  return <div className="flex items-center gap-1 p-1.5" role="group" aria-label="快捷操作">
+  return <div className="lunar-bottom-actions" role="group" aria-label="快捷操作">
     {!navigation?.collapsed && <>
       {navigation && <>
         <Tooltip title="Kaguya · 返回对话"><Button type="text" aria-label="Kaguya" onClick={navigation.onChat} className="p-1!">{navigation.avatar}</Button></Tooltip>
-        <Tooltip title="对话管理"><Button type={navigation.isChat ? 'primary' : 'text'} aria-label="对话管理" icon={<CommentOutlined />} onClick={navigation.onChat} /></Tooltip>
-        <Tooltip title="系统管理"><Button type={!navigation.isChat ? 'primary' : 'text'} aria-label="系统管理" icon={<SettingOutlined />} onClick={navigation.onSettings} /></Tooltip>
+        <Tooltip title="对话"><Button type="text" className={navigation.isChat ? 'is-active' : undefined} aria-label="对话管理" icon={<CommentOutlined />} onClick={navigation.onChat} /></Tooltip>
+        <Tooltip title="偏好与配置"><Button type="text" className={!navigation.isChat ? 'is-active' : undefined} aria-label="偏好与配置" icon={<SettingOutlined />} onClick={navigation.onSettings} /></Tooltip>
         <Tooltip title={navigation.isDark ? '切换到明亮模式' : '切换到暗黑模式'}><Button type="text" aria-label="切换颜色模式" icon={navigation.isDark ? <SunOutlined /> : <MoonOutlined />} onClick={navigation.onToggleColorMode} /></Tooltip>
       </>}
       {onRefresh && <Tooltip title="刷新列表"><Button type="text" aria-label="刷新列表" icon={<ReloadOutlined />} loading={loading} onClick={onRefresh} /></Tooltip>}

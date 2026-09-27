@@ -814,7 +814,6 @@ definitions:
       aliases:
         items:
           type: string
-        maxItems: 12
         type: array
       body:
         type: string
@@ -834,12 +833,10 @@ definitions:
       pinned:
         type: boolean
       reason:
-        maxLength: 500
         type: string
       related_ids:
         items:
           type: string
-        maxItems: 8
         type: array
       scope_key:
         maxLength: 128
@@ -849,20 +846,18 @@ definitions:
         - $ref: '#/definitions/memory.MemorySourceRefReq'
         description: 用户选中文字的来源定位
       summary:
-        maxLength: 300
         type: string
       supersedes_ids:
         description: 显式替代关系
         items:
           type: string
-        maxItems: 8
         type: array
       title:
-        maxLength: 120
         type: string
       user_locked:
         type: boolean
     required:
+    - aliases
     - kind
     - scope_key
     - title
@@ -872,7 +867,6 @@ definitions:
       aliases:
         items:
           type: string
-        maxItems: 12
         type: array
       body:
         type: string
@@ -897,12 +891,10 @@ definitions:
       pinned:
         type: boolean
       reason:
-        maxLength: 500
         type: string
       related_ids:
         items:
           type: string
-        maxItems: 8
         type: array
       scope_key:
         description: 仅支持显式提升到 shared
@@ -911,20 +903,18 @@ definitions:
       source:
         $ref: '#/definitions/memory.MemorySourceRefReq'
       summary:
-        maxLength: 300
         type: string
       supersedes_ids:
         description: 显式替代关系
         items:
           type: string
-        maxItems: 8
         type: array
       title:
-        maxLength: 120
         type: string
       user_locked:
         type: boolean
     required:
+    - aliases
     - expected_version
     type: object
   memory.MemoryRefItemResp:

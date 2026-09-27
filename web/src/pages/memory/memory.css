@@ -1,0 +1,37 @@
+/* 保留目录与详情分栏，来源关系以青色贯穿。 */
+.memory-page { color: var(--k-text); }
+.memory-page > .ant-typography { font-size: 13px; line-height: 1.7; }
+.memory-tabs > .ant-tabs-body-holder { min-height: 0; overflow: auto; }
+.memory-tabs > .ant-tabs-body-holder > .ant-tabs-body { height: 100%; }
+.memory-tabs .ant-tabs-content-active { height: 100%; }
+.memory-columns { display: flex; gap: 12px; height: 100%; min-height: 0; min-width: 0; }
+.memory-list { width: 320px; flex-shrink: 0; overflow: auto; }
+.memory-list .ant-card-body { padding: 4px 0 12px; }
+.memory-list .ant-list-item { padding: 0; border: 0; }
+.memory-list .ant-list-pagination { padding: 0 12px; }
+.memory-list-item { appearance: none; border: 0; background: transparent; color: var(--k-text); width: 100%; text-align: left; padding: 14px 16px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+.memory-list-item:hover { background: var(--k-hover); }
+.memory-list-item.is-selected { background: var(--k-context-soft); box-shadow: inset 2px 0 var(--k-context); }
+.memory-list-item:focus-visible { outline: 2px solid var(--k-context); outline-offset: -2px; }
+.memory-list-item strong { font-size: 14px; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
+.memory-list-summary { color: var(--k-text-muted); font-size: 13px; line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.memory-list-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--k-text-muted); font-size: 12px; }
+.memory-scope { color: var(--k-context); }
+.memory-detail { min-width: 0; }
+.memory-detail .ant-card-head-wrapper { align-items: flex-start; flex-direction: column; gap: 12px; padding: 16px 0; }
+.memory-detail .ant-card-head-title { white-space: normal; font-size: 16px; }
+.memory-detail .ant-card-extra { margin-inline-start: 0; }
+.memory-detail .ant-card-body { padding: 20px; }
+.memory-detail .memory-summary { margin: 16px 0; color: var(--k-text-muted); font-size: 14px; }
+.memory-claim { margin: 12px 0 20px; }
+.memory-evidence { margin: 10px 0 0 !important; padding: 10px 14px; border-left: 2px solid var(--k-context); background: var(--k-context-soft); border-radius: 0 6px 6px 0; overflow-wrap: anywhere; font-size: 13px; }
+@media (max-width: 1050px) { .memory-list { width: 280px; } }
+@media (max-width: 760px) { .memory-columns { flex-direction: column; height: auto; } .memory-list { width: 100%; max-height: 360px; } .memory-detail { flex: none; overflow: visible; } }
+
+.memory-status[data-status="running"] { color: var(--k-primary); background: var(--k-selected); }
+.memory-status[data-status="active"], .memory-status[data-status="succeeded"] { color: var(--k-success); background: var(--k-success-soft); }
+.memory-status[data-status="proposed"], .memory-status[data-status="needs_review"], .memory-status[data-status="retry_wait"], .memory-status[data-status="stale"] { color: var(--k-warning); background: var(--k-warning-soft); }
+.memory-status[data-status="blocked"], .memory-status[data-status="failed"], .memory-status[data-status="conflicted"] { color: var(--k-danger); background: var(--k-danger-soft); }
+.memory-status-text[data-status="active"] { color: var(--k-success); }
+.memory-status-text[data-status="proposed"], .memory-status-text[data-status="stale"] { color: var(--k-warning); }
+.memory-status-text[data-status="conflicted"] { color: var(--k-danger); }

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
+import { applyLunarPalette, lunarPalettes } from './lunar'
 
 export type ColorMode = 'light' | 'dark'
 
@@ -26,14 +27,15 @@ function getSystemColorMode(): ColorMode {
 export function useColorMode() {
   const [colorMode, setColorMode] = useState<ColorMode>(getSystemColorMode)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement
+    applyLunarPalette(colorMode, root)
     root.classList.toggle('dark', colorMode === 'dark')
     root.dataset.theme = colorMode
     root.style.colorScheme = colorMode
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', colorMode === 'dark' ? '#0b0d10' : '#f4f7fb')
+      ?.setAttribute('content', lunarPalettes[colorMode].canvas)
   }, [colorMode])
 
   const toggleColorMode = () => {

@@ -3987,6 +3987,7 @@ const docTemplate = `{
         "memory.MemoryPageSaveReq": {
             "type": "object",
             "required": [
+                "aliases",
                 "kind",
                 "scope_key",
                 "title"
@@ -3994,7 +3995,6 @@ const docTemplate = `{
             "properties": {
                 "aliases": {
                     "type": "array",
-                    "maxItems": 12,
                     "items": {
                         "type": "string"
                     }
@@ -4023,12 +4023,10 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "reason": {
-                    "type": "string",
-                    "maxLength": 500
+                    "type": "string"
                 },
                 "related_ids": {
                     "type": "array",
-                    "maxItems": 8,
                     "items": {
                         "type": "string"
                     }
@@ -4046,20 +4044,17 @@ const docTemplate = `{
                     ]
                 },
                 "summary": {
-                    "type": "string",
-                    "maxLength": 300
+                    "type": "string"
                 },
                 "supersedes_ids": {
                     "description": "显式替代关系",
                     "type": "array",
-                    "maxItems": 8,
                     "items": {
                         "type": "string"
                     }
                 },
                 "title": {
-                    "type": "string",
-                    "maxLength": 120
+                    "type": "string"
                 },
                 "user_locked": {
                     "type": "boolean"
@@ -4069,12 +4064,12 @@ const docTemplate = `{
         "memory.MemoryPageUpdateReq": {
             "type": "object",
             "required": [
+                "aliases",
                 "expected_version"
             ],
             "properties": {
                 "aliases": {
                     "type": "array",
-                    "maxItems": 12,
                     "items": {
                         "type": "string"
                     }
@@ -4110,12 +4105,10 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "reason": {
-                    "type": "string",
-                    "maxLength": 500
+                    "type": "string"
                 },
                 "related_ids": {
                     "type": "array",
-                    "maxItems": 8,
                     "items": {
                         "type": "string"
                     }
@@ -4129,20 +4122,17 @@ const docTemplate = `{
                     "$ref": "#/definitions/memory.MemorySourceRefReq"
                 },
                 "summary": {
-                    "type": "string",
-                    "maxLength": 300
+                    "type": "string"
                 },
                 "supersedes_ids": {
                     "description": "显式替代关系",
                     "type": "array",
-                    "maxItems": 8,
                     "items": {
                         "type": "string"
                     }
                 },
                 "title": {
-                    "type": "string",
-                    "maxLength": 120
+                    "type": "string"
                 },
                 "user_locked": {
                     "type": "boolean"

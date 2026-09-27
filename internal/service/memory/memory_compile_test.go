@@ -342,6 +342,7 @@ func TestCompileInvalidPlanFailsJob(t *testing.T) {
 	caller.steps = []func(int) (CallResult, error){
 		func(int) (CallResult, error) { return okResult(extractJSON(testCandidate(f.sourceID))), nil },
 		func(int) (CallResult, error) { return okResult(planJSON(bad)), nil },
+		func(int) (CallResult, error) { return okResult(planJSON(bad)), nil },
 	}
 	f.run(t)
 	job, err := f.client.KaguyaMemoryJob.Query().Only(f.ctx)

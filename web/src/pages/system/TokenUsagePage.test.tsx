@@ -79,14 +79,14 @@ it('renders the activity calendar on the fixed window instead of the selected ra
   const visualMap = options.find(option => option.calendar)?.visualMap
   assert.equal(visualMap.type, 'piecewise')
   assert.deepEqual(visualMap.pieces[0], { value: 0, color: emptyColor, label: '0' })
-  assert.deepEqual(visualMap.pieces.map((piece: { color: string }) => piece.color), [emptyColor, '#c6ddff', '#82b8ff'])
+  assert.deepEqual(visualMap.pieces.map((piece: { color: string }) => piece.color), [emptyColor, '#c6e8ed', '#8dcbd6'])
   assert.ok(page.getByText(/最近一年 2025-09-13 — 2026-09-12/))
   assert.ok(page.getByText(/全部历史 · 用量最高的 10 项/))
   assert.ok(page.getByText('所选时间段内全部模型累计使用量'))
   // Token 构成按模型分布只显示模型名（不含厂商），标签缩小字号并限宽截断，柱子收窄避免类目变多后互相挤占。
   const composition = options.find(option => option.series?.[0]?.type === 'bar')
   assert.deepEqual(composition?.xAxis.data, ['model'])
-  assert.equal(composition?.xAxis.axisLabel.fontSize, 11)
+  assert.equal(composition?.xAxis.axisLabel.fontSize, 12)
   // 尚未测到容器宽度时使用默认标签宽度；实测后由 compositionLabelWidth 按容器宽度分档。
   assert.equal(composition?.xAxis.axisLabel.width, 84)
   assert.equal(composition?.series[0].barMaxWidth, 36)

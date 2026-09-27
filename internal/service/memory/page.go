@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -699,8 +700,14 @@ func deriveCanonicalKey(title string) string {
 	if key == "" {
 		key = "memory"
 	}
-	if utf8.RuneCountInString(key) > maxCanonicalRunes {
-		key = string([]rune(key)[:maxCanonicalRunes])
+	if len(key) > maxCanonicalBytes {
+		hash := sha256.Sum256([]byte(key))
+		suffix := fmt.Sprintf("-%x", hash[:6])
+		prefix := key[:maxCanonicalBytes-len(suffix)]
+		for !utf8.ValidString(prefix) {
+			prefix = prefix[:len(prefix)-1]
+		}
+		key = prefix + suffix
 	}
 	return key
 }

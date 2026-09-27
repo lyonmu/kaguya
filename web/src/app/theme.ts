@@ -1,45 +1,20 @@
 import { theme } from 'antd'
 import type { ThemeConfig } from 'antd'
 import type { ColorMode } from './colorMode'
-
-const darkPalette = {
-  canvas: '#0e1116',
-  panel: '#101318',
-  surface: '#11161d',
-  elevated: '#171d25',
-  border: '#29323d',
-  borderSoft: '#202731',
-  text: '#edf2f7',
-  muted: '#8e99a8',
-  hover: '#151c25',
-  selected: '#192230',
-}
-
-const lightPalette = {
-  canvas: '#f4f7fb',
-  panel: '#f8fafc',
-  surface: '#ffffff',
-  elevated: '#ffffff',
-  border: '#d9e1eb',
-  borderSoft: '#e8edf3',
-  text: '#172033',
-  muted: '#64748b',
-  hover: '#f2f6fb',
-  selected: '#e8f1ff',
-}
+import { lunarPalettes, lunarTypography } from './lunar'
 
 export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
   const isDark = colorMode === 'dark'
-  const palette = isDark ? darkPalette : lightPalette
+  const palette = lunarPalettes[colorMode]
 
   return {
     algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
     token: {
-      colorPrimary: isDark ? '#6ea8fe' : '#2563eb',
-      colorInfo: isDark ? '#6ea8fe' : '#2563eb',
-      colorSuccess: '#37a86b',
-      colorWarning: '#d99127',
-      colorError: '#e5484d',
+      colorPrimary: palette.primary,
+      colorInfo: palette.context,
+      colorSuccess: palette.success,
+      colorWarning: palette.warning,
+      colorError: palette.danger,
       colorBgBase: palette.canvas,
       colorBgLayout: palette.canvas,
       colorBgContainer: palette.surface,
@@ -47,13 +22,26 @@ export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
       colorBorder: palette.border,
       colorBorderSecondary: palette.borderSoft,
       colorText: palette.text,
-      colorTextSecondary: palette.muted,
-      borderRadius: 8,
-      borderRadiusLG: 10,
-      fontFamily:
-        'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
+      colorTextSecondary: palette.textMuted,
+      colorTextTertiary: palette.textSubtle,
+      colorTextQuaternary: palette.textSubtle,
+      borderRadius: 9,
+      borderRadiusSM: 6,
+      borderRadiusLG: 12,
+      fontFamily: lunarTypography.ui,
+      fontFamilyCode: lunarTypography.mono,
       fontSize: 14,
-      // 桌面控制台按紧凑密度呈现，避免默认留白让页面显得松散。
+      fontSizeSM: 12,
+      fontSizeHeading2: 22,
+      fontSizeHeading3: 18,
+      fontSizeHeading4: 16,
+      fontWeightStrong: 500,
+      motionDurationFast: '0.12s',
+      motionDurationMid: '0.18s',
+      motionDurationSlow: '0.22s',
+      boxShadow: palette.shadowElevated,
+      boxShadowSecondary: palette.shadow,
+      // 保留现有桌面信息密度和控件交互尺寸。
       controlHeight: 32,
     },
     components: {
@@ -64,25 +52,25 @@ export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
       },
       Menu: {
         itemBg: 'transparent',
-        itemColor: palette.muted,
+        itemColor: palette.textMuted,
         itemHoverBg: palette.hover,
         itemHoverColor: palette.text,
         itemSelectedBg: palette.selected,
-        itemSelectedColor: isDark ? '#e8f1ff' : '#1d4f91',
+        itemSelectedColor: palette.primary,
         darkItemBg: 'transparent',
-        darkItemColor: palette.muted,
+        darkItemColor: palette.textMuted,
         darkItemHoverBg: palette.hover,
         darkItemHoverColor: palette.text,
         darkItemSelectedBg: palette.selected,
-        darkItemSelectedColor: '#e8f1ff',
-        itemBorderRadius: 8,
+        darkItemSelectedColor: palette.primary,
+        itemBorderRadius: 6,
         itemHeight: 34,
         itemMarginBlock: 2,
         itemMarginInline: 0,
       },
       Table: {
-        headerBg: isDark ? '#121820' : '#f7f9fc',
-        headerColor: palette.muted,
+        headerBg: palette.panel,
+        headerColor: palette.textMuted,
         borderColor: palette.borderSoft,
         rowHoverBg: palette.hover,
         cellPaddingBlock: 10,
@@ -109,22 +97,28 @@ export function createKaguyaTheme(colorMode: ColorMode): ThemeConfig {
         itemPaddingBottom: 12,
       },
       Input: {
-        activeBorderColor: isDark ? '#526f95' : '#5b8fd8',
-        hoverBorderColor: isDark ? '#405675' : '#7aa5df',
+        activeBorderColor: palette.primary,
+        hoverBorderColor: palette.borderStrong,
       },
       DatePicker: {
-        activeBorderColor: isDark ? '#526f95' : '#5b8fd8',
-        hoverBorderColor: isDark ? '#405675' : '#7aa5df',
+        activeBorderColor: palette.primary,
+        hoverBorderColor: palette.borderStrong,
       },
       Button: {
-        defaultBg: isDark ? '#151b23' : '#ffffff',
+        defaultBg: palette.surface,
         defaultBorderColor: palette.border,
         defaultHoverBg: palette.hover,
+        primaryColor: palette.onPrimary,
+        primaryShadow: 'none',
+        defaultShadow: 'none',
       },
       Pagination: {
         itemActiveBg: palette.selected,
         itemSize: 30,
       },
+      Tooltip: { colorBgSpotlight: palette.elevated, colorTextLightSolid: palette.text },
+      Drawer: { colorBgElevated: palette.surface },
+      Modal: { contentBg: palette.elevated, headerBg: palette.elevated },
     },
   }
 }

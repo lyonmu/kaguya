@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Segmented, Spin } from 'antd'
+import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Popover, Segmented, Spin } from 'antd'
 import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MessageOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { deleteConversation, updateConversation } from '../../features/chat/api'
 import { useConversations } from '../../features/chat/useConversations'
@@ -13,6 +13,7 @@ import { ProjectPanel } from '../../features/project/ProjectPanel'
 import type { Project } from '../../features/project/api'
 import { fetchProject } from '../../features/project/api'
 import type { ConversationTarget } from '../../features/chat/types'
+import { kaguyaAvatar } from '../../assets/avatars'
 import './chat.css'
 
 // 代码浏览器连同 diff 视图库只在打开时加载，避免进入主包。
@@ -128,8 +129,9 @@ export function ChatPage() {
     {!sidebarCollapsed && <aside className="chat-sidebar">{sidebar}</aside>}
     <Drawer title="对话管理" placement="left" open={showSidebar} onClose={() => setShowSidebar(false)} styles={{ body: { padding: 0 } }}>{sidebar}</Drawer>
     <section className="chat-main">
-      <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1><span className="chat-pill">{chat.localSessions.filter(item => item.streaming).length} 个运行中</span>{(chat.conversation?.memory_refs?.items.length ?? 0) > 0 && <span className="chat-pill" title={chat.conversation!.memory_refs!.items.map(item => `${item.deleted ? '已删除' : item.title}（v${item.version}）`).join('、')}>本轮提供 {chat.conversation!.memory_refs!.items.length} 条记忆目录</span>}</div>
+      <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><img className="chat-header-avatar" {...kaguyaAvatar} alt="Kaguya" width={26} height={26} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1>{chat.streaming && <span className="chat-pill is-running" role="status">正在生成</span>}{(chat.conversation?.memory_refs?.items.length ?? 0) > 0 && <Popover trigger="click" placement="bottom" title="本轮记忆目录" content={<div className="chat-memory-directory"><p>模型获得的标题与说明。正文是否读取，请查看 memory_read 执行记录。</p><ul>{chat.conversation!.memory_refs!.items.map(item => <li key={item.page_id}><strong>{item.deleted ? '已删除的记忆' : item.title}</strong><small>v{item.version}{item.deleted ? ' · 已删除' : ''}</small></li>)}</ul></div>}><Button type="text" className="chat-memory-trigger">本轮提供 {chat.conversation!.memory_refs!.items.length} 条记忆目录</Button></Popover>}</div>
         <div className="chat-header-actions">
+          {activeProjectId && <Button type="text" aria-label="查看代码与改动" icon={<CodeOutlined />} disabled={!chat.id || chat.streaming || saving || chat.loading} onClick={() => setCodeOpen(true)} />}
           <Dropdown menu={{ items: [{ key: 'code', label: '查看代码与改动', icon: <CodeOutlined />, disabled: !activeProjectId }, { key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, {
             key: 'memory', label: '本会话记忆', disabled: !chat.conversation,
             children: [
