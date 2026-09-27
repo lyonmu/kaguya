@@ -1,3 +1,4 @@
+import { MEMORY_ENABLED } from './app/features'
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { App as AntdApp, ConfigProvider, Spin } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
@@ -37,7 +38,7 @@ function App() {
             <TokenUsagePage />
           ) : currentPage === 'system-info' ? (
             <SystemInfoPage />
-          ) : currentPage === 'memory' ? (
+          ) : MEMORY_ENABLED && currentPage === 'memory' ? (
             <MemoryPage />
           ) : (
             <AIConfigurationPage />

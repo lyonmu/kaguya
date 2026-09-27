@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lyonmu/kaguya/docs"
 	apiv1 "github.com/lyonmu/kaguya/internal/api/v1"
+	"github.com/lyonmu/kaguya/internal/features"
 	"github.com/lyonmu/kaguya/internal/global"
 	routerv1 "github.com/lyonmu/kaguya/internal/router/v1"
 	swaggerFiles "github.com/swaggo/files"
@@ -34,7 +35,9 @@ func InitRouter(e *gin.Engine) {
 	v1route.InitChatRouter(group, v1api)
 	v1route.InitProjectRouter(group, v1api)
 	v1route.InitSystemRouter(group, v1api)
-	v1route.InitMemoryRouter(group, v1api)
+	if features.Memory {
+		v1route.InitMemoryRouter(group, v1api)
+	} // 暂停记忆 API，避免隐藏界面后仍能触发整理。
 
 	global.Logger.Sugar().Info("router http register success")
 

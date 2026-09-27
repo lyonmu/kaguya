@@ -21,7 +21,7 @@ func TestRemovedRoutesReturnNotFound(t *testing.T) {
 	engine := gin.New()
 	InitRouter(engine)
 
-	for _, target := range []string{"/kaguya/api/v1/chat/ws", "/kaguya/api/v1/system/info/tls"} {
+	for _, target := range []string{"/kaguya/api/v1/memory/pages", "/kaguya/api/v1/memory/compile", "/kaguya/api/v1/chat/ws", "/kaguya/api/v1/system/info/tls"} {
 		request := httptest.NewRequest(http.MethodGet, target, nil)
 		request.Header.Set("Accept", "text/html")
 		response := httptest.NewRecorder()

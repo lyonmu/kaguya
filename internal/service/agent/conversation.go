@@ -20,6 +20,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
+	"github.com/lyonmu/kaguya/internal/features"
 	"github.com/lyonmu/kaguya/internal/global"
 	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 	projectsvc "github.com/lyonmu/kaguya/internal/service/project"
@@ -330,17 +331,19 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 	}
 	// 与 completed 轮次同事务写入来源待处理记录（outbox）：模型/编译失败不影响
 	// 聊天，但同事务的写失败会使完成事务失败，这是可靠捕获的代价。
-	policy, err := memorysvc.LoadPolicy(ctx, client)
-	if err != nil {
-		return err
-	}
-	if policy.AutoCapture {
-		if err := memorysvc.CaptureCompletedTx(ctx, client, memorysvc.CaptureInput{
-			ConversationID: turn.ConversationID,
-			TurnID:         turnID,
-			PolicyEpoch:    policy.Epoch,
-		}); err != nil {
+	if features.Memory { // 暂停新来源捕获，既有数据不迁移或删除。
+		policy, err := memorysvc.LoadPolicy(ctx, client)
+		if err != nil {
 			return err
+		}
+		if policy.AutoCapture {
+			if err := memorysvc.CaptureCompletedTx(ctx, client, memorysvc.CaptureInput{
+				ConversationID: turn.ConversationID,
+				TurnID:         turnID,
+				PolicyEpoch:    policy.Epoch,
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	if err := ctx.Err(); err != nil {

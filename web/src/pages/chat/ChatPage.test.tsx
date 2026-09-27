@@ -272,7 +272,7 @@ it('runs two conversations through assistant-ui and retains them across system n
   assert.equal(streams[0].signal.aborted, false)
 })
 
-it('shows memory references and switches per-conversation memory mode', async () => {
+it('hides memory references and controls even for existing memory-enabled conversations', async () => {
   let updated: Record<string, unknown> | undefined
   const conversation = {
     is_project: false, project_id: null, id: 'c-1', title: '记忆会话', favorite: false, turn_count: 1,
@@ -291,9 +291,10 @@ it('shows memory references and switches per-conversation memory mode', async ()
   }) as typeof fetch
   const view = render(<App><ChatPage /></App>)
   fireEvent.click(await view.findByRole('button', { name: /记忆会话/ }))
-  await waitFor(() => assert.ok(view.getByText(/本轮提供 1 条记忆目录/)))
-  fireEvent.click(view.getByRole('button', { name: '本轮提供 1 条记忆目录' }))
-  assert.ok(await view.findByText('Memory 使用 SQLCipher'))
-  assert.ok(view.getByText('v3'))
-  assert.ok(view.getByText(/正文是否读取，请查看 memory_read 执行记录/))
+  await waitFor(() => assert.equal(view.getByRole('button', { name: '更多会话操作' }).hasAttribute('disabled'), false))
+  assert.equal(view.queryByText(/本轮提供 1 条记忆目录/), null)
+  fireEvent.mouseEnter(view.getByRole('button', { name: '更多会话操作' }))
+  await view.findByText('重新加载历史')
+  assert.equal(view.queryByText('本会话记忆'), null)
+  assert.equal(updated, undefined)
 })

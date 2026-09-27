@@ -12,6 +12,7 @@ import (
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/db"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
+	"github.com/lyonmu/kaguya/internal/features"
 	"github.com/lyonmu/kaguya/internal/global"
 	initialize "github.com/lyonmu/kaguya/internal/init"
 	"github.com/lyonmu/kaguya/internal/router"
@@ -110,7 +111,7 @@ func (rt *appRuntime) init() error {
 	global.Logger.Info("start init application data")
 	initCtx, cancelInit := context.WithTimeout(rt.ctx, initStageTimeout)
 	initErr := initialize.Run(initCtx, db.EntClient)
-	if initErr == nil {
+	if initErr == nil && features.Memory {
 		// 记忆搜索投影的 normalizer 升级需要从页面重新生成，小库启动时同步迁移；
 		// FTS 结构迁移已在 db.InitSQLite 内完成。
 		initErr = memorysvc.EnsureSearchProjection(initCtx, db.EntClient)
@@ -146,6 +147,9 @@ func (rt *appRuntime) init() error {
 // startMemoryWorker 启动长期记忆后台编译 Worker。Worker 使用 root context：
 // beginShutdown 停止新领取并取消当前远程调用，close 等待其退出后再关闭数据库。
 func (rt *appRuntime) startMemoryWorker() {
+	if !features.Memory {
+		return
+	} // 暂停自动整理，保留 Worker 实现。
 	rt.memoryUp = true
 	worker := memorysvc.NewWorker(memorysvc.NewService(db.EntClient, global.Logger))
 	go func() {

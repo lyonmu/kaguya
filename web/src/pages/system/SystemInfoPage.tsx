@@ -1,3 +1,4 @@
+import { MEMORY_ENABLED } from '../../app/features'
 import { useEffect, useRef, useState } from 'react'
 import { Alert, App, Button, Card, Form, Input, InputNumber, Select, Space, Spin, Switch, Tooltip, Typography } from 'antd'
 import { ReloadOutlined, SaveOutlined, SyncOutlined } from '@ant-design/icons'
@@ -44,8 +45,8 @@ export function SystemInfoPage() {
         global_system_prompt: values.global_system_prompt ?? '', system_prompt: values.system_prompt ?? '',
         model_sync_enabled: values.model_sync_enabled, model_sync_url: values.model_sync_url, provider_sync_url: values.provider_sync_url, model_sync_interval_hours: values.model_sync_interval_hours,
         default_model_id: values.default_model_id || '', task_model_id: values.task_model_id || '',
-        memory_enabled: values.memory_enabled, memory_auto_capture: values.memory_auto_capture,
-        memory_context_tokens: values.memory_context_tokens ?? 2000,
+        memory_enabled: info?.memory_enabled ?? false, memory_auto_capture: info?.memory_auto_capture ?? false,
+        memory_context_tokens: info?.memory_context_tokens ?? 2000,
       })
       setInfo(config)
       form.setFieldsValue(config)
@@ -99,9 +100,11 @@ export function SystemInfoPage() {
         <div className="grid grid-cols-2 gap-x-3 max-[620px]:grid-cols-1">
           <Form.Item className="mb-3!" label="默认对话模型" name="default_model_id" tooltip="用于未手动选择模型的对话，清空则取消配置。"><ModelCascader aria-label="默认对话模型" models={models} /></Form.Item>
           <Form.Item className="mb-3!" label="后台任务模型" name="task_model_id" tooltip="用于生成对话标题、长期记忆提炼与整合等后台任务，可与对话模型相同，清空则取消配置。记忆编译可能把选中的可见资料发送给该模型，请确认其提供商可信。"><ModelCascader aria-label="后台任务模型" models={models} /></Form.Item>
+          {MEMORY_ENABLED && <>
           <Form.Item className="mb-3!" label="启用长期记忆" name="memory_enabled" valuePropName="checked" tooltip="默认开启。总开关：关闭后停止自动召回、记忆工具与后台编译。"><Switch aria-label="启用长期记忆" /></Form.Item>
           <Form.Item className="mb-3!" label="自动整理记忆" name="memory_auto_capture" valuePropName="checked" tooltip="默认开启，无需逐条保存。由后台任务模型自动提炼已完成对话；关闭只停止学习，不删除已有记忆。任务模型可能属于与聊天模型不同的提供商。"><Switch aria-label="自动整理记忆" /></Form.Item>
           <Form.Item className="mb-3!" label="记忆目录上限（估算 token）" name="memory_context_tokens" rules={[{ required: true }]} tooltip="只注入标题、说明和来源目录；正文由模型调用工具按需读取。目录预算是估算值。"><InputNumber aria-label="记忆注入上限" className="w-full" min={0} max={100000} precision={0} /></Form.Item>
+          </>}
         </div>
         <div className="grid grid-cols-4 gap-x-3 max-[900px]:grid-cols-2 max-[620px]:grid-cols-1">
           <Form.Item className="mb-3!" label="Agent Loop 最大步数" name="agent_max_steps" rules={[{ required: true }]} tooltip="0 表示不限制（默认，与 pi 一致）。设置上限时，到达后保存进度并暂停，可继续执行。"><InputNumber className="w-full" min={0} max={1000} /></Form.Item>

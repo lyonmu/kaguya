@@ -46,6 +46,8 @@ it('loads, edits and saves system config with local model record IDs', async () 
   }) as typeof fetch
   const view = render(<App><SystemInfoPage /></App>)
   await waitFor(() => assert.equal((view.getByLabelText('全局基础提示词') as HTMLTextAreaElement).value, '可编辑基础人设'))
+  assert.equal(view.queryByLabelText('启用长期记忆'), null)
+  assert.equal(view.queryByLabelText('自动整理记忆'), null)
   fireEvent.change(view.getByLabelText('会话压缩比例'), { target: { value: '75' } })
   fireEvent.change(view.getByLabelText('提供商目录同步地址'), { target: { value: 'https://mirror.example/api.json' } })
   fireEvent.change(view.getByLabelText('模型目录同步地址'), { target: { value: 'https://mirror.example/models.json' } })

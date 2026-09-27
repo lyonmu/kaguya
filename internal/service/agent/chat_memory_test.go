@@ -15,7 +15,6 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyamemorysource"
 	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 	"go.uber.org/zap"
 )
@@ -161,8 +160,8 @@ func TestPrepareMemoryDegraded(t *testing.T) {
 	}
 }
 
-// completed 轮次事务写入来源待处理记录与召回记录；关闭自动捕获时不入队。
-func TestSaveCompletedTurnCapturesMemory(t *testing.T) {
+// 暂停期间即使旧配置开启也不捕获来源，仍保留历史轮次元数据。
+func TestSaveCompletedTurnDoesNotCaptureWhileMemorySuspended(t *testing.T) {
 	ctx, client := setupChatMemoryTest(t, true)
 	selection := &dtomemory.TurnMemorySelection{
 		RetrieverVersion: memorysvc.RetrieverVersion, EstimatedTokens: 42,
@@ -177,9 +176,8 @@ func TestSaveCompletedTurnCapturesMemory(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	src, err := client.KaguyaMemorySource.Query().Only(ctx)
-	if err != nil || src.State != kaguyamemorysource.StatePending || src.ScopeKey != memorysvc.ScopePersonal {
-		t.Fatalf("source=%+v err=%v", src, err)
+	if count, err := client.KaguyaMemorySource.Query().Count(ctx); err != nil || count != 0 {
+		t.Fatalf("suspended memory captured sources: %d, %v", count, err)
 	}
 	turn, err := client.KaguyaChatTurn.Query().Only(ctx)
 	if err != nil || turn.MemoryRefs.RetrieverVersion != memorysvc.RetrieverVersion || turn.MemoryRefs.EstimatedTokens != 42 {
@@ -198,7 +196,7 @@ func TestSaveCompletedTurnCapturesMemory(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if count, err := client.KaguyaMemorySource.Query().Count(ctx); err != nil || count != 1 {
+	if count, err := client.KaguyaMemorySource.Query().Count(ctx); err != nil || count != 0 {
 		t.Fatalf("sources=%d err=%v", count, err)
 	}
 }
@@ -212,6 +210,14 @@ func TestConversationDeleteRevokesMemory(t *testing.T) {
 		ModelID: "m", ModelName: "m", APIProtocol: "openai-chat", FinishReason: "stop",
 		Blocks: agentBlocks("回答"),
 	}); err != nil {
+		t.Fatal(err)
+	}
+	// 已暂停采集，显式建立历史来源以验证旧数据的删除行为。
+	turn, err := client.KaguyaChatTurn.Query().Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := memorysvc.CaptureCompletedTx(ctx, client, memorysvc.CaptureInput{ConversationID: "conv-revoke", TurnID: turn.ID}); err != nil {
 		t.Fatal(err)
 	}
 	src, err := client.KaguyaMemorySource.Query().Only(ctx)

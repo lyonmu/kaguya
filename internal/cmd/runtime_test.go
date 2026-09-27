@@ -160,8 +160,8 @@ func TestAdmissionHandlerWaitsForInflight(t *testing.T) {
 	}
 }
 
-// 关停顺序：Memory worker 退出后才关闭数据库。
-func TestRuntimeWaitsForMemoryWorkerBeforeClosingDatabase(t *testing.T) {
+// 暂停期间不启动 Memory worker，关停不等待未启动的任务。
+func TestRuntimeDoesNotStartSuspendedMemoryWorker(t *testing.T) {
 	rt := newAppRuntime(context.Background())
 	raw, err := sql.Open("sqlite3", "file:runtime-memory-worker?mode=memory&cache=shared&_foreign_keys=on")
 	if err != nil {
@@ -177,6 +177,9 @@ func TestRuntimeWaitsForMemoryWorkerBeforeClosingDatabase(t *testing.T) {
 	}
 	rt.dbReady = true
 	rt.startMemoryWorker()
+	if rt.memoryUp {
+		t.Fatal("suspended memory worker marked active")
+	}
 	closed := make(chan struct{})
 	go func() { rt.close(); close(closed) }()
 	select {
@@ -186,8 +189,8 @@ func TestRuntimeWaitsForMemoryWorkerBeforeClosingDatabase(t *testing.T) {
 	}
 	select {
 	case <-rt.memoryDone:
+		t.Fatal("suspended memory worker was started")
 	default:
-		t.Fatal("memory worker still running after close")
 	}
 	if driver.closes.Load() == 0 {
 		t.Fatal("database was not closed")

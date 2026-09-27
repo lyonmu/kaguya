@@ -8,6 +8,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
+	"github.com/lyonmu/kaguya/internal/features"
 	"github.com/lyonmu/kaguya/internal/global"
 	"go.uber.org/zap"
 )
@@ -164,7 +165,10 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	}
 
 	// 每轮生成前进行一次本地召回；失败只降级并明确显示，不阻塞聊天。
-	mem := s.prepareMemory(ctx, convID, target.model.TokenContextWindow, req.Messages)
+	var mem memoryTurn
+	if features.Memory {
+		mem = s.prepareMemory(ctx, convID, target.model.TokenContextWindow, req.Messages)
+	}
 	prompt, err := prepareChatPrompt(ctx, target, toolset, convID, req, mem)
 	if err != nil {
 		pushChatError(ctx, dataChan, "", err)

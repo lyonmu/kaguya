@@ -36,7 +36,6 @@ These screenshots were captured from the locally installed `Kaguya.app` on **202
 - **Model selection**: choose a provider and then a model in the composer. The collapsed control shows the model name; requests without an explicit choice use the system default chat model.
 - **Concurrent conversations**: running conversations continue while switching chats or visiting system pages. Inspect running conversations and stop them separately. Each conversation runs one turn at a time.
 - **Conversation management**: create, search by title prefix, continue, rename, and delete conversations. Reload or browse paginated history and inspect tokens, duration, and tool-call counts for each turn.
-- **Memory**: the header shows the memory catalog offered to the latest turn; the conversation menu switches per-conversation memory mode (inherit / read-only / off), and completed conversations automatically become organizing sources without per-message saving.
 - **Context management**: the composer shows context occupancy from the latest model call. At the configured threshold, earlier content is summarized while recent messages and original history are retained. The summary is saved with the successful turn and reused on continuation. Unknown model windows show unknown occupancy and skip automatic compaction.
 
 **Enter** sends; **Shift + Enter** inserts a newline. Stop an active response with the stop control. Stopped, failed, or disconnected turns retain their generated content and tool records. A continuation retains user questions from unfinished turns; partial assistant responses and tool records are display-only. Closing the application, refreshing the page, or losing the streaming connection interrupts the current turn.
@@ -128,15 +127,7 @@ Tool timeouts range from **1–600 seconds**. HTTP authentication is configured 
 
 ### Long-term memory
 
-Open **System management → Long-term memory** (系统管理 → 长期记忆). Memories are traceable Markdown pages stored in the same encrypted database: every published revision keeps a full snapshot, claim evidence points back to the exact conversation segment it came from, and full-text search covers Chinese two-character words as well as identifiers, paths, and version numbers.
-
-- **Scopes**: personal, shared, and per-project (`project:<id>`). Ordinary conversations read personal + shared; project conversations read their own project + shared. Nothing crosses projects, and deleting a project keeps its memories in that project's scope instead of reassigning them.
-- **Management and additions**: conversations need no manual saving; add knowledge or edit existing pages in the memory view. Edits use optimistic versioning; conflicts return a clear error instead of last-writer-wins. Pin keeps a page in the recall budget; lock blocks automatic overwrites. Deletion has two levels: disable (no longer recalled, restorable, content kept) and forget (removed from the index immediately, body/revisions/evidence purged, a minimal tombstone prevents silent resurrection). Old revisions restore as new versions.
-- **Recall and tools**: before each turn the app injects only a catalog of relevant titles, descriptions and sources; the model calls `memory_read` for full text and evidence, and `memory_search` to find additional pages. Empty searches browse recent wiki pages; long bodies can be read in windows with `memory_read` `offset` / `limit`. The catalog is temporary reference material (never into the instruction snapshot or compaction history), with a conservative token budget; revoked pages drop out of later steps immediately. Both ordinary and project chats provide read-only `memory_search` / `memory_read` tools bound to the conversation's scope.
-- **Automatic organizing**: long-term memory and automatic organizing default to enabled for new configurations; existing user settings are preserved. Disabling automatic organizing stops new capture and automatic batch creation; retries of started jobs continue. “Compile now” processes all pending batches in the selected scope, and failed jobs can still be retried explicitly. Select a background-task model in system settings; missing configuration leaves sources queued with a visible blocked status, without silently using another model. When enabled, completed turns enter a persistent outbox and a background worker compiles them with the **background-task model** (no tools, no MCP; the task model may belong to a different provider than the chat model). The task model decides what to retain, how to organize topics, and how many pages and claims to produce; wiki content has no fixed page-length, claim-count, or total-capacity cap. Extraction and merge use streaming calls and the configured model output limit (including reasoning), without a separate 6,000-token ceiling. Invalid JSON, structure, or evidence gets one repair with the original input before reporting failure. Quote/scope validation and single-transaction publishing remain in place; oversized sources and merge inputs are split into deterministic batches by budget. An indivisible segment exceeding the model budget is explicitly blocked and can be retried after choosing a larger-context model. Empty output is a normal no-op; inferred knowledge can be stored automatically with its evidence basis preserved, never promoted to a user-confirmed or tool-observed fact. Conflicts and updates to locked pages become review proposals you approve or reject. Deletions and privacy changes invalidate in-flight work immediately.
-- **Source navigation and version compare**: every evidence line links to its source (turn / note / imported document) with a bounded, redacted excerpt, and marks deleted or revoked sources as unavailable. Any two revisions can be compared with a stable, explainable diff of content, metadata, claims and evidence.
-- **History backfill and document import**: explicitly enqueue completed history for a scope with a cost cap (paged, checkpointed, idempotent and resumable), or import a project document by path, reusing the existing path validation, ignore rules and size limits; identical content is deduplicated. Both feed the same compile pipeline and can be tracked in the tasks tab.
-- **Tasks and cost**: pages, sources and tasks support pagination; progress refreshes periodically, and review proposals expand to show content and evidence before approval. The tasks tab shows pending/blocked/failed/review states with retry and distinguishes output limits, timeouts, authentication and contract failures. The sources tab identifies sources the model judged to contain no new durable knowledge, and a separate **Background tasks / Memory** usage label. Compiling costs are recorded per attempt (including failed calls) and never counted into chat usage.
+Long-term memory is temporarily suspended. Its UI, API, automatic capture, recall, tools, and background worker are disabled regardless of saved settings. Implementation and existing database records are retained.
 
 ### System configuration
 
@@ -145,16 +136,14 @@ Open **System management → System configuration** (系统管理 → 系统配�
 | Setting | Behavior |
 | --- | --- |
 | Default chat model | Used without a manual model choice |
-| Background-task model | Generates conversation titles and organizes long-term memory; may differ from the chat model |
+| Background-task model | Generates conversation titles; may differ from the chat model |
 | Agent Loop maximum steps | Defaults to `0` (unlimited); `1–1000` sets a limit, saves progress when reached, and allows continuation |
 | Command timeout | Default and maximum Bash timeout: `120` seconds by default, range `1–86400`; the model may request less |
 | Maximum chat request retries | Defaults to `5`, range `0–20`; retries transient errors such as rate limits and overload with backoff, but never after content has been emitted |
 | Context compaction percentage | Defaults to `90%`, range `10–95%`; the rest of the window is reserved for output |
 | Global AGENTS.md paths | Loads personal instructions in order; clear the list to disable global file loading |
 | Catalog synchronization | Provider catalog defaults to `https://models.dev/api.json` and model catalog to `https://models.dev/models.json`, both complete HTTP(S) URLs; sync manually or enable an interval from `1–720` hours, and one sync updates both catalogs. **AI configuration → Provider catalog** sorts A→Z by name, while **Model catalog** supports searching by name, identifier, provider, family, or description and sorts by release date newest first |
-| Enable long-term memory | Master switch for recall, memory tools, and background compiling |
 | Auto-organize memories | Lets the background-task model distill completed conversations; turning it off only stops learning and keeps existing memories |
-| Memory injection limit | Per-turn recall budget in estimated tokens (default `2000`); estimates are conservative and not tokenizer-exact |
 | Global base prompt | Editable base persona used by new chat requests; it may be empty |
 | Additional system prompt | Appended to the base prompt for chat |
 
@@ -174,7 +163,7 @@ Open **System management → Usage analytics** (系统管理 → 用量分析).
 
 ![Token composition by model across all history](images/screenshots/desktop-2026-09-13/usage-composition.jpg)
 
-Dates use **UTC**. Only successfully completed chat turns count, including historical consumption from deleted conversations. Context-summary usage counts toward chat turns; title tasks, memory-compile attempts, and unfinished turns are excluded (memory compile usage is labeled separately on the memory status tab). This page therefore reflects chat usage recorded by the application.
+Dates use **UTC**. Only successfully completed chat turns count, including historical consumption from deleted conversations. Context-summary usage counts toward chat turns; title tasks, memory-compile attempts, and unfinished turns are excluded. This page therefore reflects chat usage recorded by the application.
 
 ## Installation and building
 

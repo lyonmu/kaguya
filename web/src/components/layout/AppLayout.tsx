@@ -1,3 +1,4 @@
+import { MEMORY_ENABLED } from '../../app/features'
 import { useState, type PropsWithChildren } from 'react'
 import {
   BarChartOutlined,
@@ -39,9 +40,9 @@ export function AppLayout({
     { key: 'ai-providers', icon: <RobotOutlined />, label: 'AI 配置' },
     { key: 'system-info', icon: <SettingOutlined />, label: '系统配置' },
   ]
-  const memoryItems = [
+  const memoryItems = MEMORY_ENABLED ? [
     { key: 'memory', icon: <DatabaseOutlined />, label: '长期记忆' },
-  ]
+  ] : []
 
   return (
     <BottomActionsContext.Provider value={{
@@ -80,6 +81,7 @@ export function AppLayout({
               theme={isDark ? 'dark' : 'light'}
             />
 
+            {MEMORY_ENABLED && <>
             <div className="px-2.5 pt-4 pb-1.5 text-[12px] font-semibold tracking-[0.7px] text-k-text-subtle">
               长期记忆
             </div>
@@ -91,6 +93,7 @@ export function AppLayout({
               selectedKeys={[currentPage]}
               theme={isDark ? 'dark' : 'light'}
             />
+            </>}
 
             <div className="px-2.5 pt-4 pb-1.5 text-[12px] font-semibold tracking-[0.7px] text-k-text-subtle">
               使用记录
