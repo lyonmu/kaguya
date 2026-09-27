@@ -90,7 +90,7 @@ func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
 	var total int64
 	for _, record := range records {
 		total += record.TotalTokens
-		if record.ProviderID != provider.ID || record.ModelID != model.ID {
+		if record.ProviderID != provider.ID || record.ModelID != "upstream:"+model.ModelID {
 			t.Fatal("title usage lost task-model identity")
 		}
 	}

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
+	token "github.com/lyonmu/kaguya/internal/agent/token"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 )
@@ -154,6 +156,10 @@ func TestTokenUsageCompositionIsAllTimeAndLimited(t *testing.T) {
 		insertUsageTurn(ctx, t, i, at, fmt.Sprintf("provider-%d", i), i*100)
 	}
 	insertUsageTurn(ctx, t, 13, at.AddDate(0, 0, -1), "outside", 9999)
+	// 每个模型使用独立 API ID，保留前十名截断的覆盖。
+	if _, err := db.EntClient.ExecContext(ctx, "UPDATE kaguya_chat_turn SET model_id=provider_id"); err != nil {
+		t.Fatal(err)
+	}
 	got, err := svc.TokenUsage(ctx, &dtosystem.TokenUsageReq{StartTime: 1735689600, EndTime: 1735948799})
 	if err != nil {
 		t.Fatal(err)
@@ -200,5 +206,108 @@ func TestTokenUsageSecondBoundary(t *testing.T) {
 	partial, err := svc.TokenUsage(ctx, &dtosystem.TokenUsageReq{StartTime: second.Unix(), EndTime: second.Unix()})
 	if err != nil || partial.TotalTokens != 200 || partial.PeakTokens != 200 || partial.Start != "2025-01-01" || partial.End != "2025-01-01" || len(partial.Days) == 0 {
 		t.Fatalf("second boundary: %+v %v", partial, err)
+	}
+}
+
+// 实际模型 ID 是唯一聚合键：跨来源、提供商、配置记录和显示名称合并。
+func TestTokenUsageCompositionMergesAPIModelIDs(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	insertUsageConversation(ctx, t)
+	at := time.Now().UTC()
+	for i, provider := range []string{"p1", "p2"} {
+		insertUsageTurn(ctx, t, int64(i+1), at, provider, 100)
+	}
+	// 已软删除的配置仍可解析旧后台记录；记忆以调用时保存的 upstream ID 为准。
+	if err := db.EntClient.KaguyaModelsInfo.Create().SetID("record-old").SetProviderID("p1").
+		SetModelID("same-api-id").SetModelName("renamed").SetDeletedAt(at).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for i, id := range []string{"record-old", "upstream:same-api-id"} {
+		if err := db.EntClient.KaguyaTaskUsage.Create().SetKind("title").SetProviderID("p1").SetProviderName("p1").
+			SetModelID(id).SetModelName(fmt.Sprintf("alias-%d", i)).SetFinishedAt(at).SetUsageKnown(true).
+			SetInputTokens(20).SetOutputTokens(30).SetReasoningTokens(10).SetCachedTokens(5).SetTotalTokens(55).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.EntClient.KaguyaMemoryAttempt.Create().SetJobID("job").SetAttempt(1).SetResultCode("success").
+		SetProviderID("p2").SetModelRecordID("missing-record").SetUpstreamModelID("same-api-id").SetUsageKnown(true).
+		SetInputTokens(20).SetOutputTokens(30).SetReasoningTokens(10).SetCachedTokens(5).SetTotalTokens(55).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	recorder := NewTaskUsageRecorder(db.EntClient, "model_test", agentruntime.ProviderConfig{
+		ProviderID: "p2", Name: "p2", ModelRecordID: "record-old", ModelID: "same-api-id", ModelName: "another name",
+	})
+	if err := recorder.RecordUsage(ctx, token.TurnUsage{FinishedAt: at, UsageKnown: true, Total: token.NormalizedUsage{
+		InputTokens: 20, OutputTokens: 30, ReasoningTokens: 10, CacheHitTokens: 5, TotalTokens: 55,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	// 新调用不能因配置记录后来修改而改归其他模型。
+	if err := db.EntClient.KaguyaModelsInfo.Create().SetID("record-new").SetProviderID("p2").
+		SetModelID("other-api-id").SetModelName("model").Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	other := NewTaskUsageRecorder(db.EntClient, "title", agentruntime.ProviderConfig{
+		ProviderID: "p2", Name: "p2", ModelRecordID: "record-new", ModelID: "other-api-id", ModelName: "model",
+	})
+	if err := other.RecordUsage(ctx, token.TurnUsage{FinishedAt: at, UsageKnown: true, Total: token.NormalizedUsage{InputTokens: 10, TotalTokens: 10}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.EntClient.ExecContext(ctx, "UPDATE kaguya_models_info SET model_id='changed' WHERE id='record-new'"); err != nil {
+		t.Fatal(err)
+	}
+	// 未知消费不得计入构成。
+	if err := db.EntClient.KaguyaTaskUsage.Create().SetKind("title").SetProviderID("p1").SetProviderName("p1").
+		SetModelID("upstream:same-api-id").SetModelName("model").SetFinishedAt(at).SetUsageKnown(false).SetTotalTokens(999).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	got, err := (&SystemSvc{}).TokenUsage(ctx, &dtosystem.TokenUsageReq{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Models) != 2 {
+		t.Fatalf("models=%+v", got.Models)
+	}
+	row := got.Models[0]
+	if row.ID != "same-api-id" || row.TotalTokens != 420 || row.InputTokens != 210 || row.OutputTokens != 120 || row.ReasoningTokens != 60 || row.CachedTokens != 30 || row.ProviderID != "" || row.ProviderName != "" {
+		t.Fatalf("merged model=%+v", row)
+	}
+	if got.Models[1].ID != "other-api-id" || got.Models[1].TotalTokens != 10 {
+		t.Fatalf("distinct model=%+v", got.Models[1])
+	}
+	if len(got.Providers) != 2 || got.Providers[0].ID != "p2" || got.Providers[0].TotalTokens != 220 || got.Providers[1].TotalTokens != 210 {
+		t.Fatalf("providers=%+v", got.Providers)
+	}
+	if got.TotalTokens != 430 {
+		t.Fatalf("total=%d", got.TotalTokens)
+	}
+}
+
+func TestUsageCompositionRanksAfterMerging(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	insertUsageConversation(ctx, t)
+	at := time.Now().UTC()
+	for i := int64(1); i <= 11; i++ {
+		insertUsageTurn(ctx, t, i, at, fmt.Sprintf("p-%02d", i), 1000+i)
+	}
+	if _, err := db.EntClient.ExecContext(ctx, "UPDATE kaguya_chat_turn SET model_id=provider_id"); err != nil {
+		t.Fatal(err)
+	}
+	// 两笔单独都排不进前十，合并后应该排第一。
+	insertUsageTurn(ctx, t, 12, at, "p-a", 600)
+	insertUsageTurn(ctx, t, 13, at, "p-b", 600)
+	rows, err := usageComposition(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != usageCompositionLimit || rows[0].ID != "same-api-id" || rows[0].TotalTokens != 1200 || rows[9].ID != "p-03" {
+		t.Fatalf("ranking before merge: %+v", rows)
+	}
+	seen := make(map[string]bool)
+	for _, row := range rows {
+		if seen[row.ID] {
+			t.Fatalf("duplicate model: %s", row.ID)
+		}
+		seen[row.ID] = true
 	}
 }

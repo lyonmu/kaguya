@@ -17,7 +17,9 @@ type taskUsageRecorder struct {
 
 func NewTaskUsageRecorder(client *ent.Client, kind string, cfg agentruntime.ProviderConfig) token.UsageRecorder {
 	modelID, name := cfg.ModelRecordID, cfg.ModelName
-	if modelID == "" {
+	// 保存实际模型 ID 快照，避免配置修改或删除后历史用量归属发生变化。
+	// 保留前缀以区分旧记录中保存的本地配置 ID。
+	if cfg.ModelID != "" {
 		modelID = "upstream:" + cfg.ModelID
 	}
 	if name == "" {

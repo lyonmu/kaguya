@@ -45,6 +45,7 @@ func usageRange(req *dtosystem.TokenUsageReq, now time.Time) (time.Time, time.Ti
 
 // usageLedger 合并既有聊天、记忆调用与新增后台计量；不复制历史数据，避免重复计费。
 // 未完成聊天仅计入已落库的已知消费，会话数仍表示成功会话，不被后台任务抬高。
+// model_id 统一为实际 API ID；旧后台记录通过配置表解析（含软删除），无法解析时保留原 ID。
 // 时间兼容 SQLCipher RFC3339 offset 和历史 Go time.String；先截取整秒避免 SQLite 将 .999999999 四舍五入到下一秒。
 const usageLedger = `WITH usage_raw AS (
  SELECT COALESCE(finished_at, updated_at) AS at,
@@ -53,13 +54,15 @@ const usageLedger = `WITH usage_raw AS (
  'chat' AS kind,1 AS known FROM kaguya_chat_turn WHERE status='completed' OR total_tokens>0
  UNION ALL
  SELECT a.created_at,NULL,a.provider_id,COALESCE(p.provider_name,a.provider_id),
- COALESCE(NULLIF(a.model_record_id,''),'upstream:'||a.upstream_model_id),COALESCE(m.model_name,a.upstream_model_id),
+ COALESCE(NULLIF(a.upstream_model_id,''),m.model_id,a.model_record_id),COALESCE(m.model_name,a.upstream_model_id),
  a.input_tokens,a.output_tokens,a.reasoning_tokens,a.cached_tokens,a.total_tokens,'memory',a.usage_known
  FROM kaguya_memory_attempt a LEFT JOIN kaguya_provider_info p ON p.id=a.provider_id
  LEFT JOIN kaguya_models_info m ON m.id=a.model_record_id
  UNION ALL
- SELECT finished_at,NULL,provider_id,provider_name,model_id,model_name,input_tokens,output_tokens,reasoning_tokens,cached_tokens,total_tokens,kind,usage_known
- FROM kaguya_task_usage
+ SELECT t.finished_at,NULL,t.provider_id,t.provider_name,
+ CASE WHEN t.model_id LIKE 'upstream:%' THEN SUBSTR(t.model_id,10) ELSE COALESCE(m.model_id,t.model_id) END,
+ t.model_name,t.input_tokens,t.output_tokens,t.reasoning_tokens,t.cached_tokens,t.total_tokens,t.kind,t.usage_known
+ FROM kaguya_task_usage t LEFT JOIN kaguya_models_info m ON m.id=t.model_id
 ), usage AS (
  SELECT *,CAST(strftime('%s',SUBSTR(at,1,19)||
  CASE WHEN INSTR(at,' +')>0 THEN SUBSTR(at,INSTR(at,' +')+1,3)||':'||SUBSTR(at,INSTR(at,' +')+4,2)
@@ -153,11 +156,14 @@ func usageDays(ctx context.Context, start, end time.Time) ([]dtosystem.TokenUsag
 func usageComposition(ctx context.Context, model bool) ([]dtosystem.TokenUsageComposition, error) {
 	id, name, group := "provider_id", "provider_name", "provider_id"
 	if model {
-		id, name, group = "model_id", "model_name", "provider_id,model_id"
+		// 模型按实际 API ID 跨提供商合并，先汇总再取前 N 项；名称不参与分组。
+		id, name, group = "model_id", "model_name", "model_id"
 	}
-	rows, err := db.EntClient.QueryContext(ctx, usageLedger+`SELECT `+id+`,MAX(`+name+`),provider_id,MAX(provider_name),
+	rows, err := db.EntClient.QueryContext(ctx, usageLedger+`SELECT `+id+`,MAX(`+name+`),
+ CASE WHEN COUNT(DISTINCT provider_id)=1 THEN MAX(provider_id) ELSE '' END,
+ CASE WHEN COUNT(DISTINCT provider_id)=1 THEN MAX(provider_name) ELSE '' END,
  SUM(input_tokens),SUM(output_tokens),SUM(reasoning_tokens),SUM(cached_tokens),SUM(total_tokens)
- FROM usage WHERE known=1 GROUP BY `+group+` ORDER BY SUM(total_tokens) DESC,provider_id,`+id+` LIMIT ?`, usageCompositionLimit)
+ FROM usage WHERE known=1 GROUP BY `+group+` ORDER BY SUM(total_tokens) DESC,`+id+` LIMIT ?`, usageCompositionLimit)
 	if err != nil {
 		return nil, err
 	}

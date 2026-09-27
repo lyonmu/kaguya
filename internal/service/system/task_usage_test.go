@@ -16,7 +16,7 @@ func TestUsageIncludesBackgroundAttemptsWithoutDuplicatingChat(t *testing.T) {
 	at := time.Now().UTC().Truncate(24 * time.Hour).Add(time.Hour)
 	insertUsageConversation(ctx, t)
 	insertUsageTurn(ctx, t, 1, at, "provider", 100)
-	recorder := NewTaskUsageRecorder(db.EntClient, "title", agentruntime.ProviderConfig{ProviderID: "provider", Name: "provider", ModelRecordID: "same-api-id", ModelName: "model", ConversationID: "usage"})
+	recorder := NewTaskUsageRecorder(db.EntClient, "title", agentruntime.ProviderConfig{ProviderID: "provider", Name: "provider", ModelRecordID: "record-id", ModelID: "same-api-id", ModelName: "model", ConversationID: "usage"})
 	canceled, cancel := context.WithCancel(ctx)
 	cancel()
 	if err := recorder.RecordUsage(canceled, token.TurnUsage{FinishedAt: at, UsageKnown: true, Total: token.NormalizedUsage{InputTokens: 30, OutputTokens: 20, ReasoningTokens: 10, TotalTokens: 50}}); err != nil {
@@ -28,7 +28,7 @@ func TestUsageIncludesBackgroundAttemptsWithoutDuplicatingChat(t *testing.T) {
 	}
 	// 历史记忆的失败调用也产生了已知消费，关闭记忆不丢弃这部分。
 	if err := db.EntClient.KaguyaMemoryAttempt.Create().SetJobID("old-job").SetAttempt(1).SetResultCode("provider_error").SetUsageKnown(true).
-		SetProviderID("provider").SetModelRecordID("same-api-id").SetUpstreamModelID("model").SetCreatedAt(at).
+		SetProviderID("provider").SetModelRecordID("same-api-id").SetUpstreamModelID("same-api-id").SetCreatedAt(at).
 		SetInputTokens(20).SetOutputTokens(50).SetReasoningTokens(40).SetTotalTokens(70).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
