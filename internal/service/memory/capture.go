@@ -53,7 +53,7 @@ func CaptureCompletedTx(ctx context.Context, client *ent.Client, in CaptureInput
 		}
 	}
 	// 未完成轮次不自动捕获：running/failed/canceled/interrupted 都不入队。
-	turn, err := client.KaguyaChatTurn.Query().Where(kaguyachatturn.IDEQ(in.TurnID)).
+	turn, err := client.KaguyaChatTurn.Query().Where(kaguyachatturn.IDEQ(in.TurnID), kaguyachatturn.ConversationIDEQ(in.ConversationID)).
 		Select(kaguyachatturn.FieldStatus).Only(ctx)
 	if err != nil {
 		return err
@@ -85,6 +85,9 @@ func EnsureTurnSourceTx(ctx context.Context, client *ent.Client, conversationID,
 	key := fmt.Sprintf("turn:%s:projection-v%d", turnID, ProjectionVersion)
 	if existing, err := client.KaguyaMemorySource.Query().
 		Where(kaguyamemorysource.SourceKeyEQ(key)).Only(ctx); err == nil {
+		if existing.ConversationID != conversationID || existing.State == kaguyamemorysource.StateExcluded {
+			return nil, fmt.Errorf("%w: source is unavailable for this conversation", ErrPlanInvalid)
+		}
 		return existing, nil
 	} else if !ent.IsNotFound(err) {
 		return nil, err
@@ -127,10 +130,13 @@ func EnsureTurnSourceTx(ctx context.Context, client *ent.Client, conversationID,
 	return row, err
 }
 
-// EnsureNoteSourceTx 为人工页面维护笔记来源；笔记正文即用户陈述投影。
-// content_hash 随编辑更新，来源行与页面同事务保存。
+// EnsureNoteSourceTx stores an immutable note snapshot per content revision.
+// The first version retains the legacy key; later versions never rewrite it.
 func EnsureNoteSourceTx(ctx context.Context, client *ent.Client, page *ent.KaguyaMemoryPage, policyEpoch int64) (*ent.KaguyaMemorySource, error) {
 	key := "note:" + page.ID
+	if page.Version > 1 {
+		key += fmt.Sprintf(":v%d", page.Version)
+	}
 	hash := ProjectionHash(BuildNoteSegments(page.Body))
 	existing, err := client.KaguyaMemorySource.Query().
 		Where(kaguyamemorysource.SourceKeyEQ(key)).Only(ctx)
@@ -141,6 +147,7 @@ func EnsureNoteSourceTx(ctx context.Context, client *ent.Client, page *ent.Kaguy
 			SetScopeKey(page.ScopeKey).
 			SetProjectionVersion(ProjectionVersion).
 			SetContentHash(hash).
+			SetRawContent(page.Body).
 			SetState(kaguyamemorysource.StateProcessed).
 			SetCapturedAt(nowTime()).
 			SetPolicyEpoch(policyEpoch).
@@ -153,13 +160,6 @@ func EnsureNoteSourceTx(ctx context.Context, client *ent.Client, page *ent.Kaguy
 	}
 	if err != nil {
 		return nil, err
-	}
-	if existing.ContentHash != hash {
-		if _, err := client.KaguyaMemorySource.UpdateOneID(existing.ID).
-			SetContentHash(hash).SetScopeKey(page.ScopeKey).Save(ctx); err != nil {
-			return nil, err
-		}
-		existing.ContentHash = hash
 	}
 	return existing, nil
 }

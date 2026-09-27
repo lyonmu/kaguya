@@ -293,6 +293,6 @@ it('shows memory references and switches per-conversation memory mode', async ()
   }) as typeof fetch
   const view = render(<App><ChatPage /></App>)
   fireEvent.click(await view.findByRole('button', { name: /记忆会话/ }))
-  await waitFor(() => assert.ok(view.getByText(/本轮参考了 1 条记忆/)))
+  await waitFor(() => assert.ok(view.getByText(/本轮提供 1 条记忆目录/)))
   assert.ok(view.getByTitle('Memory 使用 SQLCipher（v3）'))
 })

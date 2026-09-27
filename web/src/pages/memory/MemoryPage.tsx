@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   DownloadOutlined, LockOutlined, PlusOutlined, PushpinOutlined, ReloadOutlined,
 } from '@ant-design/icons'
@@ -6,21 +6,21 @@ import {
   Alert, App, Button, Card, DatePicker, Descriptions, Drawer, Empty, Form, Input, List,
   Modal, Popconfirm, Select, Space, Spin, Switch, Table, Tabs, Tag, Typography,
 } from 'antd'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Markdown } from '../../features/chat/components/Markdown'
 import dayjs from 'dayjs'
 import {
   approveMemoryJob, compileMemory, createMemoryPage, deleteMemoryPage, exportMemory,
   fetchMemoryJobs, fetchMemoryPage, fetchMemoryPageDiff, fetchMemoryPages, fetchMemoryRevisions,
-  fetchMemorySource, fetchMemoryStatus, importMemoryDocument, rejectMemoryJob, restoreMemoryRevision,
+  fetchMemorySource, fetchMemorySources, fetchMemoryStatus, importMemoryDocument, rejectMemoryJob, restoreMemoryRevision,
   retryMemoryJob, startMemoryBackfill, updateMemoryPage,
 } from '../../features/memory/api'
 import {
   MEMORY_KINDS, MEMORY_STATUSES, basisLabel, statusLabel,
-  type MemoryDiff, type MemoryJob, type MemoryPageDetail, type MemoryPageItem, type MemoryRevision,
-  type MemorySourceDetail, type MemoryStatus,
+  type MemoryDiff, type MemoryJob, type MemoryPageDetail, type MemoryPageItem, type MemoryPagePatch, type MemoryRevision,
+  type MemorySourceDetail, type MemorySourceItem, type MemoryStatus,
 } from '../../features/memory/types'
 import { fetchProjects } from '../../features/project/api'
+import { isRecord } from '../../api/http'
 
 const SCOPE_OPTIONS = [
   { value: '', label: '全部范围' },
@@ -55,6 +55,23 @@ const diffChangeLabel: Record<string, string> = {
   added: '新增', removed: '移除', changed: '变更',
 }
 
+function ReviewProposal({ proposal }: { proposal: unknown }) {
+  if (!isRecord(proposal) || !Array.isArray(proposal.changes)) return <Empty description="提案内容不可用，请刷新后重试" />
+  return <Space orientation="vertical" className="w-full">{proposal.changes.filter(isRecord).map((change, index) => (
+    <Card key={index} size="small" title={typeof change.title === 'string' ? change.title : '变更'}>
+      <Typography.Paragraph>{typeof change.reason === 'string' ? change.reason : ''}</Typography.Paragraph>
+      <Typography.Paragraph type="secondary">{typeof change.summary === 'string' ? change.summary : ''}</Typography.Paragraph>
+      <Markdown text={typeof change.body === 'string' ? change.body : ''} />
+      {Array.isArray(change.claims) && change.claims.filter(isRecord).map((claim, i) => <div key={i}>
+        <Typography.Text>{typeof claim.statement === 'string' ? claim.statement : ''}</Typography.Text>
+        {Array.isArray(claim.evidence) && claim.evidence.filter(isRecord).map((ev, j) => <Typography.Paragraph key={j} type="secondary">
+          {typeof ev.source_id === 'string' ? ev.source_id : ''} / {typeof ev.part_key === 'string' ? ev.part_key : ''}：{typeof ev.quote === 'string' ? ev.quote : ''}
+        </Typography.Paragraph>)}
+      </div>)}
+    </Card>
+  ))}</Space>
+}
+
 export function MemoryPage() {
   const { message } = App.useApp()
   const [scope, setScope] = useState('')
@@ -62,6 +79,9 @@ export function MemoryPage() {
   const [keyword, setKeyword] = useState('')
   const [items, setItems] = useState<MemoryPageItem[]>([])
   const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const listRequest = useRef(0)
+  const detailRequest = useRef(0)
   const [loading, setLoading] = useState(false)
   const [selectedId, setSelectedId] = useState('')
   const [detail, setDetail] = useState<MemoryPageDetail | null>(null)
@@ -69,6 +89,11 @@ export function MemoryPage() {
   const [revisionOpen, setRevisionOpen] = useState(false)
   const [editing, setEditing] = useState<'create' | 'edit' | null>(null)
   const [jobs, setJobs] = useState<MemoryJob[]>([])
+  const [jobPage, setJobPage] = useState(1)
+  const [jobTotal, setJobTotal] = useState(0)
+  const [sources, setSources] = useState<MemorySourceItem[]>([])
+  const [sourcePage, setSourcePage] = useState(1)
+  const [sourceTotal, setSourceTotal] = useState(0)
   const [memoryStatus, setMemoryStatus] = useState<MemoryStatus | null>(null)
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
   const [backfillOpen, setBackfillOpen] = useState(false)
@@ -84,38 +109,54 @@ export function MemoryPage() {
   const projectScopes = projects.map(project => ({ value: `project:${project.id}`, label: `项目：${project.name}` }))
 
   const loadList = useCallback(async () => {
+    const request = ++listRequest.current
     setLoading(true)
     try {
-      const list = await fetchMemoryPages({ scope_key: scope || undefined, status: status || undefined, keyword: keyword || undefined })
+      const list = await fetchMemoryPages({ scope_key: scope || undefined, status: status || undefined, keyword: keyword || undefined, page })
+      if (request !== listRequest.current) return
       setItems(list.items)
       setTotal(list.total)
     } catch (error) {
       message.error(String(error instanceof Error ? error.message : error))
     } finally {
-      setLoading(false)
+      if (request === listRequest.current) setLoading(false)
     }
-  }, [keyword, message, scope, status])
+  }, [keyword, message, scope, status, page])
 
   const loadDetail = useCallback(async (id: string) => {
+    const request = ++detailRequest.current
+    setDetail(null)
     if (!id) {
       setDetail(null)
       return
     }
     try {
-      setDetail(await fetchMemoryPage(id))
+      const value = await fetchMemoryPage(id)
+      if (request === detailRequest.current) setDetail(value)
     } catch (error) {
-      message.error(String(error instanceof Error ? error.message : error))
+      if (request === detailRequest.current) message.error(String(error instanceof Error ? error.message : error))
     }
   }, [message])
 
   const loadJobs = useCallback(async () => {
     try {
-      const list = await fetchMemoryJobs()
+      const list = await fetchMemoryJobs(undefined, undefined, jobPage)
       setJobs(list.items)
+      setJobTotal(list.total)
     } catch (error) {
       message.error(String(error instanceof Error ? error.message : error))
     }
-  }, [message])
+  }, [message, jobPage])
+
+  const loadSources = useCallback(async () => {
+    try {
+      const list = await fetchMemorySources({ scope_key: scope || undefined, page: sourcePage })
+      setSources(list.items)
+      setSourceTotal(list.total)
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : String(error))
+    }
+  }, [message, scope, sourcePage])
 
   const loadStatus = useCallback(async () => {
     try {
@@ -127,7 +168,19 @@ export function MemoryPage() {
 
   useEffect(() => { void loadList() }, [loadList])
   useEffect(() => { void loadDetail(selectedId) }, [loadDetail, selectedId])
+  useEffect(() => {
+    const current = items.find(item => item.id === selectedId)
+    if (!editing && detail && current && current.version > detail.version) void loadDetail(selectedId)
+  }, [items, selectedId, detail, editing, loadDetail])
   useEffect(() => { void loadJobs(); void loadStatus() }, [loadJobs, loadStatus])
+  useEffect(() => { void loadSources() }, [loadSources])
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      void loadList(); void loadJobs(); void loadStatus(); void loadSources()
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [loadList, loadJobs, loadStatus, loadSources])
   useEffect(() => {
     void (async () => {
       try {
@@ -239,8 +292,11 @@ export function MemoryPage() {
     try {
       await deleteMemoryPage(detail.id, mode)
       message.success(mode === 'forget' ? '记忆已删除' : '记忆已停用')
-      if (mode === 'forget') setSelectedId('')
-      await Promise.all([loadList(), loadDetail(detail.id), loadStatus()])
+      if (mode === 'forget') {
+        setSelectedId('')
+        await loadDetail('')
+      } else await loadDetail(detail.id)
+      await Promise.all([loadList(), loadStatus()])
     } catch (error) {
       message.error(String(error instanceof Error ? error.message : error))
     }
@@ -309,6 +365,17 @@ export function MemoryPage() {
     }
   }
 
+  const updateMetadata = async (patch: Omit<MemoryPagePatch, 'expected_version'>) => {
+    if (!detail) return
+    try {
+      const updated = await updateMemoryPage(detail.id, { ...patch, expected_version: detail.version })
+      setDetail(updated)
+      await loadList()
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   const detailPanel = detail ? (
     <Card
       className="min-h-0 flex-1 overflow-auto"
@@ -316,22 +383,12 @@ export function MemoryPage() {
         <Space wrap>
           <Button size="small" onClick={() => openEditor('edit')}>编辑</Button>
           <Button size="small" icon={<PushpinOutlined />} type={detail.pinned ? 'primary' : 'default'}
-            onClick={async () => {
-              const updated = await updateMemoryPage(detail.id, { expected_version: detail.version, pinned: !detail.pinned })
-              setDetail(updated)
-            }}>置顶</Button>
+            onClick={() => void updateMetadata({ pinned: !detail.pinned })}>置顶</Button>
           <Button size="small" icon={<LockOutlined />} type={detail.user_locked ? 'primary' : 'default'}
-            onClick={async () => {
-              const updated = await updateMemoryPage(detail.id, { expected_version: detail.version, user_locked: !detail.user_locked })
-              setDetail(updated)
-            }}>锁定</Button>
+            onClick={() => void updateMetadata({ user_locked: !detail.user_locked })}>锁定</Button>
           <Button size="small" onClick={openRevisions}>版本</Button>
           {detail.scope_key !== 'shared' && (
-            <Popconfirm title="将这一条用于所有对话？内容将对普通与项目对话可见，请确认不包含敏感信息。" onConfirm={async () => {
-              const updated = await updateMemoryPage(detail.id, { expected_version: detail.version, scope_key: 'shared' })
-              setDetail(updated)
-              await loadList()
-            }}>
+            <Popconfirm title="将这一条用于所有对话？内容将对普通与项目对话可见，请确认不包含敏感信息。" onConfirm={() => updateMetadata({ scope_key: 'shared' })}>
               <Button size="small">用于所有对话</Button>
             </Popconfirm>
           )}
@@ -358,7 +415,7 @@ export function MemoryPage() {
         <Descriptions.Item label="来源数">{detail.source_count}</Descriptions.Item>
       </Descriptions>
       <Typography.Paragraph className="mt-3">{detail.summary}</Typography.Paragraph>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{detail.body}</ReactMarkdown>
+      <Markdown text={detail.body} />
       {detail.claims.length > 0 && (
         <>
           <Typography.Title level={5}>依据</Typography.Title>
@@ -379,7 +436,9 @@ export function MemoryPage() {
         </>
       )}
       {detail.related_ids.length > 0 && (
-        <Typography.Paragraph type="secondary">关联页面：{detail.related_ids.join('、')}</Typography.Paragraph>
+        <Space wrap><Typography.Text type="secondary">关联记忆：</Typography.Text>{detail.related_ids.map(id =>
+          <Button key={id} type="link" onClick={() => setSelectedId(id)}>{items.find(item => item.id === id)?.title ?? id}</Button>
+        )}</Space>
       )}
     </Card>
   ) : (
@@ -393,6 +452,7 @@ export function MemoryPage() {
         <List
           dataSource={items}
           loading={loading}
+          pagination={{ current: page, pageSize: 20, total, onChange: setPage, showSizeChanger: false, size: 'small' }}
           locale={{ emptyText: '暂无记忆' }}
           renderItem={(item: MemoryPageItem) => (
             <List.Item className="cursor-pointer!" onClick={() => setSelectedId(item.id)}
@@ -452,6 +512,8 @@ export function MemoryPage() {
           },
         ]}
         dataSource={jobs}
+        pagination={{ current: jobPage, pageSize: 20, total: jobTotal, onChange: setJobPage, showSizeChanger: false }}
+        expandable={{ rowExpandable: row => row.status === 'needs_review', expandedRowRender: row => <ReviewProposal proposal={row.proposal} /> }}
         loading={false}
         rowKey="id"
         scroll={{ x: true }}
@@ -488,24 +550,37 @@ export function MemoryPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 p-4">
+      <Typography.Text type="secondary">对话完成后自动积累来源，由后台模型整理为有标题、说明、证据和关联的知识页。聊天按需检索并读取正文。</Typography.Text>
+      {memoryStatus && (!memoryStatus.enabled || !memoryStatus.auto_capture || !memoryStatus.task_model_set) &&
+        <Alert showIcon type="warning" title={!memoryStatus.enabled ? '长期记忆已关闭' : !memoryStatus.auto_capture ? '自动整理已关闭' : '尚未配置后台任务模型'}
+          description="请在系统配置中开启长期记忆与自动整理，并选择后台任务模型。已保存的来源与记忆不会因关闭开关而删除。" />}
       <Space wrap>
-        <Select aria-label="范围" className="w-32" onChange={setScope} options={SCOPE_OPTIONS} value={scope} />
+        <Select aria-label="范围" className="w-48" onChange={value => { setScope(value); setPage(1); setSourcePage(1) }} options={[...SCOPE_OPTIONS, ...projectScopes]} value={scope} />
         <Select aria-label="状态" className="w-32" allowClear
-          onChange={(value: string | undefined) => setStatus(value ?? '')}
+          onChange={(value: string | undefined) => { setStatus(value ?? ''); setPage(1) }}
           options={[...MEMORY_STATUSES].map(item => ({ value: item, label: statusLabel[item] }))} placeholder="全部状态" value={status || undefined} />
-        <Input.Search allowClear aria-label="搜索" className="w-64" enterButton onSearch={setKeyword} placeholder="搜索标题或摘要" />
-        <Button icon={<PlusOutlined />} onClick={() => openEditor('create')} type="primary">保存为记忆</Button>
+        <Input.Search allowClear aria-label="搜索" className="w-64" enterButton onSearch={value => { setKeyword(value); setPage(1) }} placeholder="搜索标题或摘要" />
+        <Button icon={<PlusOutlined />} onClick={() => openEditor('create')}>补充知识</Button>
         <Button onClick={() => void compileNow()}>立即整理</Button>
         <Button onClick={() => { backfillForm.setFieldsValue({ scope_key: scope || 'personal', max_sources: 500 }); setBackfillOpen(true) }}>历史回填</Button>
         <Button onClick={() => { importForm.setFieldsValue({ scope_key: projectScopes[0]?.value ?? '', path: '' }); setImportOpen(true) }}>导入资料</Button>
         <Button icon={<DownloadOutlined />} onClick={() => void exportMarkdown()}>导出 Markdown</Button>
-        <Button icon={<ReloadOutlined />} onClick={() => void loadList()}>刷新</Button>
+        <Button icon={<ReloadOutlined />} onClick={() => { void loadList(); void loadJobs(); void loadStatus(); void loadSources(); void loadDetail(selectedId) }}>刷新</Button>
       </Space>
       <Tabs
         className="min-h-0 flex-1"
         items={[
           { key: 'pages', label: '记忆', children: <div className="flex h-full min-h-0">{pagesTab}</div> },
           { key: 'jobs', label: '任务与待审', children: jobsTab },
+          { key: 'sources', label: '来源', children: <Table<MemorySourceItem> rowKey="id" size="small" dataSource={sources}
+            pagination={{ current: sourcePage, pageSize: 20, total: sourceTotal, onChange: setSourcePage, showSizeChanger: false }}
+            columns={[
+              { title: '来源', key: 'source', render: (_, row) => row.document_path || (row.conversation_id ? `对话 ${row.conversation_id}` : '知识笔记') },
+              { title: '状态', dataIndex: 'state' },
+              { title: '范围', dataIndex: 'scope_key' },
+              { title: '采集时间', dataIndex: 'captured_at', render: (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm') },
+              { title: '详情', key: 'detail', render: (_, row) => <Button type="link" onClick={() => void openSource(row.id)}>查看来源</Button> },
+            ]} /> },
           { key: 'status', label: '状态与用量', children: statusTab },
         ]}
       />
@@ -514,12 +589,12 @@ export function MemoryPage() {
         onCancel={() => setEditing(null)}
         onOk={() => void saveEditor()}
         open={editing !== null}
-        title={editing === 'create' ? '保存为记忆' : '编辑记忆'}
+        title={editing === 'create' ? '补充知识' : '编辑记忆'}
         width={720}
       >
         <Form form={form} labelCol={{ span: 4 }} wrapperCol={{ span: 20 }}>
           <Form.Item label="范围" name="scope_key" rules={[{ required: true }]}>
-            <Select disabled={editing === 'edit'} options={SCOPE_OPTIONS.filter(item => item.value)} />
+            <Select disabled={editing === 'edit'} options={[...SCOPE_OPTIONS.filter(item => item.value), ...projectScopes]} />
           </Form.Item>
           <Form.Item label="类型" name="kind" rules={[{ required: true }]}>
             <Select options={MEMORY_KINDS.map(item => ({ value: item, label: item }))} />

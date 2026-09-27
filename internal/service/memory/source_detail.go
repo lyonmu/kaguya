@@ -91,6 +91,10 @@ func (s *Service) SourceDetail(ctx context.Context, id string) (*dtomemory.Memor
 		resp.TurnStatus, resp.FinishReason = string(turn.Status), turn.FinishReason
 		resp.Parts = sourceParts(BuildTurnSegments(turn.UserContent, turn.Edges.Blocks))
 	case kaguyamemorysource.KindNote:
+		if src.RawContent != "" {
+			resp.Parts = sourceParts(BuildNoteSegments(src.RawContent))
+			break
+		}
 		pageID := strings.TrimPrefix(src.SourceKey, "note:")
 		page, err := s.client.KaguyaMemoryPage.Query().
 			Where(kaguyamemorypage.IDEQ(pageID), kaguyamemorypage.DeletedAtIsNil()).Only(ctx)

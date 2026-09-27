@@ -45,7 +45,10 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 	if row.GlobalSystemPrompt != consts.GlobalSystemPrompt || row.DefaultModelID != "" || row.TaskModelID != "" {
 		t.Fatalf("defaults=%+v", row)
 	}
-	before, err := client.KaguyaSystemInfo.UpdateOne(row).SetGlobalSystemPrompt("custom base").SetSystemPrompt("custom prompt").SetDefaultModelID("saved-default").SetTaskModelID("saved-task").Save(ctx)
+	if !row.MemoryEnabled || !row.MemoryAutoCapture {
+		t.Fatal("new installations must enable memory and automatic organizing")
+	}
+	before, err := client.KaguyaSystemInfo.UpdateOne(row).SetMemoryEnabled(false).SetMemoryAutoCapture(false).SetGlobalSystemPrompt("custom base").SetSystemPrompt("custom prompt").SetDefaultModelID("saved-default").SetTaskModelID("saved-task").Save(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,6 +63,9 @@ func TestInfoInitializationIsIdempotent(t *testing.T) {
 	}
 	if after.GlobalSystemPrompt != before.GlobalSystemPrompt || after.SystemPrompt != before.SystemPrompt || after.DefaultModelID != before.DefaultModelID || after.TaskModelID != before.TaskModelID || !after.UpdatedAt.Equal(before.UpdatedAt) {
 		t.Fatalf("initialization overwrote config: %+v", after)
+	}
+	if after.MemoryEnabled || after.MemoryAutoCapture {
+		t.Fatal("initialization must preserve explicit settings")
 	}
 	if count, err := client.KaguyaSystemInfo.Query().Count(ctx); err != nil || count != 1 {
 		t.Fatalf("count=%d err=%v", count, err)

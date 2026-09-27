@@ -153,13 +153,24 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 				// 删除后的 tombstone 阻止自动复活。
 				return changeDropped, nil
 			}
+			if opts.approved {
+				change.Action, change.PageID, change.BaseVersion = "update", existing.ID, existing.Version
+				candidates[existing.ID] = existing
+				return applyChangeTx(ctx, client, job, change, candidates, opts)
+			}
 			// 模型没有按候选集更新已有页面：作为待审提案，不强制覆盖。
 			return changeReview, nil
 		}
 		if !ent.IsNotFound(err) {
 			return changeDropped, err
 		}
+		if !strongEvidence(change) && !opts.approved {
+			return changeReview, nil
+		}
 		status := publishedStatus(change)
+		if opts.approved {
+			status = kaguyamemorypage.StatusActive
+		}
 		page, err := client.KaguyaMemoryPage.Create().
 			SetScopeKey(job.ScopeKey).SetCanonicalKey(change.CanonicalKey).
 			SetKind(kaguyamemorypage.Kind(change.Kind)).
@@ -218,7 +229,7 @@ func applyChangeTx(ctx context.Context, client *ent.Client, job *ent.KaguyaMemor
 			return changeReview, nil
 		}
 		status := page.Status
-		if strongEvidence(change) {
+		if strongEvidence(change) || opts.approved {
 			status = kaguyamemorypage.StatusActive
 		} else if status == kaguyamemorypage.StatusActive {
 			// 助手推断不得自动替换已确认页面，交给用户审阅。
@@ -305,6 +316,10 @@ func setPageStatusTx(ctx context.Context, client *ent.Client, page *ent.KaguyaMe
 		Kind: string(page.Kind), Title: page.Title, Summary: page.Summary, Body: page.Body,
 		Aliases: page.Aliases, Reason: reason,
 	}
+	snapshot.Claims, err = currentClaimsTx(ctx, client, page)
+	if err != nil {
+		return nil, err
+	}
 	if err := saveRevisionTx(ctx, client, updated, snapshot, actor, jobID); err != nil {
 		return nil, err
 	}
@@ -312,6 +327,27 @@ func setPageStatusTx(ctx context.Context, client *ent.Client, page *ent.KaguyaMe
 		return nil, err
 	}
 	return updated, nil
+}
+
+// currentClaimsTx preserves provenance when only metadata or status changes.
+func currentClaimsTx(ctx context.Context, client *ent.Client, page *ent.KaguyaMemoryPage) ([]dtomemory.ClaimPatch, error) {
+	data, err := loadCandidatePageData(ctx, client, page)
+	if err != nil {
+		return nil, err
+	}
+	claims := make([]dtomemory.ClaimPatch, 0, len(data.claims))
+	for _, claim := range data.claims {
+		patch := dtomemory.ClaimPatch{Key: claim.Key, Statement: claim.Statement, Basis: claim.Basis}
+		for _, row := range data.rows {
+			if row.ClaimKey == claim.Key {
+				patch.Evidence = append(patch.Evidence, dtomemory.ClaimEvidence{
+					SourceID: row.SourceID, PartKey: row.PartKey, Quote: row.Quote, Relation: string(row.Relation),
+				})
+			}
+		}
+		claims = append(claims, patch)
+	}
+	return claims, nil
 }
 
 // markPageStaleTx 把页面标为待核验并移出自动召回。
@@ -326,6 +362,11 @@ func markPageStaleTx(ctx context.Context, client *ent.Client, page *ent.KaguyaMe
 // forgetPageTx 执行分层删除中的“删除记忆”：撤出索引，清除正文、修订、证据摘录
 // 与关系，保留最小 tombstone 占位防止待处理作业复活。
 func forgetPageTx(ctx context.Context, client *ent.Client, page *ent.KaguyaMemoryPage, actor claimActor, reason string) error {
+	if _, err := client.KaguyaMemorySource.Delete().Where(kaguyamemorysource.Or(
+		kaguyamemorysource.SourceKeyEQ("note:"+page.ID), kaguyamemorysource.SourceKeyHasPrefix("note:"+page.ID+":v"),
+	)).Exec(ctx); err != nil {
+		return err
+	}
 	revisionIDs, err := client.KaguyaMemoryRevision.Query().
 		Where(kaguyamemoryrevision.PageIDEQ(page.ID)).
 		IDs(ctx)
@@ -686,6 +727,9 @@ func (s *Service) ApproveReview(ctx context.Context, job *ent.KaguyaMemoryJob) (
 	if row.Status != kaguyamemoryjob.StatusNeedsReview {
 		return PublishResult{}, ErrStaleLease
 	}
+	if err := ValidateScope(ctx, client, row.ScopeKey); err != nil {
+		return PublishResult{}, err
+	}
 	candidates, err := candidatePagesTx(ctx, client, job.ScopeKey, plan)
 	if err != nil {
 		return PublishResult{}, err
@@ -693,6 +737,29 @@ func (s *Service) ApproveReview(ctx context.Context, job *ent.KaguyaMemoryJob) (
 	index := NewEvidenceIndex(nil)
 	if err := LoadRetainedEvidence(ctx, client, index, candidates); err != nil {
 		return PublishResult{}, err
+	}
+	// Approval is explicit, but it cannot revive deleted sources or replace
+	// unavailable evidence with an unsupported assertion.
+	for _, change := range plan.Changes {
+		for _, claim := range change.Claims {
+			for _, ev := range claim.Evidence {
+				src, err := client.KaguyaMemorySource.Get(ctx, ev.SourceID)
+				if ent.IsNotFound(err) || (err == nil && src.State == kaguyamemorysource.StateExcluded) {
+					return PublishResult{}, fmt.Errorf("%w: proposal source is no longer available", ErrPlanInvalid)
+				}
+				if err != nil {
+					return PublishResult{}, err
+				}
+				if !index.allows(change.PageID, ev) {
+					if src.ScopeKey != row.ScopeKey {
+						return PublishResult{}, ErrPageForbidden
+					}
+					if err := validateSourceQuote(ctx, client, src, ev.PartKey, ev.Quote); err != nil {
+						return PublishResult{}, err
+					}
+				}
+			}
+		}
 	}
 	result := PublishResult{}
 	for i := range plan.Changes {
@@ -713,7 +780,7 @@ func (s *Service) ApproveReview(ctx context.Context, job *ent.KaguyaMemoryJob) (
 		case changeDropped:
 			result.Dropped++
 		case changeReview:
-			result.Review++
+			return PublishResult{}, ErrPageVersionConflict
 		}
 	}
 	if err := client.KaguyaMemoryJob.UpdateOneID(job.ID).

@@ -168,6 +168,25 @@ func (s *Service) UpdatePage(ctx context.Context, id string, req *dtomemory.Memo
 	if page.Version != req.ExpectedVersion {
 		return nil, ErrPageVersionConflict
 	}
+	// Freeze a legacy mutable note before replacing the page body. Historical
+	// evidence must continue to point at the content it actually came from.
+	if req.Body != nil && *req.Body != page.Body {
+		if err := client.KaguyaMemorySource.Update().Where(
+			kaguyamemorysource.SourceKeyEQ("note:"+page.ID), kaguyamemorysource.RawContentEQ(""),
+		).SetRawContent(page.Body).Exec(ctx); err != nil {
+			return nil, err
+		}
+	}
+	// Pinning, locking, renaming and scope changes must not relabel model
+	// evidence as a new user statement. Only a body/source edit creates a note.
+	preserveClaims := req.Source == nil && (req.Body == nil || *req.Body == page.Body)
+	var claims []dtomemory.ClaimPatch
+	if preserveClaims {
+		claims, err = currentClaimsTx(ctx, client, page)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if req.Kind != "" {
 		page.Kind = kaguyamemorypage.Kind(req.Kind)
 	}
@@ -222,6 +241,7 @@ func (s *Service) UpdatePage(ctx context.Context, id string, req *dtomemory.Memo
 
 	// 条件更新防止并发覆盖；用户锁定不影响人工编辑，只阻止自动覆盖。
 	update := client.KaguyaMemoryPage.UpdateOneID(page.ID).
+		SetScopeKey(page.ScopeKey).
 		SetKind(page.Kind).SetCanonicalKey(page.CanonicalKey).
 		SetTitle(page.Title).SetSummary(page.Summary).SetBody(page.Body).
 		SetAliases(defaultAliases(page.Aliases)).
@@ -230,6 +250,8 @@ func (s *Service) UpdatePage(ctx context.Context, id string, req *dtomemory.Memo
 		Where(kaguyamemorypage.VersionEQ(req.ExpectedVersion))
 	if req.ClearExpiresAt {
 		update.ClearExpiresAt()
+	} else if req.ExpiresAt != nil {
+		update.SetExpiresAt(*req.ExpiresAt)
 	}
 	updated, err := update.Save(ctx)
 	if ent.IsNotFound(err) {
@@ -238,15 +260,18 @@ func (s *Service) UpdatePage(ctx context.Context, id string, req *dtomemory.Memo
 	if err != nil {
 		return nil, err
 	}
-	note, err := EnsureNoteSourceTx(ctx, client, updated, policy.Epoch)
-	if err != nil {
-		return nil, err
+	if !preserveClaims {
+		note, err := EnsureNoteSourceTx(ctx, client, updated, policy.Epoch)
+		if err != nil {
+			return nil, err
+		}
+		claims = manualClaims(updated, note, turnSource, sourceRef)
 	}
 	change := &dtomemory.PagePatch{
 		Kind: string(updated.Kind), CanonicalKey: updated.CanonicalKey,
 		Title: updated.Title, Summary: updated.Summary, Body: updated.Body,
 		Aliases: updated.Aliases, Reason: req.Reason,
-		Claims: manualClaims(updated, note, turnSource, sourceRef),
+		Claims: claims,
 	}
 	if err := saveRevisionTx(ctx, client, updated, change, actorUser, ""); err != nil {
 		return nil, err
@@ -266,7 +291,7 @@ func (s *Service) UpdatePage(ctx context.Context, id string, req *dtomemory.Memo
 	}
 	if req.ScopeKey != "" {
 		if err := client.KaguyaMemorySource.Update().
-			Where(kaguyamemorysource.SourceKeyEQ("note:" + updated.ID)).
+			Where(kaguyamemorysource.Or(kaguyamemorysource.SourceKeyEQ("note:"+updated.ID), kaguyamemorysource.SourceKeyHasPrefix("note:"+updated.ID+":v"))).
 			SetScopeKey(updated.ScopeKey).Exec(ctx); err != nil {
 			return nil, err
 		}
@@ -315,7 +340,7 @@ func (s *Service) DeletePage(ctx context.Context, id, mode string) error {
 			}
 			// 笔记来源随页面遗忘。
 			if _, err := client.KaguyaMemorySource.Delete().
-				Where(kaguyamemorysource.SourceKeyEQ("note:" + page.ID)).Exec(ctx); err != nil {
+				Where(kaguyamemorysource.Or(kaguyamemorysource.SourceKeyEQ("note:"+page.ID), kaguyamemorysource.SourceKeyHasPrefix("note:"+page.ID+":v"))).Exec(ctx); err != nil {
 				return err
 			}
 			if err := excludePendingSupportTx(ctx, client, page.ID, supports); err != nil {
@@ -537,6 +562,13 @@ func (s *Service) RestoreRevision(ctx context.Context, scopes []string, id strin
 	if page.Status == kaguyamemorypage.StatusDeleted {
 		return nil, ErrPageNotFound
 	}
+	allowed := false
+	for _, scope := range scopes {
+		allowed = allowed || scope == page.ScopeKey
+	}
+	if !allowed {
+		return nil, ErrPageForbidden
+	}
 	revision, err := client.KaguyaMemoryRevision.Query().
 		Where(kaguyamemoryrevision.PageIDEQ(id), kaguyamemoryrevision.VersionEQ(version)).Only(ctx)
 	if ent.IsNotFound(err) {
@@ -545,11 +577,18 @@ func (s *Service) RestoreRevision(ctx context.Context, scopes []string, id strin
 	if err != nil {
 		return nil, err
 	}
-	updated, err := client.KaguyaMemoryPage.UpdateOneID(page.ID).
+	update := client.KaguyaMemoryPage.UpdateOneID(page.ID).
 		SetKind(kaguyamemorypage.Kind(revision.Kind)).SetTitle(revision.Title).SetSummary(revision.Summary).
 		SetBody(revision.Body).SetAliases(defaultAliases(revision.Aliases)).
+		SetPinned(revision.Pinned).SetUserLocked(revision.UserLocked).
 		SetStatus(kaguyamemorypage.Status(revision.Status)).SetVersion(page.Version + 1).
-		Where(kaguyamemorypage.VersionEQ(page.Version)).Save(ctx)
+		Where(kaguyamemorypage.VersionEQ(page.Version))
+	if revision.ExpiresAt != nil {
+		update.SetExpiresAt(*revision.ExpiresAt)
+	} else {
+		update.ClearExpiresAt()
+	}
+	updated, err := update.Save(ctx)
 	if ent.IsNotFound(err) {
 		return nil, ErrPageVersionConflict
 	}
@@ -604,7 +643,12 @@ func manualPatch(req *dtomemory.MemoryPageSaveReq, canonicalKey string) *dtomemo
 // manualClaims 构造人工保存的自证主张：笔记正文即用户陈述；
 // 有来源引用时追加真实轮次证据。选择助手文字只代表用户认可保存，不是工具核实。
 func manualClaims(page *ent.KaguyaMemoryPage, note, turnSource *ent.KaguyaMemorySource, sourceRef *dtomemory.MemorySourceRefReq) []dtomemory.ClaimPatch {
-	quote := truncateRunes(page.Body, 200)
+	quote := string([]rune(page.Body)[:min(200, utf8.RuneCountInString(page.Body))])
+	partKey := "note"
+	if segments := BuildNoteSegments(page.Body); len(segments) > 0 {
+		partKey = segments[0].PartKey
+		quote = string([]rune(segments[0].Text)[:min(200, utf8.RuneCountInString(segments[0].Text))])
+	}
 	if strings.TrimSpace(quote) == "" {
 		quote = page.Title
 	}
@@ -612,7 +656,7 @@ func manualClaims(page *ent.KaguyaMemoryPage, note, turnSource *ent.KaguyaMemory
 		Key: manualClaimKey, Statement: truncateRunes(page.Title+"："+page.Summary, 400),
 		Basis: "user_statement",
 		Evidence: []dtomemory.ClaimEvidence{
-			{SourceID: note.ID, PartKey: "note", Quote: quote, Relation: "support"},
+			{SourceID: note.ID, PartKey: partKey, Quote: quote, Relation: "support"},
 		},
 	}
 	if sourceRef != nil && turnSource != nil {

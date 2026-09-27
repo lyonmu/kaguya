@@ -105,10 +105,10 @@ func ValidatePlan(in ValidatePlanInput) error {
 	if len(in.Plan.Changes) > maxBatchPages {
 		return fmt.Errorf("%w: %d changes exceed limit %d", ErrPlanInvalid, len(in.Plan.Changes), maxBatchPages)
 	}
-	seenKeys := map[string]bool{}
 	for i := range in.Plan.Changes {
 		change := &in.Plan.Changes[i]
-		if err := validatePatch(change, in, seenKeys); err != nil {
+		// Claim keys identify claims within one page, not across the wiki.
+		if err := validatePatch(change, in, map[string]bool{}); err != nil {
 			return err
 		}
 	}

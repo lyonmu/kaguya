@@ -64,6 +64,7 @@ func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingt
 	// 工具名与外部 MCP 工具冲突时不注册记忆工具，保持已有工具契约不变。
 	if mem.reader != nil && !toolNameConflict(mcpTools, "memory_search", "memory_read") {
 		prompt.tools = append(prompt.tools, memorytools.Tools(mem.reader)...)
+		prompt.system += "\n\n" + memorytools.SystemPrompt
 	}
 	return prompt, nil
 }

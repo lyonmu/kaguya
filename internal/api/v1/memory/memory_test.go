@@ -181,7 +181,7 @@ func TestMemoryAPIDiffSourcesBackfill(t *testing.T) {
 	memoryAPIRequest(t, router, "GET", "/pages/ghost/diff?from=1", "", dtocode.MemoryPageNotFound.Code)
 
 	sources := memoryAPIRequest(t, router, "GET", "/sources?kind=note", "", dtocode.SystemSuccess.Code)
-	if sources["total"] != float64(1) {
+	if sources["total"] != float64(2) {
 		t.Fatalf("sources: %+v", sources)
 	}
 	items, _ := sources["items"].([]any)
@@ -190,6 +190,16 @@ func TestMemoryAPIDiffSourcesBackfill(t *testing.T) {
 	detail := memoryAPIRequest(t, router, "GET", "/sources/"+sourceID, "", dtocode.SystemSuccess.Code)
 	if detail["available"] != true || detail["kind"] != "note" {
 		t.Fatalf("source detail: %+v", detail)
+	}
+	texts := map[string]bool{}
+	for _, item := range items {
+		row := item.(map[string]any)
+		snapshot := memoryAPIRequest(t, router, "GET", "/sources/"+row["id"].(string), "", dtocode.SystemSuccess.Code)
+		parts := snapshot["parts"].([]any)
+		texts[parts[0].(map[string]any)["text"].(string)] = true
+	}
+	if !texts["第一版正文"] || !texts["第二版正文"] {
+		t.Fatalf("source revisions must remain immutable: %v", texts)
 	}
 	memoryAPIRequest(t, router, "GET", "/sources/ghost", "", dtocode.MemorySourceNotFound.Code)
 

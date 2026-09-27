@@ -190,6 +190,9 @@ func deriveSourceHash(ctx context.Context, client *ent.Client, src *ent.KaguyaMe
 func loadSourceContent(ctx context.Context, client *ent.Client, src *ent.KaguyaMemorySource) ([]Segment, string, string, error) {
 	switch src.Kind {
 	case kaguyamemorysource.KindNote:
+		if src.RawContent != "" {
+			return BuildNoteSegments(src.RawContent), "", "", nil
+		}
 		pageID := strings.TrimPrefix(src.SourceKey, "note:")
 		page, err := client.KaguyaMemoryPage.Query().Where(kaguyamemorypage.IDEQ(pageID)).Only(ctx)
 		if ent.IsNotFound(err) {

@@ -922,8 +922,8 @@ var (
 		{Name: "model_sync_last_error", Type: field.TypeString, Size: 2147483647, Default: ""},
 		{Name: "default_model_id", Type: field.TypeString, Comment: "默认聊天模型的本地记录 ID，空值表示未配置", Default: ""},
 		{Name: "task_model_id", Type: field.TypeString, Comment: "后台任务模型的本地记录 ID，空值表示未配置", Default: ""},
-		{Name: "memory_enabled", Type: field.TypeBool, Comment: "长期记忆总开关：关闭后停止自动召回、工具与编译", Default: false},
-		{Name: "memory_auto_capture", Type: field.TypeBool, Comment: "是否自动产生新来源；关闭只停止学习，不删除已有页面", Default: false},
+		{Name: "memory_enabled", Type: field.TypeBool, Comment: "长期记忆总开关：关闭后停止自动召回、工具与编译", Default: true},
+		{Name: "memory_auto_capture", Type: field.TypeBool, Comment: "是否自动产生新来源；关闭只停止学习，不删除已有页面", Default: true},
 		{Name: "memory_context_tokens", Type: field.TypeInt, Comment: "每轮自动召回注入上限（估算 token，不保证精确相等）", Default: 2000},
 		{Name: "memory_policy_epoch", Type: field.TypeInt64, Comment: "记忆策略版本：隐私模式变化、删除记忆/来源、项目删除或换绑时单调递增", Default: 0},
 	}

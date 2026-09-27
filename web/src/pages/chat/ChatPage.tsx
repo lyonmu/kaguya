@@ -2,7 +2,6 @@ import { Suspense, lazy, useEffect, useState } from 'react'
 import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Segmented, Spin } from 'antd'
 import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MessageOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { deleteConversation, updateConversation } from '../../features/chat/api'
-import { createMemoryPage } from '../../features/memory/api'
 import { useConversations } from '../../features/chat/useConversations'
 import { useWorkspaceChat } from '../../features/chat/chatContext'
 import { VirtualList } from '../../features/chat/components/VirtualList'
@@ -37,10 +36,6 @@ export function ChatPage() {
   const [renaming, setRenaming] = useState(false)
   const [title, setTitle] = useState('')
   const [saving, setSaving] = useState(false)
-  const [memorySave, setMemorySave] = useState<{ text: string; turnId?: string; partKey: string } | null>(null)
-  const [memoryTitle, setMemoryTitle] = useState('')
-  const [memorySummary, setMemorySummary] = useState('')
-  const [memoryBody, setMemoryBody] = useState('')
   const select = (id: string) => {
     if (saving) return
     setTarget(undefined)
@@ -133,7 +128,7 @@ export function ChatPage() {
     {!sidebarCollapsed && <aside className="chat-sidebar">{sidebar}</aside>}
     <Drawer title="对话管理" placement="left" open={showSidebar} onClose={() => setShowSidebar(false)} styles={{ body: { padding: 0 } }}>{sidebar}</Drawer>
     <section className="chat-main">
-      <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1><span className="chat-pill">{chat.localSessions.filter(item => item.streaming).length} 个运行中</span>{(chat.conversation?.memory_refs?.items.length ?? 0) > 0 && <span className="chat-pill" title={chat.conversation!.memory_refs!.items.map(item => `${item.deleted ? '已删除' : item.title}（v${item.version}）`).join('、')}>本轮参考了 {chat.conversation!.memory_refs!.items.length} 条记忆</span>}</div>
+      <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1><span className="chat-pill">{chat.localSessions.filter(item => item.streaming).length} 个运行中</span>{(chat.conversation?.memory_refs?.items.length ?? 0) > 0 && <span className="chat-pill" title={chat.conversation!.memory_refs!.items.map(item => `${item.deleted ? '已删除' : item.title}（v${item.version}）`).join('、')}>本轮提供 {chat.conversation!.memory_refs!.items.length} 条记忆目录</span>}</div>
         <div className="chat-header-actions">
           <Dropdown menu={{ items: [{ key: 'code', label: '查看代码与改动', icon: <CodeOutlined />, disabled: !activeProjectId }, { key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, {
             key: 'memory', label: '本会话记忆', disabled: !chat.conversation,
@@ -153,41 +148,12 @@ export function ChatPage() {
       </header>
       {chat.error && <Alert type="error" title={chat.error} showIcon />}
       <AssistantThread key={chat.sessionKey} turns={chat.turns} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving} onSend={send} onStop={chat.stop}>
-      <MessageList conversationId={chat.id} onSaveMemory={(text, turn) => {
-        const firstText = turn.blocks.find(block => block.type === 'text' && block.sequence !== undefined)
-        const partKey = text === turn.user_content ? 'user' : firstText ? `assistant:block-${firstText.sequence}` : 'user'
-        setMemorySave({ text, turnId: turn.id, partKey })
-        setMemoryTitle('')
-        setMemorySummary('')
-        setMemoryBody(text)
-      }} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
+      <MessageList conversationId={chat.id} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
       <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : chat.projectId ?? (view === "项目" ? project?.id : undefined)} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} references={references} onReferencesChange={setReferences} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation && !chat.turns.length)} />
       </AssistantThread>
       {!showSidebar && <div className={sidebarCollapsed ? 'chat-bottom-actions' : 'chat-bottom-actions chat-bottom-actions-mobile'}><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>}
     </section>
     <Modal title="重命名对话" open={renaming} confirmLoading={saving} onCancel={() => setRenaming(false)} onOk={() => void update({ title: title.trim() })} okButtonProps={{ disabled: !title.trim() }}><Input aria-label="对话标题" value={title} maxLength={200} onChange={event => setTitle(event.target.value)} /></Modal>
-    <Modal title="保存为记忆" open={memorySave !== null} confirmLoading={saving} onCancel={() => setMemorySave(null)} okButtonProps={{ disabled: !memoryTitle.trim() }} onOk={async () => {
-      if (!memorySave) return
-      setSaving(true)
-      try {
-        await createMemoryPage({
-          scope_key: activeProjectId ? `project:${activeProjectId}` : 'personal',
-          kind: 'decision', title: memoryTitle.trim(), summary: memorySummary.trim(), body: memoryBody,
-          source: memorySave.turnId && chat.id ? {
-            conversation_id: chat.id, turn_id: memorySave.turnId,
-            part_key: memorySave.partKey, quote: memorySave.text.slice(0, 200),
-          } : undefined,
-        })
-        void message.success('记忆已保存，可在“长期记忆”中管理')
-        setMemorySave(null)
-      } catch (error) { void message.error(String(error instanceof Error ? error.message : error)) }
-      finally { setSaving(false) }
-    }}>
-      <p className="chat-muted">选择助手文字只代表你认可保存，不代表工具已核实；来源将定位到本轮对话。</p>
-      <Input aria-label="记忆标题" placeholder="标题（必填）" value={memoryTitle} maxLength={120} onChange={event => setMemoryTitle(event.target.value)} />
-      <Input aria-label="记忆摘要" placeholder="摘要（可选）" value={memorySummary} maxLength={300} onChange={event => setMemorySummary(event.target.value)} className="mt-2" />
-      <Input.TextArea aria-label="记忆正文" value={memoryBody} rows={6} onChange={event => setMemoryBody(event.target.value)} className="mt-2" />
-    </Modal>
     {codeOpen && activeProjectId && <Suspense fallback={null}><CodeBrowserDrawer open projectId={activeProjectId} projectName={project?.name ?? chat.conversation?.title} onClose={() => setCodeOpen(false)} /></Suspense>}
   </div>
 }

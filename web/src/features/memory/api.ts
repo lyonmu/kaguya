@@ -10,7 +10,8 @@ const isMemoryPageItem = (value: unknown): value is MemoryPageItem =>
   isString(value.status) && isNumber(value.version)
 
 const isEvidence = (value: unknown): value is MemoryEvidence =>
-  isRecord(value) && isString(value.source_id) && isString(value.part_key) && isString(value.quote)
+  isRecord(value) && isString(value.source_id) && isString(value.part_key) && isString(value.quote) &&
+  isString(value.source) && isString(value.relation)
 
 const isClaim = (value: unknown): value is MemoryClaim =>
   isRecord(value) && isString(value.key) && isString(value.statement) && isString(value.basis) &&
@@ -24,16 +25,29 @@ const guardPageList: PayloadGuard<MemoryPageList> = value => {
 }
 
 const guardPageDetail: PayloadGuard<MemoryPageDetail> = value => {
-  if (!isRecord(value) || !isString(value.id) || !isNumber(value.version) || !isString(value.body) ||
-    !isArrayOf(value.aliases, isString) || !isArrayOf(value.claims, isClaim)) {
+  if (!isRecord(value)) return guardFailure('记忆详情响应格式异常')
+  // Older servers serialize empty Go slices as null. Normalize only empty
+  // collections; reject malformed entries before they reach React rendering.
+  const normalized = {
+    ...value,
+    aliases: value.aliases ?? [],
+    related_ids: value.related_ids ?? [],
+    claims: Array.isArray(value.claims) ? value.claims.map(claim =>
+      isRecord(claim) ? { ...claim, evidence: claim.evidence ?? [] } : claim) : value.claims ?? [],
+  }
+  if (!isMemoryPageItem(value) || !isString(value.kind) || !isString(value.summary) || !isString(value.body) ||
+    !isNumber(value.source_count) || !isBoolean(value.pinned) || !isBoolean(value.user_locked) ||
+    !isArrayOf(normalized.aliases, isString) || !isArrayOf(normalized.related_ids, isString) ||
+    !isArrayOf(normalized.claims, isClaim)) {
     return guardFailure('记忆详情响应格式异常')
   }
-  return guardSuccess(value as unknown as MemoryPageDetail)
+  return guardSuccess(normalized as unknown as MemoryPageDetail)
 }
 
 const guardRevisions: PayloadGuard<MemoryRevision[]> = value => {
   const check = (item: unknown): item is MemoryRevision =>
-    isRecord(item) && isNumber(item.version) && isString(item.actor) && isString(item.body)
+    isRecord(item) && isNumber(item.version) && isString(item.actor) && isString(item.body) &&
+    isString(item.title) && isString(item.summary) && isString(item.reason) && isString(item.created_at)
   if (!isArrayOf(value, check)) return guardFailure('记忆修订响应格式异常')
   return guardSuccess(value)
 }
@@ -97,7 +111,8 @@ const guardImport: PayloadGuard<MemoryImportResult> = value => {
 
 const guardDiff: PayloadGuard<MemoryDiff> = value => {
   if (!isRecord(value) || !isRecord(value.from) || !isRecord(value.to) ||
-    !isArrayOf(value.content_changes, isRecord) || !isArrayOf(value.claim_changes, isRecord)) {
+    !isArrayOf(value.content_changes, isRecord) || !isArrayOf(value.metadata_changes, isRecord) ||
+    !isArrayOf(value.evidence_changes, isRecord) || !isArrayOf(value.claim_changes, isRecord)) {
     return guardFailure('版本对比响应格式异常')
   }
   return guardSuccess(value as unknown as MemoryDiff)
@@ -139,8 +154,8 @@ export function restoreMemoryRevision(id: string, version: number) {
   return post<MemoryPageDetail>(`/v1/memory/pages/${encodeURIComponent(id)}/restore`, { version }, undefined, guardPageDetail)
 }
 
-export function fetchMemoryJobs(status?: string, signal?: AbortSignal) {
-  return get<MemoryJobList>('/v1/memory/jobs', { status }, signal, guardJobs)
+export function fetchMemoryJobs(status?: string, signal?: AbortSignal, page = 1) {
+  return get<MemoryJobList>('/v1/memory/jobs', { status, page }, signal, guardJobs)
 }
 
 export function retryMemoryJob(id: string) {

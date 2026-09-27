@@ -10,8 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"entgo.io/ent/dialect/sql"
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryattempt"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryevidence"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamemoryjob"
@@ -133,6 +135,14 @@ func (w *Worker) tick(ctx context.Context) time.Duration {
 
 // processOnce 处理一个到期批次（或回收一个到期作业），返回下一个事件时间。
 func (w *Worker) processOnce(ctx context.Context) time.Time {
+	policy, err := LoadPolicy(ctx, w.svc.client)
+	if err != nil {
+		w.svc.svcLogWarn("load memory worker policy failed", err)
+		return nowTime().Add(batchMaxWait)
+	}
+	if !policy.Enabled {
+		return nowTime().Add(batchMaxWait)
+	}
 	// 周期性确定性检查：孤立引用、已撤销来源、过期页面与可疑重复。
 	if time.Since(w.lastLint) >= lintInterval {
 		w.lastLint = time.Now()
@@ -150,10 +160,6 @@ func (w *Worker) processOnce(ctx context.Context) time.Time {
 		w.svc.runBackfill(ctx, job)
 		return nowTime().Add(time.Second)
 	}
-	if job := w.claimDueJob(ctx); job != nil {
-		w.svc.runJob(ctx, job)
-		return nowTime().Add(time.Second)
-	}
 	// 用户点击“立即整理”：跳过防抖，按登记范围处理一个批次。
 	for {
 		scope, ok := popForcedScope()
@@ -164,6 +170,13 @@ func (w *Worker) processOnce(ctx context.Context) time.Time {
 			w.svc.runJob(ctx, job)
 			return nowTime().Add(time.Second)
 		}
+	}
+	if !policy.AutoCapture {
+		return nowTime().Add(batchMaxWait)
+	}
+	if job := w.claimDueJob(ctx); job != nil {
+		w.svc.runJob(ctx, job)
+		return nowTime().Add(time.Second)
 	}
 	if job, next := w.claimReadyBatch(ctx, ""); job != nil {
 		w.svc.runJob(ctx, job)
@@ -237,9 +250,24 @@ func (w *Worker) claimDueJob(ctx context.Context) *ent.KaguyaMemoryJob {
 // 批次输入固定，新增轮次进入下一批。
 func (w *Worker) claimReadyBatch(ctx context.Context, scopeFilter string) (*ent.KaguyaMemoryJob, time.Time) {
 	next := nowTime().Add(batchMaxWait)
-	sources, err := w.svc.client.KaguyaMemorySource.Query().
-		Where(kaguyamemorysource.StateEQ(kaguyamemorysource.StatePending)).
-		Order(ent.Asc(kaguyamemorysource.FieldCapturedAt)).Limit(256).All(ctx)
+	query := w.svc.client.KaguyaMemorySource.Query().Where(kaguyamemorysource.StateEQ(kaguyamemorysource.StatePending))
+	// Filter before LIMIT: a backlog from disabled conversations must not
+	// starve other conversations forever at the head of the queue.
+	query.Where(func(selector *sql.Selector) {
+		conv := sql.Table(kaguyaconversation.Table)
+		selector.Where(sql.Or(
+			sql.EQ(selector.C(kaguyamemorysource.FieldConversationID), ""),
+			sql.Exists(sql.Select(conv.C(kaguyaconversation.FieldID)).From(conv).Where(sql.And(
+				sql.ColumnsEQ(conv.C(kaguyaconversation.FieldID), selector.C(kaguyamemorysource.FieldConversationID)),
+				sql.EQ(conv.C(kaguyaconversation.FieldMemoryMode), string(kaguyaconversation.MemoryModeInherit)),
+				sql.IsNull(conv.C(kaguyaconversation.FieldDeletedAt)),
+			))),
+		))
+	})
+	if scopeFilter != "" {
+		query.Where(kaguyamemorysource.ScopeKeyEQ(scopeFilter))
+	}
+	sources, err := query.Order(ent.Asc(kaguyamemorysource.FieldCapturedAt), ent.Asc(kaguyamemorysource.FieldID)).Limit(256).All(ctx)
 	if err != nil {
 		w.svc.logger.Warn("query pending memory sources failed", zap.Error(err))
 		return nil, next
@@ -409,6 +437,16 @@ func (s *Service) createJobForSources(ctx context.Context, group []*ent.KaguyaMe
 	if err := ValidateScope(ctx, client, group[0].ScopeKey); err != nil {
 		return nil, err
 	}
+	// An indivisible legacy segment may exceed a small model's budget. Keep
+	// the complete segment and surface a retryable configuration problem,
+	// rather than leaving the source pending forever or losing its suffix.
+	if len(projections) == 1 && len(projections[0].Segments) == 1 && len(projections[0].Segments[0].Text) > sourceBudget {
+		job, err := blockGroupJob(ctx, client, group, coveredIDs, len(projections[0].Segments[0].Text), "input_budget", "source segment exceeds task model budget; select a larger context model and retry")
+		if err != nil {
+			return nil, err
+		}
+		return job, tx.Commit()
+	}
 	if err := checkDailyBudget(ctx, client); err != nil {
 		// 预算耗尽：建 blocked 作业等待重置，而不是无限跑。
 		job, blockErr := blockGroupJob(ctx, client, group, coveredIDs, sourceBudget, "budget", "daily memory budget exhausted")
@@ -461,12 +499,17 @@ func (s *Service) createJobForSources(ctx context.Context, group []*ent.KaguyaMe
 
 // blockGroupJob 为分组建立 blocked 作业并领取来源，等待预算/配置明确变化。
 func blockGroupJob(ctx context.Context, client *ent.Client, group []*ent.KaguyaMemorySource, coveredIDs []string, sourceBudget int, code, summary string) (*ent.KaguyaMemoryJob, error) {
+	policy, err := LoadPolicy(ctx, client)
+	if err != nil {
+		return nil, err
+	}
 	job, err := client.KaguyaMemoryJob.Create().
 		SetKind(kaguyamemoryjob.KindCompile).
 		SetScopeKey(group[0].ScopeKey).SetConversationID(group[0].ConversationID).
 		SetInputSourceIds(coveredIDs).
 		SetSourceBudget(sourceBudget).
 		SetCompilerVersion(CompilerVersion).
+		SetPolicyEpoch(policy.Epoch).
 		SetStatus(kaguyamemoryjob.StatusBlocked).
 		SetAttempt(0).
 		SetErrorCode(code).SetErrorSummary(summary).
@@ -562,6 +605,10 @@ func budgetProjections(ctx context.Context, client *ent.Client, group []*ent.Kag
 		used := 0
 		for _, segment := range projection.Segments {
 			if used+len(segment.Text) > room {
+				if len(projections) == 0 && len(kept) == 0 {
+					kept = append(kept, segment)
+					used = len(segment.Text)
+				}
 				break
 			}
 			used += len(segment.Text)
@@ -615,6 +662,8 @@ func newLeaseToken() string {
 // runJob 执行一次作业尝试：提炼 → 检索候选 → 合并提案 → 校验 → 原子发布。
 // 所有分支都保存已知调用用量（callTracked 内完成），错误不伪装成 noop。
 func (s *Service) runJob(ctx context.Context, job *ent.KaguyaMemoryJob) {
+	ctx, cancel := context.WithTimeout(ctx, leaseDuration-30*time.Second)
+	defer cancel()
 	if ctx.Err() != nil {
 		s.retryLater(context.Background(), job, time.Second, "canceled")
 		return
@@ -722,7 +771,7 @@ func (s *Service) loadJobInput(ctx context.Context, job *ent.KaguyaMemoryJob) ([
 		Where(kaguyamemorysource.IDIn(job.InputSourceIds...),
 			kaguyamemorysource.StateEQ(kaguyamemorysource.StateClaimed),
 			kaguyamemorysource.JobIDEQ(job.ID)).
-		Order(ent.Asc(kaguyamemorysource.FieldCapturedAt)).All(ctx)
+		Order(ent.Asc(kaguyamemorysource.FieldCapturedAt), ent.Asc(kaguyamemorysource.FieldID)).All(ctx)
 	if err != nil {
 		return nil, err
 	}

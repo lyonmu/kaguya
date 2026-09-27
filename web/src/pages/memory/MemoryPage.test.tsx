@@ -48,7 +48,8 @@ const pageItem = {
 const detail = {
   id: 'p-1', version: 1, scope_key: 'personal', kind: 'decision', title: 'Memory 使用 SQLCipher',
   summary: '不新增第二个数据库', body: '## 决定\n继续使用 SQLCipher。', status: 'active', pinned: false, user_locked: false,
-  aliases: ['记忆存储'], related_ids: [], source_count: 2,
+  // Match the legacy Go response that caused Desktop to render a blank page.
+  aliases: ['记忆存储'], related_ids: null, source_count: 2,
   claims: [{
     key: 'storage', statement: 'Memory 继续使用 SQLCipher', basis: 'user_statement',
     evidence: [{ source_id: 's-1', part_key: 'user', quote: '继续用 SQLCipher', relation: 'support', source: 'conversation c-1 / turn t-7 / user' }],
@@ -58,6 +59,7 @@ const detail = {
 const job = {
   id: 'j-1', kind: 'compile', scope_key: 'personal', status: 'needs_review', attempt: 1,
   created_at: '2026-09-24T00:00:00Z', input_tokens: 10, output_tokens: 5, total_tokens: 15, calls: 2,
+  proposal: { changes: [{ title: '待确认决定', summary: '需要核验', body: '待审正文', reason: '有新证据', claims: [] }] },
 }
 const status = {
   enabled: true, auto_capture: true, context_tokens: 2000, policy_epoch: 3, pending_sources: 2,
@@ -86,12 +88,63 @@ it('renders pages with evidence and resolves review jobs', async () => {
   // 待审区：批准走任务接口。
   fireEvent.click(view.getByRole('tab', { name: '任务与待审' }))
   await waitFor(() => assert.notEqual(view.queryByText('needs_review'), null))
+  fireEvent.click(view.getByRole('button', { name: /Expand row|展开行/ }))
+  await waitFor(() => assert.notEqual(view.queryByText('待审正文'), null))
   fireEvent.click(view.getByRole('button', { name: /批\s*准/ }))
   await waitFor(() => assert.equal(approved.endsWith('/v1/memory/jobs/j-1/approve'), true))
   // 状态与独立用量标签。
   fireEvent.click(view.getByRole('tab', { name: '状态与用量' }))
   await waitFor(() => assert.notEqual(view.queryByText(/独立于聊天口径/), null))
   assert.notEqual(view.queryByText('含未知用量，不按 0 计'), null)
+})
+
+it('renders legacy empty details in Desktop and opens links through the host', async () => {
+  const previousLocation = Object.getOwnPropertyDescriptor(globalThis, 'location')
+  Object.defineProperty(globalThis, 'location', { configurable: true, value: { protocol: 'wails:', hostname: 'localhost', hash: '#api-prefix=/kaguya/api' } })
+  let opened = ''
+  globalThis.fetch = (async (url, init) => {
+    const target = String(url)
+    if (target === '/__desktop/open-external') {
+      opened = JSON.parse(String(init?.body)).url
+      return new Response(null, { status: 204 })
+    }
+    if (target.includes('/pages/p-1')) return response({ ...detail, body: '[资料链接](https://example.com/source)\n\n![参考图](https://example.com/image.png)' })
+    if (target.includes('/pages')) return response({ total: 1, page: 1, page_size: 20, items: [pageItem] })
+    if (target.includes('/jobs') || target.includes('/sources') || target.includes('/project')) return response({ total: 0, page: 1, page_size: 20, items: [] })
+    return response(status)
+  }) as typeof fetch
+  try {
+    const view = render(<App><MemoryPage /></App>)
+    await waitFor(() => assert.ok(view.queryByText('Memory 使用 SQLCipher')))
+    fireEvent.click(view.getAllByText('Memory 使用 SQLCipher')[0]!)
+    await waitFor(() => assert.ok(view.queryByRole('link', { name: '资料链接' })))
+    assert.equal(view.queryByRole('img', { name: '参考图' }), null)
+    fireEvent.click(view.getByRole('link', { name: '资料链接' }))
+    await waitFor(() => assert.equal(opened, 'https://example.com/source'))
+    assert.ok(view.getByText('依据'))
+    cleanup()
+  } finally {
+    if (previousLocation) Object.defineProperty(globalThis, 'location', previousLocation)
+    else Reflect.deleteProperty(globalThis, 'location')
+  }
+})
+
+it('requests subsequent memory pages instead of hiding records after twenty', async () => {
+  let requestedPage = ''
+  globalThis.fetch = (async url => {
+    const target = String(url)
+    if (target.includes('/pages')) {
+      requestedPage = new URL(target, 'http://localhost').searchParams.get('page') ?? ''
+      return response({ total: 21, page: Number(requestedPage), page_size: 20, items: [{ ...pageItem, id: requestedPage === '2' ? 'p-21' : 'p-1', title: requestedPage === '2' ? '第二页记忆' : pageItem.title }] })
+    }
+    if (target.includes('/jobs') || target.includes('/sources') || target.includes('/project')) return response({ total: 0, page: 1, page_size: 20, items: [] })
+    return response(status)
+  }) as typeof fetch
+  const view = render(<App><MemoryPage /></App>)
+  await waitFor(() => assert.ok(view.queryByText(pageItem.title)))
+  fireEvent.click(view.getByTitle('2'))
+  await waitFor(() => assert.ok(view.queryByText('第二页记忆')))
+  assert.equal(requestedPage, '2')
 })
 
 it('navigates from evidence to source', async () => {

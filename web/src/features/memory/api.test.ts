@@ -1,7 +1,7 @@
 import { afterEach, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  approveMemoryJob, createMemoryPage, fetchMemoryPageDiff, fetchMemoryPages, fetchMemorySource,
+  approveMemoryJob, createMemoryPage, fetchMemoryPage, fetchMemoryPageDiff, fetchMemoryPages, fetchMemorySource,
   fetchMemorySources, importMemoryDocument, startMemoryBackfill, updateMemoryPage,
 } from './api'
 
@@ -12,6 +12,19 @@ const pageItem = {
   id: 'p-1', scope_key: 'personal', kind: 'decision', canonical_key: 'storage', title: 'Memory 使用 SQLCipher',
   summary: '不新增第二个数据库', status: 'active', version: 1, pinned: false, user_locked: false, updated_at: '2026-09-24T00:00:00Z',
 }
+
+it('normalizes empty Go slices and rejects malformed detail collections', async () => {
+  const detail = { ...pageItem, body: '正文', source_count: 0, aliases: null, claims: [{ key: 'k', statement: '内容', basis: 'synthesis', evidence: null }], related_ids: null }
+  globalThis.fetch = (async () => Response.json({ code: 100000, data: detail })) as typeof fetch
+  const result = await fetchMemoryPage('p-1')
+  assert.deepEqual(result.related_ids, [])
+  assert.deepEqual(result.aliases, [])
+  assert.deepEqual(result.claims[0]?.evidence, [])
+  for (const related_ids of ['bad', [42], [{}]]) {
+    globalThis.fetch = (async () => Response.json({ code: 100000, data: { ...detail, related_ids } })) as typeof fetch
+    await assert.rejects(() => fetchMemoryPage('p-1'), /记忆详情响应格式异常/)
+  }
+})
 
 it('validates memory list payloads and rejects malformed data', async () => {
   globalThis.fetch = (async () => Response.json({ code: 100000, data: { total: 1, page: 1, page_size: 20, items: [pageItem] } })) as typeof fetch
