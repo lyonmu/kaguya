@@ -163,7 +163,7 @@ Open **System management → Usage analytics** (系统管理 → 用量分析).
 
 ![Token composition by model across all history](images/screenshots/desktop-2026-09-13/usage-composition.jpg)
 
-Dates use **UTC**. Only successfully completed chat turns count, including historical consumption from deleted conversations. Context-summary usage counts toward chat turns; title tasks, memory-compile attempts, and unfinished turns are excluded. This page therefore reflects chat usage recorded by the application.
+Dates use **UTC**. Totals, peaks, activity and composition include recorded chat consumption (including context summaries and known usage from unfinished turns), title tasks, model tests and historical memory attempts. Failed or canceled calls count when their usage is known; deleting conversations does not remove consumption. Background usage is included in totals and labeled separately; calls with unknown usage are shown without inventing token counts. Title/model-test usage starts being recorded with this version; previously unrecorded usage cannot be recovered. Conversation counts still count distinct conversations with completed turns.
 
 ## Installation and building
 

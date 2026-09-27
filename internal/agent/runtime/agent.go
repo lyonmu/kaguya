@@ -21,6 +21,10 @@ import (
 
 // ProviderConfig 描述如何通过提供商协议构造底层模型。
 type ProviderConfig struct {
+	// Local accounting metadata; never sent to the provider.
+	ProviderID     string
+	ModelRecordID  string
+	ModelName      string
 	Type           consts.ProviderType     // normal 使用标准协议；opencode-go 追加会话请求头
 	Name           string                  // 提供商名称（记录元数据用）
 	Protocol       consts.ProviderProtocol // 模型协议类型，决定运行时使用哪套请求实现
@@ -355,6 +359,7 @@ func (a *Agent) record(
 	if result != nil {
 		turn.FinishReason = string(result.Response.FinishReason)
 		turn.Total = token.FromFantasyUsage(result.TotalUsage)
+		turn.UsageKnown = turn.Total.TotalTokens > 0 // Missing provider usage is not confirmed zero consumption.
 
 		// 逐 step 记录 token 用量与工具调用次数，并累加本轮总数
 		if len(result.Steps) > 0 {

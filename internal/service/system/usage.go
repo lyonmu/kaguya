@@ -5,11 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"entgo.io/ent/dialect/sql"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
-	"github.com/lyonmu/kaguya/internal/ent"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 )
 
 var ErrInvalidUsageRange = errors.New("invalid token usage date range")
@@ -46,9 +43,32 @@ func usageRange(req *dtosystem.TokenUsageReq, now time.Time) (time.Time, time.Ti
 	return start, end.Add(time.Second), nil
 }
 
-// TokenUsage 仅统计完整保存的聊天轮次，软删除不抹除历史消耗；不读取 messages/blocks。
-// 请求时间段只影响汇总卡片；活动日历固定反映最近一年，模型/厂商构成固定统计全部历史。
-// 会话数按 conversation_id 去重，日会话数指当天有成功问答的会话数。
+// usageLedger 合并既有聊天、记忆调用与新增后台计量；不复制历史数据，避免重复计费。
+// 未完成聊天仅计入已落库的已知消费，会话数仍表示成功会话，不被后台任务抬高。
+// 时间兼容 SQLCipher RFC3339 offset 和历史 Go time.String；先截取整秒避免 SQLite 将 .999999999 四舍五入到下一秒。
+const usageLedger = `WITH usage_raw AS (
+ SELECT COALESCE(finished_at, updated_at) AS at,
+ CASE WHEN status='completed' THEN conversation_id ELSE NULL END AS conversation_id,
+ provider_id,provider_name,model_id,model_name,input_tokens,output_tokens,reasoning_tokens,cached_tokens,total_tokens,
+ 'chat' AS kind,1 AS known FROM kaguya_chat_turn WHERE status='completed' OR total_tokens>0
+ UNION ALL
+ SELECT a.created_at,NULL,a.provider_id,COALESCE(p.provider_name,a.provider_id),
+ COALESCE(NULLIF(a.model_record_id,''),'upstream:'||a.upstream_model_id),COALESCE(m.model_name,a.upstream_model_id),
+ a.input_tokens,a.output_tokens,a.reasoning_tokens,a.cached_tokens,a.total_tokens,'memory',a.usage_known
+ FROM kaguya_memory_attempt a LEFT JOIN kaguya_provider_info p ON p.id=a.provider_id
+ LEFT JOIN kaguya_models_info m ON m.id=a.model_record_id
+ UNION ALL
+ SELECT finished_at,NULL,provider_id,provider_name,model_id,model_name,input_tokens,output_tokens,reasoning_tokens,cached_tokens,total_tokens,kind,usage_known
+ FROM kaguya_task_usage
+), usage AS (
+ SELECT *,CAST(strftime('%s',SUBSTR(at,1,19)||
+ CASE WHEN INSTR(at,' +')>0 THEN SUBSTR(at,INSTR(at,' +')+1,3)||':'||SUBSTR(at,INSTR(at,' +')+4,2)
+ WHEN INSTR(at,' -')>0 THEN SUBSTR(at,INSTR(at,' -')+1,3)||':'||SUBSTR(at,INSTR(at,' -')+4,2)
+ WHEN SUBSTR(at,-6,1) IN ('+','-') AND SUBSTR(at,-3,1)=':' THEN SUBSTR(at,-6)
+ ELSE '+00:00' END) AS INTEGER) AS epoch FROM usage_raw
+) `
+
+// TokenUsage 的总量、峰值、日历与模型/厂商构成采用同一记账口径。
 func (s *SystemSvc) TokenUsage(ctx context.Context, req *dtosystem.TokenUsageReq) (*dtosystem.TokenUsageResp, error) {
 	now := time.Now()
 	start, end, err := usageRange(req, now)
@@ -56,9 +76,7 @@ func (s *SystemSvc) TokenUsage(ctx context.Context, req *dtosystem.TokenUsageReq
 		return nil, err
 	}
 	resp := &dtosystem.TokenUsageResp{Start: start.Format(time.DateOnly), End: end.Add(-time.Second).Format(time.DateOnly)}
-	query := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted), kaguyachatturn.FinishedAtGTE(start), kaguyachatturn.FinishedAtLT(end))
-	// 汇总卡片：日峰值需要按 UTC 自然日聚合后取最大，会话数在整段时间段内去重。
-	days, err := usageDays(ctx, query.Clone())
+	days, err := usageDays(ctx, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -71,92 +89,92 @@ func (s *SystemSvc) TokenUsage(ctx context.Context, req *dtosystem.TokenUsageReq
 			resp.PeakConversations, resp.PeakConversationsDate = day.Conversations, day.Date
 		}
 	}
-	var counts []struct {
-		Conversations int64 `json:"conversations"`
-	}
-	err = query.Clone().Modify(func(s *sql.Selector) {
-		s.Select(sql.As(sql.Count("DISTINCT "+s.C(kaguyachatturn.FieldConversationID)), "conversations"))
-	}).Scan(ctx, &counts)
+	rows, err := db.EntClient.QueryContext(ctx, usageLedger+`SELECT COUNT(DISTINCT conversation_id),
+ COALESCE(SUM(CASE WHEN kind<>'chat' AND known=1 THEN total_tokens ELSE 0 END),0),
+ COALESCE(SUM(CASE WHEN known=0 THEN 1 ELSE 0 END),0) FROM usage WHERE epoch>=? AND epoch<?`, start.Unix(), end.Unix())
 	if err != nil {
 		return nil, err
 	}
-	if len(counts) > 0 {
-		resp.Conversations = counts[0].Conversations
+	if rows.Next() {
+		err = rows.Scan(&resp.Conversations, &resp.BackgroundTokens, &resp.UnknownCalls)
 	}
-	// 活动日历固定为最近一年（末位为今天，含首尾 365 或 366 天），不随请求时间段变化。
+	rowErr := rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	if rowErr != nil {
+		return nil, rowErr
+	}
 	activityStart, activityEnd := usageWindow(now)
 	resp.ActivityStart, resp.ActivityEnd = activityStart.Format(time.DateOnly), activityEnd.Format(time.DateOnly)
-	activityDays, err := usageDays(ctx, db.EntClient.KaguyaChatTurn.Query().Where(
-		kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted),
-		kaguyachatturn.FinishedAtGTE(activityStart), kaguyachatturn.FinishedAtLT(activityEnd.Add(time.Second))))
+	activity, err := usageDays(ctx, activityStart, activityEnd.Add(time.Second))
 	if err != nil {
 		return nil, err
 	}
-	byDate := make(map[string]dtosystem.TokenUsageDay, len(activityDays))
-	for _, day := range activityDays {
+	byDate := make(map[string]dtosystem.TokenUsageDay, len(activity))
+	for _, day := range activity {
 		byDate[day.Date] = day
 	}
 	resp.Days = make([]dtosystem.TokenUsageDay, 0, 366)
-	// activityStart 与逐日推进都落在 UTC 日初，活动日末（当天 23:59:59）本身也会被包含。
-	for date := activityStart; date.Before(activityEnd); date = date.AddDate(0, 0, 1) {
+	for date := activityStart; !date.After(activityEnd); date = date.AddDate(0, 0, 1) {
 		key := date.Format(time.DateOnly)
 		day := byDate[key]
 		day.Date = key
 		resp.Days = append(resp.Days, day)
 	}
-	// Token 构成固定统计全部历史（从开始记录到现在），不随请求时间段变化；只含完整提交的轮次。
-	all := db.EntClient.KaguyaChatTurn.Query().Where(kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted))
-	resp.Models, err = usageComposition(ctx, all.Clone(), true)
+	resp.Models, err = usageComposition(ctx, true)
 	if err != nil {
 		return nil, err
 	}
-	resp.Providers, err = usageComposition(ctx, all.Clone(), false)
+	resp.Providers, err = usageComposition(ctx, false)
 	return resp, err
 }
 
-// usageDays 按 UTC 自然日聚合 [start, end) 内的 Token 用量与去重会话数，仅返回有记录的日期。
-func usageDays(ctx context.Context, query *ent.KaguyaChatTurnQuery) ([]dtosystem.TokenUsageDay, error) {
-	days := make([]dtosystem.TokenUsageDay, 0)
-	err := query.Modify(func(s *sql.Selector) {
-		column := s.C(kaguyachatturn.FieldFinishedAt)
-		// 历史 SQLite 时间字段保存 Go 时间字符串（含时区名称），SQLite DATE 无法解析该格式。
-		date := "SUBSTR(" + column + ", 1, 10)"
-		s.Select(sql.As(date, "date"), sql.As(sql.Sum(s.C(kaguyachatturn.FieldTotalTokens)), "total_tokens"), sql.As(sql.Count("DISTINCT "+s.C(kaguyachatturn.FieldConversationID)), "conversations")).GroupBy(date).OrderBy(date)
-	}).Scan(ctx, &days)
+func usageDays(ctx context.Context, start, end time.Time) ([]dtosystem.TokenUsageDay, error) {
+	rows, err := db.EntClient.QueryContext(ctx, usageLedger+`SELECT DATE(epoch,'unixepoch') AS date,
+ COALESCE(SUM(CASE WHEN known=1 THEN total_tokens ELSE 0 END),0),COUNT(DISTINCT conversation_id)
+ FROM usage WHERE epoch>=? AND epoch<? GROUP BY date ORDER BY date`, start.Unix(), end.Unix())
 	if err != nil {
 		return nil, err
 	}
-	return days, nil
+	defer rows.Close()
+	days := make([]dtosystem.TokenUsageDay, 0)
+	for rows.Next() {
+		var day dtosystem.TokenUsageDay
+		if err := rows.Scan(&day.Date, &day.TotalTokens, &day.Conversations); err != nil {
+			return nil, err
+		}
+		days = append(days, day)
+	}
+	return days, rows.Err()
 }
 
-func usageComposition(ctx context.Context, query *ent.KaguyaChatTurnQuery, model bool) ([]dtosystem.TokenUsageComposition, error) {
-	rows := make([]dtosystem.TokenUsageComposition, 0)
-	err := query.Modify(func(s *sql.Selector) {
-		id, name := kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName
-		if model {
-			id, name = kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName
-		}
-		fields := []string{sql.As(s.C(id), "id"), sql.As(sql.Max(s.C(name)), "name"), s.C(kaguyachatturn.FieldProviderID), sql.As(sql.Max(s.C(kaguyachatturn.FieldProviderName)), "provider_name")}
-		for _, field := range []string{kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldTotalTokens} {
-			fields = append(fields, sql.As(sql.Sum(s.C(field)), field))
-		}
-		group := []string{s.C(kaguyachatturn.FieldProviderID)}
-		if model {
-			group = append(group, s.C(id))
-		}
-		s.Select(fields...).GroupBy(group...).OrderBy(sql.Desc("total_tokens"), s.C(kaguyachatturn.FieldProviderID), s.C(id)).Limit(usageCompositionLimit)
-	}).Scan(ctx, &rows)
+func usageComposition(ctx context.Context, model bool) ([]dtosystem.TokenUsageComposition, error) {
+	id, name, group := "provider_id", "provider_name", "provider_id"
+	if model {
+		id, name, group = "model_id", "model_name", "provider_id,model_id"
+	}
+	rows, err := db.EntClient.QueryContext(ctx, usageLedger+`SELECT `+id+`,MAX(`+name+`),provider_id,MAX(provider_name),
+ SUM(input_tokens),SUM(output_tokens),SUM(reasoning_tokens),SUM(cached_tokens),SUM(total_tokens)
+ FROM usage WHERE known=1 GROUP BY `+group+` ORDER BY SUM(total_tokens) DESC,provider_id,`+id+` LIMIT ?`, usageCompositionLimit)
 	if err != nil {
 		return nil, err
 	}
-	for i := range rows {
-		// 思考包含在输出中；缓存读取独立于 Fantasy 输入。缓存写入归入输入，保持四段总和与总用量一致。
-		row := &rows[i]
+	defer rows.Close()
+	result := make([]dtosystem.TokenUsageComposition, 0)
+	for rows.Next() {
+		var row dtosystem.TokenUsageComposition
+		if err := rows.Scan(&row.ID, &row.Name, &row.ProviderID, &row.ProviderName, &row.InputTokens, &row.OutputTokens, &row.ReasoningTokens, &row.CachedTokens, &row.TotalTokens); err != nil {
+			return nil, err
+		}
+		// 思考包含在输出内；缓存读取独立于输入。四个展示分量不重复相加。
 		row.CachedTokens = min(row.CachedTokens, row.TotalTokens)
 		output := min(row.OutputTokens, row.TotalTokens-row.CachedTokens)
 		row.ReasoningTokens = min(row.ReasoningTokens, output)
 		row.OutputTokens = output - row.ReasoningTokens
 		row.InputTokens = row.TotalTokens - row.CachedTokens - output
+		result = append(result, row)
 	}
-	return rows, nil
+	return result, rows.Err()
 }

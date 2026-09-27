@@ -53,3 +53,6 @@ type KaguyaProviderInfo func(*sql.Selector)
 
 // KaguyaSystemInfo is the predicate function for kaguyasysteminfo builders.
 type KaguyaSystemInfo func(*sql.Selector)
+
+// KaguyaTaskUsage is the predicate function for kaguyataskusage builders.
+type KaguyaTaskUsage func(*sql.Selector)

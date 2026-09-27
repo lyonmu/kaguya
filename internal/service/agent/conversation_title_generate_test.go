@@ -42,7 +42,7 @@ func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"id":"title","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"重试成功的标题"},"finish_reason":"stop"}]}`)
+		fmt.Fprint(w, `{"id":"title","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"重试成功的标题"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`)
 	}))
 	defer server.Close()
 	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("test").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
@@ -83,6 +83,21 @@ func TestConversationTitleGenerateRetriesNextTurn(t *testing.T) {
 			t.Fatalf("stored title/usage mismatch: %+v %v", stored, err)
 		}
 	}
+	records, err := client.KaguyaTaskUsage.Query().All(ctx)
+	if err != nil || len(records) != 2 {
+		t.Fatalf("title attempts not recorded: %d %v", len(records), err)
+	}
+	var total int64
+	for _, record := range records {
+		total += record.TotalTokens
+		if record.ProviderID != provider.ID || record.ModelID != model.ID {
+			t.Fatal("title usage lost task-model identity")
+		}
+	}
+	if total != 7 {
+		t.Fatalf("title usage=%d", total)
+	}
+
 	if _, err := svc.ConversationTitleGenerate(ctx, "123"); err != nil {
 		t.Fatal(err)
 	}

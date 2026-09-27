@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 )
 
@@ -52,6 +53,11 @@ func TestModelTest(t *testing.T) {
 		if !strings.Contains(body, `"content":"Hi!"`) {
 			t.Errorf("prompt was not sent: %s", body)
 		}
+		usage, err := db.EntClient.KaguyaTaskUsage.Query().Only(ctx)
+		if err != nil || usage.TotalTokens != 7 || usage.Kind != "model_test" {
+			t.Fatalf("model test usage missing: %v", err)
+		}
+
 	})
 
 	t.Run("reports the provider error", func(t *testing.T) {

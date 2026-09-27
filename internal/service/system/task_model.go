@@ -63,6 +63,7 @@ func ResolveTaskModel(ctx context.Context, client *ent.Client, conversationID st
 	}
 	return &TaskModel{
 		Config: agentruntime.ProviderConfig{
+			ProviderID: provider.ID, ModelRecordID: model.ID, ModelName: model.ModelName,
 			Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(model.APIProtocol),
 			ReasoningEnabled: model.ReasoningEnabled, ReasoningEffort: model.ReasoningEffort,
 			BaseURL: provider.BaseURL, RequestPath: model.RequestPath, APIKey: apiKey, ModelID: model.ModelID,

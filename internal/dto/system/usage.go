@@ -25,6 +25,8 @@ type TokenUsageComposition struct {
 // TokenUsageResp 的 Start/End、TotalTokens、Conversations、Peak* 只统计请求时间段；
 // ActivityStart/ActivityEnd、Days 固定为最近一年；Models/Providers 固定统计全部历史。
 type TokenUsageResp struct {
+	BackgroundTokens      int64                   `json:"background_tokens"`       // 请求时间段内后台调用的已知用量
+	UnknownCalls          int64                   `json:"unknown_calls"`           // 请求时间段内未返回用量的后台调用数
 	Start                 string                  `json:"start"`                   // 请求时间段起点（UTC 自然日）
 	End                   string                  `json:"end"`                     // 请求时间段终点（UTC 自然日）
 	ActivityStart         string                  `json:"activity_start"`          // 活动日历起点，固定为一年零一天前的 UTC 自然日

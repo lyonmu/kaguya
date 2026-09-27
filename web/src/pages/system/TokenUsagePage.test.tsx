@@ -37,6 +37,7 @@ const { TokenUsagePage } = await import('./TokenUsagePage')
 const originalFetch = globalThis.fetch
 const usage = {
   start: '2025-01-01', end: '2025-01-03', activity_start: '2025-09-13', activity_end: '2026-09-12',
+  background_tokens: 120, unknown_calls: 2,
   total_tokens: 3700, conversations: 1, peak_tokens: 3600, peak_tokens_date: '2025-01-01', peak_conversations: 1, peak_conversations_date: '2025-01-01',
   days: [{ date: '2025-09-13', total_tokens: 10, conversations: 1 }, { date: '2026-09-12', total_tokens: 500, conversations: 1 }],
   models: [{ id: 'm', name: 'model', provider_id: 'p', provider_name: 'provider', input_tokens: 1, output_tokens: 1, reasoning_tokens: 1, cached_tokens: 1, total_tokens: 4 }],
@@ -106,4 +107,12 @@ it('fits composition labels to the measured container width', async () => {
   assert.equal(options.at(-1)?.xAxis.axisLabel.width, 48)
   await resizeComposition(1312)
   assert.equal(options.at(-1)?.xAxis.axisLabel.width, 112)
+})
+
+it('includes background consumption and explicitly reports unknown usage', async () => {
+  globalThis.fetch = (async () => Response.json({ code: 100000, data: usage })) as typeof fetch
+  const view = render(<TokenUsagePage />)
+  await view.findByText(/所选时间段包含后台任务 120 Token/)
+  assert.ok(view.getByText(/另有 2 次后台调用未返回可确认用量/))
+  assert.equal(view.queryByText(/不含标题任务/), null)
 })

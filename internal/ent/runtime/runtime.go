@@ -22,6 +22,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyataskusage"
 	"github.com/lyonmu/kaguya/internal/ent/schema"
 )
 
@@ -1687,6 +1688,104 @@ func init() {
 	kaguyasysteminfo.DefaultID = kaguyasysteminfoDescID.Default.(string)
 	// kaguyasysteminfo.IDValidator is a validator for the "id" field. It is called by the builders before save.
 	kaguyasysteminfo.IDValidator = kaguyasysteminfoDescID.Validators[0].(func(string) error)
+	kaguyataskusageMixin := schema.KaguyaTaskUsage{}.Mixin()
+	kaguyataskusageMixinHooks1 := kaguyataskusageMixin[1].Hooks()
+	kaguyataskusage.Hooks[0] = kaguyataskusageMixinHooks1[0]
+	kaguyataskusage.Hooks[1] = kaguyataskusageMixinHooks1[1]
+	kaguyataskusageMixinFields0 := kaguyataskusageMixin[0].Fields()
+	_ = kaguyataskusageMixinFields0
+	kaguyataskusageMixinFields1 := kaguyataskusageMixin[1].Fields()
+	_ = kaguyataskusageMixinFields1
+	kaguyataskusageFields := schema.KaguyaTaskUsage{}.Fields()
+	_ = kaguyataskusageFields
+	// kaguyataskusageDescCreatedAt is the schema descriptor for created_at field.
+	kaguyataskusageDescCreatedAt := kaguyataskusageMixinFields1[0].Descriptor()
+	// kaguyataskusage.DefaultCreatedAt holds the default value on creation for the created_at field.
+	kaguyataskusage.DefaultCreatedAt = kaguyataskusageDescCreatedAt.Default.(func() time.Time)
+	// kaguyataskusageDescUpdatedAt is the schema descriptor for updated_at field.
+	kaguyataskusageDescUpdatedAt := kaguyataskusageMixinFields1[1].Descriptor()
+	// kaguyataskusage.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	kaguyataskusage.DefaultUpdatedAt = kaguyataskusageDescUpdatedAt.Default.(func() time.Time)
+	// kaguyataskusage.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	kaguyataskusage.UpdateDefaultUpdatedAt = kaguyataskusageDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// kaguyataskusageDescKind is the schema descriptor for kind field.
+	kaguyataskusageDescKind := kaguyataskusageFields[0].Descriptor()
+	// kaguyataskusage.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	kaguyataskusage.KindValidator = kaguyataskusageDescKind.Validators[0].(func(string) error)
+	// kaguyataskusageDescConversationID is the schema descriptor for conversation_id field.
+	kaguyataskusageDescConversationID := kaguyataskusageFields[1].Descriptor()
+	// kaguyataskusage.DefaultConversationID holds the default value on creation for the conversation_id field.
+	kaguyataskusage.DefaultConversationID = kaguyataskusageDescConversationID.Default.(string)
+	// kaguyataskusageDescProviderID is the schema descriptor for provider_id field.
+	kaguyataskusageDescProviderID := kaguyataskusageFields[2].Descriptor()
+	// kaguyataskusage.DefaultProviderID holds the default value on creation for the provider_id field.
+	kaguyataskusage.DefaultProviderID = kaguyataskusageDescProviderID.Default.(string)
+	// kaguyataskusageDescProviderName is the schema descriptor for provider_name field.
+	kaguyataskusageDescProviderName := kaguyataskusageFields[3].Descriptor()
+	// kaguyataskusage.DefaultProviderName holds the default value on creation for the provider_name field.
+	kaguyataskusage.DefaultProviderName = kaguyataskusageDescProviderName.Default.(string)
+	// kaguyataskusageDescModelID is the schema descriptor for model_id field.
+	kaguyataskusageDescModelID := kaguyataskusageFields[4].Descriptor()
+	// kaguyataskusage.DefaultModelID holds the default value on creation for the model_id field.
+	kaguyataskusage.DefaultModelID = kaguyataskusageDescModelID.Default.(string)
+	// kaguyataskusageDescModelName is the schema descriptor for model_name field.
+	kaguyataskusageDescModelName := kaguyataskusageFields[5].Descriptor()
+	// kaguyataskusage.DefaultModelName holds the default value on creation for the model_name field.
+	kaguyataskusage.DefaultModelName = kaguyataskusageDescModelName.Default.(string)
+	// kaguyataskusageDescUsageKnown is the schema descriptor for usage_known field.
+	kaguyataskusageDescUsageKnown := kaguyataskusageFields[7].Descriptor()
+	// kaguyataskusage.DefaultUsageKnown holds the default value on creation for the usage_known field.
+	kaguyataskusage.DefaultUsageKnown = kaguyataskusageDescUsageKnown.Default.(bool)
+	// kaguyataskusageDescInputTokens is the schema descriptor for input_tokens field.
+	kaguyataskusageDescInputTokens := kaguyataskusageFields[8].Descriptor()
+	// kaguyataskusage.DefaultInputTokens holds the default value on creation for the input_tokens field.
+	kaguyataskusage.DefaultInputTokens = kaguyataskusageDescInputTokens.Default.(int64)
+	// kaguyataskusage.InputTokensValidator is a validator for the "input_tokens" field. It is called by the builders before save.
+	kaguyataskusage.InputTokensValidator = kaguyataskusageDescInputTokens.Validators[0].(func(int64) error)
+	// kaguyataskusageDescOutputTokens is the schema descriptor for output_tokens field.
+	kaguyataskusageDescOutputTokens := kaguyataskusageFields[9].Descriptor()
+	// kaguyataskusage.DefaultOutputTokens holds the default value on creation for the output_tokens field.
+	kaguyataskusage.DefaultOutputTokens = kaguyataskusageDescOutputTokens.Default.(int64)
+	// kaguyataskusage.OutputTokensValidator is a validator for the "output_tokens" field. It is called by the builders before save.
+	kaguyataskusage.OutputTokensValidator = kaguyataskusageDescOutputTokens.Validators[0].(func(int64) error)
+	// kaguyataskusageDescReasoningTokens is the schema descriptor for reasoning_tokens field.
+	kaguyataskusageDescReasoningTokens := kaguyataskusageFields[10].Descriptor()
+	// kaguyataskusage.DefaultReasoningTokens holds the default value on creation for the reasoning_tokens field.
+	kaguyataskusage.DefaultReasoningTokens = kaguyataskusageDescReasoningTokens.Default.(int64)
+	// kaguyataskusage.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
+	kaguyataskusage.ReasoningTokensValidator = kaguyataskusageDescReasoningTokens.Validators[0].(func(int64) error)
+	// kaguyataskusageDescCachedTokens is the schema descriptor for cached_tokens field.
+	kaguyataskusageDescCachedTokens := kaguyataskusageFields[11].Descriptor()
+	// kaguyataskusage.DefaultCachedTokens holds the default value on creation for the cached_tokens field.
+	kaguyataskusage.DefaultCachedTokens = kaguyataskusageDescCachedTokens.Default.(int64)
+	// kaguyataskusage.CachedTokensValidator is a validator for the "cached_tokens" field. It is called by the builders before save.
+	kaguyataskusage.CachedTokensValidator = kaguyataskusageDescCachedTokens.Validators[0].(func(int64) error)
+	// kaguyataskusageDescTotalTokens is the schema descriptor for total_tokens field.
+	kaguyataskusageDescTotalTokens := kaguyataskusageFields[12].Descriptor()
+	// kaguyataskusage.DefaultTotalTokens holds the default value on creation for the total_tokens field.
+	kaguyataskusage.DefaultTotalTokens = kaguyataskusageDescTotalTokens.Default.(int64)
+	// kaguyataskusage.TotalTokensValidator is a validator for the "total_tokens" field. It is called by the builders before save.
+	kaguyataskusage.TotalTokensValidator = kaguyataskusageDescTotalTokens.Validators[0].(func(int64) error)
+	// kaguyataskusageDescID is the schema descriptor for id field.
+	kaguyataskusageDescID := kaguyataskusageMixinFields0[0].Descriptor()
+	// kaguyataskusage.DefaultID holds the default value on creation for the id field.
+	kaguyataskusage.DefaultID = kaguyataskusageDescID.Default.(func() string)
+	// kaguyataskusage.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	kaguyataskusage.IDValidator = func() func(string) error {
+		validators := kaguyataskusageDescID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(id string) error {
+			for _, fn := range fns {
+				if err := fn(id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
 }
 
 const (

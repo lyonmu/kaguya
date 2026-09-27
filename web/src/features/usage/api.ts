@@ -13,6 +13,8 @@ export interface UsageComposition {
   total_tokens: number
 }
 export interface TokenUsage {
+  background_tokens?: number
+  unknown_calls?: number
   // start/end 与 total_tokens、conversations、peak_* 只对应上面的日期选择器范围。
   start: string
   end: string

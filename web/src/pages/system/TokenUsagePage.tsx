@@ -101,12 +101,13 @@ export function TokenUsagePage() {
     {loading && <div className="token-usage-loading"><Spin /></div>}
     {data && <>
       <Card><div className="token-usage-summary">{stats.map(([title, value, note]) => <div key={title}><Statistic title={title} value={value} formatter={() => <span title={value.toLocaleString()}>{compact(value)}</span>} /><p>{note}</p></div>)}</div></Card>
+      <p className="token-usage-note">所选时间段包含后台任务 {(data.background_tokens ?? 0).toLocaleString()} Token。{(data.unknown_calls ?? 0) > 0 && `另有 ${data.unknown_calls} 次后台调用未返回可确认用量，未计入已知总数。`}</p>
       <Card title={<div>Token 活动 <small>UTC · 最近一年 {data.activity_start} — {data.activity_end}</small></div>} extra={<Segmented value={mode} options={[{ label: '每日', value: 'daily' }, { label: '每周', value: 'weekly' }, { label: '每月', value: 'monthly' }]} onChange={value => setMode(value as ActivityMode)} />}>
         <div className="token-usage-chart-scroll"><div className="token-usage-activity"><UsageChart option={activity} height={240} label="Token 活动热力图" /></div></div>
       </Card>
       <Card title={<div>Token 构成 <small>全部历史 · 用量最高的 10 项</small></div>} extra={<Segmented value={dimension} options={[{ label: '按模型', value: 'model' }, { label: '按厂商', value: 'provider' }]} onChange={setDimension} />}>
         {compositionRows.length ? <div className="token-usage-chart-scroll"><div className="token-usage-composition" ref={measureComposition}><UsageChart option={composition} height={360} label="Token 构成堆叠柱状图" /></div></div> : <Empty description="暂无用量记录" />}
-        <p className="token-usage-note">输入含缓存写入，输出不含思考；四类 Token 不重复计数。仅统计成功保存的聊天轮次（含已删除会话），不含标题任务及失败、取消的调用。</p>
+        <p className="token-usage-note">输入含缓存写入，输出不含思考；四类 Token 不重复计数。统计已记录的聊天、上下文摘要、标题、模型测试及历史记忆调用用量；失败或取消调用已知的消费也计入。删除会话不会抹除消费。历史标题等未保存的用量无法补算。</p>
       </Card>
     </>}
   </div>

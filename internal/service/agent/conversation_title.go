@@ -181,7 +181,7 @@ func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentrun
 			result <- conversationTitleResult{Err: err}
 			return
 		}
-		title, err := generateConversationTitle(ctx, cfg, question, answer)
+		title, err := generateConversationTitle(ctx, cfg, question, answer, agentruntime.WithRecorder(servicesystem.NewTaskUsageRecorder(client, "title", cfg)))
 		if err != nil {
 			logger.Sugar().Warnf("generate conversation title failed: id=%s err=%v", cfg.ConversationID, err)
 			result <- conversationTitleResult{Title: defaultConversationTitle, Err: err}
@@ -222,7 +222,7 @@ func startEarlyTitleTask(ctx context.Context, id, question string) {
 	startConversationTitle(db.EntClient, global.Logger, cfg, question, "")
 }
 
-func generateConversationTitle(ctx context.Context, cfg agentruntime.ProviderConfig, question, answer string) (string, error) {
+func generateConversationTitle(ctx context.Context, cfg agentruntime.ProviderConfig, question, answer string, options ...agentruntime.Option) (string, error) {
 	// 只发送首轮可见提问和回答，不发送思考、工具结果、签名或历史；限制摘要输入大小。
 	// 首轮提前生成时还没有回答，Answer 省略。
 	data, err := json.Marshal(struct {
@@ -234,7 +234,7 @@ func generateConversationTitle(ctx context.Context, cfg agentruntime.ProviderCon
 	if err != nil {
 		return "", err
 	}
-	ag, err := agentruntime.New(agentruntime.WithProvider(cfg), agentruntime.WithSystemPrompt(conversationTitlePrompt))
+	ag, err := agentruntime.New(append(options, agentruntime.WithProvider(cfg), agentruntime.WithSystemPrompt(conversationTitlePrompt))...)
 	if err != nil {
 		return "", err
 	}

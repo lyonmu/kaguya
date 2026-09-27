@@ -185,12 +185,14 @@ func (s *SystemSvc) ModelTest(ctx context.Context, req *dtosystem.SystemModelSav
 
 	testCtx, cancel := context.WithTimeout(ctx, modelTestTimeout)
 	defer cancel()
-	ag, err := agentruntime.New(agentruntime.WithProvider(agentruntime.ProviderConfig{
-		Name: provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(req.APIProtocol),
+	usageConfig := agentruntime.ProviderConfig{
+		ProviderID: provider.ID,
+		Name:       provider.ProviderName, Type: provider.ProviderType, Protocol: consts.ProviderProtocol(req.APIProtocol),
 		ReasoningEnabled: req.ReasoningEnabled, ReasoningEffort: req.ReasoningEffort,
 		BaseURL: provider.BaseURL, RequestPath: req.RequestPath, APIKey: apiKey, ModelID: req.ModelID,
 		ConversationID: fmt.Sprintf("%d", id),
-	}))
+	}
+	ag, err := agentruntime.New(agentruntime.WithProvider(usageConfig), agentruntime.WithRecorder(NewTaskUsageRecorder(db.EntClient, "model_test", usageConfig)))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrModelTest, err)
 	}

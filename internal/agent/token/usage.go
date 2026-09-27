@@ -58,6 +58,7 @@ type StepUsage struct {
 
 // TurnUsage 一次回答（一次 Generate/Stream 调用）的运行信息。
 type TurnUsage struct {
+	UsageKnown     bool   `json:"usage_known"`
 	ConversationID string `json:"conversation_id,omitempty"` // 会话 ID
 	MessageID      string `json:"message_id,omitempty"`      // 消息 ID
 

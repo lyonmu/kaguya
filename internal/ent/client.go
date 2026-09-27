@@ -31,6 +31,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyataskusage"
 
 	stdsql "database/sql"
 )
@@ -72,6 +73,8 @@ type Client struct {
 	KaguyaProviderInfo *KaguyaProviderInfoClient
 	// KaguyaSystemInfo is the client for interacting with the KaguyaSystemInfo builders.
 	KaguyaSystemInfo *KaguyaSystemInfoClient
+	// KaguyaTaskUsage is the client for interacting with the KaguyaTaskUsage builders.
+	KaguyaTaskUsage *KaguyaTaskUsageClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -99,6 +102,7 @@ func (c *Client) init() {
 	c.KaguyaProject = NewKaguyaProjectClient(c.config)
 	c.KaguyaProviderInfo = NewKaguyaProviderInfoClient(c.config)
 	c.KaguyaSystemInfo = NewKaguyaSystemInfoClient(c.config)
+	c.KaguyaTaskUsage = NewKaguyaTaskUsageClient(c.config)
 }
 
 type (
@@ -207,6 +211,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		KaguyaProject:         NewKaguyaProjectClient(cfg),
 		KaguyaProviderInfo:    NewKaguyaProviderInfoClient(cfg),
 		KaguyaSystemInfo:      NewKaguyaSystemInfoClient(cfg),
+		KaguyaTaskUsage:       NewKaguyaTaskUsageClient(cfg),
 	}, nil
 }
 
@@ -242,6 +247,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		KaguyaProject:         NewKaguyaProjectClient(cfg),
 		KaguyaProviderInfo:    NewKaguyaProviderInfoClient(cfg),
 		KaguyaSystemInfo:      NewKaguyaSystemInfoClient(cfg),
+		KaguyaTaskUsage:       NewKaguyaTaskUsageClient(cfg),
 	}, nil
 }
 
@@ -275,7 +281,7 @@ func (c *Client) Use(hooks ...Hook) {
 		c.KaguyaMemoryAttempt, c.KaguyaMemoryEvidence, c.KaguyaMemoryJob,
 		c.KaguyaMemoryLink, c.KaguyaMemoryPage, c.KaguyaMemoryRevision,
 		c.KaguyaMemorySearchDoc, c.KaguyaMemorySource, c.KaguyaModelsInfo,
-		c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
+		c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo, c.KaguyaTaskUsage,
 	} {
 		n.Use(hooks...)
 	}
@@ -289,7 +295,7 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.KaguyaMemoryAttempt, c.KaguyaMemoryEvidence, c.KaguyaMemoryJob,
 		c.KaguyaMemoryLink, c.KaguyaMemoryPage, c.KaguyaMemoryRevision,
 		c.KaguyaMemorySearchDoc, c.KaguyaMemorySource, c.KaguyaModelsInfo,
-		c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo,
+		c.KaguyaProject, c.KaguyaProviderInfo, c.KaguyaSystemInfo, c.KaguyaTaskUsage,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -330,6 +336,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.KaguyaProviderInfo.mutate(ctx, m)
 	case *KaguyaSystemInfoMutation:
 		return c.KaguyaSystemInfo.mutate(ctx, m)
+	case *KaguyaTaskUsageMutation:
+		return c.KaguyaTaskUsage.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -2606,6 +2614,140 @@ func (c *KaguyaSystemInfoClient) mutate(ctx context.Context, m *KaguyaSystemInfo
 	}
 }
 
+// KaguyaTaskUsageClient is a client for the KaguyaTaskUsage schema.
+type KaguyaTaskUsageClient struct {
+	config
+}
+
+// NewKaguyaTaskUsageClient returns a client for the KaguyaTaskUsage from the given config.
+func NewKaguyaTaskUsageClient(c config) *KaguyaTaskUsageClient {
+	return &KaguyaTaskUsageClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `kaguyataskusage.Hooks(f(g(h())))`.
+func (c *KaguyaTaskUsageClient) Use(hooks ...Hook) {
+	c.hooks.KaguyaTaskUsage = append(c.hooks.KaguyaTaskUsage, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `kaguyataskusage.Intercept(f(g(h())))`.
+func (c *KaguyaTaskUsageClient) Intercept(interceptors ...Interceptor) {
+	c.inters.KaguyaTaskUsage = append(c.inters.KaguyaTaskUsage, interceptors...)
+}
+
+// Create returns a builder for creating a KaguyaTaskUsage entity.
+func (c *KaguyaTaskUsageClient) Create() *KaguyaTaskUsageCreate {
+	mutation := newKaguyaTaskUsageMutation(c.config, OpCreate)
+	return &KaguyaTaskUsageCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of KaguyaTaskUsage entities.
+func (c *KaguyaTaskUsageClient) CreateBulk(builders ...*KaguyaTaskUsageCreate) *KaguyaTaskUsageCreateBulk {
+	return &KaguyaTaskUsageCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *KaguyaTaskUsageClient) MapCreateBulk(slice any, setFunc func(*KaguyaTaskUsageCreate, int)) *KaguyaTaskUsageCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &KaguyaTaskUsageCreateBulk{err: fmt.Errorf("calling to KaguyaTaskUsageClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*KaguyaTaskUsageCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &KaguyaTaskUsageCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for KaguyaTaskUsage.
+func (c *KaguyaTaskUsageClient) Update() *KaguyaTaskUsageUpdate {
+	mutation := newKaguyaTaskUsageMutation(c.config, OpUpdate)
+	return &KaguyaTaskUsageUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *KaguyaTaskUsageClient) UpdateOne(_m *KaguyaTaskUsage) *KaguyaTaskUsageUpdateOne {
+	mutation := newKaguyaTaskUsageMutation(c.config, OpUpdateOne, withKaguyaTaskUsage(_m))
+	return &KaguyaTaskUsageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *KaguyaTaskUsageClient) UpdateOneID(id string) *KaguyaTaskUsageUpdateOne {
+	mutation := newKaguyaTaskUsageMutation(c.config, OpUpdateOne, withKaguyaTaskUsageID(id))
+	return &KaguyaTaskUsageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for KaguyaTaskUsage.
+func (c *KaguyaTaskUsageClient) Delete() *KaguyaTaskUsageDelete {
+	mutation := newKaguyaTaskUsageMutation(c.config, OpDelete)
+	return &KaguyaTaskUsageDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *KaguyaTaskUsageClient) DeleteOne(_m *KaguyaTaskUsage) *KaguyaTaskUsageDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *KaguyaTaskUsageClient) DeleteOneID(id string) *KaguyaTaskUsageDeleteOne {
+	builder := c.Delete().Where(kaguyataskusage.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &KaguyaTaskUsageDeleteOne{builder}
+}
+
+// Query returns a query builder for KaguyaTaskUsage.
+func (c *KaguyaTaskUsageClient) Query() *KaguyaTaskUsageQuery {
+	return &KaguyaTaskUsageQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeKaguyaTaskUsage},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a KaguyaTaskUsage entity by its id.
+func (c *KaguyaTaskUsageClient) Get(ctx context.Context, id string) (*KaguyaTaskUsage, error) {
+	return c.Query().Where(kaguyataskusage.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *KaguyaTaskUsageClient) GetX(ctx context.Context, id string) *KaguyaTaskUsage {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *KaguyaTaskUsageClient) Hooks() []Hook {
+	hooks := c.hooks.KaguyaTaskUsage
+	return append(hooks[:len(hooks):len(hooks)], kaguyataskusage.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *KaguyaTaskUsageClient) Interceptors() []Interceptor {
+	return c.inters.KaguyaTaskUsage
+}
+
+func (c *KaguyaTaskUsageClient) mutate(ctx context.Context, m *KaguyaTaskUsageMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&KaguyaTaskUsageCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&KaguyaTaskUsageUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&KaguyaTaskUsageUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&KaguyaTaskUsageDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown KaguyaTaskUsage mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
@@ -2613,14 +2755,14 @@ type (
 		KaguyaMemoryAttempt, KaguyaMemoryEvidence, KaguyaMemoryJob, KaguyaMemoryLink,
 		KaguyaMemoryPage, KaguyaMemoryRevision, KaguyaMemorySearchDoc,
 		KaguyaMemorySource, KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
-		KaguyaSystemInfo []ent.Hook
+		KaguyaSystemInfo, KaguyaTaskUsage []ent.Hook
 	}
 	inters struct {
 		KaguyaChatBlock, KaguyaChatTurn, KaguyaConversation, KaguyaMCPServer,
 		KaguyaMemoryAttempt, KaguyaMemoryEvidence, KaguyaMemoryJob, KaguyaMemoryLink,
 		KaguyaMemoryPage, KaguyaMemoryRevision, KaguyaMemorySearchDoc,
 		KaguyaMemorySource, KaguyaModelsInfo, KaguyaProject, KaguyaProviderInfo,
-		KaguyaSystemInfo []ent.Interceptor
+		KaguyaSystemInfo, KaguyaTaskUsage []ent.Interceptor
 	}
 )
 

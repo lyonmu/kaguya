@@ -37,6 +37,14 @@ func (d *usageCaptureDriver) Query(ctx context.Context, query string, args, v an
 	return d.Driver.Query(ctx, query, args, v)
 }
 
+// QueryContext captures raw aggregate queries as well as Ent selector queries.
+func (d *usageCaptureDriver) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	if d.capture {
+		d.statements = append(d.statements, usageStatement{query: query, args: append([]any(nil), args...)})
+	}
+	return d.Driver.(*entsql.Driver).QueryContext(ctx, query, args...)
+}
+
 // P-7 diagnostics only: real SQLCipher, existing schema/indexes, synthetic UTC data.
 // 800 days, 60% completed + 10% each unfinished status, 1,000 conversations (half soft-deleted),
 // 16 providers and 40 model IDs. Query templates are captured from the actual TokenUsage path.
@@ -101,15 +109,16 @@ func BenchmarkTokenUsageSQLCipher(b *testing.B) {
 						status = []kaguyachatturn.Status{kaguyachatturn.StatusRunning, kaguyachatturn.StatusInterrupted, kaguyachatturn.StatusCanceled, kaguyachatturn.StatusFailed}[i%10-6]
 					}
 					conversation := fmt.Sprintf("c%d", i%1000)
-					if status == kaguyachatturn.StatusCompleted {
-						if at.Unix() >= req.StartTime {
-							wantSummary += 120
+					if at.Unix() >= req.StartTime {
+						wantSummary += 120
+						if status == kaguyachatturn.StatusCompleted {
 							summaryConversations[conversation] = true
 						}
-						if !at.Before(activityStart) {
-							wantActivity += 120
-						}
 					}
+					if !at.Before(activityStart) {
+						wantActivity += 120
+					}
+
 					rows = append(rows, client.KaguyaChatTurn.Create().SetID(fmt.Sprintf("t%d", i)).SetConversationID(conversation).SetTurnIndex(int64(i/1000+1)).SetStatus(status).
 						SetUserContent("synthetic").SetProviderID(fmt.Sprintf("p%d", i%16)).SetProviderName(fmt.Sprintf("Provider %d", i%16)).SetModelID(fmt.Sprintf("m%d", i%40)).SetModelName(fmt.Sprintf("Model %d", i%40)).SetAPIProtocol("openai").
 						SetStartedAt(at).SetFinishedAt(at).SetDurationMs(1).SetToolCalls(0).SetFinishReason("stop").SetInputTokens(80).SetOutputTokens(30).SetReasoningTokens(5).SetCachedTokens(10).SetTotalTokens(120).SetMessages([]fantasy.Message{}))
@@ -129,7 +138,7 @@ func BenchmarkTokenUsageSQLCipher(b *testing.B) {
 				activity += day.TotalTokens
 			}
 			if response.TotalTokens != wantSummary || response.Conversations != int64(len(summaryConversations)) || activity != wantActivity || len(response.Models) != 10 || len(response.Providers) != 10 {
-				b.Fatal("UTC/completed/soft-delete/Top-10 semantics changed")
+				b.Fatal("UTC/known-usage/completed-conversation/soft-delete/Top-10 semantics changed")
 			}
 			for _, group := range append(response.Models, response.Providers...) {
 				if group.InputTokens+group.OutputTokens+group.CachedTokens+group.ReasoningTokens != group.TotalTokens {

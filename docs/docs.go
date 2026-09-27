@@ -2736,7 +2736,7 @@ const docTemplate = `{
         },
         "/v1/system/usage": {
             "get": {
-                "description": "start_time/end_time 使用秒级 Unix 时间戳，首尾秒包含，精确按秒筛选；0 或省略使用默认值（结束为今天 UTC 日末，开始为结束日向前一年加一天的日初），最多跨366个 UTC 自然日。不接受日期字符串、负数、毫秒时间戳或反向范围。时间段只影响汇总：total_tokens、conversations、peak_tokens、peak_conversations 按请求时间段统计。days 固定为最近一年（起点为今天 UTC 自然日向前一年再加一天，含首尾共365或366个自然日）并按 UTC 自然日补零，activity_start/activity_end 给出该固定窗口的自然日边界，均不随时间段变化；models/providers 固定统计全部历史（含时间段之外的记录），按用量倒序最多10项。仅统计完整聊天轮次（含已删除会话）；会话去重计数；输出已扣除思考，输入含缓存写入。未包含标题任务及失败/取消调用。",
+                "description": "start_time/end_time 使用秒级 Unix 时间戳，首尾秒包含，精确按秒筛选；0 或省略使用默认值（结束为今天 UTC 日末，开始为结束日向前一年加一天的日初），最多跨366个 UTC 自然日。不接受日期字符串、负数、毫秒时间戳或反向范围。时间段只影响汇总：total_tokens、conversations、peak_tokens、peak_conversations 按请求时间段统计。days 固定为最近一年（起点为今天 UTC 自然日向前一年再加一天，含首尾共365或366个自然日）并按 UTC 自然日补零，activity_start/activity_end 给出该固定窗口的自然日边界，均不随时间段变化；models/providers 固定统计全部历史（含时间段之外的记录），按用量倒序最多10项。统计已记录聊天用量（含未完成轮次已知用量）、标题、模型测试与历史记忆调用，失败/取消调用的已知消费也计入；会话仅按成功轮次去重；background_tokens 为所选范围后台已知消费，unknown_calls 为后台未知用量调用数。输出已扣除思考，输入含缓存写入。历史未保存用量无法补算。",
                 "tags": [
                     "System"
                 ],
@@ -5513,6 +5513,10 @@ const docTemplate = `{
                     "description": "活动日历起点，固定为一年零一天前的 UTC 自然日",
                     "type": "string"
                 },
+                "background_tokens": {
+                    "description": "请求时间段内后台调用的已知用量",
+                    "type": "integer"
+                },
                 "conversations": {
                     "description": "请求时间段内活跃会话（去重）",
                     "type": "integer"
@@ -5564,6 +5568,10 @@ const docTemplate = `{
                 },
                 "total_tokens": {
                     "description": "请求时间段内累计 Token",
+                    "type": "integer"
+                },
+                "unknown_calls": {
+                    "description": "请求时间段内未返回用量的后台调用数",
                     "type": "integer"
                 }
             }

@@ -956,6 +956,60 @@ var (
 			},
 		},
 	}
+	// KaguyaTaskUsageColumns holds the columns for the "kaguya_task_usage" table.
+	KaguyaTaskUsageColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "kind", Type: field.TypeString},
+		{Name: "conversation_id", Type: field.TypeString, Default: ""},
+		{Name: "provider_id", Type: field.TypeString, Default: ""},
+		{Name: "provider_name", Type: field.TypeString, Default: ""},
+		{Name: "model_id", Type: field.TypeString, Default: ""},
+		{Name: "model_name", Type: field.TypeString, Default: ""},
+		{Name: "finished_at", Type: field.TypeTime},
+		{Name: "usage_known", Type: field.TypeBool, Default: false},
+		{Name: "input_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "output_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "reasoning_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "cached_tokens", Type: field.TypeInt64, Default: 0},
+		{Name: "total_tokens", Type: field.TypeInt64, Default: 0},
+	}
+	// KaguyaTaskUsageTable holds the schema information for the "kaguya_task_usage" table.
+	KaguyaTaskUsageTable = &schema.Table{
+		Name:       "kaguya_task_usage",
+		Comment:    "后台模型调用用量",
+		Columns:    KaguyaTaskUsageColumns,
+		PrimaryKey: []*schema.Column{KaguyaTaskUsageColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyataskusage_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTaskUsageColumns[1]},
+			},
+			{
+				Name:    "kaguyataskusage_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTaskUsageColumns[2]},
+			},
+			{
+				Name:    "kaguyataskusage_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTaskUsageColumns[3]},
+			},
+			{
+				Name:    "kaguyataskusage_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTaskUsageColumns[0]},
+			},
+			{
+				Name:    "kaguyataskusage_finished_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTaskUsageColumns[10]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		KaguyaChatBlockTable,
@@ -974,6 +1028,7 @@ var (
 		KaguyaProjectTable,
 		KaguyaProviderInfoTable,
 		KaguyaSystemInfoTable,
+		KaguyaTaskUsageTable,
 	}
 )
 
@@ -1029,5 +1084,8 @@ func init() {
 	}
 	KaguyaSystemInfoTable.Annotation = &entsql.Annotation{
 		Table: "kaguya_system_info",
+	}
+	KaguyaTaskUsageTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_task_usage",
 	}
 }
