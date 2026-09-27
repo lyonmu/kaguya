@@ -101,7 +101,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
 button:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--k-primary); outline-offset: 3px; }
 .ant-btn:focus:not(:focus-visible) { box-shadow: none; }
 
-.lunar-glyph { display: inline-block; width: 24px; height: 24px; flex-shrink: 0; color: var(--k-primary); vertical-align: middle; }
+.kaguya-avatar { display: inline-block; width: 24px; height: 24px; flex-shrink: 0; object-fit: cover; border-radius: 50%; vertical-align: middle; }
 .lunar-brand { display: flex; align-items: center; gap: 9px; }
 .lunar-brand strong { font-size: 16px; font-weight: 500; letter-spacing: .02em; }
 .lunar-navigation .ant-menu-item-selected { box-shadow: inset 2px 0 var(--k-primary); }

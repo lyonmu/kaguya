@@ -188,13 +188,13 @@ it('links recent running sessions to their project or ordinary list without canc
   assert.ok(streams.every(stream => !stream.signal.aborted))
 })
 
-it('uses the Lunar glyph for welcome and replies while retaining the user avatar', () => {
+it('uses the Kaguya image for welcome and replies while retaining the user avatar', () => {
   const props = { loading: false, streaming: false, page: 1, totalPages: 1, initialEnd: false, onPageChange: async () => {} }
   const view = render(<MessageList {...props} turns={[]} />)
   assert.ok(view.getByRole('heading', { name: 'Kaguya' }))
-  assert.ok(view.container.querySelector('.chat-welcome .lunar-glyph'))
+  assert.ok(view.container.querySelector('.chat-welcome .kaguya-avatar'))
   view.rerender(<MessageList {...props} turns={[{ turn_index: 1, user_content: '你好', model_name: '', model_id: '', api_protocol: '', started_at: new Date().toISOString(), duration_ms: 0, tool_calls: 0, blocks: [] }]} />)
-  assert.ok(view.container.querySelector('.chat-avatar.ai .lunar-glyph'))
+  assert.ok(view.container.querySelector('.chat-avatar.ai .kaguya-avatar'))
   assert.ok(view.getByAltText('用户头像').getAttribute('src')?.endsWith('/assets/lyonmu-144.webp'))
   assert.equal(view.getByAltText('用户头像').getAttribute('width'), '28')
 })

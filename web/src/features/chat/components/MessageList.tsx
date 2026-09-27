@@ -6,7 +6,7 @@ import { ActivityBlock } from "./ActivityBlock";
 import { isCanceledStatus, isCompleteStatus, isFailedStatus, isInterruptedStatus, isRunningStatus } from "../status";
 import type { Block, Turn } from "../types";
 import { userAvatar } from "../../../assets/avatars";
-import { LunarGlyph } from "../../../components/LunarGlyph";
+import { KaguyaAvatar } from "../../../components/KaguyaAvatar";
 
 export function ContentBlock({ block, streaming = false, conversationId, turnIndex }: { block: Block; streaming?: boolean; conversationId?: string; turnIndex?: number }) {
  return block.type === 'text' ? <Markdown text={block.text ?? ''} streaming={streaming && block.phase !== 'block_end'} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
@@ -65,7 +65,7 @@ export function MessageList({
       {!loading && !turns.length && (
         <div className="chat-welcome">
           <div className="chat-welcome-logo">
-            <LunarGlyph />
+            <KaguyaAvatar />
           </div>
           <h1>Kaguya</h1>
           <p>从一个问题，到一件完成的事。</p>
@@ -138,7 +138,7 @@ function RuntimeMessage() {
             </article>}
             {role === "assistant" && <article className="chat-message">
               <div className="chat-avatar ai">
-                <LunarGlyph />
+                <KaguyaAvatar />
               </div>
               <div className="chat-message-body">
                 <div className="chat-message-name">

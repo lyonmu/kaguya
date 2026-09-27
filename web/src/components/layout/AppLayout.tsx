@@ -12,7 +12,7 @@ import { Breadcrumb, Button, Drawer, Layout, Menu } from 'antd'
 import { BottomActions } from './BottomActions'
 import { BottomActionsContext } from './bottomActionsContext'
 import type { ColorMode } from '../../app/colorMode'
-import { LunarGlyph } from '../LunarGlyph'
+import { KaguyaAvatar } from '../KaguyaAvatar'
 
 const { Content, Header, Sider } = Layout
 
@@ -50,7 +50,7 @@ export function AppLayout({
       toggleCollapsed: () => setActionsCollapsed(value => !value),
       onChat: () => onPageChange('chat'), onSettings: () => onPageChange('ai-providers'),
       onToggleColorMode,
-      avatar: <LunarGlyph />,
+      avatar: <KaguyaAvatar />,
     }}>
     <Layout className="h-svh w-full overflow-hidden bg-k-canvas">
 
@@ -65,7 +65,7 @@ export function AppLayout({
         >
           <div className="flex h-full flex-col px-2.5 pb-3">
             <div className="border-b border-k-border-soft px-2.5 pt-5 pb-4">
-              <div className="lunar-brand"><LunarGlyph /><strong>Kaguya</strong></div>
+              <div className="lunar-brand"><KaguyaAvatar /><strong>Kaguya</strong></div>
               <h1 className="mt-2 mb-0 text-[13px] font-normal text-k-text-muted">偏好与配置</h1>
             </div>
 

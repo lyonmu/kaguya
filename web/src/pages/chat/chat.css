@@ -269,9 +269,9 @@
 .chat-memory-directory li { padding: 8px 0; border-top: 1px solid var(--k-border-soft); overflow-wrap: anywhere; }
 .chat-memory-directory small { display: block; color: var(--k-text-muted); font-size: 12px; }
 .chat-avatar.ai { background: transparent; border: 0; }
-.chat-avatar.ai .lunar-glyph { width: 28px; height: 28px; }
+.chat-avatar.ai .kaguya-avatar { width: 28px; height: 28px; }
 .chat-welcome-logo { border: 0; background: transparent; }
-.chat-welcome-logo .lunar-glyph { width: 56px; height: 56px; }
+.chat-welcome-logo .kaguya-avatar { width: 56px; height: 56px; }
 .chat-welcome h1 { font-size: 22px; font-weight: 500; letter-spacing: .06em; }
 .chat-welcome p { font-size: 14px; }
 .chat-welcome small { display: block; margin-top: 20px; font-size: 12px; color: var(--k-text-muted); }
