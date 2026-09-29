@@ -116,9 +116,18 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 			if i == 3 {
 				instructionIndex = 3
 			}
-			wantPrompt := servicesystem.ChatSystemPrompt(*config.GlobalSystemPrompt, config.SystemPrompt) + fmt.Sprintf("\n\nGlobal instructions from %s:\nlive file instructions-%d", agentsPath, instructionIndex)
-			if len(req.Messages) == 0 || req.Messages[0].Role != "system" || req.Messages[0].Content != wantPrompt {
+			// 期望的系统提示词：基础提示词 + 自定义提示词 + Global instructions + 工具系统提示词
+			wantPromptPrefix := servicesystem.ChatSystemPrompt(*config.GlobalSystemPrompt, config.SystemPrompt) + fmt.Sprintf("\n\nGlobal instructions from %s:\nlive file instructions-%d", agentsPath, instructionIndex)
+			if len(req.Messages) == 0 || req.Messages[0].Role != "system" {
 				t.Fatalf("system prompt=%+v", req.Messages)
+			}
+			// 验证系统提示词包含预期前缀（普通对话现在也有工具系统提示词）
+			if !strings.HasPrefix(req.Messages[0].Content, wantPromptPrefix) {
+				t.Fatalf("system prompt does not start with expected prefix.\nExpected prefix:\n%s\n\nActual:\n%s", wantPromptPrefix, req.Messages[0].Content)
+			}
+			// 验证包含工具说明
+			if !strings.Contains(req.Messages[0].Content, "Available coding tools: read, bash, edit, write, grep, find, ls") {
+				t.Fatal("system prompt missing tool instructions")
 			}
 			if i > 0 {
 				for _, msg := range req.Messages {

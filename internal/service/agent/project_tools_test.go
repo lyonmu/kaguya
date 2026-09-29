@@ -36,9 +36,21 @@ func TestProjectToolWorkspaceAuthority(t *testing.T) {
 	}
 	svc := &AgentSvc{}
 	set, err := svc.projectTools(ctx, "new", "", 0)
-	if err != nil || set != nil {
-		t.Fatalf("ordinary chat has tools: %v", err)
+	if err != nil {
+		t.Fatalf("ordinary chat tool creation failed: %v", err)
 	}
+	if set == nil {
+		t.Fatal("ordinary chat should have tools")
+	}
+	// 普通对话使用 ~/.kaguya 作为工作目录
+	expectedWorkDir := filepath.Join(home, ".kaguya")
+	if set.CWD() != expectedWorkDir {
+		t.Fatalf("ordinary chat workspace=%q, want %q", set.CWD(), expectedWorkDir)
+	}
+	if len(set.AllTools()) != 7 {
+		t.Fatalf("ordinary chat tools count=%d, want 7", len(set.AllTools()))
+	}
+	set.Close()
 	turn := testCompletedTurn("123", 0)
 	turn.ProjectID = p.ID
 	if err := saveCompletedTurn(ctx, turn); err != nil {
@@ -52,17 +64,31 @@ func TestProjectToolWorkspaceAuthority(t *testing.T) {
 		t.Fatal("wrong workspace")
 	}
 	set.Close()
-	entries := logs.FilterMessage("project coding tools registered").All()
-	if len(entries) != 1 || entries[0].Level != zap.DebugLevel || entries[0].ContextMap()["conversation_id"] != "123" || entries[0].ContextMap()["project_id"] != p.ID {
-		t.Fatalf("registration logs=%+v", entries)
+	// 检查项目对话的日志
+	projectEntries := logs.FilterMessage("project coding tools registered").All()
+	if len(projectEntries) != 1 || projectEntries[0].Level != zap.DebugLevel || projectEntries[0].ContextMap()["conversation_id"] != "123" || projectEntries[0].ContextMap()["project_id"] != p.ID {
+		t.Fatalf("project registration logs=%+v", projectEntries)
+	}
+	// 检查普通对话的日志
+	conversationEntries := logs.FilterMessage("conversation coding tools registered").All()
+	if len(conversationEntries) != 1 || conversationEntries[0].Level != zap.DebugLevel || conversationEntries[0].ContextMap()["conversation_id"] != "new" {
+		t.Fatalf("conversation registration logs=%+v", conversationEntries)
 	}
 	if err := (&projectsvc.ProjectSvc{}).Delete(ctx, p.ID); err != nil {
 		t.Fatal(err)
 	}
+	// 删除项目后，续聊会话应降级为普通对话（使用 ~/.kaguya）
 	set, err = svc.projectTools(ctx, "123", p.ID, 1)
-	if err != nil || set != nil {
-		t.Fatalf("deleted project regained tool access: %v", err)
+	if err != nil {
+		t.Fatalf("deleted project workspace error: %v", err)
 	}
+	if set == nil {
+		t.Fatal("deleted project should fallback to conversation workspace")
+	}
+	if set.CWD() != filepath.Join(home, ".kaguya") {
+		t.Fatalf("deleted project workspace=%q, want ~/.kaguya", set.CWD())
+	}
+	set.Close()
 	if _, err := svc.projectTools(ctx, "new", p.ID, 0); err == nil {
 		t.Fatal("deleted project accepted for new chat")
 	}

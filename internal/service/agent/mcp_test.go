@@ -48,13 +48,29 @@ func TestChatExecutesMCPAndDropsDisabledTools(t *testing.T) {
 			return
 		}
 		request := requests.Add(1)
-		if request < 3 && (len(body.Tools) != 1 || !strings.HasPrefix(body.Tools[0].Function.Name, "mcp_echo_")) {
-			t.Errorf("MCP not registered: %+v", body.Tools)
-			http.Error(w, "missing tools", 400)
-			return
+		// 对话现在默认有7个内置工具（read/bash/edit/write/grep/find/ls）+ MCP工具
+		if request < 3 {
+			if len(body.Tools) != 8 {
+				t.Errorf("expected 8 tools (7 builtin + 1 MCP), got %d: %+v", len(body.Tools), body.Tools)
+				http.Error(w, "wrong tool count", 400)
+				return
+			}
+			// 验证MCP工具已注册
+			foundMCP := false
+			for _, tool := range body.Tools {
+				if strings.HasPrefix(tool.Function.Name, "mcp_echo_") {
+					foundMCP = true
+					break
+				}
+			}
+			if !foundMCP {
+				t.Errorf("MCP tool not found in: %+v", body.Tools)
+				http.Error(w, "missing MCP tool", 400)
+				return
+			}
 		}
-		if request == 3 && len(body.Tools) != 0 {
-			t.Error("disabled MCP remained available")
+		if request == 3 && len(body.Tools) != 7 {
+			t.Errorf("disabled MCP should leave only 7 builtin tools, got %d", len(body.Tools))
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		emit := func(delta any, reason any) {
@@ -62,7 +78,20 @@ func TestChatExecutesMCPAndDropsDisabledTools(t *testing.T) {
 			fmt.Fprintf(w, "data: %s\n\n", b)
 		}
 		if request == 1 {
-			emit(map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"index": 0, "id": "mcp-call", "type": "function", "function": map[string]any{"name": body.Tools[0].Function.Name, "arguments": "{}"}}}}, nil)
+			// 找到 MCP 工具名称
+			mcpToolName := ""
+			for _, tool := range body.Tools {
+				if strings.HasPrefix(tool.Function.Name, "mcp_echo_") {
+					mcpToolName = tool.Function.Name
+					break
+				}
+			}
+			if mcpToolName == "" {
+				t.Error("MCP tool not found in request 1")
+				http.Error(w, "MCP tool not found", 400)
+				return
+			}
+			emit(map[string]any{"role": "assistant", "tool_calls": []any{map[string]any{"index": 0, "id": "mcp-call", "type": "function", "function": map[string]any{"name": mcpToolName, "arguments": "{}"}}}}, nil)
 			emit(map[string]any{}, "tool_calls")
 		} else {
 			if request == 2 && !strings.Contains(string(body.Messages), "MCP integration result") {
