@@ -40,7 +40,7 @@ const usage = {
   background_tokens: 120, unknown_calls: 2,
   total_tokens: 3700, conversations: 1, peak_tokens: 3600, peak_tokens_date: '2025-01-01', peak_conversations: 1, peak_conversations_date: '2025-01-01',
   days: [{ date: '2025-09-13', total_tokens: 10, conversations: 1 }, { date: '2026-09-12', total_tokens: 500, conversations: 1 }],
-  models: [{ id: 'm', name: 'model', provider_id: 'p', provider_name: 'provider', input_tokens: 1, output_tokens: 1, reasoning_tokens: 1, cached_tokens: 1, total_tokens: 4 }],
+  models: [{ id: 'm', name: 'model', provider_id: 'p', provider_name: 'provider', input_tokens: 1, output_tokens: 1, reasoning_tokens: 1, cached_tokens: 1, cache_creation_tokens: 0, total_tokens: 4 }],
   providers: [],
 }
 async function resizeComposition(width: number) {

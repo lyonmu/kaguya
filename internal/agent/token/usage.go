@@ -16,11 +16,12 @@ type UsageRecorder interface {
 // NormalizedUsage 一次回答（或单个 step）的 token 用量。
 // 字段经过 FromFantasyUsage 归一化：非负且 TotalTokens 始终有效。
 type NormalizedUsage struct {
-	InputTokens     int64 `json:"input_tokens"`     // 输入 token 数量
-	OutputTokens    int64 `json:"output_tokens"`    // 输出 token 数量
-	TotalTokens     int64 `json:"total_tokens"`     // 总 token 数量
-	CacheHitTokens  int64 `json:"cache_hit_tokens"` // 缓存命中的 token 数量（来自 CacheRead）
-	ReasoningTokens int64 `json:"reasoning_tokens"` // 思考 token 数量（包含在输出中，不重复计入总量）
+	InputTokens         int64 `json:"input_tokens"`          // 输入 token 数量（不含缓存读写）
+	OutputTokens        int64 `json:"output_tokens"`         // 输出 token 数量
+	TotalTokens         int64 `json:"total_tokens"`          // 总 token 数量
+	CacheHitTokens      int64 `json:"cache_hit_tokens"`      // 缓存命中的 token 数量（来自 CacheRead）
+	CacheCreationTokens int64 `json:"cache_creation_tokens"` // 缓存写入的 token 数量
+	ReasoningTokens     int64 `json:"reasoning_tokens"`      // 思考 token 数量（包含在输出中，不重复计入总量）
 }
 
 // FromFantasyUsage 将 fantasy.Usage 归一化为 NormalizedUsage。
@@ -41,11 +42,12 @@ func FromFantasyUsage(u fantasy.Usage) NormalizedUsage {
 	}
 
 	return NormalizedUsage{
-		InputTokens:     u.InputTokens,
-		OutputTokens:    u.OutputTokens,
-		TotalTokens:     u.TotalTokens,
-		CacheHitTokens:  u.CacheReadTokens,
-		ReasoningTokens: u.ReasoningTokens,
+		InputTokens:         u.InputTokens,
+		OutputTokens:        u.OutputTokens,
+		TotalTokens:         u.TotalTokens,
+		CacheHitTokens:      u.CacheReadTokens,
+		CacheCreationTokens: u.CacheCreationTokens,
+		ReasoningTokens:     u.ReasoningTokens,
 	}
 }
 

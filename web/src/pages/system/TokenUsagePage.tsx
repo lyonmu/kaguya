@@ -78,13 +78,13 @@ export function TokenUsagePage() {
   const composition = useMemo<EChartsCoreOption>(() => {
     const rows = compositionRows
     return {
-      aria: { enabled: true }, color: [palette.context, palette.primary, chartColors.reasoning, chartColors.cached],
+      aria: { enabled: true }, color: [palette.context, palette.primary, chartColors.reasoning, chartColors.cached, token.colorWarning],
       tooltip: { trigger: 'axis', renderMode: 'richText', axisPointer: { type: 'shadow' }, backgroundColor: token.colorBgElevated, textStyle: { color: token.colorText } },
       legend: { top: 0, textStyle: { color: token.colorTextSecondary }, icon: 'roundRect' },
       grid: { left: 65, right: 20, top: 45, bottom: 80 },
       xAxis: { type: 'category', data: rows.map(row => row.name || row.id), axisTick: { show: false }, axisLine: { lineStyle: { color: token.colorBorderSecondary } }, axisLabel: { interval: 0, fontSize: 12, width: compositionLabel, overflow: 'truncate', color: token.colorTextSecondary } },
       yAxis: { type: 'value', axisLabel: { formatter: compact, color: token.colorTextSecondary }, splitLine: { lineStyle: { color: token.colorBorderSecondary, type: 'dashed' } } },
-      series: ([['输入', 'input_tokens'], ['输出', 'output_tokens'], ['思考', 'reasoning_tokens'], ['缓存', 'cached_tokens']] as const).map(([name, key]) => ({ name, type: 'bar', stack: 'tokens', barMaxWidth: 36, data: rows.map(row => row[key]) })),
+      series: ([['输入', 'input_tokens'], ['输出', 'output_tokens'], ['思考', 'reasoning_tokens'], ['缓存读取', 'cached_tokens'], ['缓存写入', 'cache_creation_tokens']] as const).map(([name, key]) => ({ name, type: 'bar', stack: 'tokens', barMaxWidth: 36, data: rows.map(row => row[key]) })),
     }
   }, [compositionLabel, compositionRows, token, palette, chartColors])
   const stats = data ? [
@@ -107,7 +107,7 @@ export function TokenUsagePage() {
       </Card>
       <Card title={<div>Token 构成 <small>全部历史 · 用量最高的 10 项</small></div>} extra={<Segmented value={dimension} options={[{ label: '按模型', value: 'model' }, { label: '按厂商', value: 'provider' }]} onChange={setDimension} />}>
         {compositionRows.length ? <div className="token-usage-chart-scroll"><div className="token-usage-composition" ref={measureComposition}><UsageChart option={composition} height={360} label="Token 构成堆叠柱状图" /></div></div> : <Empty description="暂无用量记录" />}
-        <p className="token-usage-note">输入含缓存写入，输出不含思考；四类 Token 不重复计数。统计已记录的聊天、上下文摘要、标题、模型测试及历史记忆调用用量；失败或取消调用已知的消费也计入。删除会话不会抹除消费。历史标题等未保存的用量无法补算。</p>
+        <p className="token-usage-note">输入不含缓存读写，缓存读取和写入单独统计；输出不含思考；五类 Token 不重复计数。统计已记录的聊天、上下文摘要、标题、模型测试及历史记忆调用用量；失败或取消调用已知的消费也计入。删除会话不会抹除消费。历史标题等未保存的用量无法补算。</p>
       </Card>
     </>}
   </div>

@@ -5,7 +5,7 @@ import { applyFrame } from './reducer'
 import type { Block, ChatFrame, Turn } from './types'
 
 const initial: Turn = { turn_index: 1, user_content: 'hi', model_id: '', model_name: '', api_protocol: '', started_at: new Date().toISOString(), duration_ms: 0, tool_calls: 0, blocks: [], status: 'streaming' }
-const event = (block: Block): ChatFrame => ({ chat: { id: '1', flag: 'delta', block, content: '不要重复消费' }, model_id: '', model_name: '', api_protocol: '', created: 0, usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3, cached_tokens: 0, reasoning_tokens: 0 } })
+const event = (block: Block): ChatFrame => ({ chat: { id: '1', flag: 'delta', block, content: '不要重复消费' }, model_id: '', model_name: '', api_protocol: '', created: 0, usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3, cached_tokens: 0, cache_creation_tokens: 0, reasoning_tokens: 0 } })
 
 describe('chat frame reducer', () => {
   it('appends deltas without duplicating compatibility text or block_end text', () => {

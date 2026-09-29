@@ -80,9 +80,10 @@ type Chat struct {
 }
 
 type Usage struct {
-	InputTokens     int `json:"input_tokens"`     // 输入 Token 数。
-	OutputTokens    int `json:"output_tokens"`    // 输出 Token 数
-	TotalTokens     int `json:"total_tokens"`     // 总 Token 数
-	CachedTokens    int `json:"cached_tokens"`    // 命中缓存的 Token 数
-	ReasoningTokens int `json:"reasoning_tokens"` // 思考 Token 数（提供商未报告时为 0）
+	InputTokens         int `json:"input_tokens"`          // 输入 Token 数（不含缓存读写）
+	OutputTokens        int `json:"output_tokens"`         // 输出 Token 数
+	TotalTokens         int `json:"total_tokens"`          // 总 Token 数
+	CachedTokens        int `json:"cached_tokens"`         // 命中缓存的 Token 数（缓存读取）
+	CacheCreationTokens int `json:"cache_creation_tokens"` // 缓存写入的 Token 数
+	ReasoningTokens     int `json:"reasoning_tokens"`      // 思考 Token 数（提供商未报告时为 0）
 }

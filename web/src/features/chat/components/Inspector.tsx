@@ -31,7 +31,8 @@ export function Inspector({ conversation, turns, streaming, id }: { conversation
     ['累计耗时', conversation ? `${(conversation.duration_ms / 1000).toFixed(2)} s` : '—'],
     ['输入 Tokens', usage?.input_tokens ?? '—'],
     ['输出 Tokens', usage?.output_tokens ?? '—'],
-    ['缓存 Tokens', usage?.cached_tokens ?? '—'],
+    ['缓存读取 Tokens', usage?.cached_tokens ?? '—'],
+    ['缓存写入 Tokens', usage?.cache_creation_tokens ?? '—'],
     ['思考 Tokens', usage?.reasoning_tokens ?? '—'],
     ['工具调用', conversation?.tool_calls ?? '—'],
   ]

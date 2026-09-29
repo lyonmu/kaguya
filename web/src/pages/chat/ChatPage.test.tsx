@@ -277,7 +277,7 @@ it('hides memory references and controls even for existing memory-enabled conver
   const conversation = {
     is_project: false, project_id: null, id: 'c-1', title: '记忆会话', favorite: false, turn_count: 1,
     model_id: 'm', model_name: '模型', created_at: new Date().toISOString(), last_message_at: new Date().toISOString(),
-    duration_ms: 1, tool_calls: 0, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, cached_tokens: 0, reasoning_tokens: 0 },
+    duration_ms: 1, tool_calls: 0, usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, cached_tokens: 0, cache_creation_tokens: 0, reasoning_tokens: 0 },
     memory_mode: 'inherit',
     memory_refs: { retriever_version: 1, estimated_tokens: 42, items: [{ page_id: 'p-1', version: 3, title: 'Memory 使用 SQLCipher', status: 'active', deleted: false }] },
   }

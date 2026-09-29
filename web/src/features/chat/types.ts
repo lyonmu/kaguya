@@ -4,6 +4,7 @@ export interface Usage {
   output_tokens: number
   total_tokens: number
   cached_tokens: number
+  cache_creation_tokens: number
   reasoning_tokens: number
 }
 

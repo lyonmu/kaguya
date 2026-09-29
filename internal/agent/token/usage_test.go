@@ -19,7 +19,7 @@ func TestFromFantasyUsage(t *testing.T) {
 		{"chat reasoning", fantasy.Usage{InputTokens: 91, OutputTokens: 32, TotalTokens: 123, ReasoningTokens: 22}, NormalizedUsage{InputTokens: 91, OutputTokens: 32, TotalTokens: 123, ReasoningTokens: 22}},
 		{"usage reasoning", fantasy.Usage{InputTokens: 17, OutputTokens: 279, TotalTokens: 296, ReasoningTokens: 210}, NormalizedUsage{InputTokens: 17, OutputTokens: 279, TotalTokens: 296, ReasoningTokens: 210}},
 		{"anthropic", fantasy.Usage{InputTokens: 24, OutputTokens: 146}, NormalizedUsage{InputTokens: 24, OutputTokens: 146, TotalTokens: 170}},
-		{"fallback includes cache but not reasoning", fantasy.Usage{InputTokens: 10, OutputTokens: 20, CacheReadTokens: 30, CacheCreationTokens: 40, ReasoningTokens: 5}, NormalizedUsage{InputTokens: 10, OutputTokens: 20, TotalTokens: 100, CacheHitTokens: 30, ReasoningTokens: 5}},
+		{"fallback includes cache but not reasoning", fantasy.Usage{InputTokens: 10, OutputTokens: 20, CacheReadTokens: 30, CacheCreationTokens: 40, ReasoningTokens: 5}, NormalizedUsage{InputTokens: 10, OutputTokens: 20, TotalTokens: 100, CacheHitTokens: 30, CacheCreationTokens: 40, ReasoningTokens: 5}},
 		{"clamp before fallback", fantasy.Usage{InputTokens: -10, OutputTokens: 20, TotalTokens: -1, CacheReadTokens: -2, CacheCreationTokens: -3, ReasoningTokens: -4}, NormalizedUsage{OutputTokens: 20, TotalTokens: 20}},
 		{"preserve reported total", fantasy.Usage{InputTokens: 10, OutputTokens: 20, TotalTokens: 99}, NormalizedUsage{InputTokens: 10, OutputTokens: 20, TotalTokens: 99}},
 	}

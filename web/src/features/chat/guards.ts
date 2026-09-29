@@ -7,7 +7,7 @@ import { guardFailure, guardSuccess, isArrayOf, isBoolean, isNumber, isOptional,
 // 字段缺失时按 0 处理；出现时必须类型正确，避免 NaN 进入展示层。
 const isUsage = (value: unknown, required: boolean): value is Usage => {
   if (!isRecord(value)) return false
-  const numbers = ['input_tokens', 'output_tokens', 'total_tokens', 'cached_tokens', 'reasoning_tokens']
+  const numbers = ['input_tokens', 'output_tokens', 'total_tokens', 'cached_tokens', 'cache_creation_tokens', 'reasoning_tokens']
   return numbers.some(field => !isOptional(value[field], isNumber)) ? false : required ? isNumber(value.total_tokens) : true
 }
 
