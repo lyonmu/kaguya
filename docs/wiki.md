@@ -241,6 +241,7 @@ Create / edit MCP service:
 Behavior:
 
 - New services are disabled by default; enabling connects and discovers tools, and enabled services are restored on restart.
+- An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor with exponential backoff (checked every 2 seconds, delays 1s, 2s, 4s… up to 60s); the status shows “正在自动重连” while retrying, and retries stop once the service is disabled or deleted.
 - Editing an enabled service validates the replacement connection first: on success it replaces the old connection, on failure the existing configuration is kept.
 - Enabled MCP tools are available to ordinary and project conversations from the next request; title tasks use no tools.
 - Disabling or deleting closes the connection and cancels in-flight MCP requests; external side effects already performed are not undone.
@@ -332,6 +333,7 @@ Conversation titles are generated automatically by the background-task model aft
 - HTTP requests stay same-origin with the configured URL; cross-origin redirects and HTTPS downgrade are refused.
 - Lists and logs never return environment variables or auth headers; the edit dialog shows stored values so they can be changed, and they are never written to logs.
 - New configurations start disabled; editing an enabled service validates the replacement connection first; disabling or deleting closes the connection and cancels requests.
+- An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor: exponential backoff of 1s, 2s, 4s… checked every 2 seconds, capped at 60s; retries stop once the service is disabled or deleted.
 
 ### 7.6 Model requests
 

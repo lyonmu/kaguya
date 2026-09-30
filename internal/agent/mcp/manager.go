@@ -193,7 +193,7 @@ func (m *Manager) Status(id string) Status {
 		status.State = "running"
 		if c.ctx.Err() != nil {
 			status.State = "error"
-			status.Message = "MCP 连接已断开，请重新启用"
+			status.Message = "MCP 连接已断开，正在自动重连"
 			return status
 		}
 		for _, tool := range c.tools {

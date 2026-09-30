@@ -22,7 +22,7 @@ The project targets a cross-platform Desktop application. **The native desktop h
 - **Conversations**: streaming Markdown answers, Mermaid diagrams, expandable reasoning and tool cards, per-turn tokens / duration / tool-call counts, paginated history, and concurrent sessions that keep running while you switch.
 - **Local projects**: work inside a home-directory project with seven built-in tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`), `@` file references, and a code browser with file tree and unified / split Git diffs.
 - **Models and providers**: OpenAI Chat, OpenAI Responses, and Anthropic protocols on a per-model basis, catalog prefill from [models.dev](https://models.dev), request-path overrides, and a mandatory model test before saving.
-- **MCP tools**: `stdio`, `streamable-http`, and `sse` services with dynamic enable / disable, runtime status, and per-service timeouts.
+- **MCP tools**: `stdio`, `streamable-http`, and `sse` services with dynamic enable / disable, runtime status, per-service timeouts, and automatic reconnection with exponential backoff after a dropped connection.
 - **Context management**: context-occupancy ring, automatic compaction at a configurable threshold, and continuation of unfinished turns.
 - **Usage analytics**: token totals and peaks, a one-year activity heatmap, and composition by model or provider.
 - **Local-first data**: SQLCipher database, AES-256-GCM encrypted API keys, no listening port in Desktop mode.

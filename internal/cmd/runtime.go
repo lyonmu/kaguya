@@ -41,6 +41,8 @@ type appRuntime struct {
 	gate          *pkg.Admission
 	restoreDone   chan struct{}
 	restoreUp     bool
+	recoveryDone  chan struct{}
+	recoveryUp    bool
 	modelSyncDone chan struct{}
 	modelSyncUp   bool
 	memoryDone    chan struct{}
@@ -56,6 +58,7 @@ func newAppRuntime(parent context.Context) *appRuntime {
 		cancel:        cancel,
 		gate:          pkg.NewAdmission(),
 		restoreDone:   make(chan struct{}),
+		recoveryDone:  make(chan struct{}),
 		modelSyncDone: make(chan struct{}),
 		memoryDone:    make(chan struct{}),
 	}
@@ -139,6 +142,7 @@ func (rt *appRuntime) init() error {
 	}
 
 	rt.startMCPRestore()
+	rt.startMCPRecovery()
 	rt.startModelCatalogSync()
 	rt.startMemoryWorker()
 	return nil
@@ -179,6 +183,16 @@ func (rt *appRuntime) startMCPRestore() {
 	}()
 }
 
+// startMCPRecovery 启动 MCP 自动重连监督器：启动恢复失败或运行中断开的
+// 服务会按指数退避持续重连，直到恢复、停用、删除或应用退出。
+func (rt *appRuntime) startMCPRecovery() {
+	rt.recoveryUp = true
+	go func() {
+		defer close(rt.recoveryDone)
+		(&servicesystem.SystemSvc{}).RunMCPRecovery(rt.ctx, servicesystem.DefaultMCPRecoveryOptions)
+	}()
+}
+
 // newEngine 装配业务 Gin 引擎并返回带准入控制的 Handler。
 func (rt *appRuntime) newEngine(engine *gin.Engine) (http.Handler, error) {
 	global.Metrics = pkg.NewPrometheusRegistry()
@@ -212,13 +226,16 @@ func (rt *appRuntime) beginShutdown() {
 	rt.cancel()
 }
 
-// close 等待已取得的资源释放：先等 MCP 恢复协程退出，再关闭 MCP 连接、
+// close 等待已取得的资源释放：先等 MCP 恢复与重连监督协程退出，再关闭 MCP 连接、
 // 数据库连接与日志。重复调用只执行一次。
 func (rt *appRuntime) close() {
 	rt.closeOnce.Do(func() {
 		rt.cancel()
 		if rt.restoreUp {
 			<-rt.restoreDone
+		}
+		if rt.recoveryUp {
+			<-rt.recoveryDone
 		}
 		if rt.modelSyncUp {
 			<-rt.modelSyncDone
