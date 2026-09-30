@@ -1,174 +1,65 @@
-import { desktopApiBase, isDesktop } from '../platform/host'
+import { requestJson } from './transport'
 
-export interface ApiResponse<T> {
-  code: number
-  data?: T
-  message?: string
-}
-
-/**
- * 运行时 payload 校验器：网络数据先作为 unknown 接收，由各接口声明必需字段。
- * 校验失败返回带用户可读提示的错误，避免坏响应继续流入 reducer。
- */
-export type PayloadGuard<T> = (value: unknown) => { ok: true; value: T } | { ok: false; error: string }
-
-export const guardFailure = (error: string): { ok: false; error: string } => ({ ok: false, error })
-export const guardSuccess = <T>(value: T): { ok: true; value: T } => ({ ok: true, value })
-export const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
-export const isString = (value: unknown): value is string => typeof value === 'string'
-export const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
-export const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
-export const isArrayOf = <T>(value: unknown, item: (item: unknown) => item is T): value is T[] => Array.isArray(value) && value.every(item)
-export const isOptional = <T>(value: unknown, check: (item: unknown) => item is T): value is T | undefined => value === undefined || check(value)
-
-export const isApiEnvelope = (value: unknown): value is ApiResponse<unknown> => {
-  if (!isRecord(value)) return false
-  if (!isNumber(value.code)) return false
-  return value.message === undefined || typeof value.message === 'string'
-}
+// 兼容出口：错误类型、envelope 校验与 guard helper 由 transport 统一实现，
+// feature API 继续从本模块导入，避免一次迁移所有调用点。
+export { ApiRequestError } from './errors'
+export { SUCCESS_CODE } from './codes'
+export { buildUrl } from './transport'
+export {
+  guardFailure,
+  guardSuccess,
+  isApiEnvelope,
+  isRecord,
+  isString,
+  isNumber,
+  isBoolean,
+  isArrayOf,
+  isOptional,
+} from './transport'
+export type { ApiResponse, PayloadGuard } from './transport'
 
 type QueryValue = string | number | boolean | null | undefined
-
-export const SUCCESS_CODE = 100000
-// Web 构建允许用 VITE_API_BASE_URL 指向外部服务；Desktop 只用宿主注入的本地前缀。
-const webApiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '/kaguya/api').replace(
-  /\/$/,
-  '',
-)
-
-function resolveApiBase(): string {
-  if (!isDesktop()) return webApiBaseUrl
-  const resolved = desktopApiBase()
-  if (!resolved.ok) throw new ApiRequestError(resolved.error)
-  return resolved.prefix
-}
-
-export class ApiRequestError extends Error {
-  code?: number
-  status?: number
-
-  constructor(message: string, options?: { code?: number; status?: number }) {
-    super(message)
-    this.name = 'ApiRequestError'
-    this.code = options?.code
-    this.status = options?.status
-  }
-}
-
-export function buildUrl(path: string, query?: Record<string, QueryValue>) {
-  const apiBaseUrl = resolveApiBase()
-  const searchParams = new URLSearchParams()
-
-  Object.entries(query ?? {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      searchParams.set(key, String(value))
-    }
-  })
-
-  const queryString = searchParams.toString()
-  return `${apiBaseUrl}${path}${queryString ? `?${queryString}` : ''}`
-}
-
-async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  path: string,
-  options?: {
-    body?: unknown
-    query?: Record<string, QueryValue>
-    signal?: AbortSignal
-  },
-  guard?: PayloadGuard<T>,
-): Promise<T> {
-  let response: Response
-  // Desktop 前缀非法时在发起请求前抛错，避免被当成网络不可用。
-  const url = buildUrl(path, options?.query)
-
-  try {
-    response = await fetch(url, {
-      method,
-      headers: {
-        Accept: 'application/json',
-        ...(options?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      },
-      body: options?.body === undefined ? undefined : JSON.stringify(options.body),
-      credentials: 'same-origin',
-      signal: options?.signal,
-    })
-  } catch (requestError) {
-    const signal = options?.signal
-    if (signal?.aborted) {
-      throw requestError
-    }
-
-    throw new ApiRequestError('无法连接到服务端，请确认 Kaguya API 已启动')
-  }
-
-  let payload: unknown
-
-  try {
-    payload = await response.json()
-  } catch {
-    throw new ApiRequestError('服务端返回了无法解析的响应', {
-      status: response.status,
-    })
-  }
-
-  if (!isApiEnvelope(payload)) {
-    throw new ApiRequestError('服务端响应格式不正确', {
-      status: response.status,
-    })
-  }
-
-  if (!response.ok) {
-    throw new ApiRequestError(payload.message || `请求失败（${response.status}）`, {
-      code: payload.code,
-      status: response.status,
-    })
-  }
-
-  if (payload.code !== SUCCESS_CODE) {
-    throw new ApiRequestError(payload.message || '请求处理失败', {
-      code: payload.code,
-      status: response.status,
-    })
-  }
-
-  if (!guard) {
-    return payload.data as T
-  }
-  const checked = guard(payload.data)
-  if (!checked.ok) {
-    throw new ApiRequestError(checked.error, { status: response.status })
-  }
-  return checked.value
-}
 
 export function get<T>(
   path: string,
   query?: Record<string, QueryValue>,
   signal?: AbortSignal,
-  guard?: PayloadGuard<T>,
+  guard?: import('./transport').PayloadGuard<T>,
 ): Promise<T> {
-  return request<T>('GET', path, { query, signal }, guard)
+  return requestJson<T>('GET', path, { query, signal }, guard)
 }
 
 export function post<T>(
   path: string,
   body?: unknown,
   signal?: AbortSignal,
-  guard?: PayloadGuard<T>,
+  guard?: import('./transport').PayloadGuard<T>,
 ): Promise<T> {
-  return request<T>('POST', path, { body, signal }, guard)
+  return requestJson<T>('POST', path, { body, signal }, guard)
 }
 
-export function put<T>(path: string, body?: unknown, guard?: PayloadGuard<T>): Promise<T> {
-  return request<T>('PUT', path, { body }, guard)
+export function put<T>(
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+  guard?: import('./transport').PayloadGuard<T>,
+): Promise<T> {
+  return requestJson<T>('PUT', path, { body, signal }, guard)
 }
 
-export function patch<T>(path: string, body?: unknown, guard?: PayloadGuard<T>): Promise<T> {
-  return request<T>('PATCH', path, { body }, guard)
+export function patch<T>(
+  path: string,
+  body?: unknown,
+  signal?: AbortSignal,
+  guard?: import('./transport').PayloadGuard<T>,
+): Promise<T> {
+  return requestJson<T>('PATCH', path, { body, signal }, guard)
 }
 
-export function del(path: string, query?: Record<string, QueryValue>): Promise<void> {
-  return request<void>('DELETE', path, { query })
+export function del(
+  path: string,
+  query?: Record<string, QueryValue>,
+  signal?: AbortSignal,
+): Promise<void> {
+  return requestJson<void>('DELETE', path, { query, signal })
 }

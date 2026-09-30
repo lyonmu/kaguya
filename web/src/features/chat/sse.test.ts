@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { ApiRequestError } from '../../api/errors'
 import { consumeSSE } from './sse'
 import type { ChatFrame } from './types'
 
@@ -34,6 +35,17 @@ describe('SSE transport', () => {
     await assert.rejects(consumeSSE(stream('data: {"code":500,"message":"模型不可用"}\n\n'), () => {}), /模型不可用/)
     await assert.rejects(consumeSSE(stream('data: not-json\n\n'), () => {}), /无法解析/)
     await assert.rejects(consumeSSE(stream('data: {"code":100000}\n\n'), () => {}), /格式不正确/)
+  })
+  it('attaches the conversation id to a failing frame', async () => {
+    await assert.rejects(
+      consumeSSE(stream('data: {"code":102000,"message":"生成失败","data":{"chat":{"id":"abc","flag":"error"}}}\n\n'), () => {}),
+      (error: unknown) => error instanceof ApiRequestError && error.kind === 'business' && error.context?.conversationId === 'abc',
+    )
+    // 首帧失败尚无会话 ID 时回退到请求已知 ID。
+    await assert.rejects(
+      consumeSSE(stream('data: {"code":102000,"message":"生成失败"}\n\n'), () => {}, { conversationId: 'known' }),
+      (error: unknown) => error instanceof ApiRequestError && error.context?.conversationId === 'known',
+    )
   })
   it('does not silently mark a disconnected stream complete', async () => {
     await assert.rejects(consumeSSE(stream(`data: ${JSON.stringify(frame('start'))}\n\n`), () => {}), /连接意外中断/)

@@ -86,8 +86,11 @@ func TestNativeEndpointResponsesAreNotCached(t *testing.T) {
 	if w.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("cache-control=%q", w.Header().Get("Cache-Control"))
 	}
-	var payload map[string]bool
-	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil || !payload["ok"] {
+	var payload struct {
+		Code int             `json:"code"`
+		Data map[string]bool `json:"data"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &payload); err != nil || payload.Code != 100000 || !payload.Data["ok"] {
 		t.Fatalf("body=%s", w.Body)
 	}
 }

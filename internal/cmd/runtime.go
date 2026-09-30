@@ -12,6 +12,7 @@ import (
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/db"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/features"
 	"github.com/lyonmu/kaguya/internal/global"
 	initialize "github.com/lyonmu/kaguya/internal/init"
@@ -211,7 +212,7 @@ func (rt *appRuntime) newEngine(engine *gin.Engine) (http.Handler, error) {
 func (rt *appRuntime) admissionHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !rt.gate.Enter() {
-			http.Error(w, "kaguya is shutting down", http.StatusServiceUnavailable)
+			dtocode.WriteHTTP(w, http.StatusServiceUnavailable, dtocode.ServiceStopping)
 			return
 		}
 		defer rt.gate.Leave()

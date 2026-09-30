@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/pkg"
 )
 
@@ -68,7 +69,7 @@ func (a *assetsHandler) nativeMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		if r.ContentLength > maxRequestBytes {
-			http.Error(w, "request body exceeds 1 MiB", http.StatusRequestEntityTooLarge)
+			dtocode.WriteHTTP(w, http.StatusRequestEntityTooLarge, dtocode.RequestTooLarge)
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
@@ -101,11 +102,11 @@ func (a *assetsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	handler := a.published.Load()
 	if handler == nil {
-		http.Error(w, "kaguya is starting", http.StatusServiceUnavailable)
+		dtocode.WriteHTTP(w, http.StatusServiceUnavailable, dtocode.ServiceStarting)
 		return
 	}
 	if !a.admission.Enter() {
-		http.Error(w, "kaguya is shutting down", http.StatusServiceUnavailable)
+		dtocode.WriteHTTP(w, http.StatusServiceUnavailable, dtocode.ServiceStopping)
 		return
 	}
 	defer a.admission.Leave()

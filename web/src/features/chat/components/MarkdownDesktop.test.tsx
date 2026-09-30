@@ -37,7 +37,7 @@ function mockNative(): Array<{ url: string; body: unknown }> {
   const calls: Array<{ url: string; body: unknown }> = []
   globalThis.fetch = (async (url, init) => {
     calls.push({ url: String(url), body: init?.body === undefined ? undefined : JSON.parse(String(init.body)) })
-    return Response.json({ ok: true })
+    return Response.json({ code: 100000, data: { ok: true }, message: '操作成功' })
   }) as typeof fetch
   return calls
 }

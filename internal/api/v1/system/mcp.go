@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
+	"github.com/lyonmu/kaguya/internal/global"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
@@ -16,9 +17,16 @@ func mcpFailure(c *gin.Context, err error) {
 	case errors.Is(err, servicesystem.ErrMCPDuplicate):
 		dtocode.MCPDuplicate.Failure(c)
 	case errors.Is(err, servicesystem.ErrMCPConnect):
-		dtocode.Response{Code: dtocode.MCPConnectFailure.Code, Message: err.Error()}.Failure(c)
+		// 原始错误可能包含连接端点等诊断信息，只进日志，响应使用固定文案。
+		if global.Logger != nil {
+			global.Logger.Sugar().Warnf("MCP connect failed: %v", err)
+		}
+		dtocode.MCPConnectFailure.Failure(c)
 	case errors.Is(err, servicesystem.ErrMCPInvalid):
-		dtocode.Response{Code: dtocode.MCPConfigInvalid.Code, Message: err.Error()}.Failure(c)
+		if global.Logger != nil {
+			global.Logger.Sugar().Warnf("MCP configuration invalid: %v", err)
+		}
+		dtocode.MCPConfigInvalid.Failure(c)
 	default:
 		dtocode.MCPFailure.Failure(c)
 	}

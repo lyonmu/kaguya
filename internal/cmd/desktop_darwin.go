@@ -45,7 +45,7 @@ func runDesktop() error {
 			if err := rt.init(); err != nil {
 				return nil, err
 			}
-			ginEngine, err := pkg.NewDesktopGin(global.Cfg.Debug)
+			ginEngine, err := pkg.NewDesktopGin(global.Cfg.Debug, global.Cfg.RouterPrefix)
 			if err != nil {
 				return nil, err
 			}

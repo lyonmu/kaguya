@@ -6,6 +6,9 @@
  * 同一份前端产物在两种环境都能运行。
  */
 
+import { SUCCESS_CODE } from '../api/codes'
+import { ApiRequestError } from '../api/errors'
+
 export const DESKTOP_PROTOCOL = 'wails:'
 export const DESKTOP_HOSTNAME = 'localhost'
 export const API_PREFIX_PARAM = 'api-prefix'
@@ -69,13 +72,32 @@ export function desktopApiBase(): PrefixResult {
 }
 
 async function postNative(path: string, body: unknown): Promise<void> {
-  const response = await fetch(`${NATIVE_ROUTE_PREFIX}/${path}`, {
-    method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify(body),
-  })
-  if (!response.ok) throw new Error('系统操作失败')
+  let response: Response
+  try {
+    response = await fetch(`${NATIVE_ROUTE_PREFIX}/${path}`, {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    })
+  } catch {
+    throw new ApiRequestError('无法连接到桌面宿主', { kind: 'network' })
+  }
+  let payload: unknown
+  try {
+    payload = await response.json()
+  } catch {
+    throw new ApiRequestError('桌面宿主返回了无法解析的响应', {
+      status: response.status,
+      kind: response.ok ? 'protocol' : 'http',
+    })
+  }
+  const envelope = typeof payload === 'object' && payload !== null ? (payload as { code?: unknown; message?: unknown }) : undefined
+  const code = typeof envelope?.code === 'number' ? envelope.code : undefined
+  if (!response.ok || code !== SUCCESS_CODE) {
+    const message = typeof envelope?.message === 'string' && envelope.message ? envelope.message : '系统操作失败'
+    throw new ApiRequestError(message, { code, status: response.status, kind: response.ok ? 'business' : 'http' })
+  }
 }
 
 /**

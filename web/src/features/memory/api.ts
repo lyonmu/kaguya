@@ -139,7 +139,7 @@ export function createMemoryPage(payload: MemoryPagePayload) {
 }
 
 export function updateMemoryPage(id: string, payload: MemoryPagePatch) {
-  return patch<MemoryPageDetail>(`/v1/memory/pages/${encodeURIComponent(id)}`, payload, guardPageDetail)
+  return patch<MemoryPageDetail>(`/v1/memory/pages/${encodeURIComponent(id)}`, payload, undefined, guardPageDetail)
 }
 
 export function deleteMemoryPage(id: string, mode: 'disable' | 'forget') {

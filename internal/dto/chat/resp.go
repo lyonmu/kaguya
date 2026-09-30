@@ -20,7 +20,7 @@ type ChatResp struct {
 	Created           int64                   `json:"created"`                      // 创建时间时间戳
 	ModelID           string                  `json:"model_id"`                     // 模型id
 	ModelName         string                  `json:"model_name"`                   // 模型名称
-	Err               error                   `json:"err"`                          // 错误信息
+	Err               error                   `json:"-"`                          // 仅服务端/API mapper 使用，不向客户端序列化
 }
 
 // BlockType 标识内容用途，与整轮生命周期 Flag 独立。

@@ -2,12 +2,14 @@ package desktop
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/pkg"
 )
 
@@ -80,6 +82,14 @@ func TestNativeMiddlewareRejectsForeignRequests(t *testing.T) {
 				if w.Header().Get("X-Content-Type-Options") != "nosniff" {
 					t.Fatal("security headers missing on rejection")
 				}
+				wantCode := dtocode.RequestForbidden.Code
+				if tc.want == http.StatusRequestEntityTooLarge {
+					wantCode = dtocode.RequestTooLarge.Code
+				}
+				var body dtocode.Response
+				if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || body.Code != wantCode {
+					t.Fatalf("rejection body is not the unified envelope: %s", w.Body)
+				}
 			}
 		})
 	}
@@ -93,6 +103,10 @@ func TestAssetsServeHTTPServesPublishedHandler(t *testing.T) {
 	handler.ServeHTTP(w, nativeRequest(t, http.MethodGet, "/kaguya/api/v1/system/info", "", nil))
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("unpublished handler status=%d", w.Code)
+	}
+	var startup dtocode.Response
+	if err := json.Unmarshal(w.Body.Bytes(), &startup); err != nil || startup.Code != dtocode.ServiceStarting.Code {
+		t.Fatalf("unpublished handler body is not the unified envelope: %s", w.Body)
 	}
 
 	published := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

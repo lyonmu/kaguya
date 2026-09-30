@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -8,10 +9,11 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 )
 
 func TestRequestSecurity(t *testing.T) {
-	r, err := NewGin(false, "agent.example.com")
+	r, err := NewGin(false, "/kaguya/api", "agent.example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,12 +55,18 @@ func TestRequestSecurity(t *testing.T) {
 			if w.Header().Get("Access-Control-Allow-Origin") != "" {
 				t.Fatal("permissive CORS")
 			}
+			if tc.want == http.StatusForbidden {
+				var body dtocode.Response
+				if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || body.Code != dtocode.RequestForbidden.Code {
+					t.Fatalf("forbidden body is not the unified envelope: %s", w.Body)
+				}
+			}
 		})
 	}
 }
 
 func TestRequestBodyLimit(t *testing.T) {
-	r, _ := NewGin(false)
+	r, _ := NewGin(false, "/kaguya/api")
 	called := false
 	r.POST("/", func(c *gin.Context) {
 		if _, err := io.ReadAll(c.Request.Body); err != nil {
@@ -78,13 +86,20 @@ func TestRequestBodyLimit(t *testing.T) {
 		if w.Code != 413 || called {
 			t.Fatalf("chunked=%v status=%d called=%v", chunked, w.Code, called)
 		}
+		// 已知长度由中间件直接拒绝并返回统一 envelope；chunked 由读取方处置。
+		if !chunked {
+			var body dtocode.Response
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil || body.Code != dtocode.RequestTooLarge.Code {
+				t.Fatalf("oversized body is not the unified envelope: %s", w.Body)
+			}
+		}
 	}
 }
 
 // TestDesktopGinSkipsWebOriginRules 确认 Desktop 入口不套用 Web 的 Host/Origin
 // 白名单（原生通道来源在 Assets 层校验），但仍保留体积限制与安全头。
 func TestDesktopGinSkipsWebOriginRules(t *testing.T) {
-	r, err := NewDesktopGin(false)
+	r, err := NewDesktopGin(false, "/kaguya/api")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +127,7 @@ func TestDesktopGinSkipsWebOriginRules(t *testing.T) {
 
 // TestWebGinStillRejectsOpaqueOrigin 确认 Web 入口不放行 Desktop 的原生来源特例。
 func TestWebGinStillRejectsOpaqueOrigin(t *testing.T) {
-	r, err := NewGin(false)
+	r, err := NewGin(false, "/kaguya/api")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,39 +1,12 @@
 package chat
 
 import (
-	"context"
-	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
-	"github.com/lyonmu/kaguya/internal/global"
-	serviceagent "github.com/lyonmu/kaguya/internal/service/agent"
 )
-
-func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
-	// 客户端取消过期请求或断开连接是正常生命周期，不再写响应或记录服务异常。
-	// 同时检查请求 context，避免吞掉服务内部独立任务的取消错误。
-	if errors.Is(err, context.Canceled) && errors.Is(c.Request.Context().Err(), context.Canceled) {
-		return
-	}
-	switch {
-	case errors.Is(err, serviceagent.ErrTaskModelNotConfigured):
-		dtocode.TaskModelNotConfigured.Failure(c)
-	case errors.Is(err, serviceagent.ErrProviderSecretUnavailable):
-		dtocode.ProviderSecretUnusable.Failure(c)
-	case errors.Is(err, serviceagent.ErrConversationNotFound):
-		dtocode.ConversationNotFound.Failure(c)
-	case errors.Is(err, serviceagent.ErrConversationBusy):
-		dtocode.ChatBusy.Failure(c)
-	case errors.Is(err, serviceagent.ErrConversationUpdate):
-		dtocode.RequestParameterError.Failure(c)
-	default:
-		global.Logger.Sugar().Errorf("conversation API failed: %v", err)
-		fallback.Failure(c)
-	}
-}
 
 // ConversationPage
 // @Tags Chat History

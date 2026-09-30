@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 )
 
 const (
@@ -28,11 +30,11 @@ type externalOpener func(rawURL string) error
 func (a *assetsHandler) serveNative(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method not allowed"})
+		writeResponse(w, http.StatusMethodNotAllowed, dtocode.RouteNotFound)
 		return
 	}
 	if !a.admission.Enter() {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "kaguya is shutting down"})
+		writeResponse(w, http.StatusServiceUnavailable, dtocode.ServiceStopping)
 		return
 	}
 	defer a.admission.Leave()
@@ -43,54 +45,54 @@ func (a *assetsHandler) serveNative(w http.ResponseWriter, r *http.Request) {
 	case nativeRouteRoot + "/open-external":
 		a.serveOpenExternal(w, r)
 	default:
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown desktop endpoint"})
+		writeResponse(w, http.StatusNotFound, dtocode.RouteNotFound)
 	}
 }
 
 func (a *assetsHandler) serveClipboard(w http.ResponseWriter, r *http.Request) {
 	if a.clipboardSet == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "clipboard is unavailable"})
+		writeResponse(w, http.StatusServiceUnavailable, dtocode.ServiceStopping)
 		return
 	}
 	var req struct {
 		Text string `json:"text"`
 	}
 	if err := decodeNativeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeResponse(w, http.StatusBadRequest, dtocode.RequestParameterError)
 		return
 	}
 	if len(req.Text) > maxClipboardBytes {
-		writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "clipboard text exceeds the limit"})
+		writeResponse(w, http.StatusRequestEntityTooLarge, dtocode.RequestTooLarge)
 		return
 	}
 	if !a.clipboardSet(req.Text) {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "clipboard write failed"})
+		writeResponse(w, http.StatusInternalServerError, dtocode.InternalFailure)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	writeSuccess(w, map[string]bool{"ok": true})
 }
 
 func (a *assetsHandler) serveOpenExternal(w http.ResponseWriter, r *http.Request) {
 	if a.openExternal == nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "external links are unavailable"})
+		writeResponse(w, http.StatusServiceUnavailable, dtocode.ServiceStopping)
 		return
 	}
 	var req struct {
 		URL string `json:"url"`
 	}
 	if err := decodeNativeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeResponse(w, http.StatusBadRequest, dtocode.RequestParameterError)
 		return
 	}
 	if len(req.URL) > maxExternalURLBytes || !allowedExternalURL(req.URL) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "only absolute http and https URLs can be opened"})
+		writeResponse(w, http.StatusBadRequest, dtocode.RequestParameterError)
 		return
 	}
 	if err := a.openExternal(req.URL); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "opening the system browser failed"})
+		writeResponse(w, http.StatusInternalServerError, dtocode.InternalFailure)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	writeSuccess(w, map[string]bool{"ok": true})
 }
 
 // allowedExternalURL 只接受解析成功、无 userinfo 且 Host 非空的 http/https URL。
@@ -121,15 +123,22 @@ func decodeNativeJSON(r *http.Request, target any) error {
 	return nil
 }
 
-func writeJSON(w http.ResponseWriter, status int, body any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(body)
+// writeResponse 输出统一 envelope；Desktop 窄接口与 Web API 共用同一业务码。
+func writeResponse(w http.ResponseWriter, status int, response dtocode.Response) {
+	dtocode.WriteHTTP(w, status, response)
 }
 
-func rejectNative(w http.ResponseWriter, message string) {
-	http.Error(w, message, http.StatusForbidden)
+// writeSuccess 输出成功 envelope；data 为窄接口自身的载荷。
+func writeSuccess(w http.ResponseWriter, data any) {
+	dtocode.WriteHTTP(w, http.StatusOK, dtocode.Response{
+		Code:    dtocode.SystemSuccess.Code,
+		Message: dtocode.SystemSuccess.Message,
+		Data:    data,
+	})
+}
+
+func rejectNative(w http.ResponseWriter, _ string) {
+	writeResponse(w, http.StatusForbidden, dtocode.RequestForbidden)
 }
 
 // startupPage 是窗口在业务 Handler 发布前显示的受控页面，不加载任何外部资源。

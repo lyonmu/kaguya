@@ -144,8 +144,11 @@ func (b *SystemApiV1Group) SystemModelTest(c *gin.Context) {
 		case errors.Is(err, servicesystem.ErrModelRequestPath):
 			dtocode.RequestParameterError.Failure(c)
 		case errors.Is(err, servicesystem.ErrModelTest):
-			// 回传提供商或运行时的原始错误，便于直接定位配置问题。
-			dtocode.Response{Code: dtocode.ModelTestFailure.Code, Message: err.Error()}.Failure(c)
+			// 提供商或运行时的原始错误只写日志，响应保持固定文案，避免泄露凭据。
+			if global.Logger != nil {
+				global.Logger.Sugar().Warnf("model test failed: %v", err)
+			}
+			dtocode.ModelTestFailure.Failure(c)
 		default:
 			dtocode.ModelTestFailure.Failure(c)
 		}

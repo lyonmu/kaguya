@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/global"
 )
 
@@ -33,7 +34,7 @@ func (b *SystemApiV1Group) Front(c *gin.Context) {
 
 	requestPath := c.Request.URL.Path
 	if isAPIPath(requestPath) {
-		c.Status(http.StatusNotFound)
+		dtocode.RouteNotFound.NotFound(c)
 		return
 	}
 

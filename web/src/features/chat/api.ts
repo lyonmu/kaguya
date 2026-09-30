@@ -1,5 +1,5 @@
-import { ApiRequestError, buildUrl, del, get, post, put } from '../../api/http'
-import type { ApiResponse } from '../../api/http'
+import { del, get, post, put } from '../../api/http'
+import { openStream } from '../../api/stream'
 import { blockGuard, conversationContextGuard, conversationGuard, conversationPageGuard, conversationTitleGuard, projectFilesGuard, turnPageGuard } from './guards'
 import { consumeSSE } from './sse'
 import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage, Block } from './types'
@@ -27,7 +27,7 @@ export function fetchTurnPage(id: string, page: number, signal?: AbortSignal) {
   return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: HISTORY_PAGE_SIZE, compact: true }, signal, turnPageGuard)
 }
 export function updateConversation(id: string, payload: { title?: string; favorite?: boolean; memory_mode?: string }) {
-  return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload, conversationGuard)
+  return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload, undefined, conversationGuard)
 }
 // stopConversation 标记用户主动停止该会话的当前轮次，供服务端区分 canceled 与断联；
 // 取消本身仍通过断开 SSE 完成。
@@ -38,20 +38,12 @@ export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }
 export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string, files: string[] = []) {
-  const response = await fetch(buildUrl('/v1/chat/sse'), {
+  const body = await openStream('/v1/chat/sse', {
     method: 'POST',
-    headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    body: JSON.stringify({ id: id || undefined, messages, model_id: modelId || undefined, project_id: projectId || undefined, files: projectId && files.length ? files : undefined }),
     signal,
+    body: { id: id || undefined, messages, model_id: modelId || undefined, project_id: projectId || undefined, files: projectId && files.length ? files : undefined },
   })
-  if (!response.ok || !response.headers.get('content-type')?.includes('text/event-stream')) {
-    let payload: ApiResponse<unknown> | undefined
-    try { payload = await response.json() } catch { /* Non-JSON HTTP error. */ }
-    throw new ApiRequestError(payload?.message || `对话请求失败（${response.status}）`, { status: response.status, code: payload?.code })
-  }
-  if (!response.body) throw new ApiRequestError('浏览器不支持流式响应')
-  await consumeSSE(response.body, onFrame)
+  await consumeSSE(body, onFrame, { conversationId: id || undefined })
 }
 
 export function searchProjectFiles(projectId: string, query: string, signal?: AbortSignal) {

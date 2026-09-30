@@ -91,7 +91,7 @@ describe('desktop host detection', () => {
     const calls: Array<{ url: string; init?: RequestInit }> = []
     globalThis.fetch = (async (url, init) => {
       calls.push({ url: String(url), init: init as RequestInit })
-      return Response.json({ ok: true })
+      return Response.json({ code: 100000, data: { ok: true }, message: '操作成功' })
     }) as typeof fetch
 
     await copyText('你好')
@@ -103,7 +103,7 @@ describe('desktop host detection', () => {
 
     globalThis.fetch = (async (url, init) => {
       calls.push({ url: String(url), init: init as RequestInit })
-      return Response.json({ ok: true })
+      return Response.json({ code: 100000, data: { ok: true }, message: '操作成功' })
     }) as typeof fetch
     const { openExternal } = await import('./host')
     await openExternal('https://example.com/docs')
@@ -113,8 +113,8 @@ describe('desktop host detection', () => {
 
   it('surfaces native failures instead of reporting success', async () => {
     useDesktopLocation()
-    globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'clipboard write failed' }), { status: 500 })) as typeof fetch
-    await assert.rejects(copyText('x'), /系统操作失败/)
+    globalThis.fetch = (async () => new Response(JSON.stringify({ code: 100007, message: '服务内部错误' }), { status: 500 })) as typeof fetch
+    await assert.rejects(copyText('x'), /服务内部错误/)
   })
 
   it('uses the browser clipboard outside desktop', async () => {

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 )
 
 const maxRequestBytes int64 = 1024 * 1024
@@ -26,22 +27,26 @@ func requestSecurity(trustedHosts []string) gin.HandlerFunc {
 		u, err := url.Parse("http://" + r.Host)
 		if err != nil || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" ||
 			(!allowed[strings.ToLower(u.Hostname())] && net.ParseIP(u.Hostname()) == nil) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "untrusted request host"})
+			dtocode.WriteHTTP(c.Writer, http.StatusForbidden, dtocode.RequestForbidden)
+			c.Abort()
 			return
 		}
 		// Applies to every request, including SSE subscriptions.
 		if site := r.Header.Get("Sec-Fetch-Site"); site == "cross-site" || site == "same-site" {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "cross-origin request denied"})
+			dtocode.WriteHTTP(c.Writer, http.StatusForbidden, dtocode.RequestForbidden)
+			c.Abort()
 			return
 		}
 		if origins, present := r.Header["Origin"]; present {
 			if len(origins) != 1 || !sameRequestOrigin(origins[0], r.Host) {
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "cross-origin request denied"})
+				dtocode.WriteHTTP(c.Writer, http.StatusForbidden, dtocode.RequestForbidden)
+				c.Abort()
 				return
 			}
 		}
 		if r.ContentLength > maxRequestBytes {
-			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body exceeds 1 MiB"})
+			dtocode.WriteHTTP(c.Writer, http.StatusRequestEntityTooLarge, dtocode.RequestTooLarge)
+			c.Abort()
 			return
 		}
 		r.Body = http.MaxBytesReader(c.Writer, r.Body, maxRequestBytes)
@@ -66,7 +71,8 @@ func desktopRequestSecurity() gin.HandlerFunc {
 		c.Header("X-Frame-Options", "DENY")
 		c.Header("Referrer-Policy", "no-referrer")
 		if c.Request.ContentLength > maxRequestBytes {
-			c.AbortWithStatusJSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body exceeds 1 MiB"})
+			dtocode.WriteHTTP(c.Writer, http.StatusRequestEntityTooLarge, dtocode.RequestTooLarge)
+			c.Abort()
 			return
 		}
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxRequestBytes)

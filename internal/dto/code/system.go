@@ -26,6 +26,8 @@ var (
 	MCPDuplicate      = Response{Code: 105002, Message: "MCP 服务名称已存在"}
 	MCPConnectFailure = Response{Code: 105003, Message: "MCP 连接或工具发现失败，请检查服务配置"}
 	MCPConfigInvalid  = Response{Code: 105004, Message: "MCP 配置无效"}
+	MCPDisabled       = Response{Code: 105005, Message: "MCP 服务已停用，先启用后再重连"}
+	MCPReconnectBusy  = Response{Code: 105006, Message: "该 MCP 服务正在重连，请稍后重试"}
 
 	// 模型管理相关
 	ModelQueryFailure       = Response{Code: 103000, Message: "模型查询失败"}

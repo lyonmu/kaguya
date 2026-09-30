@@ -34,7 +34,7 @@ func runWeb() error {
 		return err
 	}
 
-	ginEngine, err := pkg.NewGin(global.Cfg.Debug, global.Cfg.TrustedHosts...)
+	ginEngine, err := pkg.NewGin(global.Cfg.Debug, global.Cfg.RouterPrefix, global.Cfg.TrustedHosts...)
 	if err != nil {
 		rt.close()
 		return rt.fail(fmt.Errorf("create gin engine: %w", err))
