@@ -48,6 +48,14 @@ export interface Block {
   end_order?: number
 }
 
+export interface TitleEvent {
+  type: 'conversation.title.updated'
+  conversation_id: string
+  revision: number
+  title?: string
+  status?: string
+}
+
 export interface ChatFrame {
   finish_reason?: string
   chat: {

@@ -14,7 +14,7 @@ import (
 )
 
 // send 向 dataChan 推送一条消息；客户端已断开（ctx 取消）或 channel 已关闭时返回 false。
-func send(ctx context.Context, dataChan chan *dtochat.ChatResp, resp *dtochat.ChatResp) bool {
+func send(ctx context.Context, dataChan chan<- *dtochat.ChatResp, resp *dtochat.ChatResp) bool {
 	select {
 	case <-ctx.Done():
 		return false
@@ -29,12 +29,12 @@ var ErrChatModelNotConfigured = errors.New("chat model is not configured")
 
 // pushChatError 推送错误帧并结束本轮。
 // convID 为空表示会话尚未建立，此时不下发会话标识；否则前端据其定位失败的会话。
-func pushChatError(ctx context.Context, dataChan chan *dtochat.ChatResp, convID string, err error) {
+func pushChatError(emitter *TurnEmitter, convID string, err error) {
 	resp := &dtochat.ChatResp{Err: err}
 	if convID != "" {
 		resp.Chat = dtochat.Chat{ID: convID, Flag: dtochat.ChatFlagError}
 	}
-	send(ctx, dataChan, resp)
+	emitter.Emit(resp)
 }
 
 // startFrame 是本轮下发的第一条帧，携带会话 ID 与模型信息；
@@ -95,15 +95,16 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	finishWork, ok := startWork()
 	if !ok {
 		defer close(dataChan)
-		pushChatError(ctx, dataChan, "", ErrServiceStopping)
+		pushChatError(newTurnEmitter(ctx, dataChan), "", ErrServiceStopping)
 		return
 	}
 	defer finishWork()
 	defer close(dataChan)
+	emitter := newTurnEmitter(ctx, dataChan)
 
 	target, err := resolveChatTarget(ctx, req.ModelID)
 	if err != nil {
-		pushChatError(ctx, dataChan, "", err)
+		pushChatError(emitter, "", err)
 		return
 	}
 
@@ -111,17 +112,17 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	convID, err := newConversationID(req.ID)
 	if err != nil {
 		global.Logger.Sugar().Errorf("generate conversation id failed, err is %+v", err)
-		pushChatError(ctx, dataChan, "", err)
+		pushChatError(emitter, "", err)
 		return
 	}
 	lease, release, err := acquireConversation(convID)
 	if err != nil {
-		pushChatError(ctx, dataChan, convID, err)
+		pushChatError(emitter, convID, err)
 		return
 	}
 	defer release()
 	if !tryAcquire(chatSlots) {
-		pushChatError(ctx, dataChan, convID, ErrChatConcurrencyLimited)
+		pushChatError(emitter, convID, ErrChatConcurrencyLimited)
 		return
 	}
 	defer releaseSlot(chatSlots)
@@ -129,7 +130,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	row, history, err := loadConversationRow(ctx, convID)
 	if err != nil {
 		global.Logger.Sugar().Errorf("load conversation failed: %v", err)
-		pushChatError(ctx, dataChan, convID, err)
+		pushChatError(emitter, convID, err)
 		return
 	}
 	version := int64(0)
@@ -146,7 +147,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	toolset, err := s.projectTools(ctx, convID, projectID, version)
 	if err != nil {
 		global.Logger.Sugar().Warnf("prepare project tools failed: conversation_id=%s err=%v", convID, err)
-		pushChatError(ctx, dataChan, convID, err)
+		pushChatError(emitter, convID, err)
 		return
 	}
 	if toolset != nil {
@@ -158,7 +159,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	if row == nil {
 		if err := createConversation(ctx, target, convID, projectID, time.Now()); err != nil {
 			global.Logger.Sugar().Errorf("create conversation failed: id=%s err=%v", convID, err)
-			pushChatError(ctx, dataChan, convID, err)
+			pushChatError(emitter, convID, err)
 			return
 		}
 		startEarlyTitleTask(ctx, convID, req.Messages)
@@ -171,14 +172,14 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	}
 	prompt, err := prepareChatPrompt(ctx, target, toolset, convID, req, mem)
 	if err != nil {
-		pushChatError(ctx, dataChan, "", err)
+		pushChatError(emitter, "", err)
 		return
 	}
 
 	agent, err := buildChatAgent(chatExecution{target: target, conversationID: convID, prompt: prompt})
 	if err != nil {
 		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
-		pushChatError(ctx, dataChan, "", err)
+		pushChatError(emitter, "", err)
 		return
 	}
 
@@ -192,7 +193,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	})
 	if err != nil {
 		global.Logger.Sugar().Errorf("begin turn failed: id=%s err=%v", convID, err)
-		pushChatError(ctx, dataChan, convID, err)
+		pushChatError(emitter, convID, err)
 		return
 	}
 	recorder := startTurnRecorder(turnRow.ID, trace)
@@ -200,9 +201,9 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	exec := chatExecution{
 		target: target, conversationID: convID, version: version, history: history, prompt: prompt,
 		requestedProjectID: req.ProjectID, userContent: req.Messages,
-		trace: trace, turnID: turnRow.ID,
+		trace: trace, turnID: turnRow.ID, emitter: emitter,
 	}
-	if !send(ctx, dataChan, startFrame(exec)) {
+	if !emitter.Emit(startFrame(exec)) {
 		recorder.stop()
 		flushTurn(recorder)
 		status := kaguyachatturn.StatusInterrupted
@@ -213,7 +214,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return
 	}
 
-	outcome, err := s.streamChat(ctx, dataChan, agent, exec)
+	outcome, err := s.streamChat(ctx, agent, exec)
 	recorder.stop()
 	if err != nil {
 		// 用户主动停止标 canceled，断联/超时标 interrupted，其余生成错误标 failed；
@@ -244,7 +245,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		default:
 			global.Logger.Error("stream chat failed", append(fields, zap.Error(err))...)
 		}
-		pushChatError(ctx, dataChan, convID, err)
+		pushChatError(emitter, convID, err)
 		return
 	}
 	if err := outcome.persist(ctx, exec); err != nil {
@@ -253,12 +254,12 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 			global.Logger.Sugar().Errorf("mark turn end failed: turn_id=%s err=%v", exec.turnID, markErr)
 		}
 		global.Logger.Sugar().Errorf("persist completed conversation failed: id=%s err=%v", convID, err)
-		pushChatError(ctx, dataChan, convID, err)
+		pushChatError(emitter, convID, err)
 		return
 	}
 
 	usage := outcome.usage
 	global.Logger.Sugar().Infof("chat usage: conversation_id=%s input_tokens=%d output_tokens=%d total_tokens=%d reasoning_tokens=%d cached_tokens=%d",
 		convID, usage.InputTokens, usage.OutputTokens, usage.TotalTokens, usage.ReasoningTokens, usage.CacheHitTokens)
-	send(ctx, dataChan, doneFrame(exec, outcome))
+	emitter.Emit(doneFrame(exec, outcome))
 }

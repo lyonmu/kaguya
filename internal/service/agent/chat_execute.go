@@ -44,6 +44,7 @@ type chatExecution struct {
 	userContent        string
 	trace              *turnTrace
 	turnID             string
+	emitter            *TurnEmitter
 }
 
 // resolveChatTarget 读取系统配置并解析本次对话的模型与提供商。
@@ -128,7 +129,7 @@ func buildChatAgent(exec chatExecution) (*agentruntime.Agent, error) {
 // streamChat 执行一次流式生成，返回完整结果。
 // Fantasy 对临时提供商错误执行指数退避；每个 step 单独判断，当前 step 尚未输出时可安全
 // 重试，一旦输出过任何块便取消重试，避免正文重复。
-func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatResp, agent *agentruntime.Agent, exec chatExecution) (*chatOutcome, error) {
+func (s *AgentSvc) streamChat(ctx context.Context, agent *agentruntime.Agent, exec chatExecution) (*chatOutcome, error) {
 	info, model := exec.target.info, exec.target.model
 
 	streamCtx := token.WithConversationID(ctx, exec.conversationID)
@@ -142,7 +143,7 @@ func (s *AgentSvc) streamChat(ctx context.Context, dataChan chan *dtochat.ChatRe
 		if block.Type == dtochat.BlockTypeText && block.Phase == dtochat.BlockPhaseDelta {
 			frame.Content = block.Text
 		}
-		if !send(ctx, dataChan, &dtochat.ChatResp{
+		if !exec.emitter.Emit(&dtochat.ChatResp{
 			Chat:        frame,
 			APIProtocol: consts.ProviderProtocol(model.APIProtocol),
 			Created:     time.Now().Unix(), ModelID: model.ModelID, ModelName: model.ModelName,

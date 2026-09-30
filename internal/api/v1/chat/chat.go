@@ -55,10 +55,22 @@ func (b *ChatApiV1Group) ChatSSE(c *gin.Context) {
 	dataChan := make(chan *dtochat.ChatResp)
 	go agentvc.Chat(ctx, dataChan, &req)
 
+	// 等待模型或工具时定期写注释帧，避免代理按空闲关闭长连接；审批等待可能远超该间隔。
+	heartbeat := time.NewTicker(sseHeartbeatInterval)
+	defer heartbeat.Stop()
+
 	for {
 		select {
 		case <-c.Request.Context().Done():
 			return
+		case <-heartbeat.C:
+			if !refreshSSEWriteDeadline(c) {
+				return
+			}
+			if _, err := c.Writer.WriteString(": heartbeat\n\n"); err != nil {
+				return
+			}
+			c.Writer.Flush()
 		case v, ok := <-dataChan:
 			if !ok {
 				c.Writer.Flush()

@@ -1,4 +1,4 @@
-import type { Block, ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, Turn, TurnPage, Usage } from './types'
+import type { Block, ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TitleEvent, Turn, TurnPage, Usage } from './types'
 import { guardFailure, guardSuccess, isArrayOf, isBoolean, isNumber, isOptional, isRecord, isString, type PayloadGuard } from '../../api/http'
 
 // 本模块集中声明网络边界上的必需字段；允许后端追加未知字段，
@@ -94,3 +94,13 @@ export const sseFrameGuard: PayloadGuard<ChatFrame> = value => {
   if (!isOptional(value.usage, (item): item is Usage => isUsage(item, true))) return guardFailure('SSE 事件格式不正确')
   return guardSuccess(value as unknown as ChatFrame)
 }
+
+// 标题事件只接受已知类型与必填 ID/revision；title 缺失表示任务终态无新标题。
+export const titleEventGuard: PayloadGuard<TitleEvent> = value =>
+  isRecord(value) &&
+  value.type === 'conversation.title.updated' &&
+  isString(value.conversation_id) &&
+  isNumber(value.revision) &&
+  isOptional(value.title, isString)
+    ? guardSuccess(value as unknown as TitleEvent)
+    : guardFailure('标题事件格式不正确')

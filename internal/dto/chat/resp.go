@@ -12,6 +12,7 @@ const (
 )
 
 type ChatResp struct {
+	Seq               int64                   `json:"seq,omitempty"` // 轮内发帧序号，由 TurnEmitter 串行分配
 	FinishReason      string                  `json:"finish_reason,omitempty"`      // stop 或 step_limit（已保存，可继续）
 	MemoryUnavailable bool                    `json:"memory_unavailable,omitempty"` // 长期记忆检索暂不可用的非致命状态，不改变无记忆语义
 	Chat              Chat                    `json:"chat"`                         // 对话信息

@@ -142,6 +142,9 @@ func (rt *appRuntime) init() error {
 		return rt.fail(fmt.Errorf("initialize provider API key encryption: %w", secretErr))
 	}
 
+	// 标题事件发布者随实例创建：订阅者与关闭都受本进程生命周期约束。
+	serviceagent.DefaultTitlePublisher = serviceagent.NewTitlePublisher()
+
 	rt.startMCPRestore()
 	rt.startMCPRecovery()
 	rt.startModelCatalogSync()
@@ -224,6 +227,7 @@ func (rt *appRuntime) admissionHandler(next http.Handler) http.Handler {
 func (rt *appRuntime) beginShutdown() {
 	rt.gate.Stop()
 	serviceagent.Shutdown()
+	serviceagent.DefaultTitlePublisher.Close()
 	rt.cancel()
 }
 
