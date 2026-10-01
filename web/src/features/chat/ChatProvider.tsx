@@ -12,8 +12,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useTitleEvents(event => {
     const title = event.title ?? ''
     if (!title) return
-    chat.applyTitleEvent({ id: event.conversation_id, title })
-    callbacks.current?.onTitleUpdated({ id: event.conversation_id, title })
+    chat.applyTitleEvent({ id: event.conversation_id, title, revision: event.revision })
+    callbacks.current?.onTitleUpdated({ id: event.conversation_id, title, revision: event.revision })
   })
   return <ChatContext.Provider value={{ chat, callbacks }}>{children}</ChatContext.Provider>
 }

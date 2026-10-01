@@ -124,6 +124,10 @@ func (rt *appRuntime) init() error {
 		// 上次进程崩溃/强杀会留下 running 占位轮次：本实例启动时不接管它们。
 		initErr = serviceagent.ReconcileRunningTurns(initCtx)
 	}
+	if initErr == nil {
+		// 遗留的标题任务还原为 pending，排队等待本实例的 worker 继续执行。
+		initErr = serviceagent.ReconcileTitleJobs(initCtx)
+	}
 	cancelInit()
 	if initErr != nil {
 		return rt.fail(fmt.Errorf("initialize application data: %w", initErr))
@@ -142,8 +146,10 @@ func (rt *appRuntime) init() error {
 		return rt.fail(fmt.Errorf("initialize provider API key encryption: %w", secretErr))
 	}
 
-	// 标题事件发布者随实例创建：订阅者与关闭都受本进程生命周期约束。
+	// 标题事件发布者与 FIFO 队列随实例创建：订阅者与 worker 都受本进程生命周期约束。
 	serviceagent.DefaultTitlePublisher = serviceagent.NewTitlePublisher()
+	serviceagent.DefaultTitleQueue = serviceagent.NewTitleQueue(rt.ctx, db.EntClient, global.Logger)
+	serviceagent.DefaultTitleQueue.Start()
 
 	rt.startMCPRestore()
 	rt.startMCPRecovery()
@@ -245,7 +251,12 @@ func (rt *appRuntime) close() {
 		if rt.modelSyncUp {
 			<-rt.modelSyncDone
 		}
-		// 先等待 Memory worker 退出，再关闭数据库与日志。
+		// 先等待标题 worker 退出（执行中的任务会还原为 pending），再关闭数据库与日志。
+		if queue := serviceagent.DefaultTitleQueue; queue != nil {
+			queue.Close()
+			<-queue.Done()
+		}
+		// 再等待 Memory worker 退出，最后关闭数据库与日志。
 		if rt.memoryUp {
 			<-rt.memoryDone
 		}

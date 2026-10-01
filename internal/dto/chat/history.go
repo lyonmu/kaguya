@@ -24,8 +24,10 @@ type ConversationUpdateReq struct {
 }
 
 type ConversationTitleResp struct {
-	ID    string `json:"id"`
-	Title string `json:"title"` // 当前已保存标题；生成失败或等待超时保留原标题
+	ID       string `json:"id"`
+	Title    string `json:"title"`              // 当前已保存标题；生成失败或等待超时保留原标题
+	Status   string `json:"status,omitempty"`   // 标题任务状态；等待超时仍返回当前值
+	Revision int64  `json:"revision,omitempty"` // 与标题同时提交的 revision
 }
 
 // TurnPageReq 按轮次分页；compact 模式延迟加载工具与思考详情，返回值始终按时间正序。
@@ -58,6 +60,9 @@ type ConversationResp struct {
 	Usage         Usage                     `json:"usage"`                 // 仅累计已完成轮次
 	MemoryMode    string                    `json:"memory_mode"`           // inherit/off/readonly
 	MemoryRefs    *dtomemory.MemoryRefsResp `json:"memory_refs,omitempty"` // 最近一轮自动召回的选择记录；已删除页面显示“已删除”
+	PermissionMode string                   `json:"permission_mode"`       // full_approval/auto_approval/full_access
+	TitleRevision  int64                    `json:"title_revision"`        // 标题版本，事件按它只前进合并
+	TitleJobStatus string                   `json:"title_job_status,omitempty"` // pending/running/succeeded/failed/canceled；无任务时为空
 }
 type ConversationListResp struct {
 	Items    []ConversationResp `json:"items"`

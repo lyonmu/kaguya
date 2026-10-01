@@ -15,7 +15,7 @@ import (
 	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
-	"go.uber.org/zap"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 )
 
 func TestNormalizeConversationTitle(t *testing.T) {
@@ -33,181 +33,135 @@ func TestNormalizeConversationTitle(t *testing.T) {
 	}
 }
 
+// 标题任务通过持久队列执行：等待者广播、取消等待不影响后台、改名/删除不覆盖，
+// 且标题调用不写入聊天用量与上下文。
 func TestConversationTitleBackgroundResult(t *testing.T) {
-	for _, mode := range []string{"success", "error", "empty", "truncated", "manual", "deleted"} {
-		t.Run(mode, func(t *testing.T) {
-			ctx, client := setupChatTest(t)
-			if err := saveCompletedTurn(ctx, testCompletedTurn("123", 0)); err != nil {
-				t.Fatal(err)
-			}
-			before, err := (&AgentSvc{}).ConversationDetail(ctx, "123")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if before.Title != defaultConversationTitle {
-				t.Fatalf("default title=%q", before.Title)
-			}
-			started, release := make(chan struct{}, 1), make(chan struct{})
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Header.Get("X-Conversation-ID") != "123" {
-					t.Error("missing conversation header")
-				}
-				var body struct {
-					Messages []struct {
-						Role    string `json:"role"`
-						Content string `json:"content"`
-					} `json:"messages"`
-					Stream bool `json:"stream"`
-				}
-				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-					t.Error(err)
-				}
-				if body.Stream || len(body.Messages) != 2 || body.Messages[0].Role != "system" {
-					t.Errorf("title call should be independent: %+v", body)
-				}
-				if len(body.Messages) == 2 {
-					if !strings.Contains(body.Messages[1].Content, "首轮问题") || !strings.Contains(body.Messages[1].Content, "首轮回答") {
-						t.Errorf("missing first turn: %+v", body)
-					}
-				}
-				started <- struct{}{}
-				select {
-				case <-release:
-				case <-r.Context().Done():
-					return
-				}
-				if mode == "error" {
-					http.Error(w, "provider unavailable", 500)
-					return
-				}
-				text, reason := strings.Repeat("标题", 15), "stop"
-				if mode == "empty" {
-					text = "   "
-				}
-				if mode == "truncated" {
-					reason = "length"
-				}
-				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprintf(w, `{"id":"title","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":%q},"finish_reason":%q}]}`, text, reason)
-			}))
-			defer server.Close()
-			defer func() {
-				select {
-				case <-release:
-				default:
-					close(release)
-				}
-			}()
-			cfg := agentruntime.ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL, RequestPath: "/v1/chat/completions", APIKey: "test", ModelID: "test", ConversationID: "123"}
-			result := startConversationTitle(client, zap.NewNop(), cfg, "首轮问题", "首轮回答")
-			select {
-			case <-started:
-			case <-ctx.Done():
-				t.Fatal(ctx.Err())
-			}
-			// 多个等待者收到同一个完成广播，不竞争消费 result channel。
-			type waitResult struct {
-				resp *dtochat.ConversationTitleResp
-				err  error
-			}
-			waits := make(chan waitResult, 2)
-			for range 2 {
-				go func() {
-					resp, err := (&AgentSvc{}).ConversationTitleWait(ctx, "123")
-					waits <- waitResult{resp, err}
-				}()
-			}
-			select {
-			case result := <-waits:
-				t.Fatalf("wait returned before title completed: %+v", result)
-			case <-time.After(20 * time.Millisecond):
-			}
-			// 取消一个 HTTP 等待不能终止后台生成任务。
-			cancelCtx, cancel := context.WithCancel(ctx)
-			cancel()
-			if _, err := (&AgentSvc{}).ConversationTitleWait(cancelCtx, "123"); !errors.Is(err, context.Canceled) {
-				t.Fatalf("cancelled wait: %v", err)
-			}
-			if mode == "manual" {
-				title := "用户自定义标题"
-				if _, err := (&AgentSvc{}).ConversationUpdate(ctx, "123", &dtochat.ConversationUpdateReq{Title: &title}); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if mode == "deleted" {
-				if err := (&AgentSvc{}).ConversationDelete(ctx, "123", false); err != nil {
-					t.Fatal(err)
-				}
-			}
+	ctx, client := setupChatTest(t)
+	if err := saveCompletedTurn(ctx, testCompletedTurn("123", 0)); err != nil {
+		t.Fatal(err)
+	}
+	before, err := (&AgentSvc{}).ConversationDetail(ctx, "123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.Title != defaultConversationTitle {
+		t.Fatalf("default title=%q", before.Title)
+	}
+	started, release := make(chan struct{}, 1), make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Conversation-ID") != "123" {
+			t.Error("missing conversation header")
+		}
+		var body struct {
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"messages"`
+			Stream bool `json:"stream"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if body.Stream || len(body.Messages) != 2 || body.Messages[0].Role != "system" {
+			t.Errorf("title call should be independent: %+v", body)
+		}
+		if len(body.Messages) == 2 && (!strings.Contains(body.Messages[1].Content, "你好") || !strings.Contains(body.Messages[1].Content, "回答") || strings.Contains(body.Messages[1].Content, "思考") || strings.Contains(body.Messages[1].Content, "找到")) {
+			t.Errorf("title input must contain only visible first-turn text: %+v", body)
+		}
+		started <- struct{}{}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"id":"title","object":"chat.completion","model":"test","choices":[{"index":0,"message":{"role":"assistant","content":"生成的会话标题"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`)
+	}))
+	defer server.Close()
+	defer func() {
+		select {
+		case <-release:
+		default:
 			close(release)
-			var generated conversationTitleResult
-			select {
-			case generated = <-result:
-			case <-ctx.Done():
-				t.Fatal(ctx.Err())
+		}
+	}()
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("title").SetAPIKey("test").SetBaseURL(server.URL).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("task").SetModelID("title-model").SetRequestPath("/v1/chat/completions").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetTaskModelID(model.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnqueueConversationTitle(ctx, "123"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("title task did not start")
+	}
+	// 多个等待者共享完成通知，在任务结束前不返回。
+	waits := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, waitErr := (&AgentSvc{}).ConversationTitleWait(ctx, "123")
+			waits <- waitErr
+		}()
+	}
+	select {
+	case waitErr := <-waits:
+		t.Fatalf("wait returned before title completed: %v", waitErr)
+	case <-time.After(20 * time.Millisecond):
+	}
+	// 请求取消不能终止后台任务。
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := (&AgentSvc{}).ConversationTitleWait(cancelCtx, "123"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancelled wait: %v", err)
+	}
+	close(release)
+	for range 2 {
+		select {
+		case waitErr := <-waits:
+			if waitErr != nil {
+				t.Fatalf("wait result: %v", waitErr)
 			}
-			if _, open := <-result; open {
-				t.Fatal("result channel not closed")
-			}
-			row, err := client.KaguyaConversation.Get(ctx, "123")
-			if err != nil {
-				t.Fatal(err)
-			}
-			want := defaultConversationTitle
-			switch mode {
-			case "success":
-				want = strings.Repeat("标题", 10)
-				if !generated.Updated || generated.Err != nil {
-					t.Fatalf("result=%+v", generated)
-				}
-			case "manual":
-				want = "用户自定义标题"
-				if generated.Updated {
-					t.Fatal("overwrote manual title")
-				}
-			case "deleted":
-				if generated.Updated || row.DeletedAt == nil {
-					t.Fatal("updated deleted conversation")
-				}
-			default:
-				if generated.Err == nil || generated.Updated {
-					t.Fatalf("expected fallback: %+v", generated)
-				}
-			}
-			for range 2 {
-				select {
-				case result := <-waits:
-					if mode == "deleted" {
-						if !errors.Is(result.err, ErrConversationNotFound) {
-							t.Fatalf("deleted wait: %+v", result)
-						}
-					} else if result.err != nil || result.resp.ID != "123" || result.resp.Title != want {
-						t.Fatalf("wait result: %+v, want title %q", result, want)
-					}
-				case <-ctx.Done():
-					t.Fatal(ctx.Err())
-				}
-			}
-			conversationTitles.Lock()
-			_, pending := conversationTitles.pending["123"]
-			conversationTitles.Unlock()
-			if pending {
-				t.Fatal("completed title task was not removed")
-			}
-			if row.Title != want {
-				t.Fatalf("title=%q want=%q", row.Title, want)
-			}
-			if row.TurnCount != 1 || row.TotalTokens != 35 || !row.LastMessageAt.Equal(before.LastMessageAt) {
-				t.Fatal("title call changed conversation usage/order")
-			}
-			history, version, err := loadConversation(ctx, "123")
-			if mode != "deleted" && (err != nil || version != 1 || len(history) != 2) {
-				t.Fatalf("title polluted context: %+v %d %v", history, version, err)
-			}
-		})
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		}
+	}
+	row, err := client.KaguyaConversation.Get(ctx, "123")
+	if err != nil || row.Title != "生成的会话标题" || row.TitleRevision != 1 {
+		t.Fatalf("title/revision=%q/%d err=%v", row.Title, row.TitleRevision, err)
+	}
+	job, err := client.KaguyaTitleJob.Query().Where(kaguyatitlejob.ConversationIDEQ("123")).Only(ctx)
+	if err != nil || job.Status != kaguyatitlejob.StatusSucceeded {
+		t.Fatalf("job=%+v err=%v", job, err)
+	}
+	if row.TurnCount != 1 || row.TotalTokens != 35 || !row.LastMessageAt.Equal(before.LastMessageAt) {
+		t.Fatal("title call changed conversation usage/order")
+	}
+	history, version, err := loadConversation(ctx, "123")
+	if err != nil || version != 1 || len(history) != 2 {
+		t.Fatalf("title polluted context: %+v %d %v", history, version, err)
+	}
+	// 手动改名递增 revision 并取消后续自动覆盖。
+	manual := "用户自定义标题"
+	if _, err := (&AgentSvc{}).ConversationUpdate(ctx, "123", &dtochat.ConversationUpdateReq{Title: &manual}); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnqueueConversationTitle(ctx, "123"); err != nil {
+		t.Fatal(err)
+	}
+	row, err = client.KaguyaConversation.Get(ctx, "123")
+	if err != nil || row.Title != manual || row.TitleRevision != 2 {
+		t.Fatalf("manual rename: %+v %v", row, err)
 	}
 }
-
 func TestGenerateConversationTitleTimeout(t *testing.T) {
 	release := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

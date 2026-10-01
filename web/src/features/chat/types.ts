@@ -74,6 +74,8 @@ export interface ChatFrame {
 export interface ConversationTitle {
   id: string
   title: string
+  revision?: number
+  status?: string
 }
 
 export interface ConversationTarget {
@@ -99,6 +101,9 @@ export interface Conversation {
   duration_ms: number
   tool_calls: number
   usage: Usage
+  permission_mode?: string
+  title_revision?: number
+  title_job_status?: string
 }
 
 export type TurnStatus = 'streaming' | 'done' | 'error' | 'stopped' | 'running' | 'completed' | 'interrupted' | 'canceled' | 'failed'

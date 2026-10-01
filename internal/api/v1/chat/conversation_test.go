@@ -180,11 +180,11 @@ func TestConversationAPI(t *testing.T) {
 		t.Fatalf("favorite: %+v", list)
 	}
 	title := request("GET", "/conversation/123/title/wait", "", ok)
-	if title["id"] != "123" || title["title"] != "重命名" || len(title) != 2 {
+	if title["id"] != "123" || title["title"] != "重命名" || title["revision"] != float64(1) {
 		t.Fatalf("title: %+v", title)
 	}
 	title = request("POST", "/conversation/123/title/wait", "", ok)
-	if title["id"] != "123" || title["title"] != "重命名" || len(title) != 2 {
+	if title["id"] != "123" || title["title"] != "重命名" || title["revision"] != float64(1) {
 		t.Fatalf("generation must preserve manual title: %+v", title)
 	}
 	request("POST", "/conversation/"+strings.Repeat("1", 65)+"/title/wait", "", bad)

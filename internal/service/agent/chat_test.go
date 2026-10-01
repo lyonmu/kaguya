@@ -20,6 +20,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
@@ -60,6 +61,16 @@ func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
 	gen.value.Store(123456789012340)
 	db.EntClient, global.Id, global.Logger = client, gen, zap.NewNop()
 	t.Cleanup(func() { db.EntClient, global.Id, global.Logger = oldClient, oldID, oldLogger })
+	// 标题队列：生产路径入队后由 worker 消费；测试在 cleanup 中先关队列再关数据库。
+	queue := NewTitleQueue(ctx, client, zap.NewNop())
+	oldQueue := DefaultTitleQueue
+	DefaultTitleQueue = queue
+	queue.Start()
+	t.Cleanup(func() {
+		queue.Close()
+		<-queue.Done()
+		DefaultTitleQueue = oldQueue
+	})
 	if err := initialize.Run(ctx, client); err != nil {
 		t.Fatal(err)
 	}
@@ -307,20 +318,11 @@ func TestChatFailureKeepsStartedConversationAndTitle(t *testing.T) {
 	if convID == "" {
 		t.Fatal("failure frame lost the conversation ID")
 	}
-	// 会话在首轮开始时已落库；标题任务完成后写入标题并移出 pending。
+	// 会话在首轮开始时已落库；标题任务完成后写入标题并终结任务行。
 	waitConversationTitle(t, ctx, client, convID, "失败会话标题")
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		conversationTitles.Lock()
-		pending := conversationTitles.pending[convID]
-		conversationTitles.Unlock()
-		if pending == nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("title task stayed pending")
-		}
-		time.Sleep(5 * time.Millisecond)
+	job, err := client.KaguyaTitleJob.Query().Where(kaguyatitlejob.ConversationIDEQ(convID)).Only(ctx)
+	if err != nil || job.Status != kaguyatitlejob.StatusSucceeded {
+		t.Fatalf("title job not finalized: %+v %v", job, err)
 	}
 	row, err := client.KaguyaConversation.Get(ctx, convID)
 	if err != nil || row.TurnCount != 0 {

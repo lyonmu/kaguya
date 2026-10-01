@@ -34,6 +34,9 @@ const isConversation = (value: unknown): value is Conversation =>
   isString(value.title) &&
   isOptional(value.turn_count, isNumber) &&
   isOptional(value.last_model_id, isString) &&
+  isOptional(value.title_revision, isNumber) &&
+  isOptional(value.permission_mode, isString) &&
+  isOptional(value.title_job_status, isString) &&
   isOptional(value.usage, (item): item is Usage => isUsage(item, false))
 
 export const conversationGuard: PayloadGuard<Conversation> = value =>
@@ -56,10 +59,11 @@ export const turnGuard: PayloadGuard<Turn> = value =>
 export const blockGuard: PayloadGuard<Block> = value =>
   isBlock(value) ? guardSuccess(value) : guardFailure('轮次内容格式不正确')
 
-export const conversationTitleGuard: PayloadGuard<ConversationTitle> = value =>
-  isRecord(value) && isString(value.id) && isString(value.title)
-    ? guardSuccess({ id: value.id, title: value.title })
-    : guardFailure('标题数据格式不正确')
+export const conversationTitleGuard: PayloadGuard<ConversationTitle> = value => {
+  if (!isRecord(value) || !isString(value.id) || !isString(value.title)) return guardFailure('标题数据格式不正确')
+  if (!isOptional(value.revision, isNumber) || !isOptional(value.status, isString)) return guardFailure('标题数据格式不正确')
+  return guardSuccess({ id: value.id, title: value.title, revision: value.revision, status: value.status })
+}
 
 export const projectFilesGuard: PayloadGuard<{ files: string[]; truncated: boolean }> = value =>
   isRecord(value) && isArrayOf(value.files, isString) && isBoolean(value.truncated)

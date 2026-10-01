@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"charm.land/fantasy"
@@ -14,12 +13,8 @@ import (
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
-	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
-	"github.com/lyonmu/kaguya/internal/global"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
-	"go.uber.org/zap"
 )
 
 const (
@@ -31,46 +26,30 @@ const (
 
 var ErrTaskModelNotConfigured = errors.New("task model is not configured")
 
-type conversationTitleResult struct {
-	Title   string
-	Updated bool
-	Err     error
-}
-
-// 只保存本进程正在运行的任务，完成后立即移除；close 广播给所有等待者，
-// 不消费用于内部测试的 result channel。任务在首轮开始时提前启动，
-// 客户端每轮 done 后的请求只负责共享等待或补生成。
-var conversationTitles = struct {
-	sync.Mutex
-	pending map[string]chan struct{}
-}{pending: make(map[string]chan struct{})}
-
 // ConversationTitleWait 等待当前进程的标题任务，不触发重新生成。
 // 无任务（含服务重启或请求落到其他实例）时直接读取当前数据库标题。
 func (s *AgentSvc) ConversationTitleWait(ctx context.Context, id string) (*dtochat.ConversationTitleResp, error) {
-	conversationTitles.Lock()
-	done := conversationTitles.pending[id]
-	conversationTitles.Unlock()
 	conv, err := s.ConversationDetail(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if done != nil && conv.Title == defaultConversationTitle {
-		timer := time.NewTimer(conversationTitleTimeout)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-done:
-		case <-timer.C:
+	queue := DefaultTitleQueue
+	if queue != nil {
+		if err := queue.Wait(ctx, id); err != nil {
+			return nil, err
 		}
-		// 始终读取实际落库值：失败保留原题，手动改名不被生成结果覆盖，删除不可查询。
 		conv, err = s.ConversationDetail(ctx, id)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &dtochat.ConversationTitleResp{ID: conv.ID, Title: conv.Title}, nil
+	resp := &dtochat.ConversationTitleResp{ID: conv.ID, Title: conv.Title, Revision: conv.TitleRevision}
+	if queue != nil {
+		if status, statusErr := queue.jobStatus(ctx, id); statusErr == nil {
+			resp.Status = string(status)
+		}
+	}
+	return resp, nil
 }
 
 // ConversationTitleGenerate 仅对默认标题补一次生成；已有任务（多为首轮提前启动）时共享等待。
@@ -81,40 +60,25 @@ func (s *AgentSvc) ConversationTitleGenerate(ctx context.Context, id string) (*d
 		return nil, err
 	}
 	if conv.Title != defaultConversationTitle {
-		return &dtochat.ConversationTitleResp{ID: conv.ID, Title: conv.Title}, nil
+		return &dtochat.ConversationTitleResp{ID: conv.ID, Title: conv.Title, Revision: conv.TitleRevision}, nil
 	}
-	conversationTitles.Lock()
-	done := conversationTitles.pending[id]
-	conversationTitles.Unlock()
-	if done == nil {
-		// 从最早的已完成轮次恢复可见问答（首轮失败时用后续成功轮次），
-		// 不读取私有模型上下文；中断/进行中的轮次不能作为标题依据。
-		turn, err := db.EntClient.KaguyaChatTurn.Query().Where(
-			kaguyachatturn.ConversationIDEQ(id),
-			kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted),
-		).Select(kaguyachatturn.FieldUserContent).
-			WithBlocks(func(q *ent.KaguyaChatBlockQuery) {
-				q.Where(kaguyachatblock.TypeEQ(kaguyachatblock.TypeText)).Order(kaguyachatblock.BySequence())
-			}).Order(kaguyachatturn.ByTurnIndex()).First(ctx)
-		if ent.IsNotFound(err) {
-			// 还没有任何完成轮次（首轮仍在生成或已失败）：保留当前标题，等 done 后再次请求。
-			return &dtochat.ConversationTitleResp{ID: conv.ID, Title: conv.Title}, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		cfg, err := resolveTitleConfig(ctx, db.EntClient, id)
-		if err != nil {
-			return nil, err
-		}
-		var answer strings.Builder
-		for _, block := range turn.Edges.Blocks {
-			answer.WriteString(block.Text)
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		startConversationTitle(db.EntClient, global.Logger, cfg, turn.UserContent, answer.String())
+	// 还没有完成轮次时保留当前标题，不校验任务模型（与旧行为一致）。
+	hasTurn, err := db.EntClient.KaguyaChatTurn.Query().Where(
+		kaguyachatturn.ConversationIDEQ(id), kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted),
+	).Exist(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !hasTurn {
+		return &dtochat.ConversationTitleResp{ID: conv.ID, Title: conv.Title, Revision: conv.TitleRevision}, nil
+	}
+	// 显式请求先校验任务模型与凭据：保持原有错误码语义，而不是把配置问题
+	// 静默变成“等待超时后仍是默认标题”。
+	if _, err := resolveTitleConfig(ctx, db.EntClient, id); err != nil {
+		return nil, err
+	}
+	if err := EnqueueConversationTitle(ctx, id); err != nil {
+		return nil, err
 	}
 	return s.ConversationTitleWait(ctx, id)
 }
@@ -133,93 +97,13 @@ func resolveTitleConfig(ctx context.Context, client *ent.Client, conversationID 
 	return task.Config, nil
 }
 
-// 由标题生成接口调用。不复用 HTTP 请求 context，避免客户端断开导致任务被取消。
-// channel 带缓冲，即使调用方不等待也不会阻塞 goroutine；任务有独立超时。
-// client/logger/config 均在启动时捕获，不在后台重新读取可变全局状态。
-func startConversationTitle(client *ent.Client, logger *zap.Logger, cfg agentruntime.ProviderConfig, question, answer string) <-chan conversationTitleResult {
-	result := make(chan conversationTitleResult, 1)
-	// 关停中不再启动新的后台任务。
-	finishWork, ok := startWork()
-	if !ok {
-		close(result)
-		return result
+// startEarlyTitleTask 在会话创建事务提交后通知队列；任务行已随会话同事务写入，
+// 队列不可用时（例如直接调用服务而未启动 runtime）保持无标题任务。
+func startEarlyTitleTask(conversationID string) {
+	if queue := DefaultTitleQueue; queue != nil {
+		queue.Notify()
+		_ = conversationID
 	}
-	// 标题任务满员时直接跳过：下一轮成功结束后客户端会再次请求，不排队等待。
-	if !tryAcquire(titleSlots) {
-		finishWork()
-		close(result)
-		return result
-	}
-	done := make(chan struct{})
-	conversationTitles.Lock()
-	if conversationTitles.pending[cfg.ConversationID] != nil {
-		conversationTitles.Unlock()
-		releaseSlot(titleSlots)
-		finishWork()
-		close(result)
-		return result
-	}
-	conversationTitles.pending[cfg.ConversationID] = done
-	conversationTitles.Unlock()
-	go func() {
-		defer close(result)
-		defer releaseSlot(titleSlots)
-		defer finishWork()
-		defer func() {
-			conversationTitles.Lock()
-			if conversationTitles.pending[cfg.ConversationID] == done {
-				delete(conversationTitles.pending, cfg.ConversationID)
-			}
-			close(done)
-			conversationTitles.Unlock()
-		}()
-		ctx, cancel := context.WithTimeout(titleTaskCtx, conversationTitleTimeout)
-		defer cancel()
-		// 再次检查，避免准备配置期间手动改名/删除后仍调用模型。
-		row, err := client.KaguyaConversation.Get(ctx, cfg.ConversationID)
-		if err != nil || row.DeletedAt != nil || row.Title != defaultConversationTitle {
-			result <- conversationTitleResult{Err: err}
-			return
-		}
-		title, err := generateConversationTitle(ctx, cfg, question, answer, agentruntime.WithRecorder(servicesystem.NewTaskUsageRecorder(client, "title", cfg)))
-		if err != nil {
-			logger.Sugar().Warnf("generate conversation title failed: id=%s err=%v", cfg.ConversationID, err)
-			result <- conversationTitleResult{Title: defaultConversationTitle, Err: err}
-			return
-		}
-		// 条件更新防止覆盖手动改名，也不复活已删除的会话；不改最近对话时间/用量。
-		updated, err := saveConversationTitle(ctx, client, logger, cfg.ConversationID, title)
-		result <- conversationTitleResult{Title: title, Updated: updated, Err: err}
-	}()
-	return result
-}
-
-// saveConversationTitle 条件写入生成的标题，成功后返回 true。
-// 不覆盖正式或手动标题，也不复活已删除的会话；不改最近对话时间和用量。
-func saveConversationTitle(ctx context.Context, client *ent.Client, logger *zap.Logger, id, title string) (bool, error) {
-	changed, err := client.KaguyaConversation.Update().Where(
-		kaguyaconversation.IDEQ(id), kaguyaconversation.DeletedAtIsNil(),
-		kaguyaconversation.TitleEQ(defaultConversationTitle),
-	).SetTitle(title).Save(ctx)
-	if err != nil {
-		logger.Sugar().Warnf("save conversation title failed: id=%s err=%v", id, err)
-	}
-	return changed == 1 && err == nil, err
-}
-
-// startEarlyTitleTask 在新会话行创建后立即异步生成标题：只依赖用户提问，
-// 与正文并发生成；会话行已存在，模型返回后即可条件写入，无需等待轮次提交。
-// 任务模型未配置或提供商配置无法解析时跳过，客户端可在每轮成功后请求补生成。
-func startEarlyTitleTask(ctx context.Context, id, question string) {
-	cfg, err := resolveTitleConfig(ctx, db.EntClient, id)
-	if errors.Is(err, ErrTaskModelNotConfigured) {
-		return
-	}
-	if err != nil {
-		global.Logger.Sugar().Warnf("prepare conversation title task failed: id=%s err=%v", id, err)
-		return
-	}
-	startConversationTitle(db.EntClient, global.Logger, cfg, question, "")
 }
 
 func generateConversationTitle(ctx context.Context, cfg agentruntime.ProviderConfig, question, answer string, options ...agentruntime.Option) (string, error) {

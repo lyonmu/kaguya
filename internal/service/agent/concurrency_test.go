@@ -6,9 +6,7 @@ import (
 	"testing"
 	"time"
 
-	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
-	"github.com/lyonmu/kaguya/internal/global"
 )
 
 // 占满槽位后 Chat 必须快速失败，不能继续查询历史或调用提供商。
@@ -42,25 +40,6 @@ func TestChatRejectsWhenConcurrencyLimited(t *testing.T) {
 	}
 	if !errors.Is(got, ErrChatConcurrencyLimited) {
 		t.Fatalf("err=%v", got)
-	}
-}
-
-// 标题任务满员时直接跳过，不注册任务也不访问数据库。
-func TestStartConversationTitleSkipsWhenBusy(t *testing.T) {
-	_, client := setupChatTest(t)
-	for i := 0; i < maxConcurrentTitleTasks; i++ {
-		if !tryAcquire(titleSlots) {
-			t.Fatalf("title slot %d unavailable", i)
-		}
-	}
-	defer func() {
-		for i := 0; i < maxConcurrentTitleTasks; i++ {
-			releaseSlot(titleSlots)
-		}
-	}()
-	result := startConversationTitle(client, global.Logger, agentruntime.ProviderConfig{ConversationID: "busy-title"}, "q", "a")
-	if _, ok := <-result; ok {
-		t.Fatal("title task started while slots are full")
 	}
 }
 

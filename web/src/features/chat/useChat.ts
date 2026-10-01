@@ -312,11 +312,12 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     localSessions: [...sessions.current.values()].filter(item => item.turns.length > 0 || item.draft.trim() || item.references.length).map(item => ({ key: item.key, id: item.id, title: item.conversation?.title || item.turns[0]?.user_content || item.draft || item.references[0], streaming: item.streaming, draft: !item.turns.length, projectId: item.projectId })),
     select, goToPage, send,
     // 事件订阅到确认：更新所有已知会话中匹配当前会话的标题，并取消不再需要的等待。
-    applyTitleEvent: ({ id, title }: { id: string; title: string }) => {
+    applyTitleEvent: ({ id, title, revision }: { id: string; title: string; revision?: number }) => {
       if (!title) return
       for (const item of sessions.current.values()) {
         if (item.id !== id) continue
-        if (item.conversation) item.conversation = { ...item.conversation, title }
+        if (item.conversation && revision !== undefined && revision < (item.conversation.title_revision ?? 0)) continue
+        if (item.conversation) item.conversation = { ...item.conversation, title, title_revision: revision ?? item.conversation.title_revision }
         item.title?.abort()
       }
       notify()

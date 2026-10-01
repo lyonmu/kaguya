@@ -17,6 +17,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
@@ -100,17 +101,37 @@ func loadConversationRow(ctx context.Context, id string) (*ent.KaguyaConversatio
 
 // createConversation 在首轮正文开始生成前写入会话行，让新会话无需等待轮次完成
 // 就出现在列表中；失败或取消的轮次会留下空会话，由用户自行删除，重试沿用同一 ID。
-func createConversation(ctx context.Context, target *chatTarget, id, projectID string, startedAt time.Time) error {
-	create := db.EntClient.KaguyaConversation.Create().SetID(id).SetTitle(defaultConversationTitle).
+// createConversation 在同一事务内创建会话与首个标题任务：会话已提交但进程在入队前
+// 崩溃时不会留下“永远没有标题任务”的会话。指令格式显式初始化为 split。
+func createConversation(ctx context.Context, target *chatTarget, id, projectID, question string, startedAt time.Time) error {
+	order, err := global.Id.GenID()
+	if err != nil {
+		return err
+	}
+	tx, err := db.EntClient.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	client := tx.Client()
+	create := client.KaguyaConversation.Create().SetID(id).SetTitle(defaultConversationTitle).
+		SetInstructionsFormat(kaguyaconversation.InstructionsFormatSplit).
 		SetModelID(target.model.ModelID).SetModelName(target.model.ModelName).SetLastMessageAt(startedAt)
 	if projectID != "" {
-		if err := projectsvc.Lock(ctx, db.EntClient, projectID); err != nil {
+		if err := projectsvc.Lock(ctx, client, projectID); err != nil {
 			return err
 		}
 		create.SetProjectID(projectID)
 	}
-	_, err := create.Save(ctx)
-	return err
+	if _, err := create.Save(ctx); err != nil {
+		return err
+	}
+	if _, err := client.KaguyaTitleJob.Create().
+		SetConversationID(id).SetQuestion(limitTitleRunes(question, 4000)).
+		SetStatus(kaguyatitlejob.StatusPending).SetEnqueueOrder(order).Save(ctx); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // turnStart 是创建进行中占位行的输入。
@@ -355,6 +376,7 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 func conversationResp(row *ent.KaguyaConversation) dtochat.ConversationResp {
 	return dtochat.ConversationResp{IsProject: row.ProjectID != nil, ProjectID: row.ProjectID, ID: row.ID, Title: row.Title,
 		Favorite: row.Favorite, MemoryMode: string(row.MemoryMode), TurnCount: row.TurnCount,
+		PermissionMode: string(row.PermissionMode), TitleRevision: row.TitleRevision,
 		ModelID: row.ModelID, ModelName: row.ModelName, CreatedAt: row.CreatedAt, LastMessageAt: row.LastMessageAt,
 		DurationMS: row.DurationMs, ToolCalls: row.ToolCalls,
 		Usage: dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)}}
@@ -480,8 +502,9 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 	}
 	defer func() { _ = tx.Rollback() }()
 	update := tx.Client().KaguyaConversation.UpdateOneID(id).Where(kaguyaconversation.DeletedAtIsNil())
-	if req.Title != nil {
-		update.SetTitle(strings.TrimSpace(*req.Title))
+	titleChanged := req.Title != nil
+	if titleChanged {
+		update.SetTitle(strings.TrimSpace(*req.Title)).AddTitleRevision(1)
 	}
 	if req.Favorite != nil {
 		update.SetFavorite(*req.Favorite)
@@ -502,8 +525,22 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 			return nil, err
 		}
 	}
+	if titleChanged {
+		// 手动改名与自动生成共享 title_revision：取消在途任务，事件携带新版本。
+		if err := CancelJobs(ctx, tx.Client(), id, "title_renamed"); err != nil {
+			return nil, err
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+	if titleChanged {
+		if queue := DefaultTitleQueue; queue != nil {
+			queue.Cancel(id)
+		}
+		DefaultTitlePublisher.Publish(dtochat.TitleEvent{
+			Type: dtochat.TitleEventUpdated, ConversationID: id, Revision: row.TitleRevision, Title: row.Title,
+		})
 	}
 	resp := conversationResp(row)
 	return &resp, nil
@@ -531,10 +568,19 @@ func (s *AgentSvc) ConversationDelete(ctx context.Context, id string, purgeMemor
 	if err != nil {
 		return err
 	}
+	if err := CancelJobs(ctx, tx.Client(), id, "conversation_deleted"); err != nil {
+		return err
+	}
 	if err := memorysvc.OnConversationDeletedTx(ctx, tx.Client(), id, purgeMemory); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if queue := DefaultTitleQueue; queue != nil {
+		queue.Cancel(id)
+	}
+	return nil
 }
 func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtochat.TurnPageReq) (*dtochat.TurnListResp, error) {
 	if req.Limit < 1 || req.Limit > 100 || req.Page < 0 || req.Before < 0 || (req.Page > 0 && req.Before > 0) {

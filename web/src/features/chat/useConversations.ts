@@ -19,6 +19,7 @@ export function useConversations(projectId?: string, options?: { enabled?: boole
   const mounted = useRef(true)
   const pages = useRef(new Map<number, Conversation[]>())
   const titleUpdates = useRef(new Map<string, string>())
+  const titleRevisions = useRef(new Map<string, number>())
   const refresh = useCallback(() => setVersion(value => value + 1), [])
 
   useEffect(() => {
@@ -135,9 +136,13 @@ export function useConversations(projectId?: string, options?: { enabled?: boole
   const latestLoad = useRef(load)
   useEffect(() => { latestLoad.current = load }, [load])
   const refreshQuietly = useCallback(() => latestLoad.current(false), [])
-  const updateTitle = useCallback(({ id, title }: ConversationTitle) => {
+  // revision 只前进：迟到的标题事件不能覆盖更新的手动改名。
+  const updateTitle = useCallback(({ id, title, revision }: ConversationTitle) => {
+    const current = titleRevisions.current.get(id) ?? 0
+    if (revision !== undefined && revision < current) return
+    titleRevisions.current.set(id, revision ?? current)
     titleUpdates.current.set(id, title)
-    setItems(current => current.map(item => item.id === id ? { ...item, title } : item))
+    setItems(current => current.map(item => item.id === id ? { ...item, title, title_revision: revision ?? item.title_revision } : item))
   }, [])
 
   return {

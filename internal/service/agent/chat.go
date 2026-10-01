@@ -157,12 +157,12 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	// 首轮在正文开始生成前立即落库，新会话无需等待完成就出现在列表中；
 	// 标题只用用户提问并发生成并异步更新，失败或取消的轮次留下空会话。
 	if row == nil {
-		if err := createConversation(ctx, target, convID, projectID, time.Now()); err != nil {
+		if err := createConversation(ctx, target, convID, projectID, req.Messages, time.Now()); err != nil {
 			global.Logger.Sugar().Errorf("create conversation failed: id=%s err=%v", convID, err)
 			pushChatError(emitter, convID, err)
 			return
 		}
-		startEarlyTitleTask(ctx, convID, req.Messages)
+		startEarlyTitleTask(convID)
 	}
 
 	// 每轮生成前进行一次本地召回；失败只降级并明确显示，不阻塞聊天。
