@@ -7,15 +7,6 @@ import (
 	"sync/atomic"
 )
 
-const (
-	// 单实例服务同时进行的模型生成轮次上限；超出时快速失败，避免无界占用
-	// 上游额度、连接和项目工具工作区。
-	maxConcurrentChats = 16
-)
-
-// ErrChatConcurrencyLimited 表示同时进行的聊天轮次已达上限。
-var ErrChatConcurrencyLimited = errors.New("too many concurrent chat turns")
-
 // conversationLease 是一次进行中轮次的租约。userStop 记录用户主动停止，
 // 用于在取消时区分“正常停止”（canceled）与断联/超时（interrupted）。
 type conversationLease struct{ userStop atomic.Bool }
@@ -51,20 +42,6 @@ func (s *AgentSvc) StopConversation(id string) {
 		lease.userStop.Store(true)
 	}
 }
-
-var chatSlots = make(chan struct{}, maxConcurrentChats)
-
-// tryAcquire 立即获取一个槽位，不等待；满员时返回 false。
-func tryAcquire(slots chan struct{}) bool {
-	select {
-	case slots <- struct{}{}:
-		return true
-	default:
-		return false
-	}
-}
-
-func releaseSlot(slots chan struct{}) { <-slots }
 
 // workLifecycle 统一管理聊天轮次与标题任务的准入、取消与等待。
 // stopping 置位后拒绝新任务；Wait 返回的条件是“停止接纳后所有已登记任务都已完成”。

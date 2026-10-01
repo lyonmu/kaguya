@@ -121,11 +121,6 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		return
 	}
 	defer release()
-	if !tryAcquire(chatSlots) {
-		pushChatError(emitter, convID, ErrChatConcurrencyLimited)
-		return
-	}
-	defer releaseSlot(chatSlots)
 
 	row, history, err := loadConversationRow(ctx, convID)
 	if err != nil {

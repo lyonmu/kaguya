@@ -6,42 +6,7 @@ import (
 	"testing"
 	"time"
 
-	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 )
-
-// 占满槽位后 Chat 必须快速失败，不能继续查询历史或调用提供商。
-func TestChatRejectsWhenConcurrencyLimited(t *testing.T) {
-	ctx, client := setupChatTest(t)
-	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("limit").SetAPIKey("test").SetBaseURL("http://127.0.0.1:1").Save(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("limit").SetModelID("limit").SetRequestPath("/v1/chat/completions").Save(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < maxConcurrentChats; i++ {
-		if !tryAcquire(chatSlots) {
-			t.Fatalf("chat slot %d unavailable", i)
-		}
-	}
-	defer func() {
-		for i := 0; i < maxConcurrentChats; i++ {
-			releaseSlot(chatSlots)
-		}
-	}()
-	frames := make(chan *dtochat.ChatResp, 4)
-	(&AgentSvc{}).Chat(ctx, frames, &dtochat.ChatReq{ID: "limited", ModelID: model.ID, Messages: "hi"})
-	var got error
-	for frame := range frames {
-		if frame.Err != nil {
-			got = frame.Err
-		}
-	}
-	if !errors.Is(got, ErrChatConcurrencyLimited) {
-		t.Fatalf("err=%v", got)
-	}
-}
 
 func TestWaitActive(t *testing.T) {
 	done, ok := startWork()

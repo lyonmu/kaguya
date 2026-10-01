@@ -23,8 +23,6 @@ func mapChatError(err error, operation dtocode.Response) dtocode.Response {
 		return dtocode.TaskModelNotConfigured
 	case errors.Is(err, serviceagent.ErrChatModelNotConfigured):
 		return dtocode.ChatModelNotConfigured
-	case errors.Is(err, serviceagent.ErrChatConcurrencyLimited):
-		return dtocode.ChatConcurrencyLimited
 	case errors.Is(err, serviceagent.ErrProviderSecretUnavailable):
 		return dtocode.ProviderSecretUnusable
 	case errors.Is(err, serviceagent.ErrServiceStopping):
