@@ -221,3 +221,31 @@ func TestChatOrdinaryConversationRejectsReferences(t *testing.T) {
 		t.Fatalf("ordinary conversation reference error = %v", got)
 	}
 }
+
+// 显式文件与目录重叠时内容只装入一次：显式文件优先，目录清单标记已包含。
+func TestResolveReferenceOverlapReadsOnce(t *testing.T) {
+	ctx, projectID, dir := seedReferenceProject(t)
+	if err := os.MkdirAll(filepath.Join(dir, "sub"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sub", "nested.go"), []byte("package sub // overlap-marker"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	resolution, err := resolveReferenceContext(ctx, projectID, []dtochat.Reference{
+		{Type: "directory", Path: "sub"},
+		{Type: "file", Path: "sub/nested.go"},
+	}, 64*1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count := strings.Count(resolution.prompt, "overlap-marker"); count != 1 {
+		t.Fatalf("overlapping content must be included once, got %d: %s", count, resolution.prompt)
+	}
+	if !strings.Contains(resolution.prompt, "[already included from another reference]") {
+		t.Fatalf("directory manifest must mark the overlap: %s", resolution.prompt)
+	}
+	// 显式文件来源排在目录来源之前，摘要顺序反映实际装入顺序。
+	if len(resolution.summary.Sources) != 2 || resolution.summary.Sources[0].Type != "file" {
+		t.Fatalf("summary order = %+v", resolution.summary.Sources)
+	}
+}
