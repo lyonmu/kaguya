@@ -2,18 +2,19 @@ import { MEMORY_ENABLED } from '../../app/features'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Popover, Segmented, Spin } from 'antd'
 import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MessageOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
-import { deleteConversation, updateConversation, upgradeConversationInstructions } from '../../features/chat/api'
 import { useConversations } from '../../features/chat/useConversations'
+import { useConversationActions } from '../../features/chat/useConversationActions'
 import { useWorkspaceChat } from '../../features/chat/chatContext'
 import { VirtualList } from '../../features/chat/components/VirtualList'
 import { MessageList } from '../../features/chat/components/MessageList'
 import { AssistantThread } from '../../features/chat/components/AssistantThread'
 import { Composer } from '../../features/chat/components/Composer'
+import { ApprovalCard } from '../../features/chat/components/ApprovalCard'
 import { BottomActions } from '../../components/layout/BottomActions'
 import { ProjectPanel } from '../../features/project/ProjectPanel'
 import type { Project } from '../../features/project/api'
 import { fetchProject } from '../../features/project/api'
-import type { ConversationTarget } from '../../features/chat/types'
+import type { ConversationTarget, Reference } from '../../features/chat/types'
 import { kaguyaAvatar } from '../../assets/avatars'
 import './chat.css'
 
@@ -21,7 +22,7 @@ import './chat.css'
 const CodeBrowserDrawer = lazy(() => import('../../features/code/components/CodeBrowserDrawer').then(module => ({ default: module.CodeBrowserDrawer })))
 
 export function ChatPage() {
-  const { message, modal } = App.useApp()
+  const { message } = App.useApp()
   const [view, setView] = useState('对话')
   const [project, setProject] = useState<Project>()
   const [target, setTarget] = useState<ConversationTarget>()
@@ -30,24 +31,18 @@ export function ChatPage() {
   const refreshProjects = () => setProjectVersion(value => value + 1)
   const chat = useWorkspaceChat(async () => { await sessions.refreshQuietly(); refreshProjects() }, title => { sessions.updateTitle(title); refreshProjects() })
   const { draft, references, modelId, setModelId } = chat
-  const upgradeInstructions = async () => {
-    if (!chat.id || chat.streaming) return
-    setSaving(true)
-    try {
-      const result = await upgradeConversationInstructions(chat.id)
-      chat.setConversation(result)
-      void message.success('旧指令快照已归档，下一轮使用动态全局指令')
-    } catch (err) { void message.error(err instanceof Error ? err.message : '指令升级失败') }
-    finally { setSaving(false) }
+  const { saving, update, remove, upgradeInstructions } = useConversationActions({ chat, sessions, onProjectsChanged: refreshProjects })
+  const changePermission = (mode: 'full_approval' | 'auto_approval' | 'full_access') => {
+    if (chat.conversation) { void update({ permission_mode: mode }); return }
+    chat.setPermissionMode(mode)
   }
   const setDraft = (value: string) => chat.setDraft(value, view === '项目' ? project?.id : undefined)
-  const setReferences = (value: string[]) => chat.setReferences(value, view === '项目' ? project?.id : undefined)
+  const setReferences = (value: Reference[]) => chat.setReferences(value, view === '项目' ? project?.id : undefined)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [codeOpen, setCodeOpen] = useState(false)
   const [showSidebar, setShowSidebar] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [title, setTitle] = useState('')
-  const [saving, setSaving] = useState(false)
   const select = (id: string) => {
     if (saving) return
     setTarget(undefined)
@@ -72,35 +67,6 @@ export function ChatPage() {
     }).catch(error => { if (active) void message.error(error instanceof Error ? error.message : '加载项目失败') })
     return () => { active = false }
   }, [target, message])
-  const update = async (payload: { title?: string; favorite?: boolean; memory_mode?: string }) => {
-    if (payload.title !== undefined) chat.cancelTitleWait()
-    setSaving(true)
-    try {
-      const result = await updateConversation(chat.id, payload)
-      chat.setConversation(result)
-      await sessions.refreshQuietly()
-      refreshProjects()
-      setRenaming(false)
-    } catch (error) { void message.error(error instanceof Error ? error.message : '更新失败') }
-    finally { setSaving(false) }
-  }
-  const remove = () => modal.confirm({
-    title: '删除此对话？', content: '删除后无法恢复，也无法继续对话。', okText: '删除', okButtonProps: { danger: true },
-    onOk: async () => {
-      chat.cancelTitleWait()
-      setSaving(true)
-      try {
-        await deleteConversation(chat.id)
-        chat.forget()
-        await chat.select('')
-        sessions.refresh()
-        refreshProjects()
-      } catch (error) {
-        void message.error(error instanceof Error ? error.message : '删除失败')
-        throw error
-      } finally { setSaving(false) }
-    },
-  })
   const send = async (text = draft) => {
     if ((view === '项目' && !project && !chat.projectId && !chat.turns.length) || !text.trim() || chat.streaming || chat.loading || saving || (chat.id && !chat.conversation && !chat.turns.length)) return
     setDraft('')
@@ -169,7 +135,10 @@ export function ChatPage() {
       />}
       <AssistantThread key={chat.sessionKey} turns={chat.turns} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving} onSend={send} onStop={chat.stop}>
       <MessageList conversationId={chat.id} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
-      <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : chat.projectId ?? (view === "项目" ? project?.id : undefined)} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} references={references} onReferencesChange={setReferences} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation && !chat.turns.length)} />
+      {chat.approvals.length > 0 && <div className="chat-approvals" aria-label="工具审批">
+        {chat.approvals.map(approval => <ApprovalCard key={approval.approval_id} approval={approval} onDecide={chat.decideApproval} />)}
+      </div>}
+      <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : chat.projectId ?? (view === "项目" ? project?.id : undefined)} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} references={references} onReferencesChange={setReferences} permissionMode={chat.permissionMode} onPermissionChange={changePermission} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation && !chat.turns.length)} />
       </AssistantThread>
       {!showSidebar && <div className={sidebarCollapsed ? 'chat-bottom-actions' : 'chat-bottom-actions chat-bottom-actions-mobile'}><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>}
     </section>

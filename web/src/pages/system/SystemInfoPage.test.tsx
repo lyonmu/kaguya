@@ -16,11 +16,13 @@ for (const [key, value] of Object.entries(globals)) Object.defineProperty(global
 const { render, fireEvent, cleanup, waitFor, act, within } = await import('@testing-library/react')
 const { App } = await import('antd')
 const { SystemInfoPage } = await import('./SystemInfoPage')
+const { invalidateModelLabels } = await import('../../features/providers/useModelLabels')
 const { ModelCascader } = await import('../../features/providers/ModelCascader')
 const { AppLayout } = await import('../../components/layout/AppLayout')
 const originalFetch = globalThis.fetch
 const response = (data: unknown) => Response.json({ code: 100000, data })
 afterEach(async () => {
+  invalidateModelLabels()
   cleanup()
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
   globalThis.fetch = originalFetch

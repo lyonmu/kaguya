@@ -13,6 +13,7 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/agent/permission"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
@@ -204,7 +205,7 @@ func setupFaultRecorderTest(t *testing.T) (context.Context, *ent.Client, *faultD
 
 // recordTextDelta 模拟模型在指定 step 推送一段正文。
 func recordTextDelta(trace *turnTrace, step int, delta string) {
-	call := newChatStream(func(dtochat.ContentBlock) error { return nil }).callbacks()
+	call := newChatStream(permission.ModeFullAccess, func(dtochat.ContentBlock) error { return nil }).callbacks()
 	trace.wrap(&call)
 	if err := call.OnStepStart(step); err != nil {
 		panic(err)

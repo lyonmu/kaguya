@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"charm.land/fantasy"
@@ -55,7 +57,12 @@ type Connection struct {
 	tools           []*sdk.Tool
 	preparedTools   []preparedTool
 	timeout         time.Duration
+	generation      int64
 }
+
+// connectionSeq 在进程内为每条已发布连接分配单调 generation，供审批身份绑定；
+// 同名工具在不同连接上不能被当成同一可信工具。
+var connectionSeq atomic.Int64
 
 type preparedTool struct {
 	remoteName string
@@ -71,7 +78,7 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 	}
 	life, cancel := context.WithCancel(context.Background())
 	runCtx, cancelRun := context.WithCancel(life)
-	connection := &Connection{ctx: runCtx, cancel: cancelRun, transportCancel: cancel, timeout: config.Timeout()}
+	connection := &Connection{ctx: runCtx, cancel: cancelRun, transportCancel: cancel, timeout: config.Timeout(), generation: connectionSeq.Add(1)}
 	var transport sdk.Transport
 	switch config.Transport {
 	case "stdio":
@@ -343,7 +350,9 @@ func prepareTool(tool *sdk.Tool) (preparedTool, error) {
 func newAgentToolFromPrepared(id string, connection *Connection, prepared preparedTool) *agentTool {
 	info := prepared.info
 	info.Name = toolName(id, prepared.remoteName)
-	return &agentTool{connection: connection, remoteName: prepared.remoteName, info: info, definition: prepared.definition, validator: prepared.validator}
+	schemaHash := sha256.Sum256(prepared.definition)
+	identity := fmt.Sprintf("mcp:%s:%s:%d:%s", id, prepared.remoteName, connection.generation, hex.EncodeToString(schemaHash[:8]))
+	return &agentTool{connection: connection, remoteName: prepared.remoteName, info: info, definition: prepared.definition, validator: prepared.validator, identity: identity}
 }
 
 func newAgentTool(id string, connection *Connection, tool *sdk.Tool) (*agentTool, error) {
@@ -357,6 +366,7 @@ func newAgentTool(id string, connection *Connection, tool *sdk.Tool) (*agentTool
 type agentTool struct {
 	connection *Connection
 	remoteName string
+	identity   string
 	info       fantasy.ToolInfo
 	options    fantasy.ProviderOptions
 	definition []byte
@@ -380,6 +390,10 @@ func (t *agentTool) Info() fantasy.ToolInfo {
 
 func (t *agentTool) ProviderOptions() fantasy.ProviderOptions           { return t.options }
 func (t *agentTool) SetProviderOptions(options fantasy.ProviderOptions) { t.options = options }
+
+// PermissionIdentity 返回审批分类使用的可信身份；MCP 工具始终按 unknown 处理，
+// 远端只读 hint 不单独免审批。
+func (t *agentTool) PermissionIdentity() string { return t.identity }
 
 // validateInput 按远端声明的 schema 本地校验参数，返回用户可读的工具错误。
 func (t *agentTool) validateInput(args map[string]any) string {

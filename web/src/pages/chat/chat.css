@@ -309,3 +309,14 @@
   .chat-activity-status { grid-column: 2; grid-row: 2; justify-content: flex-start; margin-top: 4px; }
   .chat-activity-duration { display: block; grid-column: 3; grid-row: 2; margin-top: 4px; }
 }
+
+/* 工具审批卡片：展示工具、副作用与最终参数，一次裁决只授权当前调用。 */
+.chat-approvals { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 8px; }
+.chat-approval { border: 1px solid var(--kaguya-border, #333); border-radius: 10px; padding: 10px 12px; background: var(--kaguya-surface, rgba(255, 255, 255, 0.03)); }
+.chat-approval-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chat-approval-head strong { font-size: 13px; }
+.chat-approval-status { margin-left: auto; font-size: 12px; opacity: 0.8; }
+.chat-approval-hint { margin: 6px 0; font-size: 12px; opacity: 0.75; }
+.chat-approval-input { margin: 6px 0; padding: 8px; max-height: 180px; overflow: auto; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; background: rgba(0, 0, 0, 0.25); border-radius: 6px; }
+.chat-approval-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.chat-reference-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 8px 0; }

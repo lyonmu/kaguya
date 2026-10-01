@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/agent/permission"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 )
 
 func TestTurnTraceRejectsMissingToolResult(t *testing.T) {
-	call := newChatStream(func(dtochat.ContentBlock) error { return nil }).callbacks()
+	call := newChatStream(permission.ModeFullAccess, func(dtochat.ContentBlock) error { return nil }).callbacks()
 	trace := newTurnTrace()
 	trace.wrap(&call)
 	if err := call.OnToolCall(fantasy.ToolCallContent{ToolCallID: "unfinished", ToolName: "search", Input: `{}`}); err != nil {
@@ -22,7 +23,7 @@ func TestTurnTraceRejectsMissingToolResult(t *testing.T) {
 }
 
 func TestTurnTracePreservesOrderAndMergesTools(t *testing.T) {
-	stream := newChatStream(func(dtochat.ContentBlock) error { return nil })
+	stream := newChatStream(permission.ModeFullAccess, func(dtochat.ContentBlock) error { return nil })
 	call := stream.callbacks()
 	trace := newTurnTrace()
 	trace.wrap(&call)

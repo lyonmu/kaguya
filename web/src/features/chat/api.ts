@@ -1,8 +1,8 @@
 import { del, get, post, put } from '../../api/http'
 import { openStream } from '../../api/stream'
-import { blockGuard, conversationContextGuard, conversationGuard, conversationPageGuard, conversationTitleGuard, projectFilesGuard, turnPageGuard } from './guards'
+import { approvalListGuard, blockGuard, conversationContextGuard, conversationGuard, conversationPageGuard, conversationTitleGuard, turnPageGuard } from './guards'
 import { consumeSSE } from './sse'
-import type { ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TurnPage, Block } from './types'
+import type { Approval, ApprovalDecision, ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, Reference, TurnPage, Block } from './types'
 
 export const HISTORY_PAGE_SIZE = 5
 
@@ -26,7 +26,7 @@ export function fetchTurns(id: string, before = 0, signal?: AbortSignal) {
 export function fetchTurnPage(id: string, page: number, signal?: AbortSignal) {
   return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { page, limit: HISTORY_PAGE_SIZE, compact: true }, signal, turnPageGuard)
 }
-export function updateConversation(id: string, payload: { title?: string; favorite?: boolean; memory_mode?: string }) {
+export function updateConversation(id: string, payload: { title?: string; favorite?: boolean; memory_mode?: string; permission_mode?: string }) {
   return put<Conversation>(`${PATH}/${encodeURIComponent(id)}`, payload, undefined, conversationGuard)
 }
 // stopConversation 标记用户主动停止该会话的当前轮次，供服务端区分 canceled 与断联；
@@ -38,20 +38,31 @@ export function stopConversation(id: string) {
 export function upgradeConversationInstructions(id: string) {
   return post<Conversation>(`${PATH}/${encodeURIComponent(id)}/instructions/upgrade`, undefined, undefined, conversationGuard)
 }
+// 审批裁决：一次调用仅生效一次；相同裁决幂等，冲突裁决由后端返回明确错误。
+export function decideApproval(id: string, approvalId: string, decision: 'approve' | 'reject', signal?: AbortSignal) {
+  return post<ApprovalDecision>(`${PATH}/${encodeURIComponent(id)}/approvals/${encodeURIComponent(approvalId)}`, { decision }, signal)
+}
+// 当前等待裁决的审批；仅作页面刷新后的状态补齐。
+export function fetchApprovals(id: string, signal?: AbortSignal) {
+  return get<Approval[]>(`${PATH}/${encodeURIComponent(id)}/approvals`, undefined, signal, approvalListGuard)
+}
 export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }
-export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string, files: string[] = []) {
+export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string, references: Reference[] = [], permissionMode?: string) {
   const body = await openStream('/v1/chat/sse', {
     method: 'POST',
     signal,
-    body: { id: id || undefined, messages, model_id: modelId || undefined, project_id: projectId || undefined, files: projectId && files.length ? files : undefined },
+    body: {
+      id: id || undefined,
+      messages,
+      model_id: modelId || undefined,
+      project_id: projectId || undefined,
+      references: projectId && references.length ? references : undefined,
+      permission_mode: !id && permissionMode ? permissionMode : undefined,
+    },
   })
   await consumeSSE(body, onFrame, { conversationId: id || undefined })
-}
-
-export function searchProjectFiles(projectId: string, query: string, signal?: AbortSignal) {
-  return get<{ files: string[]; truncated: boolean }>(`/v1/project/${encodeURIComponent(projectId)}/files`, { query }, signal, projectFilesGuard)
 }
 
 export function fetchBlock(id: string, turn: number, sequence: number, signal?: AbortSignal) {

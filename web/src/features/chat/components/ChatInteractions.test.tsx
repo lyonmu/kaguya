@@ -22,6 +22,7 @@ const { ActivityBlock } = await import('./ActivityBlock')
 const { MessageList: RuntimeMessageList } = await import('./MessageList')
 const { Composer } = await import('./Composer')
 const { useState } = await import('react')
+import type { Reference } from '../types'
 const { AssistantThread } = await import('./AssistantThread')
 function MessageList(props: React.ComponentProps<typeof RuntimeMessageList>) {
   return <AssistantThread turns={props.turns} streaming={props.streaming} disabled={false} onSend={async () => {}} onStop={() => {}}><RuntimeMessageList {...props} /></AssistantThread>
@@ -160,11 +161,11 @@ it('embeds selected project files inline and removes references when their token
   let sends = 0
   function Draft() {
     const [value, setValue] = useState('')
-    const [references, setReferences] = useState<string[]>([])
-    return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => { sends++ }} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} references={references} onReferencesChange={setReferences} modelId="" onModelChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
+    const [references, setReferences] = useState<Reference[]>([])
+    return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => { sends++ }} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} references={references} onReferencesChange={setReferences} modelId="" onModelChange={() => {}} permissionMode="full_access" onPermissionChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
   }
   const view = render(<Draft />)
-  assert.ok(view.getByLabelText('完全访问当前项目'))
+  assert.ok(view.container.querySelector('.chat-access-mode'))
   const textarea = view.getByLabelText('对话消息') as HTMLTextAreaElement
   fireEvent.change(textarea, { target: { value: '看看 @', selectionStart: 4 } })
   await waitFor(() => assert.equal(view.getAllByRole('option').length, 2))
@@ -266,4 +267,42 @@ it('cancels folded detail requests on close and allows explicit retry after fail
   await view.findByText('saved reasoning marker')
   assert.equal(view.queryByText('stale detail'), null)
   assert.equal(requests, 3)
+})
+
+it('offers typed file and directory reference candidates', async () => {
+  globalThis.fetch = (async url => {
+    if (String(url).includes('/files')) {
+      return Response.json({ code: 100000, data: { files: ['src/main.go'], items: [{ type: 'file', path: 'src/main.go', name: 'main.go' }, { type: 'directory', path: 'src', name: 'src' }], truncated: false } })
+    }
+    return Response.json({ code: 100000, data: [] })
+  }) as typeof fetch
+  let selected: Reference[] = []
+  function Draft() {
+    const [value, setValue] = useState('')
+    const [references, setReferences] = useState<Reference[]>([])
+    selected = references
+    return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => {}} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} references={references} onReferencesChange={setReferences} modelId="" onModelChange={() => {}} permissionMode="full_access" onPermissionChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
+  }
+  const view = render(<Draft />)
+  const textarea = view.getByLabelText('对话消息') as HTMLTextAreaElement
+  fireEvent.change(textarea, { target: { value: '看看 @s', selectionStart: 5 } })
+  await waitFor(() => assert.equal(view.getAllByRole('option').length, 2))
+  const options = view.getAllByRole('option')
+  options.forEach(option => { option.scrollIntoView = () => {} })
+  fireEvent.click(options[1])
+  await waitFor(() => assert.deepEqual(selected, [{ type: 'directory', path: 'src' }]))
+  await waitFor(() => assert.ok(view.getByText(/目录 · src/)))
+})
+
+it('shows a pending approval once and reports one decision', async () => {
+  const decisions: [string, string][] = []
+  const { ApprovalCard } = await import('./ApprovalCard')
+  const approval = { approval_id: 'a1', tool_call_id: 'c1', tool_name: 'write', effect: 'mutating', mode: 'full_approval', status: 'pending', input: '{"path":"a.txt"}' }
+  const view = render(<ApprovalCard approval={approval} onDecide={async (id, decision) => { decisions.push([id, decision]) }} />)
+  assert.ok(view.getByText('write'))
+  assert.ok(view.getByText('写入'))
+  fireEvent.click(view.getByRole('button', { name: /批准一次/ }))
+  await waitFor(() => assert.deepEqual(decisions, [['a1', 'approve']]))
+  view.rerender(<ApprovalCard approval={{ ...approval, status: 'approved' }} onDecide={async () => {}} />)
+  assert.equal(view.queryByRole('button', { name: /批准一次/ }), null)
 })

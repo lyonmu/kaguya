@@ -1,4 +1,4 @@
-import type { Block, ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, TitleEvent, Turn, TurnPage, Usage } from './types'
+import type { Approval, Block, ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, PermissionMode, TitleEvent, Turn, TurnPage, Usage } from './types'
 import { guardFailure, guardSuccess, isArrayOf, isBoolean, isNumber, isOptional, isRecord, isString, type PayloadGuard } from '../../api/http'
 
 // 本模块集中声明网络边界上的必需字段；允许后端追加未知字段，
@@ -67,10 +67,19 @@ export const conversationTitleGuard: PayloadGuard<ConversationTitle> = value => 
   return guardSuccess({ id: value.id, title: value.title, revision: value.revision, status: value.status })
 }
 
-export const projectFilesGuard: PayloadGuard<{ files: string[]; truncated: boolean }> = value =>
-  isRecord(value) && isArrayOf(value.files, isString) && isBoolean(value.truncated)
-    ? guardSuccess({ files: value.files, truncated: value.truncated })
-    : guardFailure('文件引用格式不正确')
+const isApproval = (value: unknown): value is Approval => {
+  if (!isRecord(value)) return false
+  if (!isString(value.approval_id) || !isString(value.tool_call_id) || !isString(value.tool_name)) return false
+  if (!isString(value.effect) || !isString(value.mode) || !isString(value.status)) return false
+  if (!isOptional(value.input, isString) || !isOptional(value.tool_identity, isString) || !isOptional(value.expires_at, isNumber)) return false
+  return true
+}
+
+export const approvalGuard: PayloadGuard<Approval> = value =>
+  isApproval(value) ? guardSuccess(value) : guardFailure('审批数据格式不正确')
+
+export const approvalListGuard: PayloadGuard<Approval[]> = value =>
+  isArrayOf(value, isApproval) ? guardSuccess(value) : guardFailure('审批列表格式不正确')
 
 // 只有 conversation_id 是必需的；可选字段出现时必须类型正确，缺失时展示层按未知/0 处理。
 export const conversationContextGuard: PayloadGuard<ConversationContext> = value => {
@@ -86,9 +95,9 @@ export const conversationContextGuard: PayloadGuard<ConversationContext> = value
   return guardSuccess(value as unknown as ConversationContext)
 }
 
-const frameFlags = ['start', 'delta', 'done', 'error']
+const frameFlags = ['start', 'delta', 'done', 'error', 'approval']
 
-// sseFrameGuard 校验下行帧的关键字段；usage/content/block 可选，但出现时必须结构正确。
+// sseFrameGuard 校验下行帧的关键字段；usage/content/block/approval 可选，但出现时必须结构正确。
 // 会话尚未建立时的错误帧允许空 id，与 API 层的失败响应一致。
 export const sseFrameGuard: PayloadGuard<ChatFrame> = value => {
   if (!isRecord(value) || !isRecord(value.chat)) return guardFailure('SSE 事件格式不正确')
@@ -97,9 +106,20 @@ export const sseFrameGuard: PayloadGuard<ChatFrame> = value => {
   if (!isString(chat.id)) return guardFailure('SSE 事件格式不正确')
   if (chat.content !== undefined && !isString(chat.content)) return guardFailure('SSE 事件格式不正确')
   if (chat.block !== undefined && !isBlock(chat.block)) return guardFailure('SSE 事件格式不正确')
+  if (chat.flag === 'approval') {
+    const checked = approvalGuard(value.approval)
+    if (!checked.ok) return guardFailure('SSE 事件格式不正确')
+    return guardSuccess(value as unknown as ChatFrame)
+  }
   if (!isOptional(value.usage, (item): item is Usage => isUsage(item, true))) return guardFailure('SSE 事件格式不正确')
   return guardSuccess(value as unknown as ChatFrame)
 }
+
+// 会话权限模式必须属于后端稳定枚举；未知值拒绝发出。
+const permissionModes: PermissionMode[] = ['full_approval', 'auto_approval', 'full_access']
+
+export const permissionModeGuard = (value: unknown): PermissionMode | undefined =>
+  isString(value) && (permissionModes as string[]).includes(value) ? (value as PermissionMode) : undefined
 
 // 标题事件只接受已知类型与必填 ID/revision；title 缺失表示任务终态无新标题。
 export const titleEventGuard: PayloadGuard<TitleEvent> = value =>

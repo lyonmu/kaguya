@@ -34,7 +34,7 @@ func TestConversationTitleWaitWithoutTask(t *testing.T) {
 func TestConversationTitleGenerateWithoutSavedTurn(t *testing.T) {
 	ctx, _ := setupChatTest(t)
 	target := &chatTarget{model: &ent.KaguyaModelsInfo{ModelID: "test", ModelName: "test"}}
-	if err := createConversation(ctx, target, "123", "", "首轮提问", time.Now()); err != nil {
+	if err := createConversation(ctx, target, "123", "", "首轮提问", time.Now(), "full_access"); err != nil {
 		t.Fatal(err)
 	}
 	resp, err := (&AgentSvc{}).ConversationTitleGenerate(ctx, "123")

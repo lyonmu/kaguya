@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Alert, App, Button, Card, Drawer, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
 import { PlusOutlined, QuestionCircleOutlined, ReloadOutlined } from '@ant-design/icons'
-import { createMCPServer, deleteMCPServer, fetchMCPServer, fetchMCPServers, reconnectMCPServer, setMCPEnabled, updateMCPServer } from '../../features/mcp/api'
+import { fetchMCPServer } from '../../features/mcp/api'
 import { MCPJSONEditor } from '../../features/mcp/MCPJSONEditor'
 import { parseArgs, parseStringMap, toMCPConfig, toMCPForm } from '../../features/mcp/form'
 import type { MCPFormValues } from '../../features/mcp/form'
-import type { MCPPage, MCPServer } from '../../features/mcp/types'
+import { useMCPServers } from '../../features/mcp/useMCPServers'
+import type { MCPServer } from '../../features/mcp/types'
 
 const transports = [
   { value: 'streamable-http', label: 'Streamable HTTP' },
@@ -28,70 +29,12 @@ export function MCPManagementPanel() {
   const { message } = App.useApp()
   const [form] = Form.useForm<MCPFormValues>()
   const transport = Form.useWatch('transport', form)
-  const [query, setQuery] = useState({ page: 1, pageSize: 10, name: '' })
-  const [data, setData] = useState<MCPPage>({ items: [], total: 0, page: 1, page_size: 10 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [revision, setRevision] = useState(0)
-  const [busy, setBusy] = useState('')
+  const { query, setQuery, data, loading, error, busy, setBusy, reload, save: persist, toggle, reconnect, remove } = useMCPServers()
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<MCPServer>()
   const [details, setDetails] = useState<MCPServer>()
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    let inFlight = false
-    let refreshPending = false
-    const visible = () => document.visibilityState !== 'hidden'
-    const schedule = () => {
-      clearTimeout(timer)
-      if (visible()) timer = setTimeout(() => void load(false), 5000)
-    }
-    const load = async (initial: boolean) => {
-      if (controller.signal.aborted) return
-      if (inFlight) {
-        refreshPending = true
-        return
-      }
-      inFlight = true
-      refreshPending = false
-      if (initial) setLoading(true)
-      try {
-        const page = await fetchMCPServers(query.page, query.pageSize, query.name, controller.signal)
-        if (!controller.signal.aborted) { setData(page); setError('') }
-      } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'MCP 列表加载失败')
-      } finally {
-        inFlight = false
-        if (!controller.signal.aborted) {
-          setLoading(false)
-          if (refreshPending && visible()) {
-            refreshPending = false
-            void load(false)
-          } else {
-            schedule()
-          }
-        }
-      }
-    }
-    const onVisibilityChange = () => {
-      clearTimeout(timer)
-      if (!visible()) return
-      if (inFlight) refreshPending = true
-      else void load(false)
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange)
-    void load(true)
-    return () => {
-      controller.abort()
-      clearTimeout(timer)
-      document.removeEventListener('visibilitychange', onVisibilityChange)
-    }
-  }, [query, revision])
-
-  const reload = () => setRevision(value => value + 1)
   const edit = async (server: MCPServer) => {
     setBusy(server.id)
     try {
@@ -105,34 +48,13 @@ export function MCPManagementPanel() {
       const values = await form.validateFields()
       const config = toMCPConfig(values)
       setSaving(true)
-      if (editing) await updateMCPServer(editing.id, config)
-      else await createMCPServer(config)
-      void message.success(editing ? 'MCP 配置已更新' : 'MCP 已创建，可通过开关启用')
-      setOpen(false); reload()
-    } catch (err) { if (err instanceof Error) void message.error(err.message) }
-    finally { setSaving(false) }
-  }
-  const toggle = async (server: MCPServer, enabled: boolean) => {
-    setBusy(server.id)
-    try { await setMCPEnabled(server.id, enabled); void message.success(enabled ? 'MCP 已启用，新对话轮次可使用工具' : 'MCP 已停用') }
-    catch (err) { void message.error(err instanceof Error ? err.message : 'MCP 启停失败') }
-    finally { setBusy(''); reload() }
-  }
-  const reconnect = async (server: MCPServer) => {
-    setBusy(server.id)
-    try { await reconnectMCPServer(server.id); void message.success('已开启新的重连周期') }
-    catch (err) { void message.error(err instanceof Error ? err.message : '重连失败') }
-    finally { setBusy(''); reload() }
-  }
-  const remove = async (server: MCPServer) => {
-    setBusy(server.id)
-    try {
-      await deleteMCPServer(server.id)
-      void message.success('MCP 已删除')
-      if (data.items.length === 1 && query.page > 1) setQuery({ ...query, page: query.page - 1 })
-      else reload()
-    } catch (err) { void message.error(err instanceof Error ? err.message : '删除失败') }
-    finally { setBusy('') }
+      await persist(config, editing?.id)
+      setOpen(false)
+    } catch (err) {
+      if (err instanceof Error && !('errorFields' in err)) void message.error(err.message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   return <div className="mx-auto w-full max-w-[1480px] px-6 pt-4 pb-8 max-[620px]:px-3.5">

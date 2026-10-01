@@ -154,18 +154,25 @@ func (*ProjectApiV1Group) ProjectDelete(c *gin.Context) {
 
 // ProjectFiles
 // @Tags Project
-// @Summary 搜索项目中的文件，用于输入框 @ 引用
+// @Summary 搜索项目候选文件与目录，用于输入框 @ 引用
+// @Description 旧客户端读 files（仅文件字符串）；新选择器读 items 与 next_cursor。include_directories=true 时追加目录候选。cursor 与 query/include_directories 绑定，不匹配时从第一页开始。
 // @Param id path string true "项目 ID"
 // @Param query query string false "文件名或相对路径"
+// @Param include_directories query bool false "同时返回目录候选"
+// @Param cursor query string false "上一页 next_cursor"
 // @Success 200 {object} code.Response{data=service.FileSearchResp}
 // @Router /v1/project/{id}/files [get]
 func (*ProjectApiV1Group) ProjectFiles(c *gin.Context) {
-	var req dto.IDReq
+	var req dto.FilesReq
 	if err := c.ShouldBindUri(&req); err != nil {
 		code.RequestParameterError.Failure(c)
 		return
 	}
-	resp, err := svc.Files(c.Request.Context(), req.ID, c.Query("query"))
+	if err := c.ShouldBindQuery(&req); err != nil {
+		code.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := svc.FilesPage(c.Request.Context(), &req)
 	if err != nil {
 		failure(c, err)
 		return

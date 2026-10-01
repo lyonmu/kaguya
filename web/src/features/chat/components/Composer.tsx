@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Tooltip } from 'antd'
+import { Alert, Button, Select, Tag, Tooltip } from 'antd'
 import { ModelCascader } from '../../providers/ModelCascader'
-import { fetchModelLabels } from '../../providers/api'
+import { useModelLabels } from '../../providers/useModelLabels'
 import type { ModelLabelOption } from '../../providers/types'
-import { FileTextOutlined, SafetyCertificateOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
+import { FileTextOutlined, FolderOpenOutlined, SafetyCertificateOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
 import { ComposerPrimitive, useAui } from '@assistant-ui/react'
 import { activeMention } from '../mentions'
-import { searchProjectFiles } from '../api'
+import { useReferences } from '../useReferences'
 import { ContextProgress } from './ContextProgress'
+import type { PermissionMode, Reference } from '../types'
 
 interface Props {
   projectId?: string
@@ -17,44 +18,37 @@ interface Props {
   onModelChange: (value: string) => void
   value: string
   onChange: (value: string) => void
-  references: string[]
-  onReferencesChange: (value: string[]) => void
+  references: Reference[]
+  onReferencesChange: (value: Reference[]) => void
+  permissionMode: PermissionMode
+  onPermissionChange: (value: PermissionMode) => void
   streaming: boolean
   disabled: boolean
 }
 
-export function Composer({ projectId, conversationId, turnCount, modelId, onModelChange, value, onChange, references, onReferencesChange, streaming, disabled }: Props) {
+const permissionOptions = [
+  { value: 'full_approval', label: '完全审批', title: '每个工具调用都需要你逐个批准' },
+  { value: 'auto_approval', label: '自主审批', title: '可信只读工具自动放行，写入与命令仍需批准' },
+  { value: 'full_access', label: '完全访问', title: '所有工具直接执行，不逐一审批（兼容默认）' },
+]
+
+export function Composer({ projectId, conversationId, turnCount, modelId, onModelChange, value, onChange, references, onReferencesChange, permissionMode, onPermissionChange, streaming, disabled }: Props) {
   const runtime = useAui()
   useEffect(() => { runtime.composer.setText(value) }, [runtime, value])
   const input = useRef<HTMLTextAreaElement>(null)
   const [caret, setCaret] = useState(0)
   const [dismissed, setDismissed] = useState(false)
-  const [files, setFiles] = useState<string[]>([])
-  const [filesLoading, setFilesLoading] = useState(false)
-  const [filesError, setFilesError] = useState('')
-  const [truncated, setTruncated] = useState(false)
   const [selected, setSelected] = useState(0)
   const mention = projectId && !dismissed && !streaming && !disabled ? activeMention(value, caret) : undefined
   const query = mention?.query
   useEffect(() => { setDismissed(false); setCaret(0) }, [projectId, conversationId])
-  useEffect(() => {
-    setFiles([]); setFilesError(''); setSelected(0)
-    if (query === undefined || !projectId) { setFilesLoading(false); return }
-    const controller = new AbortController()
-    setFilesLoading(true)
-    const timer = setTimeout(() => {
-      searchProjectFiles(projectId, query, controller.signal).then(result => {
-        if (!controller.signal.aborted) { setFiles(result.files); setTruncated(result.truncated) }
-      }).catch(error => {
-        if (!controller.signal.aborted) setFilesError(error instanceof Error ? error.message : '文件搜索失败')
-      }).finally(() => { if (!controller.signal.aborted) setFilesLoading(false) })
-    }, 150)
-    return () => { clearTimeout(timer); controller.abort() }
-  }, [query, projectId])
-  const chooseFile = (path: string) => {
+  const { items: candidates, loading: filesLoading, error: filesError, truncated } = useReferences(projectId, query, !!mention)
+  const chooseReference = (candidate: { type: 'file' | 'directory'; path: string }) => {
     if (!mention) return
-    if (!references.includes(path) && references.length < 8) onReferencesChange([...references, path])
-    const token = `@${path}`
+    if (!references.some(item => item.type === candidate.type && item.path === candidate.path)) {
+      onReferencesChange([...references, { type: candidate.type, path: candidate.path }])
+    }
+    const token = `@${candidate.path}`
     const tail = value.slice(mention.end)
     const separator = tail === '' || !/^\s/.test(tail) ? ' ' : ''
     const nextValue = value.slice(0, mention.start) + token + separator + tail
@@ -68,29 +62,20 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
       setCaret(nextCaret)
     })
   }
-  const [models, setModels] = useState<ModelLabelOption[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [revision, setRevision] = useState(0)
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError('')
-    fetchModelLabels(controller.signal).then(items => {
-      if (!controller.signal.aborted) setModels(items ?? [])
-    }).catch(error => {
-      if (!controller.signal.aborted) setError(error instanceof Error ? error.message : '模型加载失败')
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => controller.abort()
-  }, [revision])
+  const { models, loading, error, retry } = useModelLabels()
   return (
     <div className="chat-composer-shell">
-      <ComposerPrimitive.Root className="chat-composer" onSubmit={event => { if (disabled || streaming || references.length > 8) event.preventDefault() }}>
-        {error && <Alert type="error" title={error} action={<Button size="small" onClick={() => setRevision(value => value + 1)}>重试</Button>} />}
+      <ComposerPrimitive.Root className="chat-composer" onSubmit={event => { if (disabled || streaming) event.preventDefault() }}>
+        {error && <Alert type="error" title={error} action={<Button size="small" onClick={retry}>重试</Button>} />}
+        {references.length > 0 && <div className="chat-reference-chips" aria-label="已选择的引用">
+          {references.map(reference => <Tag key={`${reference.type}:${reference.path}`} closable onClose={() => onReferencesChange(references.filter(item => !(item.type === reference.type && item.path === reference.path)))} icon={reference.type === 'directory' ? <FolderOpenOutlined /> : <FileTextOutlined />}>
+            {reference.type === 'directory' ? '目录 · ' : ''}{reference.path}
+          </Tag>)}
+        </div>}
         {mention && <div className="chat-mention-popover">
-          <div className="chat-mention-heading"><span>引用项目文件</span><span>↑↓ 选择 · Enter 插入 · Esc 关闭</span></div>
-          {filesLoading ? <div className="chat-mention-empty" role="status">正在搜索文件…</div> : filesError ? <div className="chat-mention-empty" role="alert">{filesError}</div> : !files.length ? <div className="chat-mention-empty" role="status">没有匹配文件，试试文件名或相对路径</div> : <div role="listbox" id="project-file-mentions" aria-label="项目文件">
-            {files.map((path, index) => <button type="button" role="option" aria-selected={selected === index} id={`file-mention-${index}`} tabIndex={-1} key={path} onMouseDown={event => event.preventDefault()} onClick={() => chooseFile(path)} className={selected === index ? 'selected' : ''}><FileTextOutlined /><span>{path}</span></button>)}
+          <div className="chat-mention-heading"><span>引用项目文件或目录</span><span>↑↓ 选择 · Enter 插入 · Esc 关闭</span></div>
+          {filesLoading ? <div className="chat-mention-empty" role="status">正在搜索文件…</div> : filesError ? <div className="chat-mention-empty" role="alert">{filesError}</div> : !candidates.length ? <div className="chat-mention-empty" role="status">没有匹配文件，试试文件名或相对路径</div> : <div role="listbox" id="project-file-mentions" aria-label="项目文件">
+            {candidates.map((candidate, index) => <button type="button" role="option" aria-selected={selected === index} id={`file-mention-${index}`} tabIndex={-1} key={`${candidate.type}:${candidate.path}`} onMouseDown={event => event.preventDefault()} onClick={() => chooseReference(candidate)} className={selected === index ? 'selected' : ''}>{candidate.type === 'directory' ? <FolderOpenOutlined /> : <FileTextOutlined />}<span>{candidate.path}</span></button>)}
           </div>}
           {truncated && !filesLoading && <div className="chat-mention-footer">结果已限制，请输入更具体的路径</div>}
         </div>}
@@ -99,15 +84,15 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
             ref={input}
             aria-controls={mention ? 'project-file-mentions' : undefined}
             aria-expanded={!!mention}
-            aria-activedescendant={mention && files.length ? `file-mention-${selected}` : undefined}
+            aria-activedescendant={mention && candidates.length ? `file-mention-${selected}` : undefined}
             aria-label="对话消息"
             className="chat-composer-input"
-            placeholder={projectId ? "描述任务，输入 @ 引用项目文件…" : "输入问题，与 Kaguya 对话…"}
+            placeholder={projectId ? "描述任务，输入 @ 引用项目文件或目录…" : "输入问题，与 Kaguya 对话…"}
             value={value}
             onChange={event => {
               const nextValue = event.target.value
               onChange(nextValue)
-              const retained = references.filter(path => nextValue.includes(`@${path}`))
+              const retained = references.filter(reference => nextValue.includes(`@${reference.path}`))
               if (retained.length !== references.length) onReferencesChange(retained)
               setCaret(event.target.selectionStart)
               setDismissed(false)
@@ -123,16 +108,16 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
               if (event.nativeEvent.isComposing) return
               if (mention) {
                 if (event.key === 'Escape') { event.preventDefault(); setDismissed(true); return }
-                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && files.length) {
+                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && candidates.length) {
                   event.preventDefault()
-                  const next = (selected + (event.key === 'ArrowDown' ? 1 : -1) + files.length) % files.length
+                  const next = (selected + (event.key === 'ArrowDown' ? 1 : -1) + candidates.length) % candidates.length
                   setSelected(next)
                   document.getElementById(`file-mention-${next}`)?.scrollIntoView({ block: 'nearest' })
                   return
                 }
-                if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (files[selected]) chooseFile(files[selected]); return }
+                if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (candidates[selected]) chooseReference(candidates[selected]); return }
               }
-              if (references.length > 8 || disabled || streaming) return
+              if (disabled || streaming) return
               if (event.key === 'Enter'  && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault()
                 runtime.composer.send()
@@ -141,9 +126,19 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
           />
         </div>
         <div className="chat-composer-bottom">
-          <Tooltip title={projectId ? '可直接读取和修改当前项目，并执行命令' : '普通对话不会调用项目工具'}>
-            <span className={`chat-access-mode${projectId ? ' is-full' : ''}`} aria-label={projectId ? '完全访问当前项目' : '普通对话'}>
-              <SafetyCertificateOutlined /><span>{projectId ? '完全访问' : '普通对话'}</span>
+          <Tooltip title={permissionOptions.find(option => option.value === permissionMode)?.title}>
+            <span className={`chat-access-mode${projectId ? ' is-full' : ''}`} aria-label="会话权限模式">
+              <SafetyCertificateOutlined />
+              <Select
+                aria-label="会话权限模式"
+                size="small"
+                variant="borderless"
+                value={permissionMode}
+                options={permissionOptions}
+                onChange={value => onPermissionChange(value as PermissionMode)}
+                disabled={streaming || disabled}
+                popupMatchSelectWidth={false}
+              />
             </span>
           </Tooltip>
           <div className="chat-composer-actions">
@@ -155,7 +150,7 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
               onChange={onModelChange}
               disabled={streaming || disabled}
               loading={loading}
-              models={models}
+              models={models as ModelLabelOption[]}
               defaultOption
               displayLeafOnly
               placement="bottomRight"
@@ -164,7 +159,7 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
               <ComposerPrimitive.Cancel className="chat-stop"><StopOutlined /> 停止</ComposerPrimitive.Cancel>
             ) : (
               <Tooltip title="Enter 发送，Shift + Enter 换行。AI 内容可能有误，请核实重要信息。">
-                <span><ComposerPrimitive.Send className="chat-send" aria-label="发送消息" disabled={!value.trim() || disabled || references.length > 8}><SendOutlined /></ComposerPrimitive.Send></span>
+                <span><ComposerPrimitive.Send className="chat-send" aria-label="发送消息" disabled={!value.trim() || disabled}><SendOutlined /></ComposerPrimitive.Send></span>
               </Tooltip>
             )}
           </div>

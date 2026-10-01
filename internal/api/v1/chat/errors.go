@@ -29,6 +29,18 @@ func mapChatError(err error, operation dtocode.Response) dtocode.Response {
 		return dtocode.ServiceStopping
 	case errors.Is(err, serviceagent.ErrConversationUpdate):
 		return dtocode.RequestParameterError
+	case errors.Is(err, serviceagent.ErrPermissionModeInvalid):
+		return dtocode.PermissionModeInvalid
+	case errors.Is(err, serviceagent.ErrApprovalNotFound):
+		return dtocode.ApprovalNotFound
+	case errors.Is(err, serviceagent.ErrApprovalConflict):
+		return dtocode.ApprovalConflict
+	case errors.Is(err, serviceagent.ErrReferenceInvalid):
+		return dtocode.ReferenceInvalid
+	case errors.Is(err, serviceagent.ErrReferenceReadFailure):
+		return dtocode.ReferenceReadFailure
+	case errors.Is(err, serviceagent.ErrContextBudgetExceeded):
+		return dtocode.ContextBudgetExceeded
 	default:
 		return operation
 	}

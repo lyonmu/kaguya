@@ -204,7 +204,7 @@ func (t *turnTrace) wrap(c *fantasy.AgentStreamCall) {
 		return original.OnToolCall(call)
 	}
 	c.OnToolResult = func(result fantasy.ToolResultContent) error {
-		output, err := toolOutput(result.Result)
+		output, err := toolOutputWithMetadata(result)
 		if err != nil {
 			return err
 		}

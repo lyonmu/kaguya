@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { syncCompletedConversation } from './completion'
+import { syncCompletedConversation } from './service'
 import type { ConversationTitle } from './types'
 
 const originalFetch = globalThis.fetch

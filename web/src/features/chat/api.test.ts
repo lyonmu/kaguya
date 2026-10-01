@@ -41,10 +41,10 @@ describe('chat API', () => {
   })
   it('sends selected project files independently from the visible message', async () => {
     globalThis.fetch = (async (_url, init) => {
-      assert.deepEqual(JSON.parse(String(init?.body)), { id: '123', messages: '检查实现', model_id: 'm', project_id: 'p', files: ['docs/my file.md'] })
+      assert.deepEqual(JSON.parse(String(init?.body)), { id: '123', messages: '检查实现', model_id: 'm', project_id: 'p', references: [{ type: 'file', path: 'docs/my file.md' }] })
       return new Response('data: {"code":100000,"data":{"chat":{"id":"123","flag":"done"}}}\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
     }) as typeof fetch
-    await streamChat('123', '检查实现', new AbortController().signal, () => {}, 'm', 'p', ['docs/my file.md'])
+    await streamChat('123', '检查实现', new AbortController().signal, () => {}, 'm', 'p', [{ type: 'file', path: 'docs/my file.md' }])
   })
   it('propagates cancellation without retrying the POST', async () => {
     let calls = 0

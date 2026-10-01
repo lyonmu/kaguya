@@ -41,3 +41,19 @@ type DirectoryResp struct {
 	Parent string      `json:"parent"`
 	Items  []Directory `json:"items"`
 }
+
+// FilesReq 是候选搜索请求：cursor 与 query/include_directories 绑定，
+// 不匹配的旧游标由服务端忽略。
+type FilesReq struct {
+	ID                 string `uri:"id" binding:"required,max=64"`
+	Query              string `form:"query" binding:"max=512"`
+	IncludeDirectories bool   `form:"include_directories"`
+	Cursor             string `form:"cursor" binding:"max=4096"`
+}
+
+// ReferenceCandidate 是类型化引用候选：type 只来自服务端 Stat。
+type ReferenceCandidate struct {
+	Type string `json:"type"`
+	Path string `json:"path"`
+	Name string `json:"name,omitempty"`
+}

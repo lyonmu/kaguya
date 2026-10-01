@@ -8,12 +8,13 @@ import (
 	"testing"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/agent/permission"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 )
 
 func TestChatStreamBlocks(t *testing.T) {
 	var events []dtochat.ContentBlock
-	s := newChatStream(func(b dtochat.ContentBlock) error { events = append(events, b); return nil })
+	s := newChatStream(permission.ModeFullAccess, func(b dtochat.ContentBlock) error { events = append(events, b); return nil })
 	c := s.callbacks()
 	must := func(err error) {
 		t.Helper()
@@ -83,7 +84,7 @@ func TestChatStreamBlocks(t *testing.T) {
 
 func TestChatStreamToolErrorAndMedia(t *testing.T) {
 	var blocks []dtochat.ContentBlock
-	s := newChatStream(func(b dtochat.ContentBlock) error { blocks = append(blocks, b); return nil })
+	s := newChatStream(permission.ModeFullAccess, func(b dtochat.ContentBlock) error { blocks = append(blocks, b); return nil })
 	c := s.callbacks()
 	err := c.OnToolCall(fantasy.ToolCallContent{ToolCallID: "bad", ToolName: "search", Input: "{", Invalid: true, ValidationError: errors.New("invalid input")})
 	if err != nil {
@@ -115,7 +116,7 @@ func TestChatStreamToolErrorAndMedia(t *testing.T) {
 
 func TestChatStreamPropagatesSendError(t *testing.T) {
 	expected := errors.New("disconnected")
-	s := newChatStream(func(dtochat.ContentBlock) error { return expected })
+	s := newChatStream(permission.ModeFullAccess, func(dtochat.ContentBlock) error { return expected })
 	c := s.callbacks()
 	if err := c.OnReasoningDelta("r", "thinking"); !errors.Is(err, expected) {
 		t.Fatalf("got %v", err)
@@ -127,7 +128,7 @@ func TestChatStreamPropagatesSendError(t *testing.T) {
 
 func TestChatStreamWithoutReasoning(t *testing.T) {
 	var blocks []dtochat.ContentBlock
-	s := newChatStream(func(b dtochat.ContentBlock) error { blocks = append(blocks, b); return nil })
+	s := newChatStream(permission.ModeFullAccess, func(b dtochat.ContentBlock) error { blocks = append(blocks, b); return nil })
 	c := s.callbacks()
 	if err := c.OnTextDelta("0", "answer"); err != nil {
 		t.Fatal(err)
@@ -137,5 +138,48 @@ func TestChatStreamWithoutReasoning(t *testing.T) {
 	}
 	if len(blocks) != 2 || blocks[0].Type != dtochat.BlockTypeText || blocks[1].Text != "" {
 		t.Fatalf("unexpected reasoning or repeated text: %+v", blocks)
+	}
+}
+
+// 受限模式不允许 provider-executed 工具绕过本机审批，必须停止并报告。
+func TestChatStreamRestrictedModeRejectsProviderExecutedTool(t *testing.T) {
+	s := newChatStream(permission.ModeAutoApproval, func(dtochat.ContentBlock) error { return nil })
+	c := s.callbacks()
+	err := c.OnToolCall(fantasy.ToolCallContent{ToolCallID: "call-1", ToolName: "remote", ProviderExecuted: true})
+	if err == nil || !strings.Contains(err.Error(), "provider-executed") {
+		t.Fatalf("restricted mode must reject provider-executed tools, got %v", err)
+	}
+}
+
+// 审批拒绝/过期经工具元数据映射为结构化 code，模型看到的仍是错误文本。
+func TestApprovalOutputCodeMapping(t *testing.T) {
+	result := fantasy.ToolResultContent{
+		ToolCallID:     "call-1",
+		Result:         fantasy.ToolResultOutputContentText{Text: "Tool call was rejected by the user"},
+		ClientMetadata: `{"approval_id":"a1","outcome":"rejected"}`,
+	}
+	output, err := toolOutputWithMetadata(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if output.Code != 102014 || output.Type != dtochat.ToolOutputError {
+		t.Fatalf("rejected mapping = %+v", output)
+	}
+	result.ClientMetadata = `{"approval_id":"a1","outcome":"expired"}`
+	output, err = toolOutputWithMetadata(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if output.Code != 102015 {
+		t.Fatalf("expired mapping = %+v", output)
+	}
+	// 其它工具的元数据不得被误判为审批结果。
+	result.ClientMetadata = `{"width":800}`
+	output, err = toolOutputWithMetadata(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if output.Code != 0 || output.Type != dtochat.ToolOutputText {
+		t.Fatalf("unrelated metadata mapping = %+v", output)
 	}
 }

@@ -22,6 +22,7 @@ const { ChatPage: WorkspaceChatPage } = await import('./ChatPage')
 const { ChatProvider } = await import('../../features/chat/ChatProvider')
 function ChatPage() { return <ChatProvider><WorkspaceChatPage /></ChatProvider> }
 const { AppLayout } = await import('../../components/layout/AppLayout')
+const { invalidateModelLabels } = await import('../../features/providers/useModelLabels')
 const { VirtualList } = await import('../../features/chat/components/VirtualList')
 const { MessageList: RuntimeMessageList } = await import('../../features/chat/components/MessageList')
 const { AssistantThread } = await import('../../features/chat/components/AssistantThread')
@@ -31,6 +32,7 @@ function MessageList(props: React.ComponentProps<typeof RuntimeMessageList>) {
 const originalFetch = globalThis.fetch
 const response = (data: unknown) => Response.json({ code: 100000, data })
 afterEach(async () => {
+  invalidateModelLabels()
   cleanup()
   await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
   globalThis.fetch = originalFetch
@@ -67,7 +69,7 @@ it('hides runtime details, toggles the conversation panel and offers model selec
   fireEvent.click(await within(popup).findByText('提供商 A'))
   fireEvent.click(await within(popup).findByText('模型 A'))
   await waitFor(() => assert.equal(selector.closest('.ant-select')?.textContent?.trim(), '模型 A'))
-  assert.ok(view.getByLabelText('普通对话'))
+  assert.ok(view.container.querySelector('.chat-access-mode'))
 })
 
 it('groups navigation with refresh and keeps it accessible after collapsing the conversation list', async () => {

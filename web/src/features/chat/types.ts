@@ -26,6 +26,7 @@ export interface ToolOutput {
   text?: string
   data?: string
   media_type?: string
+  code?: number
 }
 
 export interface Block {
@@ -48,6 +49,46 @@ export interface Block {
   end_order?: number
 }
 
+/** 审批状态：pending 等待裁决；approved/consumed 表示授权已消费；其余为终态。 */
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'canceled' | 'consumed'
+
+/** 一次工具审批的完整状态；input 只在当前连接展示，不写入审计。 */
+export interface Approval {
+  approval_id: string
+  tool_call_id: string
+  tool_name: string
+  tool_identity?: string
+  effect: 'read_only' | 'mutating' | 'unknown' | string
+  mode: string
+  status: ApprovalStatus | string
+  input?: string
+  expires_at?: number
+}
+
+/** 会话权限模式；与后端持久化值共享同一组稳定字符串。 */
+export type PermissionMode = 'full_approval' | 'auto_approval' | 'full_access'
+
+/** 裁决接口的幂等结果；重复相同裁决返回同一状态。 */
+export interface ApprovalDecision {
+  approval_id: string
+  status: string
+  decision?: string
+}
+
+/** 显式引用选择；path 是工作区相对路径，name 仅作展示。 */
+export interface Reference {
+  type: 'file' | 'directory'
+  path: string
+  name?: string
+}
+
+/** 引用候选：目录与文件统一协议，来自服务端 Stat。 */
+export interface ReferenceCandidate {
+  type: 'file' | 'directory'
+  path: string
+  name?: string
+}
+
 export interface TitleEvent {
   type: 'conversation.title.updated'
   conversation_id: string
@@ -60,10 +101,12 @@ export interface ChatFrame {
   finish_reason?: string
   chat: {
     id: string
-    flag: 'start' | 'delta' | 'done' | 'error'
+    flag: 'start' | 'delta' | 'done' | 'error' | 'approval'
     content?: string
     block?: Block
+    seq?: number
   }
+  approval?: Approval
   model_id: string
   model_name: string
   api_protocol: string

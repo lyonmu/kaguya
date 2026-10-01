@@ -130,6 +130,10 @@ func (rt *appRuntime) init() error {
 		// 遗留的标题任务还原为 pending，排队等待本实例的 worker 继续执行。
 		initErr = serviceagent.ReconcileTitleJobs(initCtx)
 	}
+	if initErr == nil {
+		// 崩溃遗留的审批不可重放：pending/未消费 approved 一律终结为 canceled。
+		initErr = serviceagent.ReconcileApprovals(initCtx)
+	}
 	cancelInit()
 	if initErr != nil {
 		return rt.fail(fmt.Errorf("initialize application data: %w", initErr))

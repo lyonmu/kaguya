@@ -10,6 +10,7 @@ import (
 
 	"charm.land/fantasy"
 	"entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/agent/permission"
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
@@ -103,7 +104,7 @@ func loadConversationRow(ctx context.Context, id string) (*ent.KaguyaConversatio
 // 就出现在列表中；失败或取消的轮次会留下空会话，由用户自行删除，重试沿用同一 ID。
 // createConversation 在同一事务内创建会话与首个标题任务：会话已提交但进程在入队前
 // 崩溃时不会留下“永远没有标题任务”的会话。指令格式显式初始化为 split。
-func createConversation(ctx context.Context, target *chatTarget, id, projectID, question string, startedAt time.Time) error {
+func createConversation(ctx context.Context, target *chatTarget, id, projectID, question string, startedAt time.Time, permissionMode string) error {
 	order, err := global.Id.GenID()
 	if err != nil {
 		return err
@@ -116,6 +117,7 @@ func createConversation(ctx context.Context, target *chatTarget, id, projectID, 
 	client := tx.Client()
 	create := client.KaguyaConversation.Create().SetID(id).SetTitle(defaultConversationTitle).
 		SetInstructionsFormat(kaguyaconversation.InstructionsFormatSplit).
+		SetPermissionMode(kaguyaconversation.PermissionMode(permissionMode)).
 		SetModelID(target.model.ModelID).SetModelName(target.model.ModelName).SetLastMessageAt(startedAt)
 	if projectID != "" {
 		if err := projectsvc.Lock(ctx, client, projectID); err != nil {
@@ -142,6 +144,7 @@ type turnStart struct {
 	StartedAt                                                 time.Time
 	GlobalInstructionHash                                     string
 	GlobalInstructionVersion                                  *int64
+	PermissionMode                                            string
 }
 
 // beginTurn 在正文开始生成前写入 running 占位行；中断的轮次同样占用 turn_index，
@@ -165,6 +168,7 @@ func beginTurn(ctx context.Context, start turnStart) (*ent.KaguyaChatTurn, error
 		SetDurationMs(0).SetToolCalls(0).SetFinishReason("").
 		SetInputTokens(0).SetOutputTokens(0).SetTotalTokens(0).SetCachedTokens(0).SetReasoningTokens(0).
 		SetGlobalInstructionHash(start.GlobalInstructionHash).SetNillableGlobalInstructionVersion(start.GlobalInstructionVersion).
+		SetPermissionMode(kaguyachatturn.PermissionMode(defaultPermissionMode(start.PermissionMode))).
 		SetMessages([]fantasy.Message{}).Save(ctx)
 }
 
@@ -207,6 +211,8 @@ type completedTurn struct {
 	InstructionsFormat                                        string
 	GlobalInstructionHash                                     string
 	GlobalInstructionVersion                                  *int64
+	PermissionMode                                            string
+	ReferenceSummary                                          *dtochat.TurnReferenceSummary
 	ContextMessages                                           []fantasy.Message
 	CompactionCount                                           int
 	ProjectID                                                 string
@@ -304,7 +310,9 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
 		SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
 		SetCompactionCount(turn.CompactionCount).
-		SetGlobalInstructionHash(turn.GlobalInstructionHash).SetNillableGlobalInstructionVersion(turn.GlobalInstructionVersion)
+		SetGlobalInstructionHash(turn.GlobalInstructionHash).SetNillableGlobalInstructionVersion(turn.GlobalInstructionVersion).
+		SetPermissionMode(kaguyachatturn.PermissionMode(defaultPermissionMode(turn.PermissionMode))).
+		SetReferenceSummary(turnReferenceSummary(turn.ReferenceSummary))
 	// 未压缩的轮次不写 context_messages，列保持 SQL NULL，快照存在时才有 JSON 数组。
 	if turn.ContextMessages != nil {
 		createTurn.SetContextMessages(turn.ContextMessages)
@@ -331,6 +339,8 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 			SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
 			SetCompactionCount(turn.CompactionCount).SetMessages(turn.Messages).
 			SetGlobalInstructionHash(turn.GlobalInstructionHash).SetNillableGlobalInstructionVersion(turn.GlobalInstructionVersion).
+			SetPermissionMode(kaguyachatturn.PermissionMode(defaultPermissionMode(turn.PermissionMode))).
+			SetReferenceSummary(turnReferenceSummary(turn.ReferenceSummary)).
 			ClearContextMessages().ClearMemoryRefs()
 		if turn.ContextMessages != nil {
 			update.SetContextMessages(turn.ContextMessages)
@@ -540,11 +550,19 @@ func conversationLastModelID(ctx context.Context, conversationID string) (string
 }
 
 func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtochat.ConversationUpdateReq) (*dtochat.ConversationResp, error) {
-	if req.Title == nil && req.Favorite == nil && req.MemoryMode == nil {
+	if req.Title == nil && req.Favorite == nil && req.MemoryMode == nil && req.PermissionMode == nil {
 		return nil, ErrConversationUpdate
 	}
 	if req.Title != nil && (strings.TrimSpace(*req.Title) == "" || len([]rune(*req.Title)) > 200) {
 		return nil, ErrConversationUpdate
+	}
+	mode := permission.ModeFullAccess
+	if req.PermissionMode != nil {
+		parsed, ok := permission.Parse(*req.PermissionMode)
+		if !ok {
+			return nil, ErrPermissionModeInvalid
+		}
+		mode = parsed
 	}
 	_, release, err := acquireConversation(id)
 	if err != nil {
@@ -566,6 +584,9 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 	}
 	if req.MemoryMode != nil {
 		update.SetMemoryMode(kaguyaconversation.MemoryMode(*req.MemoryMode))
+	}
+	if req.PermissionMode != nil {
+		update.SetPermissionMode(kaguyaconversation.PermissionMode(mode))
 	}
 	row, err := update.Save(ctx)
 	if ent.IsNotFound(err) {
@@ -777,6 +798,10 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 				return nil, err
 			}
 			turn.MemoryRefs = refs
+		}
+		if len(row.ReferenceSummary.Sources) > 0 || len(row.ReferenceSummary.Warnings) > 0 {
+			summary := row.ReferenceSummary
+			turn.ReferenceSummary = &summary
 		}
 		for _, b := range blocksByTurn[row.ID] {
 			block, err := storedBlock(b)

@@ -1,99 +1,20 @@
 import { MEMORY_ENABLED } from '../../app/features'
-import { useEffect, useRef, useState } from 'react'
-import { Alert, App, Button, Card, Form, Input, InputNumber, Select, Space, Spin, Switch, Tooltip, Typography } from 'antd'
+import { Alert, Button, Card, Form, Input, InputNumber, Select, Space, Spin, Switch, Tooltip, Typography } from 'antd'
 import { ReloadOutlined, SaveOutlined, SyncOutlined } from '@ant-design/icons'
-import { fetchModelLabels, syncModelCatalog } from '../../features/providers/api'
 import { ModelCascader } from '../../features/providers/ModelCascader'
-import type { ModelLabelOption } from '../../features/providers/types'
-import { fetchSystemInfo, updateAgentsPaths, updateSystemInfo } from '../../features/system-info/api'
-import type { SystemInfo, SystemInfoPayload } from '../../features/system-info/types'
+import { useModelLabels } from '../../features/providers/useModelLabels'
+import { useSystemInfo } from '../../features/system-info/useSystemInfo'
+import type { SystemInfoPayload } from '../../features/system-info/types'
 
 export function SystemInfoPage() {
-  const { message } = App.useApp()
   const [form] = Form.useForm<SystemInfoPayload>()
-  const [info, setInfo] = useState<SystemInfo>()
-  const [models, setModels] = useState<ModelLabelOption[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [syncing, setSyncing] = useState(false)
-  const [error, setError] = useState('')
-  const [revision, setRevision] = useState(0)
-  const syncRequest = useRef<AbortController | null>(null)
-  useEffect(() => () => { syncRequest.current?.abort() }, [])
-  useEffect(() => {
-    const controller = new AbortController()
-    setLoading(true)
-    setError('')
-    Promise.all([fetchSystemInfo(controller.signal), fetchModelLabels(controller.signal)]).then(([config, labels]) => {
-      if (controller.signal.aborted) return
-      setInfo(config)
-      setModels(labels ?? [])
-      form.setFieldsValue(config)
-    }).catch(error => {
-      if (!controller.signal.aborted) setError(error instanceof Error ? error.message : '配置加载失败')
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => controller.abort()
-  }, [form, revision])
-
-  const save = async (values: SystemInfoPayload) => {
-    setSaving(true)
-    try {
-      await updateSystemInfo({
-        context_compaction_percent: values.context_compaction_percent,
-        agent_max_steps: values.agent_max_steps, command_timeout_seconds: values.command_timeout_seconds, chat_max_retries: values.chat_max_retries,
-        global_system_prompt: values.global_system_prompt ?? '', system_prompt: values.system_prompt ?? '',
-        model_sync_enabled: values.model_sync_enabled, model_sync_url: values.model_sync_url, provider_sync_url: values.provider_sync_url, model_sync_interval_hours: values.model_sync_interval_hours,
-        default_model_id: values.default_model_id || '', task_model_id: values.task_model_id || '',
-        memory_enabled: info?.memory_enabled ?? false, memory_auto_capture: info?.memory_auto_capture ?? false,
-        memory_context_tokens: info?.memory_context_tokens ?? 2000,
-      })
-      // 路径保存使用专用端点；返回包含最新的指令 reload 状态。
-      const config = await updateAgentsPaths(values.global_agents_paths ?? [])
-      setInfo(config)
-      form.setFieldsValue(config)
-      void message.success('系统配置已保存，新请求立即生效')
-    } catch (error) { void message.error(error instanceof Error ? error.message : '保存失败') }
-    finally { setSaving(false) }
-  }
-  const syncNow = async () => {
-    if (syncRequest.current) return
-    const controller = new AbortController()
-    syncRequest.current = controller
-    setSyncing(true)
-    try {
-      const result = await syncModelCatalog()
-      if (!controller.signal.aborted) void message.success(`已同步 ${result.provider_count.toLocaleString()} 个提供商、${result.count.toLocaleString()} 个模型`)
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        const failure = error instanceof Error ? error.message : '同步失败'
-        void message.error(failure)
-        setInfo(current => current && { ...current, model_sync_last_error: failure })
-      }
-    } finally {
-      // 同步成功或失败都只刷新状态，不重新装载表单或覆盖未保存输入。
-      if (!controller.signal.aborted) {
-        try {
-          const status = await fetchSystemInfo(controller.signal)
-          if (!controller.signal.aborted) setInfo(current => current && { ...current,
-            model_sync_last_error: status.model_sync_last_error,
-            model_sync_last_attempt_at: status.model_sync_last_attempt_at,
-            model_sync_last_success_at: status.model_sync_last_success_at,
-            model_sync_catalog_count: status.model_sync_catalog_count,
-            provider_catalog_count: status.provider_catalog_count,
-          })
-        } catch {
-          if (!controller.signal.aborted) void message.error('同步状态刷新失败，请重试或重新加载')
-        }
-        if (!controller.signal.aborted) setSyncing(false)
-      }
-      if (syncRequest.current === controller) syncRequest.current = null
-    }
-  }
+  const { info, loading, saving, syncing, error, reload, save, syncNow } = useSystemInfo(form)
+  const { models } = useModelLabels()
   const formatTime = (value?: string) => value ? new Date(value).toLocaleString() : '尚未同步'
   return <div className="mx-auto w-full max-w-[1180px] px-6 py-5 max-[620px]:px-3.5">
     <div className="mb-4 flex items-center justify-between gap-3">
       <h2 className="m-0 text-[22px] font-medium text-k-text">系统配置</h2>
-      <Button icon={<ReloadOutlined />} disabled={saving} loading={loading} onClick={() => setRevision(value => value + 1)}>重新加载</Button>
+      <Button icon={<ReloadOutlined />} disabled={saving} loading={loading} onClick={reload}>重新加载</Button>
     </div>
     {error && <Alert type="error" title={error} showIcon className="mb-3" />}
     {loading ? <div className="p-6 text-center"><Spin /></div> : info && <Card styles={{ body: { padding: 18 } }}>

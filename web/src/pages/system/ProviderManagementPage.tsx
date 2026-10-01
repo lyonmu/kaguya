@@ -44,6 +44,7 @@ import {
   updateModel,
   updateProvider,
 } from '../../features/providers/api'
+import { invalidateModelLabels } from '../../features/providers/useModelLabels'
 import type {
   AIModel,
   AIProvider,
@@ -216,6 +217,7 @@ export function ProviderManagementPage() {
         await createProvider(values)
         message.success('提供商已创建')
       }
+      invalidateModelLabels()
       setProviderModalOpen(false)
       reload()
     } catch (saveError) {
@@ -229,6 +231,7 @@ export function ProviderManagementPage() {
     try {
       await deleteProvider(provider.id)
       if (selectedProviderID === provider.id) setSelectedProviderID(undefined)
+      invalidateModelLabels()
       message.success('提供商及其模型已删除')
       reload()
     } catch (requestError) {
@@ -323,6 +326,7 @@ export function ProviderManagementPage() {
         await createModel(values)
         message.success('模型已创建')
       }
+      invalidateModelLabels()
       setModelModalOpen(false)
       reload()
     } catch (saveError) {
@@ -360,6 +364,7 @@ export function ProviderManagementPage() {
   const removeModel = async (model: AIModel) => {
     try {
       await deleteModel(model.id)
+      invalidateModelLabels()
       message.success('模型已删除')
       reload()
     } catch (requestError) {

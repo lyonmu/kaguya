@@ -21,6 +21,7 @@ require (
 	go.uber.org/zap v1.28.0
 	golang.org/x/text v0.41.0
 	modernc.org/sqlite v1.56.0
+	mvdan.cc/sh/v3 v3.14.1
 )
 
 require (

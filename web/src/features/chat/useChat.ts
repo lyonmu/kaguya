@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchConversation, fetchTurnPage, generateConversationTitle, stopConversation, streamChat, HISTORY_PAGE_SIZE } from './api'
+import { decideApproval, fetchApprovals, fetchConversation, fetchTurnPage, generateConversationTitle, stopConversation, streamChat, HISTORY_PAGE_SIZE } from './api'
 import { applyFrame } from './reducer'
-import { syncCompletedConversation, syncStartedConversation } from './completion'
+import { syncCompletedConversation, syncStartedConversation } from './service'
+import { createSession, mergeDetail, normalizedPermissionMode, upsertApproval, type Session } from './session'
 import { isPersistedStatus, isRunningStatus } from './status'
-import type { Conversation, ConversationTitle, Turn } from './types'
+import type { Conversation, ConversationTitle, PermissionMode, Reference, Turn } from './types'
 
 const errorText = (error: unknown) => error instanceof Error ? error.message : '请求失败，请重试'
 // confirmRunningTurnDelay 是断网/休眠后确认终态的延迟；测试可缩短以避免真实等待。
@@ -11,35 +12,6 @@ let confirmRunningTurnDelay = 3000
 
 // setConfirmRunningTurnDelay 仅用于测试覆盖确认延迟。
 export const setConfirmRunningTurnDelay = (value: number) => { confirmRunningTurnDelay = value }
-
-interface Session {
-  key: string
-  id: string
-  conversation?: Conversation
-  turns: Turn[]
-  page: number
-  totalPages: number
-  initialEnd: boolean
-  loading: boolean
-  streaming: boolean
-  error: string
-  stream?: AbortController
-  request?: AbortController
-  completion?: AbortController
-  title?: AbortController
-  confirm?: AbortController
-  // opVersion 标识会话当前的持久化操作（发送/切页/重载/删除）；延迟确认只在
-  // 版本未变化且会话仍注册时应用，避免覆盖更新的轮次或分页。
-  opVersion: number
-  projectId?: string
-  draft: string
-  references: string[]
-  modelId: string
-  // modelSeeded 标记已从会话详情沿用最近一轮模型；之后的重载与手动选择不再覆盖。
-  modelSeeded?: boolean
-}
-let nextKey = 0
-const createSession = (id = ''): Session => ({ key: `session-${++nextKey}`, id, draft: '', references: [], modelId: '', turns: [], page: 1, totalPages: 0, initialEnd: true, loading: false, streaming: false, error: '', opVersion: 0 })
 
 // Each stream owns its session object. Navigation only changes which object is displayed.
 export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title: ConversationTitle) => void) {
@@ -54,9 +26,11 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
   const notify = () => { if (mounted.current) render(value => value + 1) }
   // 会话详情的唯一更新入口：不倒退轮次数，也不让后到的默认标题覆盖已生成标题。
   const applyDetail = (session: Session, detail: Conversation) => {
-    const current = session.conversation
-    if (current && current.turn_count > detail.turn_count) return
-    session.conversation = current?.title && current.title !== '新对话' && detail.title === '新对话' ? { ...detail, title: current.title } : detail
+    const merged = mergeDetail(session.conversation, detail)
+    if (!merged) return
+    session.conversation = merged
+    const mode = normalizedPermissionMode(detail.permission_mode)
+    if (mode) session.permissionMode = mode
     notify()
   }
 
@@ -153,6 +127,12 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       if (controller.signal.aborted) return
       session.conversation = detail
       session.projectId = detail.project_id ?? undefined
+      // 刷新后补齐当前 pending 审批；轮次结束时服务端已终结它们。
+      void fetchApprovals(session.id, controller.signal).then(items => {
+        if (controller.signal.aborted) return
+        session.approvals = new Map(items.map(item => [item.approval_id, item]))
+        notify()
+      }).catch(() => {})
       // 续聊默认沿用最近一轮模型，用户手动选择后不再覆盖。
       if (!session.modelSeeded) {
         session.modelSeeded = true
@@ -206,8 +186,9 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
     // 发送会使等待中的延迟确认失效，避免其响应覆盖新轮次。
     session.opVersion++
     session.confirm?.abort()
-    const files = [...session.references]
+    const references = [...session.references]
     session.references = []
+    session.approvals = new Map()
     const controller = new AbortController()
     session.stream = controller
     session.streaming = true
@@ -247,6 +228,11 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       await streamChat(session.id, text.trim(), controller.signal, frame => {
         if (controller.signal.aborted) return
         if (frame.chat.id) session.id = frame.chat.id
+        if (frame.approval) {
+          // 审批帧不属于轮次内容：只更新审批状态，不进入 reducer。
+          session.approvals = upsertApproval(session.approvals, frame.approval)
+          notify()
+        }
         if (frame.chat.flag === 'start' && !session.conversation) {
           // 后端在首轮正文开始生成前已创建会话并启动标题任务：立即刷新列表，
           // 同时异步等待标题更新，不必等整轮完成。后端任务失败时保留“新对话”。
@@ -269,7 +255,7 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         session.turns = [...session.turns.slice(0, -1), turn]
         completed = frame.chat.flag === 'done'
         notify()
-      }, modelId, session.projectId, files)
+      }, modelId, session.projectId, references, session.conversation ? undefined : session.permissionMode)
     } catch (error) {
       const message = controller.signal.aborted ? '已停止生成；已产生的内容会保留在历史中' : errorText(error)
       if (turn) session.turns = [...session.turns.slice(0, -1), { ...turn, status: controller.signal.aborted ? 'stopped' : 'error', error: message }]
@@ -302,14 +288,25 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
   return {
     draft: session.draft, references: session.references, modelId: session.modelId, projectId: session.projectId,
     setDraft: (value: string, projectId?: string) => { selected.current.draft = value; selected.current.projectId ??= projectId; notify() },
-    setReferences: (value: string[], projectId?: string) => { selected.current.references = value; selected.current.projectId ??= projectId; notify() },
+    setReferences: (value: Reference[], projectId?: string) => { selected.current.references = value; selected.current.projectId ??= projectId; notify() },
     setModelId: (value: string) => { selected.current.modelId = value; notify() },
+    approvals: [...session.approvals.values()],
+    permissionMode: session.permissionMode,
+    setPermissionMode: (mode: PermissionMode) => { selected.current.permissionMode = mode; notify() },
+    decideApproval: async (approvalId: string, decision: 'approve' | 'reject') => {
+      const current = selected.current
+      if (!current.id) return
+      const result = await decideApproval(current.id, approvalId, decision)
+      const approval = current.approvals.get(approvalId)
+      if (approval) current.approvals = new Map(current.approvals).set(approvalId, { ...approval, status: result.status })
+      notify()
+    },
     id: session.id, sessionKey: session.key, viewKey, conversation: session.conversation,
     setConversation: (value: Conversation) => { selected.current.conversation = value; notify() },
     turns: session.turns, loading: session.loading, streaming: session.streaming, error: session.error,
     page: session.page, totalPages: session.totalPages, initialEnd: session.initialEnd,
     // Unsaved and failed new conversations must remain reachable, even before the start frame.
-    localSessions: [...sessions.current.values()].filter(item => item.turns.length > 0 || item.draft.trim() || item.references.length).map(item => ({ key: item.key, id: item.id, title: item.conversation?.title || item.turns[0]?.user_content || item.draft || item.references[0], streaming: item.streaming, draft: !item.turns.length, projectId: item.projectId })),
+    localSessions: [...sessions.current.values()].filter(item => item.turns.length > 0 || item.draft.trim() || item.references.length).map(item => ({ key: item.key, id: item.id, title: item.conversation?.title || item.turns[0]?.user_content || item.draft || item.references[0]?.path || '', streaming: item.streaming, draft: !item.turns.length, projectId: item.projectId })),
     select, goToPage, send,
     // 事件订阅到确认：更新所有已知会话中匹配当前会话的标题，并取消不再需要的等待。
     applyTitleEvent: ({ id, title, revision }: { id: string; title: string; revision?: number }) => {

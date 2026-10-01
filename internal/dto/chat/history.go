@@ -18,9 +18,10 @@ type ConversationPageReq struct {
 	PageSize  int    `form:"page_size,default=20" binding:"min=1,max=100"`
 }
 type ConversationUpdateReq struct {
-	Title      *string `json:"title" binding:"omitempty,min=1,max=200"`
-	Favorite   *bool   `json:"favorite"`
-	MemoryMode *string `json:"memory_mode" binding:"omitempty,oneof=inherit off readonly"` // 会话记忆模式：继承 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史
+	Title          *string `json:"title" binding:"omitempty,min=1,max=200"`
+	Favorite       *bool   `json:"favorite"`
+	MemoryMode     *string `json:"memory_mode" binding:"omitempty,oneof=inherit off readonly"` // 会话记忆模式：继承 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史
+	PermissionMode *string `json:"permission_mode" binding:"omitempty,oneof=full_approval auto_approval full_access"`
 }
 
 type ConversationTitleResp struct {
@@ -107,8 +108,10 @@ type StoredTurn struct {
 	FinishReason string                    `json:"finish_reason"`
 	Status       string                    `json:"status"`                // running/completed/interrupted/failed；只有 completed 是完整上下文
 	MemoryRefs   *dtomemory.MemoryRefsResp `json:"memory_refs,omitempty"` // 本轮自动召回选择的页面版本，不复制正文
-	Usage        Usage                     `json:"usage"`
-	Blocks       []StoredBlock             `json:"blocks"`
+	// ReferenceSummary 是本轮引用选择、包含范围与遗漏原因；不保存第二份正文。
+	ReferenceSummary *TurnReferenceSummary `json:"reference_summary,omitempty"`
+	Usage            Usage                 `json:"usage"`
+	Blocks           []StoredBlock         `json:"blocks"`
 }
 type TurnListResp struct {
 	Total      int64        `json:"total"`

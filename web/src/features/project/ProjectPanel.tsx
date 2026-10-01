@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, App, Button, Input, Modal, Space, Spin } from 'antd'
 import { FolderOutlined, PlusOutlined } from '@ant-design/icons'
-import { deleteProject, fetchDirectories, fetchProject, fetchProjects, saveProject } from './api'
+import { deleteProject, fetchDirectories, fetchProject, saveProject } from './api'
 import type { Directories, Project, ProjectInput } from './api'
 import type { ConversationTarget } from '../chat/types'
 import { VirtualList } from '../chat/components/VirtualList'
+
+import { useProjects } from './useProjects'
 
 import { ProjectGroup } from './ProjectGroup'
 
@@ -13,14 +15,7 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : '
 
 export function ProjectPanel({ selected, disabled, onSelect, activeId, onConversationSelect, refreshVersion = 0, reveal, localTarget }: { selected?: Project; disabled: boolean; onSelect: (project?: Project) => void; activeId?: string; onConversationSelect?: (project: Project, id: string) => void; refreshVersion?: number; reveal?: ConversationTarget; localTarget?: ConversationTarget }) {
   const { message, modal } = App.useApp()
-  const [keyword, setKeyword] = useState('')
-  const [items, setItems] = useState<Project[]>([])
-  const [total, setTotal] = useState(0)
-  const [nextPage, setNextPage] = useState(1)
-  const [version, setVersion] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState('')
+  const { keyword, setKeyword, items, revision, loading, loadingMore, error, refresh, loadMore } = useProjects()
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<ProjectInput>(empty)
@@ -29,48 +24,15 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
   const [browsing, setBrowsing] = useState(false)
   const [directoryError, setDirectoryError] = useState('')
   const directoryRequest = useRef<AbortController | null>(null)
-  const request = useRef<AbortController | null>(null)
-  const busy = useRef(false)
   useEffect(() => () => directoryRequest.current?.abort(), [])
 
-  // 项目列表使用服务端分页，滚动到底再取下一页；搜索/刷新只重取第一页。
-  const load = useCallback(async (page: number, append: boolean) => {
-    if (append && busy.current) return
-    busy.current = true
-    request.current?.abort()
-    const controller = new AbortController()
-    request.current = controller
-    if (append) setLoadingMore(true)
-    else setLoading(true)
-    setError('')
-    try {
-      const result = await fetchProjects(keyword, page, controller.signal)
-      if (controller.signal.aborted) return
-      setItems(current => append ? [...current, ...result.items.filter(item => !current.some(existing => existing.id === item.id))] : result.items)
-      setTotal(result.total)
-      setNextPage(page + 1)
-    } catch (error) {
-      if (!controller.signal.aborted) setError(errorText(error))
-    } finally {
-      if (!controller.signal.aborted) { setLoading(false); setLoadingMore(false); busy.current = false }
-    }
-  }, [keyword])
-
   useEffect(() => {
-    const timer = setTimeout(() => void load(1, false), 250)
-    return () => { clearTimeout(timer); request.current?.abort() }
-  }, [load, version])
-  useEffect(() => {
-    if (reveal) { setKeyword('') }
-  }, [reveal])
+    if (reveal) setKeyword('')
+  }, [reveal, setKeyword])
   useEffect(() => {
     if (!selected) return
     setExpanded(current => current.has(selected.id) ? current : new Set(current).add(selected.id))
   }, [selected])
-  const loadMore = () => {
-    if (loading || loadingMore || error || items.length >= total) return
-    void load(nextPage, true)
-  }
   const toggle = (id: string) => setExpanded(current => {
     const next = new Set(current)
     if (next.has(id)) next.delete(id)
@@ -112,7 +74,7 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
     try {
       const project = await saveProject(editing ?? '', { ...form, name: form.name.trim() })
       setEditing(null)
-      setVersion(value => value + 1)
+      refresh()
       select(project)
     } catch (error) { void message.error(errorText(error)) }
     finally { setSaving(false) }
@@ -121,7 +83,7 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
     title: `删除项目“${project.name}”？`, content: '仅删除项目记录；对话解除项目归属并保留在普通对话列表，主机文件不会删除。', okText: '删除', okButtonProps: { danger: true },
     onOk: async () => {
       setSaving(true)
-      try { await deleteProject(project.id); if (selected?.id === project.id) onSelect(undefined); setVersion(value => value + 1) }
+      try { await deleteProject(project.id); if (selected?.id === project.id) onSelect(undefined); refresh() }
       catch (error) { void message.error(errorText(error)); throw error }
       finally { setSaving(false) }
     },
@@ -131,19 +93,13 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
   return <>
     <div className="project-panel project-panel-list">
         <div className="project-panel-head">
-          <Space><Button icon={<PlusOutlined />} disabled={disabled || saving} onClick={() => void edit()}>新建项目</Button><Button onClick={() => setVersion(value => value + 1)}>刷新</Button></Space>
-          <Input aria-label="搜索项目" placeholder="搜索项目（名称前缀）" value={keyword} maxLength={200} allowClear onChange={event => {
-            setKeyword(event.target.value)
-            setItems([])
-            setTotal(0)
-            setError('')
-            setLoading(true)
-          }} />
-          {error && <Alert type="error" title={error} action={<Button onClick={() => setVersion(value => value + 1)}>重试</Button>} />}
+          <Space><Button icon={<PlusOutlined />} disabled={disabled || saving} onClick={() => void edit()}>新建项目</Button><Button onClick={() => refresh()}>刷新</Button></Space>
+          <Input aria-label="搜索项目" placeholder="搜索项目（名称前缀）" value={keyword} maxLength={200} allowClear onChange={event => setKeyword(event.target.value)} />
+          {error && <Alert type="error" title={error} action={<Button onClick={() => refresh()}>重试</Button>} />}
         </div>
         {loading && !visibleItems.length && <Spin />}
         {!loading && !error && !visibleItems.length && <p>暂无项目</p>}
-        {visibleItems.length > 0 && <VirtualList className="project-list" items={visibleItems} itemKey={project => project.id} estimate={44} onEnd={loadMore} reveal={reveal && selected && selected.id === reveal.projectId ? { key: selected.id, request: reveal } : undefined} renderItem={project => <ProjectGroup key={project.id} project={project} expanded={expanded.has(project.id)} onToggle={() => toggle(project.id)} activeId={activeId} selected={selected?.id === project.id} disabled={disabled || saving || loading} reveal={reveal?.projectId === project.id ? reveal : undefined} localTarget={localTarget?.projectId === project.id ? localTarget : undefined} version={version + refreshVersion} onSelect={() => select(project)} onConversationSelect={id => onConversationSelect?.(project, id)} onEdit={() => void edit(project)} onDelete={() => remove(project)} />} />}
+        {visibleItems.length > 0 && <VirtualList className="project-list" items={visibleItems} itemKey={project => project.id} estimate={44} onEnd={loadMore} reveal={reveal && selected && selected.id === reveal.projectId ? { key: selected.id, request: reveal } : undefined} renderItem={project => <ProjectGroup key={project.id} project={project} expanded={expanded.has(project.id)} onToggle={() => toggle(project.id)} activeId={activeId} selected={selected?.id === project.id} disabled={disabled || saving || loading} reveal={reveal?.projectId === project.id ? reveal : undefined} localTarget={localTarget?.projectId === project.id ? localTarget : undefined} version={revision + refreshVersion} onSelect={() => select(project)} onConversationSelect={id => onConversationSelect?.(project, id)} onEdit={() => void edit(project)} onDelete={() => remove(project)} />} />}
         {loadingMore && <div className="project-list-more"><Spin size="small" /></div>}
     </div>
     <Modal title={editing ? '编辑项目' : '新建项目'} open={editing !== null} confirmLoading={saving} onCancel={() => { if (!saving) { setEditing(null); directoryRequest.current?.abort() } }} onOk={() => void save()} okButtonProps={{ disabled: disabled || browsing || !!directoryError || !form.name.trim() || !form.path }}>

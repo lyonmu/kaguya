@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/agent/permission"
 	agentruntime "github.com/lyonmu/kaguya/internal/agent/runtime"
 	token "github.com/lyonmu/kaguya/internal/agent/token"
 	"github.com/lyonmu/kaguya/internal/consts"
@@ -45,6 +46,10 @@ type chatExecution struct {
 	trace              *turnTrace
 	turnID             string
 	emitter            *TurnEmitter
+
+	// approver 在受限权限模式下非空；full_access 不创建 broker，也不持有审批状态。
+	approver       *approvalBroker
+	permissionMode permission.Mode
 }
 
 // resolveChatTarget 读取系统配置并解析本次对话的模型与提供商。
@@ -137,7 +142,7 @@ func (s *AgentSvc) streamChat(ctx context.Context, agent *agentruntime.Agent, ex
 	defer cancelRetries()
 
 	var stepStreamed atomic.Bool
-	stream := newChatStream(func(block dtochat.ContentBlock) error {
+	stream := newChatStream(exec.permissionMode, func(block dtochat.ContentBlock) error {
 		stepStreamed.Store(true)
 		frame := dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagDelta, Block: &block}
 		if block.Type == dtochat.BlockTypeText && block.Phase == dtochat.BlockPhaseDelta {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/lyonmu/kaguya/internal/agent/permission"
 	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
@@ -139,6 +140,14 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 			projectID = *row.ProjectID
 		}
 	}
+	// 权限模式：新会话使用请求值，续聊以数据库为权威；请求与数据库不一致时
+	// 明确拒绝并要求先 PUT 修改，不允许每请求升降权限。
+	mode, err := resolvePermissionMode(row, req.PermissionMode)
+	if err != nil {
+		pushChatError(emitter, convID, err)
+		return
+	}
+
 	toolset, err := s.projectTools(ctx, convID, projectID, version)
 	if err != nil {
 		global.Logger.Sugar().Warnf("prepare project tools failed: conversation_id=%s err=%v", convID, err)
@@ -152,7 +161,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	// 首轮在正文开始生成前立即落库，新会话无需等待完成就出现在列表中；
 	// 标题只用用户提问并发生成并异步更新，失败或取消的轮次留下空会话。
 	if row == nil {
-		if err := createConversation(ctx, target, convID, projectID, req.Messages, time.Now()); err != nil {
+		if err := createConversation(ctx, target, convID, projectID, req.Messages, time.Now(), string(mode)); err != nil {
 			global.Logger.Sugar().Errorf("create conversation failed: id=%s err=%v", convID, err)
 			pushChatError(emitter, convID, err)
 			return
@@ -165,12 +174,21 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	if features.Memory {
 		mem = s.prepareMemory(ctx, convID, target.model.TokenContextWindow, req.Messages)
 	}
-	prompt, err := prepareChatPrompt(ctx, target, toolset, convID, req, mem)
+	prompt, err := prepareChatPrompt(ctx, target, toolset, convID, projectID, history, req, mem)
 	if err != nil {
 		pushChatError(emitter, "", err)
 		return
 	}
 
+	// 受限模式先装饰全部工具并组装 Agent，再写入 running 占位行：组装失败
+	// （例如提供商凭据不可解密）不留下半截轮次。broker 的 turnID 在占位行
+	// 创建后回填，工具只会在流式阶段实际运行。
+	var broker *approvalBroker
+	if mode != permission.ModeFullAccess {
+		broker = newApprovalBroker(convID, "", emitter)
+		defer broker.Close()
+		prompt.tools = permission.WrapAll(mode, broker, classifyRegisteredTools(prompt.tools))
+	}
 	agent, err := buildChatAgent(chatExecution{target: target, conversationID: convID, prompt: prompt})
 	if err != nil {
 		global.Logger.Sugar().Errorf("assemble agent failed, err is %+v", err)
@@ -186,18 +204,22 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		ProviderID: target.provider.ID, ProviderName: target.provider.ProviderName,
 		ModelID: target.model.ModelID, ModelName: target.model.ModelName, APIProtocol: string(target.model.APIProtocol),
 		GlobalInstructionHash: prompt.globalHash, GlobalInstructionVersion: instructionVersionPointer(prompt.globalVersion),
+		PermissionMode: string(mode),
 	})
 	if err != nil {
 		global.Logger.Sugar().Errorf("begin turn failed: id=%s err=%v", convID, err)
 		pushChatError(emitter, convID, err)
 		return
 	}
+	if broker != nil {
+		broker.setTurnID(turnRow.ID)
+	}
 	recorder := startTurnRecorder(turnRow.ID, trace)
 
 	exec := chatExecution{
 		target: target, conversationID: convID, version: version, history: history, prompt: prompt,
 		requestedProjectID: req.ProjectID, userContent: req.Messages,
-		trace: trace, turnID: turnRow.ID, emitter: emitter,
+		trace: trace, turnID: turnRow.ID, emitter: emitter, permissionMode: mode, approver: broker,
 	}
 	if !emitter.Emit(startFrame(exec)) {
 		recorder.stop()

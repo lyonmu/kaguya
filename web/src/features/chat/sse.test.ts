@@ -95,3 +95,19 @@ describe('SSE runtime validation', () => {
     await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '', flag: 'error', content: '模型不可用' } })), () => {}), /模型不可用/)
   })
 })
+
+describe('approval frames', () => {
+  const envelope = (data: unknown) => `data: ${JSON.stringify({ code: 100000, data })}\n\n`
+  const approval = (status: string) => ({ chat: { id: '1', flag: 'approval' }, approval: { approval_id: 'a1', tool_call_id: 'c1', tool_name: 'write', effect: 'mutating', mode: 'full_approval', status, input: '{"path":"a"}' } })
+  it('delivers approval frames without ending the turn', async () => {
+    const received: ChatFrame[] = []
+    await consumeSSE(stream(envelope(approval('pending')) + envelope(approval('approved')) + envelope({ chat: { id: '1', flag: 'done' } })), value => received.push(value))
+    assert.deepEqual(received.map(value => value.chat.flag), ['approval', 'approval', 'done'])
+    assert.equal(received[0].approval?.status, 'pending')
+    assert.equal(received[1].approval?.approval_id, 'a1')
+  })
+  it('rejects approval frames without the required identity', async () => {
+    await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '1', flag: 'approval' }, approval: { status: 'pending' } })), () => {}), /格式不正确/)
+    await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '1', flag: 'approval' } })), () => {}), /格式不正确/)
+  })
+})

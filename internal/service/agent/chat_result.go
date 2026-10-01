@@ -58,6 +58,8 @@ func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 		InstructionsFormat:       exec.prompt.instructionsFormat,
 		GlobalInstructionHash:    exec.prompt.globalHash,
 		GlobalInstructionVersion: instructionVersionPointer(exec.prompt.globalVersion),
+		PermissionMode:           string(exec.permissionMode),
+		ReferenceSummary:         exec.prompt.referenceSummary,
 		ConversationID:           exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
 		TurnID:      exec.turnID,
 		UserContent: exec.userContent,
