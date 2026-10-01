@@ -15,7 +15,7 @@ import (
 // apiPrefix 是业务 API 前缀，仅用于把 panic 转成统一 envelope。
 func NewGin(mode bool, apiPrefix string, trustedHosts ...string) (*gin.Engine, error) {
 	r := newEngine(mode, apiPrefix)
-	r.Use(requestSecurity(trustedHosts))
+	r.Use(requestSecurity(apiPrefix, trustedHosts))
 	return r, nil
 }
 
@@ -23,7 +23,7 @@ func NewGin(mode bool, apiPrefix string, trustedHosts ...string) (*gin.Engine, e
 // 中间件完成，这里只复用通用安全头、请求体限制与 Recovery/日志装配。
 func NewDesktopGin(mode bool, apiPrefix string) (*gin.Engine, error) {
 	r := newEngine(mode, apiPrefix)
-	r.Use(desktopRequestSecurity())
+	r.Use(desktopRequestSecurity(apiPrefix))
 	return r, nil
 }
 

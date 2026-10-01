@@ -34,6 +34,10 @@ export function updateConversation(id: string, payload: { title?: string; favori
 export function stopConversation(id: string) {
   return post<null>(`${PATH}/${encodeURIComponent(id)}/stop`)
 }
+// 旧合并指令快照的显式升级：归档旧文本并冻结当前项目指令，下一轮生效。
+export function upgradeConversationInstructions(id: string) {
+  return post<Conversation>(`${PATH}/${encodeURIComponent(id)}/instructions/upgrade`, undefined, undefined, conversationGuard)
+}
 export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }

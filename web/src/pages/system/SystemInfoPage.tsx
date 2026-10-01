@@ -5,7 +5,7 @@ import { ReloadOutlined, SaveOutlined, SyncOutlined } from '@ant-design/icons'
 import { fetchModelLabels, syncModelCatalog } from '../../features/providers/api'
 import { ModelCascader } from '../../features/providers/ModelCascader'
 import type { ModelLabelOption } from '../../features/providers/types'
-import { fetchSystemInfo, updateSystemInfo } from '../../features/system-info/api'
+import { fetchSystemInfo, updateAgentsPaths, updateSystemInfo } from '../../features/system-info/api'
 import type { SystemInfo, SystemInfoPayload } from '../../features/system-info/types'
 
 export function SystemInfoPage() {
@@ -38,16 +38,17 @@ export function SystemInfoPage() {
   const save = async (values: SystemInfoPayload) => {
     setSaving(true)
     try {
-      const config = await updateSystemInfo({
+      await updateSystemInfo({
         context_compaction_percent: values.context_compaction_percent,
         agent_max_steps: values.agent_max_steps, command_timeout_seconds: values.command_timeout_seconds, chat_max_retries: values.chat_max_retries,
-        global_agents_paths: values.global_agents_paths ?? [],
         global_system_prompt: values.global_system_prompt ?? '', system_prompt: values.system_prompt ?? '',
         model_sync_enabled: values.model_sync_enabled, model_sync_url: values.model_sync_url, provider_sync_url: values.provider_sync_url, model_sync_interval_hours: values.model_sync_interval_hours,
         default_model_id: values.default_model_id || '', task_model_id: values.task_model_id || '',
         memory_enabled: info?.memory_enabled ?? false, memory_auto_capture: info?.memory_auto_capture ?? false,
         memory_context_tokens: info?.memory_context_tokens ?? 2000,
       })
+      // 路径保存使用专用端点；返回包含最新的指令 reload 状态。
+      const config = await updateAgentsPaths(values.global_agents_paths ?? [])
       setInfo(config)
       form.setFieldsValue(config)
       void message.success('系统配置已保存，新请求立即生效')
@@ -112,7 +113,8 @@ export function SystemInfoPage() {
           <Form.Item className="mb-3!" label="聊天最大重试次数" name="chat_max_retries" rules={[{ required: true }]} tooltip="模型服务临时不可用时指数退避重试；已输出内容后不会重试。"><InputNumber className="w-full" min={0} max={20} precision={0} /></Form.Item>
           <Form.Item className="mb-3!" label="会话压缩比例（%）" name="context_compaction_percent" tooltip="达到阈值后压缩早期内容，可设 10–95%。" rules={[{ required: true }]}><InputNumber className="w-full" aria-label="会话压缩比例" min={10} max={95} precision={0} /></Form.Item>
         </div>
-        <Form.Item className="mb-3!" label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="会话首轮读取并保存快照，后续复用；路径修改仅影响新会话。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
+        <Form.Item className="mb-3!" label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="每轮对话使用当前已发布版本，文件变更从下一轮生效；项目 AGENTS.md 在会话首个成功轮次冻结。路径顺序即读取顺序。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
+        {info?.instruction_status && <div className="mb-3 text-xs text-k-text-muted">{info.instruction_status.last_error ? `全局指令监听异常：${info.instruction_status.last_error}（继续使用版本 v${info.instruction_status.version}）` : `全局指令已发布版本 v${info.instruction_status.version}${info.instruction_status.hash ? `（${info.instruction_status.hash.slice(0, 8)}）` : ''}；文件变更自动生效`}</div>}
         <div className="mb-3 rounded-lg border border-k-border-soft bg-k-canvas p-3">
           <Form.Item className="mb-3!" label="提供商目录同步地址" name="provider_sync_url" rules={[{ required: true, whitespace: true, message: '请输入同步地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="提供商目录（models.dev api.json），只用于列出可选提供商；修改后请先保存配置。">
             <Input aria-label="提供商目录同步地址" maxLength={2048} placeholder="https://models.dev/api.json" />

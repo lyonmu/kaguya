@@ -17,7 +17,16 @@ export interface SystemInfoPayload {
   memory_context_tokens: number
 }
 
+export interface InstructionStatus {
+  version: number
+  hash?: string
+  loaded_at?: string
+  generation: number
+  last_error?: string
+}
+
 export interface SystemInfo extends SystemInfoPayload {
+  instruction_status?: InstructionStatus
   memory_policy_epoch: number
   model_sync_catalog_count: number
   provider_catalog_count: number

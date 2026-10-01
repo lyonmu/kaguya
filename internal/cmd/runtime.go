@@ -9,7 +9,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	pkgid "github.com/lyonmu/gopkg/id"
+	"github.com/lyonmu/kaguya/internal/agent/instructions"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
+	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
 	"github.com/lyonmu/kaguya/internal/db"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
@@ -146,6 +148,30 @@ func (rt *appRuntime) init() error {
 		return rt.fail(fmt.Errorf("initialize provider API key encryption: %w", secretErr))
 	}
 
+	// 全局指令 Manager：启动时同步加载，缺失文件允许为空；非法内容等严重错误中止启动。
+	systemInfo, err := (&servicesystem.SystemSvc{}).Info(rt.ctx)
+	if err != nil {
+		return rt.fail(fmt.Errorf("load system info for global instructions: %w", err))
+	}
+	instructionManager, err := instructions.New(rt.ctx, systemInfo.GlobalAgentsPaths, instructions.Options{Logger: global.Logger})
+	if err != nil {
+		return rt.fail(fmt.Errorf("load global instructions: %w", err))
+	}
+	instructionManager.Start()
+	serviceagent.DefaultGlobalInstructions = instructionManager
+	servicesystem.ReloadGlobalInstructions = instructionManager.Reconfigure
+	servicesystem.GlobalInstructionStatus = func() *dtosystem.InstructionStatus {
+		status := instructionManager.Status()
+		resp := &dtosystem.InstructionStatus{
+			Version: status.Version, Hash: status.Hash, Generation: status.Generation, LastError: status.LastError,
+		}
+		if !status.LoadedAt.IsZero() {
+			loadedAt := status.LoadedAt
+			resp.LoadedAt = &loadedAt
+		}
+		return resp
+	}
+
 	// 标题事件发布者与 FIFO 队列随实例创建：订阅者与 worker 都受本进程生命周期约束。
 	serviceagent.DefaultTitlePublisher = serviceagent.NewTitlePublisher()
 	serviceagent.DefaultTitleQueue = serviceagent.NewTitleQueue(rt.ctx, db.EntClient, global.Logger)
@@ -251,7 +277,12 @@ func (rt *appRuntime) close() {
 		if rt.modelSyncUp {
 			<-rt.modelSyncDone
 		}
-		// 先等待标题 worker 退出（执行中的任务会还原为 pending），再关闭数据库与日志。
+		// 先停止全局指令监听，避免关停期间继续发布新版本。
+		if manager := serviceagent.DefaultGlobalInstructions; manager != nil {
+			manager.Close()
+			<-manager.Done()
+		}
+		// 再等待标题 worker 退出（执行中的任务会还原为 pending），然后关闭数据库与日志。
 		if queue := serviceagent.DefaultTitleQueue; queue != nil {
 			queue.Close()
 			<-queue.Done()

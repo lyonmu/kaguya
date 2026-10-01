@@ -40,13 +40,24 @@ func (o *chatOutcome) conversationMessages(userPrompt string) []fantasy.Message 
 	return messages
 }
 
+// instructionVersionPointer 只在版本非 0 时返回指针，区分“无 Manager”与版本 0。
+func instructionVersionPointer(version int64) *int64 {
+	if version <= 0 {
+		return nil
+	}
+	return &version
+}
+
 // persist 在单个事务内写入完成轮次。失败时调用方不得发送 done；
 // 提交成功后 Notify 唤醒记忆 Worker（通知丢失也不丢任务）。
 func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 	target := exec.target
 	err := saveCompletedTurn(ctx, completedTurn{
 		MemorySelection:   exec.prompt.memory.selection(),
-		AgentInstructions: &exec.prompt.instructions,
+		ProjectInstructions: exec.prompt.projectSnapshot,
+		InstructionsFormat:  exec.prompt.instructionsFormat,
+		GlobalInstructionHash: exec.prompt.globalHash,
+		GlobalInstructionVersion: instructionVersionPointer(exec.prompt.globalVersion),
 		ConversationID:    exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
 		TurnID:      exec.turnID,
 		UserContent: exec.userContent,

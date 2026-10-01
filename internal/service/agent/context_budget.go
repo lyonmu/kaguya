@@ -52,6 +52,7 @@ func computeContextBudget(input contextBudgetInput) contextBudget {
 type contextFingerprint struct {
 	modelKey           string
 	instructionHash    string
+	instructionVersion int64
 	toolSchemaHash     string
 	memorySelectionKey string
 }

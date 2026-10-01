@@ -61,6 +61,8 @@ type ConversationResp struct {
 	MemoryMode    string                    `json:"memory_mode"`           // inherit/off/readonly
 	MemoryRefs    *dtomemory.MemoryRefsResp `json:"memory_refs,omitempty"` // 最近一轮自动召回的选择记录；已删除页面显示“已删除”
 	PermissionMode string                   `json:"permission_mode"`       // full_approval/auto_approval/full_access
+	InstructionsFormat string               `json:"instructions_format"`   // split：动态全局+冻结项目；legacy：旧合并快照
+	InstructionsLegacy bool                 `json:"instructions_legacy"`   // 旧项目会话仍使用不可拆解快照，需显式升级
 	TitleRevision  int64                    `json:"title_revision"`        // 标题版本，事件按它只前进合并
 	TitleJobStatus string                   `json:"title_job_status,omitempty"` // pending/running/succeeded/failed/canceled；无任务时为空
 }

@@ -49,6 +49,27 @@ func (b *ChatApiV1Group) ConversationDetail(c *gin.Context) {
 	dtocode.SystemSuccess.Success(resp, c)
 }
 
+// ConversationInstructionsUpgrade
+// @Tags Chat History
+// @Summary 将旧合并指令快照升级为 split（归档旧文本并冻结当前项目指令）
+// @Description 仅旧项目会话需要；运行中的会话返回 102002，下一轮生效。旧 agent_instructions 保留为归档不再参与上下文。
+// @Param id path string true "会话雪花 ID"
+// @Success 200 {object} dtocode.Response{data=dtochat.ConversationResp}
+// @Router /v1/chat/conversation/{id}/instructions/upgrade [post]
+func (b *ChatApiV1Group) ConversationInstructionsUpgrade(c *gin.Context) {
+	var uri dtochat.ConversationIDReq
+	if err := c.ShouldBindUri(&uri); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := agentvc.ConversationInstructionsUpgrade(c.Request.Context(), uri.ID)
+	if err != nil {
+		conversationFailure(c, err, dtocode.ConversationUpdateFailure)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
 // ConversationTitleWait
 // @Tags Chat History
 // @Summary 等待已有标题任务并返回已保存标题

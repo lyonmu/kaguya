@@ -14,9 +14,17 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyamodelsinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
+	"github.com/lyonmu/kaguya/internal/global"
+	"go.uber.org/zap"
 )
 
 var ErrInvalidSystemInfo = errors.New("invalid system configuration")
+
+// 全局指令 reload 由 runtime 注入，避免 service/system 反向依赖 service/agent。
+var (
+	ReloadGlobalInstructions func(paths []string) error
+	GlobalInstructionStatus  func() *dtosystem.InstructionStatus
+)
 
 // Info 每次从数据库读取，不使用进程缓存；新请求立即使用已保存配置。
 // 基础数据由 internal/init 在启动阶段创建，查询接口不初始化或迁移数据。
@@ -41,7 +49,43 @@ func (s *SystemSvc) Info(ctx context.Context) (*dtosystem.SystemInfoResp, error)
 	if runtimeError := DefaultModelCatalogSyncer.runtimeError(); runtimeError != "" {
 		resp.ModelSyncLastError = runtimeError
 	}
+	if GlobalInstructionStatus != nil {
+		resp.InstructionStatus = GlobalInstructionStatus()
+	}
 	return resp, nil
+}
+
+// validateAgentsPaths 校验全局指令路径：单个路径仍是 4096 字符的合法路径约束，
+// 不再是内容长度限制；全局文件数量与总字节不再设上限。
+func validateAgentsPaths(paths []string) error {
+	for _, path := range paths {
+		if len(path) > 4096 || strings.ContainsAny(path, "\x00\r\n") || !(filepath.IsAbs(path) || strings.HasPrefix(path, "~/")) {
+			return ErrInvalidSystemInfo
+		}
+	}
+	return nil
+}
+
+// UpdateAgentsPaths 保存全局指令路径列表并在提交后通知 Manager 重建 watch 集合。
+// 旧的整体保存接口继续保留；本接口避免极大路径列表受通用 body 限制。
+func (s *SystemSvc) UpdateAgentsPaths(ctx context.Context, paths []string) error {
+	if err := validateAgentsPaths(paths); err != nil {
+		return err
+	}
+	if paths == nil {
+		paths = []string{}
+	}
+	if _, err := db.EntClient.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
+		SetGlobalAgentsPaths(paths).Save(ctx); err != nil {
+		return err
+	}
+	if ReloadGlobalInstructions != nil {
+		if err := ReloadGlobalInstructions(paths); err != nil {
+			// 保存已提交；监督器保留旧版本并在后台重试。
+			global.Logger.Warn("reload global instructions after path update failed", zap.Error(err))
+		}
+	}
+	return nil
 }
 
 func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSaveReq) (*dtosystem.SystemInfoResp, error) {
@@ -54,16 +98,14 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	if req.MemoryContextTokens != nil && (*req.MemoryContextTokens < 0 || *req.MemoryContextTokens > 100000) {
 		return nil, ErrInvalidSystemInfo
 	}
-	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || req.ChatMaxRetries != nil && (*req.ChatMaxRetries < 0 || *req.ChatMaxRetries > 20) || req.ModelSyncIntervalHours != nil && (*req.ModelSyncIntervalHours < 1 || *req.ModelSyncIntervalHours > 720) || len(req.GlobalAgentsPaths) > 32 {
+	if req.AgentMaxSteps != nil && (*req.AgentMaxSteps < 0 || *req.AgentMaxSteps > 1000) || req.CommandTimeoutSeconds != nil && (*req.CommandTimeoutSeconds < 1 || *req.CommandTimeoutSeconds > 86400) || req.ChatMaxRetries != nil && (*req.ChatMaxRetries < 0 || *req.ChatMaxRetries > 20) || req.ModelSyncIntervalHours != nil && (*req.ModelSyncIntervalHours < 1 || *req.ModelSyncIntervalHours > 720) {
 		return nil, ErrInvalidSystemInfo
 	}
 	if (req.ModelSyncURL != "" && validateModelSyncURL(req.ModelSyncURL) != nil) || (req.ProviderSyncURL != "" && validateModelSyncURL(req.ProviderSyncURL) != nil) {
 		return nil, ErrInvalidSystemInfo
 	}
-	for _, path := range req.GlobalAgentsPaths {
-		if len(path) > 4096 || strings.ContainsAny(path, "\x00\r\n") || !(filepath.IsAbs(path) || strings.HasPrefix(path, "~/")) {
-			return nil, ErrInvalidSystemInfo
-		}
+	if err := validateAgentsPaths(req.GlobalAgentsPaths); err != nil {
+		return nil, err
 	}
 	current, err := s.Info(ctx)
 	if err != nil {
@@ -134,6 +176,12 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 		return nil, err
 	}
 	DefaultModelCatalogSyncer.Notify()
+	// 路径提交后通知 Manager 重建 watch 集合；失败保留旧版本并在后台重试。
+	if req.GlobalAgentsPaths != nil && ReloadGlobalInstructions != nil {
+		if err := ReloadGlobalInstructions(req.GlobalAgentsPaths); err != nil {
+			global.Logger.Warn("reload global instructions after info update failed", zap.Error(err))
+		}
+	}
 	return systemInfoResponse(row), nil
 }
 

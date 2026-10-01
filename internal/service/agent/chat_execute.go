@@ -257,7 +257,8 @@ func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, 
 	}
 	compactor.fingerprint = contextFingerprint{
 		modelKey:           model.ModelID,
-		instructionHash:    textFingerprint(exec.prompt.system),
+		instructionHash:    exec.prompt.globalHash,
+		instructionVersion: exec.prompt.globalVersion,
 		toolSchemaHash:     toolSchemaFingerprint(exec.prompt.tools),
 		memorySelectionKey: memorySelectionFingerprint(exec.prompt.memory.selection()),
 	}
@@ -286,12 +287,45 @@ func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, 
 		if err != nil {
 			return nil, err
 		}
-		if previous.ModelID == model.ModelID && previous.ContextTokens != nil && sameMemorySelection(lastSelection, exec.prompt.memory.selection()) {
+		// 模型、指令版本、工具 schema 或召回选择任一变化都废弃旧基线；保守重估
+		// 优于带旧指令/旧工具窗口的伪精确减法。
+		previousHash, previousVersion, err := lastTurnInstructionMeta(ctx, exec.conversationID)
+		if err != nil {
+			return nil, err
+		}
+		sameContext := previous.ModelID == model.ModelID &&
+			sameMemorySelection(lastSelection, exec.prompt.memory.selection()) &&
+			previousHash == compactor.fingerprint.instructionHash &&
+			previousVersion == compactor.fingerprint.instructionVersion
+		if sameContext && previous.ContextTokens != nil {
 			estimate := *previous.ContextTokens + estimateMessages([]fantasy.Message{fantasy.NewUserMessage(exec.prompt.requestPrompt)})
 			compactor.lastTokens = &estimate
 		}
 	}
 	return compactor, nil
+}
+
+// lastTurnInstructionMeta 读取最近完成轮次的全局指令哈希与版本，用于判断
+// 上一轮上下文基线是否仍在同一指令版本。
+func lastTurnInstructionMeta(ctx context.Context, conversationID string) (string, int64, error) {
+	turn, err := db.EntClient.KaguyaChatTurn.Query().
+		Where(kaguyachatturn.ConversationIDEQ(conversationID), kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted)).
+		Select(kaguyachatturn.FieldGlobalInstructionHash, kaguyachatturn.FieldGlobalInstructionVersion).
+		Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).First(ctx)
+	if ent.IsNotFound(err) {
+		return "", 0, nil
+	}
+	if err != nil {
+		return "", 0, err
+	}
+	hash := ""
+	if turn.GlobalInstructionHash != nil {
+		hash = *turn.GlobalInstructionHash
+	}
+	if turn.GlobalInstructionVersion == nil {
+		return hash, 0, nil
+	}
+	return hash, *turn.GlobalInstructionVersion, nil
 }
 
 // lastTurnMemorySelection 读取最近完成轮次的召回记录。

@@ -6,6 +6,7 @@ require (
 	charm.land/fantasy v0.33.2
 	entgo.io/ent v0.14.6
 	github.com/alecthomas/kong v1.15.0
+	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/kaptinlin/jsonschema v0.9.2

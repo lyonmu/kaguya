@@ -185,6 +185,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		ConversationID: convID, UserContent: req.Messages, StartedAt: startedAt,
 		ProviderID: target.provider.ID, ProviderName: target.provider.ProviderName,
 		ModelID: target.model.ModelID, ModelName: target.model.ModelName, APIProtocol: string(target.model.APIProtocol),
+		GlobalInstructionHash: prompt.globalHash, GlobalInstructionVersion: instructionVersionPointer(prompt.globalVersion),
 	})
 	if err != nil {
 		global.Logger.Sugar().Errorf("begin turn failed: id=%s err=%v", convID, err)

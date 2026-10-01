@@ -27,6 +27,38 @@ func (b *SystemApiV1Group) SystemInfo(c *gin.Context) {
 	dtocode.SystemSuccess.Success(resp, c)
 }
 
+// SystemInfoAgentsPaths
+// @Tags System Info
+// @Summary 保存全局 AGENTS.md 路径列表（不受通用请求体大小限制）
+// @Description 路径顺序即读取顺序；空数组表示不读取任何全局指令。保存后由指令 Manager 重建监听并原子发布新版本。
+// @Param data body dtosystem.AgentsPathsReq true "路径列表"
+// @Success 200 {object} dtocode.Response{data=dtosystem.SystemInfoResp}
+// @Router /v1/system/info/agents-paths [put]
+func (b *SystemApiV1Group) SystemInfoAgentsPaths(c *gin.Context) {
+	var req dtosystem.AgentsPathsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	if err := systemsvc.UpdateAgentsPaths(c.Request.Context(), req.Paths); err != nil {
+		switch {
+		case errors.Is(err, servicesystem.ErrInvalidSystemInfo):
+			dtocode.RequestParameterError.Failure(c)
+		default:
+			global.Logger.Sugar().Errorf("update agents paths failed: %v", err)
+			dtocode.SystemInfoUpdateFailure.Failure(c)
+		}
+		return
+	}
+	resp, err := systemsvc.Info(c.Request.Context())
+	if err != nil {
+		global.Logger.Sugar().Errorf("query system info after paths update failed: %v", err)
+		dtocode.SystemInfoQueryFailure.Failure(c)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
 // SystemInfoUpdate
 // @Tags System Info
 // @Summary 保存全局系统配置

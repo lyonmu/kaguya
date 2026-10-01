@@ -62,7 +62,8 @@ func TestCompactionSnapshotAndContinuation(t *testing.T) {
 	result := &fantasy.AgentResult{Steps: []fantasy.StepResult{{Messages: []fantasy.Message{testAssistantMessage("done")}}}}
 	turn := testCompletedTurn("compact", 0)
 	instructions := "persistent agent instructions"
-	turn.AgentInstructions = &instructions
+	turn.ProjectInstructions = &instructions
+	turn.InstructionsFormat = "split"
 	turn.ContextMessages = compactor.snapshot(result)
 	turn.CompactionCount = compactor.count
 	if err := saveCompletedTurn(ctx, turn); err != nil {
@@ -104,8 +105,8 @@ func TestCompactionSnapshotAndContinuation(t *testing.T) {
 	if err != nil || len(loaded) != len(turn.ContextMessages)+len(turn2.Messages) {
 		t.Fatalf("snapshot append: %v", err)
 	}
-	if got, err := conversationInstructions(ctx, "compact", nil, "missing-project"); err != nil || got != instructions {
-		t.Fatalf("compaction lost instruction snapshot: %q %v", got, err)
+	if got, err := conversationInstructions(ctx, "compact", nil, "missing-project"); err != nil || got.text != instructions {
+		t.Fatalf("compaction lost instruction snapshot: %+v %v", got, err)
 	}
 }
 

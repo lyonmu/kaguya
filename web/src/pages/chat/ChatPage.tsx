@@ -2,7 +2,7 @@ import { MEMORY_ENABLED } from '../../app/features'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Popover, Segmented, Spin } from 'antd'
 import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MessageOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
-import { deleteConversation, updateConversation } from '../../features/chat/api'
+import { deleteConversation, updateConversation, upgradeConversationInstructions } from '../../features/chat/api'
 import { useConversations } from '../../features/chat/useConversations'
 import { useWorkspaceChat } from '../../features/chat/chatContext'
 import { VirtualList } from '../../features/chat/components/VirtualList'
@@ -30,6 +30,16 @@ export function ChatPage() {
   const refreshProjects = () => setProjectVersion(value => value + 1)
   const chat = useWorkspaceChat(async () => { await sessions.refreshQuietly(); refreshProjects() }, title => { sessions.updateTitle(title); refreshProjects() })
   const { draft, references, modelId, setModelId } = chat
+  const upgradeInstructions = async () => {
+    if (!chat.id || chat.streaming) return
+    setSaving(true)
+    try {
+      const result = await upgradeConversationInstructions(chat.id)
+      chat.setConversation(result)
+      void message.success('旧指令快照已归档，下一轮使用动态全局指令')
+    } catch (err) { void message.error(err instanceof Error ? err.message : '指令升级失败') }
+    finally { setSaving(false) }
+  }
   const setDraft = (value: string) => chat.setDraft(value, view === '项目' ? project?.id : undefined)
   const setReferences = (value: string[]) => chat.setReferences(value, view === '项目' ? project?.id : undefined)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -150,6 +160,13 @@ export function ChatPage() {
         </div>
       </header>
       {chat.error && <Alert type="error" title={chat.error} showIcon />}
+      {chat.conversation?.instructions_legacy && <Alert
+        type="warning"
+        showIcon
+        title="该会话仍使用旧指令快照"
+        description="旧快照无法自动拆分；升级后归档旧文本并冻结当前项目指令，全局指令从下一轮起动态生效。"
+        action={<Button size="small" disabled={chat.streaming || saving} onClick={() => void upgradeInstructions()}>升级指令</Button>}
+      />}
       <AssistantThread key={chat.sessionKey} turns={chat.turns} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving} onSend={send} onStop={chat.stop}>
       <MessageList conversationId={chat.id} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
       <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : chat.projectId ?? (view === "项目" ? project?.id : undefined)} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} references={references} onReferencesChange={setReferences} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation && !chat.turns.length)} />

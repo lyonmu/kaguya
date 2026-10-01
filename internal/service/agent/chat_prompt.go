@@ -24,10 +24,17 @@ const (
 // chatPrompt 是一次轮次使用的提示词与工具集合。
 type chatPrompt struct {
 	requestPrompt string              // 用户提问（含内联文件引用）
-	system        string              // 系统提示词：全局人设 + 指令快照 + 工具说明
+	system        string              // 系统提示词：全局人设 + 指令 + 工具说明
 	tools         []fantasy.AgentTool // 项目工具 + MCP 工具 + 只读记忆工具
-	instructions  string              // AGENTS.md 快照，随轮次持久化
+	instructions  string              // 本��实际使用的完整指令文本
 	memory        memoryTurn          // 本轮自动召回的临时上下文与冻结选择
+
+	// instructionsFormat 为 split 或 legacy；split 下 projectSnapshot 非 nil 表示
+	// 本轮成功后需要冻结项目指令（全局保持动态，不写入会话快照）。
+	instructionsFormat string
+	projectSnapshot    *string
+	globalHash         string
+	globalVersion      int64
 }
 
 // prepareChatPrompt 组装系统提示词、项目指令快照、文件引用与可用工具。
@@ -46,8 +53,12 @@ func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingt
 	if target.info.GlobalSystemPrompt != nil {
 		basePrompt = *target.info.GlobalSystemPrompt
 	}
-	prompt := &chatPrompt{instructions: instructions, memory: mem,
-		system: servicesystem.ChatSystemPrompt(basePrompt, target.info.SystemPrompt) + instructions}
+	prompt := &chatPrompt{
+		instructions: instructions.text, memory: mem,
+		instructionsFormat: instructions.format, projectSnapshot: instructions.projectSnapshot,
+		globalHash: instructions.globalHash, globalVersion: instructions.globalVersion,
+		system: servicesystem.ChatSystemPrompt(basePrompt, target.info.SystemPrompt) + instructions.text,
+	}
 	if toolset != nil {
 		toolset.SetCommandTimeout(time.Duration(*target.info.CommandTimeoutSeconds) * time.Second)
 		prompt.tools = toolset.AllTools()

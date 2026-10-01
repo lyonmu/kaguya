@@ -22,8 +22,23 @@ type SystemInfoSaveReq struct {
 	MemoryContextTokens      *int     `json:"memory_context_tokens,omitempty" binding:"omitempty,min=0,max=100000"`
 }
 
+// InstructionStatus 是全局指令 reload 的只读状态，不包含正文。
+type InstructionStatus struct {
+	Version    int64      `json:"version"`
+	Hash       string     `json:"hash,omitempty"`
+	LoadedAt   *time.Time `json:"loaded_at,omitempty"`
+	Generation int64      `json:"generation"`
+	LastError  string     `json:"last_error,omitempty"`
+}
+
+// AgentsPathsReq 是全局指令路径的专用保存请求；路径列表不受固定 body 大小限制。
+type AgentsPathsReq struct {
+	Paths []string `json:"paths"`
+}
+
 type SystemInfoResp struct {
 	SystemInfoSaveReq
+	InstructionStatus      *InstructionStatus `json:"instruction_status,omitempty"`
 	MemoryPolicyEpoch      int64      `json:"memory_policy_epoch"`
 	ModelSyncCatalogCount  int        `json:"model_sync_catalog_count"`
 	ProviderCatalogCount   int        `json:"provider_catalog_count"`

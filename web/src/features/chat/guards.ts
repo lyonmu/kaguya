@@ -37,6 +37,8 @@ const isConversation = (value: unknown): value is Conversation =>
   isOptional(value.title_revision, isNumber) &&
   isOptional(value.permission_mode, isString) &&
   isOptional(value.title_job_status, isString) &&
+  isOptional(value.instructions_format, isString) &&
+  isOptional(value.instructions_legacy, isBoolean) &&
   isOptional(value.usage, (item): item is Usage => isUsage(item, false))
 
 export const conversationGuard: PayloadGuard<Conversation> = value =>

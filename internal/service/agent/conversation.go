@@ -140,6 +140,8 @@ type turnStart struct {
 	UserContent                                               string
 	ProviderID, ProviderName, ModelID, ModelName, APIProtocol string
 	StartedAt                                                 time.Time
+	GlobalInstructionHash                                     string
+	GlobalInstructionVersion                                  *int64
 }
 
 // beginTurn 在正文开始生成前写入 running 占位行；中断的轮次同样占用 turn_index，
@@ -162,6 +164,7 @@ func beginTurn(ctx context.Context, start turnStart) (*ent.KaguyaChatTurn, error
 		SetStartedAt(start.StartedAt).SetFinishedAt(start.StartedAt).
 		SetDurationMs(0).SetToolCalls(0).SetFinishReason("").
 		SetInputTokens(0).SetOutputTokens(0).SetTotalTokens(0).SetCachedTokens(0).SetReasoningTokens(0).
+		SetGlobalInstructionHash(start.GlobalInstructionHash).SetNillableGlobalInstructionVersion(start.GlobalInstructionVersion).
 		SetMessages([]fantasy.Message{}).Save(ctx)
 }
 
@@ -200,6 +203,10 @@ func ReconcileRunningTurns(ctx context.Context) error {
 
 type completedTurn struct {
 	AgentInstructions                                         *string
+	ProjectInstructions                                       *string // split 首次成功保存的项目快照（可空字符串）
+	InstructionsFormat                                        string
+	GlobalInstructionHash                                     string
+	GlobalInstructionVersion                                  *int64
 	ContextMessages                                           []fantasy.Message
 	CompactionCount                                           int
 	ProjectID                                                 string
@@ -279,6 +286,15 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 			return err
 		}
 	}
+	if turn.ProjectInstructions != nil {
+		// split：首个成功轮次冻结项目指令并显式切换格式；全局指令不写入会话快照。
+		if _, err := client.KaguyaConversation.Update().
+			Where(kaguyaconversation.IDEQ(turn.ConversationID), kaguyaconversation.ProjectInstructionsIsNil()).
+			SetProjectInstructions(*turn.ProjectInstructions).
+			SetInstructionsFormat(kaguyaconversation.InstructionsFormatSplit).Save(ctx); err != nil {
+			return err
+		}
+	}
 	createTurn := client.KaguyaChatTurn.Create().SetConversationID(turn.ConversationID).SetTurnIndex(turn.Version + 1).
 		SetUserContent(turn.UserContent).SetProviderID(turn.ProviderID).SetProviderName(turn.ProviderName).
 		SetModelID(turn.ModelID).SetModelName(turn.ModelName).SetAPIProtocol(turn.APIProtocol).
@@ -287,7 +303,8 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 		SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
 		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
 		SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
-		SetCompactionCount(turn.CompactionCount)
+		SetCompactionCount(turn.CompactionCount).
+		SetGlobalInstructionHash(turn.GlobalInstructionHash).SetNillableGlobalInstructionVersion(turn.GlobalInstructionVersion)
 	// 未压缩的轮次不写 context_messages，列保持 SQL NULL，快照存在时才有 JSON 数组。
 	if turn.ContextMessages != nil {
 		createTurn.SetContextMessages(turn.ContextMessages)
@@ -312,7 +329,9 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 			SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
 			SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
 			SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
-			SetCompactionCount(turn.CompactionCount).SetMessages(turn.Messages).ClearContextMessages().ClearMemoryRefs()
+			SetCompactionCount(turn.CompactionCount).SetMessages(turn.Messages).
+			SetGlobalInstructionHash(turn.GlobalInstructionHash).SetNillableGlobalInstructionVersion(turn.GlobalInstructionVersion).
+			ClearContextMessages().ClearMemoryRefs()
 		if turn.ContextMessages != nil {
 			update.SetContextMessages(turn.ContextMessages)
 		}
@@ -377,6 +396,9 @@ func conversationResp(row *ent.KaguyaConversation) dtochat.ConversationResp {
 	return dtochat.ConversationResp{IsProject: row.ProjectID != nil, ProjectID: row.ProjectID, ID: row.ID, Title: row.Title,
 		Favorite: row.Favorite, MemoryMode: string(row.MemoryMode), TurnCount: row.TurnCount,
 		PermissionMode: string(row.PermissionMode), TitleRevision: row.TitleRevision,
+		InstructionsFormat: string(row.InstructionsFormat),
+		InstructionsLegacy: row.InstructionsFormat == kaguyaconversation.InstructionsFormatLegacy &&
+			row.ProjectID != nil && row.AgentInstructions != nil && *row.AgentInstructions != "",
 		ModelID: row.ModelID, ModelName: row.ModelName, CreatedAt: row.CreatedAt, LastMessageAt: row.LastMessageAt,
 		DurationMS: row.DurationMs, ToolCalls: row.ToolCalls,
 		Usage: dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)}}
@@ -543,6 +565,52 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 		})
 	}
 	resp := conversationResp(row)
+	return &resp, nil
+}
+
+// ConversationInstructionsUpgrade 把旧项目会话的合并快照归档并切换为 split：
+// 保留 agent_instructions 原文作为归档，捕获当前项目指令写入 project_instructions。
+// 运行中的会话返回 ChatBusy，下一轮才使用新格式。
+func (s *AgentSvc) ConversationInstructionsUpgrade(ctx context.Context, id string) (*dtochat.ConversationResp, error) {
+	_, release, err := acquireConversation(id)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	row, err := db.EntClient.KaguyaConversation.Query().
+		Where(kaguyaconversation.IDEQ(id), kaguyaconversation.DeletedAtIsNil()).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, ErrConversationNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if row.InstructionsFormat == kaguyaconversation.InstructionsFormatSplit {
+		resp := conversationResp(row)
+		return &resp, nil
+	}
+	projectDir := ""
+	if row.ProjectID != nil {
+		projectDir, err = (&projectsvc.ProjectSvc{}).Workspace(ctx, *row.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	project, err := loadProjectInstructions(projectDir)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := db.EntClient.KaguyaConversation.UpdateOneID(id).
+		Where(kaguyaconversation.DeletedAtIsNil()).
+		SetProjectInstructions(project).
+		SetInstructionsFormat(kaguyaconversation.InstructionsFormatSplit).Save(ctx)
+	if ent.IsNotFound(err) {
+		return nil, ErrConversationNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	resp := conversationResp(updated)
 	return &resp, nil
 }
 

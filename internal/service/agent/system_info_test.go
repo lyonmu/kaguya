@@ -112,12 +112,12 @@ func TestChatUsesInstructionSnapshotAndLiveSystemConfig(t *testing.T) {
 			if req.Agent != "" || req.Model != wantModel {
 				t.Fatalf("request=%+v", req)
 			}
-			instructionIndex := 0
-			if i == 3 {
-				instructionIndex = 3
+			// 期望的系统提示词：基础提示词 + 自定义提示词 + 动态 Global instructions + 工具系统提示词。
+			// 全局指令每轮读取当前文件；文件删除后本轮没有全局指令段（项目快照才有冻结语义）。
+			wantPromptPrefix := servicesystem.ChatSystemPrompt(*config.GlobalSystemPrompt, config.SystemPrompt)
+			if i != 2 {
+				wantPromptPrefix += fmt.Sprintf("\n\nGlobal instructions from %s:\nlive file instructions-%d", agentsPath, i)
 			}
-			// 期望的系统提示词：基础提示词 + 自定义提示词 + Global instructions + 工具系统提示词
-			wantPromptPrefix := servicesystem.ChatSystemPrompt(*config.GlobalSystemPrompt, config.SystemPrompt) + fmt.Sprintf("\n\nGlobal instructions from %s:\nlive file instructions-%d", agentsPath, instructionIndex)
 			if len(req.Messages) == 0 || req.Messages[0].Role != "system" {
 				t.Fatalf("system prompt=%+v", req.Messages)
 			}

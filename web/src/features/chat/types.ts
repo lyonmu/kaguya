@@ -104,6 +104,8 @@ export interface Conversation {
   permission_mode?: string
   title_revision?: number
   title_job_status?: string
+  instructions_format?: 'legacy' | 'split'
+  instructions_legacy?: boolean
 }
 
 export type TurnStatus = 'streaming' | 'done' | 'error' | 'stopped' | 'running' | 'completed' | 'interrupted' | 'canceled' | 'failed'
