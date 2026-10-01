@@ -459,3 +459,152 @@ func TestMCPMutationGateTryAcquire(t *testing.T) {
 		t.Fatalf("lock map leaked %d entries", remaining)
 	}
 }
+
+// 第五次 Prepare 失败后熔断：不再自动尝试第六次，并把 open 持久化。
+func TestMCPRecoveryOpensCircuitAfterFiveFailures(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	core, _ := observer.New(zap.DebugLevel)
+	global.Logger = zap.New(core)
+	manager := agentmcp.Default
+	agentmcp.Default = agentmcp.NewManager()
+	coordinator := DefaultMCPRecovery
+	DefaultMCPRecovery = NewMCPRecoveryCoordinator()
+	defer func() {
+		agentmcp.Default.Close()
+		agentmcp.Default = manager
+		DefaultMCPRecovery = coordinator
+	}()
+
+	var attempts int32
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&attempts, 1)
+		http.Error(w, "unavailable", http.StatusServiceUnavailable)
+	}))
+	defer remote.Close()
+
+	svc := &SystemSvc{}
+	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Circuit", Transport: "streamable-http", URL: remote.URL, TimeoutSeconds: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EntClient.KaguyaMCPServer.UpdateOneID(created.ID).SetEnabled(true).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	stop := startMCPRecoveryForTest(t, svc, MCPRecoveryOptions{Tick: 10 * time.Millisecond, BaseDelay: 10 * time.Millisecond, MaxDelay: 20 * time.Millisecond})
+	defer stop()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		row, err := db.EntClient.KaguyaMCPServer.Get(ctx, created.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if row.ReconnectCircuitOpen {
+			if row.ReconnectFailures != 5 || row.ReconnectOpenedAt == nil {
+				t.Fatalf("unexpected circuit state: %+v", row)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("circuit did not open: %+v", row)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	after := atomic.LoadInt32(&attempts)
+	time.Sleep(200 * time.Millisecond)
+	if got := atomic.LoadInt32(&attempts); got != after {
+		t.Fatalf("automatic attempts continued after circuit open: %d -> %d", after, got)
+	}
+	// 重启仍保持 open：RestoreMCP 不绕过熔断。
+	if err := svc.RestoreMCP(ctx); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if got := atomic.LoadInt32(&attempts); got != after {
+		t.Fatalf("restore bypassed the persisted circuit: %d -> %d", after, got)
+	}
+	if status, _ := DefaultMCPRecovery.Snapshot(created.ID); !status.Open || status.Cycle != 0 {
+		t.Fatalf("snapshot=%+v", status)
+	}
+}
+
+// 手动重连开启新周期：清空熔断与失败计数，失败计为新周期第一次。
+func TestMCPManualReconnectStartsNewCycle(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	core, _ := observer.New(zap.DebugLevel)
+	global.Logger = zap.New(core)
+	manager := agentmcp.Default
+	agentmcp.Default = agentmcp.NewManager()
+	coordinator := DefaultMCPRecovery
+	DefaultMCPRecovery = NewMCPRecoveryCoordinator()
+	defer func() {
+		agentmcp.Default.Close()
+		agentmcp.Default = manager
+		DefaultMCPRecovery = coordinator
+	}()
+
+	svc := &SystemSvc{}
+	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Manual", Transport: "streamable-http", URL: "http://127.0.0.1:1/mcp", TimeoutSeconds: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.EntClient.KaguyaMCPServer.UpdateOneID(created.ID).SetEnabled(true).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// 主动制造熔断，模拟自动重连已放弃。
+	if _, err := DefaultMCPRecovery.StartManualCycle(ctx, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	for attempt := 0; attempt < mcpCircuitFailureLimit; attempt++ {
+		if _, err := DefaultMCPRecovery.RecordFailure(ctx, created.ID, time.Millisecond, time.Second, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if snapshot, _ := DefaultMCPRecovery.Snapshot(created.ID); !snapshot.Open {
+		t.Fatal("circuit should be open before manual reconnect")
+	}
+
+	// 手动失败：进入新周期第 1 次退避，熔断清除、cycle 递增。
+	if _, err := svc.MCPReconnect(ctx, created.ID); !errors.Is(err, ErrMCPConnect) {
+		t.Fatalf("manual reconnect err=%v", err)
+	}
+	snapshot, _ := DefaultMCPRecovery.Snapshot(created.ID)
+	if snapshot.Open || snapshot.Failures != 1 || snapshot.Cycle != 2 {
+		t.Fatalf("new cycle snapshot=%+v", snapshot)
+	}
+	row, err := db.EntClient.KaguyaMCPServer.Get(ctx, created.ID)
+	if err != nil || row.ReconnectCircuitOpen || row.ReconnectCycle != 2 || row.ReconnectFailures != 1 {
+		t.Fatalf("persisted cycle=%+v err=%v", row, err)
+	}
+}
+
+// 停用服务拒绝手动重连；并发请求返回忙碌。
+func TestMCPReconnectPreconditions(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	manager := agentmcp.Default
+	agentmcp.Default = agentmcp.NewManager()
+	coordinator := DefaultMCPRecovery
+	DefaultMCPRecovery = NewMCPRecoveryCoordinator()
+	defer func() {
+		agentmcp.Default.Close()
+		agentmcp.Default = manager
+		DefaultMCPRecovery = coordinator
+	}()
+
+	svc := &SystemSvc{}
+	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Preconditions", Transport: "streamable-http", URL: "http://127.0.0.1:1/mcp", TimeoutSeconds: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.MCPReconnect(ctx, created.ID); !errors.Is(err, ErrMCPDisabled) {
+		t.Fatalf("disabled reconnect err=%v", err)
+	}
+	unlock, ok := mcpMutations.tryAcquire(created.ID)
+	if !ok {
+		t.Fatal("gate unavailable")
+	}
+	defer unlock()
+	if _, err := svc.MCPReconnect(ctx, created.ID); !errors.Is(err, ErrMCPReconnectBusy) {
+		t.Fatalf("busy reconnect err=%v", err)
+	}
+}

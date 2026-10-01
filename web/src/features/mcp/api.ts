@@ -8,4 +8,6 @@ export const fetchMCPServer = (id: string) => get<MCPServer>(`${PATH}/${id}`)
 export const createMCPServer = (config: MCPConfig) => post<MCPServer>(PATH, config)
 export const updateMCPServer = (id: string, config: MCPConfig) => put<MCPServer>(`${PATH}/${id}`, config)
 export const setMCPEnabled = (id: string, enabled: boolean) => put<MCPServer>(`${PATH}/${id}/state`, { enabled })
+// 手动重连开启新周期；熔断后仍可重试，并发请求返回忙碌。
+export const reconnectMCPServer = (id: string) => post<MCPServer>(`${PATH}/${id}/reconnect`)
 export const deleteMCPServer = (id: string) => del(`${PATH}/${id}`)

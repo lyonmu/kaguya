@@ -22,6 +22,10 @@ func mcpFailure(c *gin.Context, err error) {
 			global.Logger.Sugar().Warnf("MCP connect failed: %v", err)
 		}
 		dtocode.MCPConnectFailure.Failure(c)
+	case errors.Is(err, servicesystem.ErrMCPDisabled):
+		dtocode.MCPDisabled.Failure(c)
+	case errors.Is(err, servicesystem.ErrMCPReconnectBusy):
+		dtocode.MCPReconnectBusy.Failure(c)
 	case errors.Is(err, servicesystem.ErrMCPInvalid):
 		if global.Logger != nil {
 			global.Logger.Sugar().Warnf("MCP configuration invalid: %v", err)
@@ -143,6 +147,26 @@ func (b *SystemApiV1Group) SystemMCPSetEnabled(c *gin.Context) {
 		return
 	}
 	resp, err := systemsvc.MCPSetEnabled(c.Request.Context(), id, *req.Enabled)
+	if err != nil {
+		mcpFailure(c, err)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
+// SystemMCPReconnect
+// @Tags System MCP
+// @Summary 手动重连已启用的 MCP 服务；开启新周期并立即尝试一次连接
+// @Description 只对已启用服务有效；熔断打开后仍可手动开启新周期。同一服务的并发重连返回忙碌。
+// @Param id path string true "MCP ID"
+// @Success 200 {object} dtocode.Response{data=dtosystem.SystemMCPResp}
+// @Router /v1/system/mcp/{id}/reconnect [post]
+func (b *SystemApiV1Group) SystemMCPReconnect(c *gin.Context) {
+	id, ok := mcpID(c)
+	if !ok {
+		return
+	}
+	resp, err := systemsvc.MCPReconnect(c.Request.Context(), id)
 	if err != nil {
 		mcpFailure(c, err)
 		return

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, App, Button, Card, Drawer, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
 import { PlusOutlined, QuestionCircleOutlined, ReloadOutlined } from '@ant-design/icons'
-import { createMCPServer, deleteMCPServer, fetchMCPServer, fetchMCPServers, setMCPEnabled, updateMCPServer } from '../../features/mcp/api'
+import { createMCPServer, deleteMCPServer, fetchMCPServer, fetchMCPServers, reconnectMCPServer, setMCPEnabled, updateMCPServer } from '../../features/mcp/api'
 import { MCPJSONEditor } from '../../features/mcp/MCPJSONEditor'
 import { parseArgs, parseStringMap, toMCPConfig, toMCPForm } from '../../features/mcp/form'
 import type { MCPFormValues } from '../../features/mcp/form'
@@ -12,6 +12,17 @@ const transports = [
   { value: 'stdio', label: 'stdio（本地进程）' },
   { value: 'sse', label: 'SSE（兼容旧服务）' },
 ]
+
+// phase 是细粒度状态；旧 state 仍作为兜底，disabled 服务始终显示已停用。
+function mcpPhaseLabel(server: MCPServer) {
+  if (!server.enabled) return '已停用'
+  if (server.phase === 'running' || (!server.phase && server.status.state === 'running')) return '运行中'
+  switch (server.phase) {
+    case 'circuit_open': return '熔断'
+    case 'backoff': return `重试中（连续失败 ${server.consecutive_failures ?? 0} 次）`
+    default: return server.status.state === 'error' ? '连接异常' : '连接中'
+  }
+}
 
 export function MCPManagementPanel() {
   const { message } = App.useApp()
@@ -107,6 +118,12 @@ export function MCPManagementPanel() {
     catch (err) { void message.error(err instanceof Error ? err.message : 'MCP 启停失败') }
     finally { setBusy(''); reload() }
   }
+  const reconnect = async (server: MCPServer) => {
+    setBusy(server.id)
+    try { await reconnectMCPServer(server.id); void message.success('已开启新的重连周期') }
+    catch (err) { void message.error(err instanceof Error ? err.message : '重连失败') }
+    finally { setBusy(''); reload() }
+  }
   const remove = async (server: MCPServer) => {
     setBusy(server.id)
     try {
@@ -131,10 +148,10 @@ export function MCPManagementPanel() {
         columns={[
           { title: '名称', dataIndex: 'name', width: 180, render: (name, server) => <Button type="link" className="px-0!" onClick={() => setDetails(server)}>{name}</Button> },
           { title: '传输', dataIndex: 'transport', width: 150 },
-          { title: '运行状态', width: 200, render: (_, server) => <div><Tag className={`lunar-tag${server.status.state === 'running' ? ' lunar-tag-success' : server.status.state === 'error' ? ' lunar-tag-danger' : ''}`}>{server.status.state === 'running' ? '运行中' : server.status.state === 'error' ? '连接异常' : server.enabled ? '等待连接' : '已停用'}</Tag>{server.status.message && <div className="mt-1 text-xs text-k-text-muted">{server.status.message}</div>}</div> },
+          { title: '运行状态', width: 200, render: (_, server) => <div><Tag className={`lunar-tag${server.phase === 'running' || (!server.phase && server.status.state === 'running') ? ' lunar-tag-success' : server.phase === 'circuit_open' || server.status.state === 'error' ? ' lunar-tag-danger' : ''}`}>{mcpPhaseLabel(server)}</Tag>{server.status.message && <div className="mt-1 text-xs text-k-text-muted">{server.status.message}</div>}{server.phase === 'circuit_open' && <div className="mt-1 text-xs text-k-text-muted">自动重连已停止，可手动重新连接</div>}</div> },
           { title: '工具数', width: 70, render: (_, server) => server.status.tools.length },
           { title: <Space size={4}>启用<Tooltip trigger={['hover', 'focus']} title="启用的 MCP 工具对所有聊天生效；新启用的工具从下一轮对话可用。停用会中断正在执行的 MCP 请求，已产生的外部操作不会撤销。"><QuestionCircleOutlined tabIndex={0} aria-label="启停说明" className="text-k-text-muted" /></Tooltip></Space>, width: 90, render: (_, server) => <Switch aria-label={`启用 ${server.name}`} checked={server.enabled} loading={busy === server.id} disabled={!!busy || saving} onChange={enabled => void toggle(server, enabled)} /> },
-          { title: '操作', width: 160, fixed: 'right', render: (_, server) => <Space size={0}><Button type="link" disabled={!!busy || saving} onClick={() => void edit(server)}>编辑</Button>{server.status.state === 'error' && <Button type="link" disabled={!!busy || saving} onClick={() => void toggle(server, true)}>重试</Button>}<Popconfirm title={`删除 ${server.name}？`} description="运行中的连接会同时关闭。" okText="删除" cancelText="取消" onConfirm={() => remove(server)}><Button danger type="link" disabled={!!busy || saving}>删除</Button></Popconfirm></Space> },
+          { title: '操作', width: 160, fixed: 'right', render: (_, server) => <Space size={0}><Button type="link" disabled={!!busy || saving} onClick={() => void edit(server)}>编辑</Button>{server.enabled && server.phase !== 'running' && <Button type="link" loading={busy === server.id} disabled={!!busy || saving} onClick={() => void reconnect(server)}>重新连接</Button>}<Popconfirm title={`删除 ${server.name}？`} description="运行中的连接会同时关闭。" okText="删除" cancelText="取消" onConfirm={() => remove(server)}><Button danger type="link" disabled={!!busy || saving}>删除</Button></Popconfirm></Space> },
         ]} />
     </Card>
     <Modal title={<Space>{editing ? '编辑 MCP' : '新增 MCP'}{editing?.enabled && <Tooltip trigger={['hover', 'focus']} title="保存时会连接新配置；成功后替换原连接，失败时保留原配置。"><QuestionCircleOutlined tabIndex={0} aria-label="保存说明" className="text-k-text-muted" /></Tooltip>}</Space>} open={open} width={680} onCancel={() => { if (!saving) setOpen(false) }} onOk={() => void save()} confirmLoading={saving} cancelButtonProps={{ disabled: saving }} mask={{ closable: !saving }} closable={!saving} keyboard={!saving} okText="保存" cancelText="取消" destroyOnHidden>

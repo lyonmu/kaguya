@@ -19,6 +19,7 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 		systemRouter.POST("mcp", apiGroup.SystemMCPCreate)
 		systemRouter.PUT("mcp/:id", apiGroup.SystemMCPUpdate)
 		systemRouter.PUT("mcp/:id/state", apiGroup.SystemMCPSetEnabled)
+		systemRouter.POST("mcp/:id/reconnect", apiGroup.SystemMCPReconnect)
 		systemRouter.DELETE("mcp/:id", apiGroup.SystemMCPDelete)
 
 		systemRouter.GET("provider/page", apiGroup.SystemProviderPage)

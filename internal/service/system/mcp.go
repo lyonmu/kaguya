@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"os/exec"
 	"sync"
 	"time"
@@ -20,10 +19,12 @@ import (
 )
 
 var (
-	ErrMCPNotFound  = errors.New("MCP 服务不存在")
-	ErrMCPDuplicate = errors.New("MCP 服务名称已存在")
-	ErrMCPInvalid   = errors.New("MCP 配置无效")
-	ErrMCPConnect   = errors.New("MCP 连接或工具发现失败，请检查服务配置")
+	ErrMCPNotFound      = errors.New("MCP 服务不存在")
+	ErrMCPDuplicate     = errors.New("MCP 服务名称已存在")
+	ErrMCPInvalid       = errors.New("MCP 配置无效")
+	ErrMCPConnect       = errors.New("MCP 连接或工具发现失败，请检查服务配置")
+	ErrMCPDisabled      = errors.New("MCP 服务已停用")
+	ErrMCPReconnectBusy = errors.New("MCP 服务正在重连")
 )
 
 // mcpMutationGate 按服务 ID 串行化“准备 → 保存 → 发布”，避免单个故障服务的
@@ -116,15 +117,24 @@ type MCPRecoveryOptions struct {
 // 指数退避重试（1s、2s、4s…，上限 60s），直到恢复、停用或删除。
 var DefaultMCPRecoveryOptions = MCPRecoveryOptions{Tick: 2 * time.Second, BaseDelay: time.Second, MaxDelay: time.Minute}
 
-// mcpRecoveryState 记录单个服务的连续失败次数与下一次尝试时间。
-type mcpRecoveryState struct {
-	failures    int
-	nextAttempt time.Time
+// RunMCPRecovery 持续看护已启用但未连接的 MCP 服务，按指数退避自动重连。
+// 覆盖启动恢复失败与运行中连接断开两种情况；多次失败后由协调器熔断，
+// 服务被停用或删除后停止重试。
+func (s *SystemSvc) RunMCPRecovery(ctx context.Context, options MCPRecoveryOptions) {
+	options = normalizeMCPRecoveryOptions(options)
+	ticker := time.NewTicker(options.Tick)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			s.recoverMCPConnections(ctx, now, options)
+		}
+	}
 }
 
-// RunMCPRecovery 持续看护已启用但未连接的 MCP 服务，按指数退避自动重连。
-// 覆盖启动恢复失败与运行中连接断开两种情况；服务被停用或删除后停止重试。
-func (s *SystemSvc) RunMCPRecovery(ctx context.Context, options MCPRecoveryOptions) {
+func normalizeMCPRecoveryOptions(options MCPRecoveryOptions) MCPRecoveryOptions {
 	if options.Tick <= 0 {
 		options.Tick = DefaultMCPRecoveryOptions.Tick
 	}
@@ -134,21 +144,11 @@ func (s *SystemSvc) RunMCPRecovery(ctx context.Context, options MCPRecoveryOptio
 	if options.MaxDelay < options.BaseDelay {
 		options.MaxDelay = options.BaseDelay
 	}
-	ticker := time.NewTicker(options.Tick)
-	defer ticker.Stop()
-	states := map[string]*mcpRecoveryState{}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case now := <-ticker.C:
-			s.recoverMCPConnections(ctx, now, options, states)
-		}
-	}
+	return options
 }
 
 // recoverMCPConnections 执行一轮重连检查，单轮错误不影响后续轮次。
-func (s *SystemSvc) recoverMCPConnections(ctx context.Context, now time.Time, options MCPRecoveryOptions, states map[string]*mcpRecoveryState) {
+func (s *SystemSvc) recoverMCPConnections(ctx context.Context, now time.Time, options MCPRecoveryOptions) {
 	ids, err := db.EntClient.KaguyaMCPServer.Query().Where(kaguyamcpserver.DeletedAtIsNil(), kaguyamcpserver.EnabledEQ(true)).IDs(ctx)
 	if err != nil {
 		if ctx.Err() == nil {
@@ -156,20 +156,15 @@ func (s *SystemSvc) recoverMCPConnections(ctx context.Context, now time.Time, op
 		}
 		return
 	}
-	active := make(map[string]struct{}, len(ids))
 	for _, id := range ids {
-		active[id] = struct{}{}
-		// 连接健康时清除退避状态；再次断开后从最短延迟重新开始。
 		if agentmcp.Default.Status(id).State == "running" {
-			delete(states, id)
+			if err := DefaultMCPRecovery.RecordSuccess(ctx, id); err != nil {
+				global.Logger.Warn("clear MCP recovery state failed", zap.String("service_id", id))
+			}
 			continue
 		}
-		state := states[id]
-		if state == nil {
-			state = &mcpRecoveryState{}
-			states[id] = state
-		}
-		if now.Before(state.nextAttempt) {
+		// 熔断、持久化失败或退避未到时跳过；数据库是策略状态的权威来源。
+		if !DefaultMCPRecovery.Allowed(id, now) {
 			continue
 		}
 		// 不阻塞整个监督器：用户正在启停或编辑该服务时跳过本轮。
@@ -177,18 +172,13 @@ func (s *SystemSvc) recoverMCPConnections(ctx context.Context, now time.Time, op
 		if !ok {
 			continue
 		}
-		s.reconnectMCP(ctx, id, state, options, now)
+		s.reconnectMCP(ctx, id, options, now)
 		unlock()
-	}
-	for id := range states {
-		if _, ok := active[id]; !ok {
-			delete(states, id)
-		}
 	}
 }
 
-// reconnectMCP 在已持有变更门的情况下尝试一次重连。
-func (s *SystemSvc) reconnectMCP(ctx context.Context, id string, state *mcpRecoveryState, options MCPRecoveryOptions, now time.Time) {
+// reconnectMCP 在已持有变更门的情况下尝试一次重连；请求取消与熔断不计入失败。
+func (s *SystemSvc) reconnectMCP(ctx context.Context, id string, options MCPRecoveryOptions, now time.Time) {
 	row, err := mcpFind(ctx, id)
 	if err != nil {
 		if ctx.Err() == nil && !errors.Is(err, ErrMCPNotFound) {
@@ -196,40 +186,38 @@ func (s *SystemSvc) reconnectMCP(ctx context.Context, id string, state *mcpRecov
 		}
 		return
 	}
+	policy := DefaultMCPRecovery.Load(row)
 	// 拿到门后再确认服务仍启用且未由其他路径恢复，避免复活刚被停用的服务。
-	if !row.Enabled || agentmcp.Default.Status(id).State == "running" {
+	if !row.Enabled || agentmcp.Default.Status(id).State == "running" || policy.Open {
 		return
 	}
 	connection, err := agentmcp.Prepare(ctx, mcpConfig(row))
 	if err == nil {
 		agentmcp.Default.Replace(id, connection)
-		if state.failures > 0 {
+		if policy.Failures > 0 {
 			global.Logger.Info("MCP connection recovered",
-				zap.String("service_id", id), zap.String("transport", string(row.Transport)), zap.Int("failures", state.failures))
+				zap.String("service_id", id), zap.String("transport", string(row.Transport)), zap.Int("failures", policy.Failures))
 		}
-		state.failures = 0
+		if recordErr := DefaultMCPRecovery.RecordSuccess(ctx, id); recordErr != nil {
+			global.Logger.Warn("clear MCP recovery state failed", zap.String("service_id", id))
+		}
 		return
 	}
-	state.failures++
-	delay := mcpBackoffDelay(options, state.failures)
-	state.nextAttempt = now.Add(delay)
-	global.Logger.Warn("MCP reconnect attempt failed", append(mcpFailureFields(id, string(row.Transport), err),
-		zap.Int("failures", state.failures), zap.Duration("next_retry", delay))...)
-}
-
-// mcpBackoffDelay 返回第 failures 次失败后的重试延迟：BaseDelay × 2^(failures-1)，上限 MaxDelay。
-func mcpBackoffDelay(options MCPRecoveryOptions, failures int) time.Duration {
-	if failures < 1 {
-		failures = 1
+	if ctx.Err() != nil {
+		// 请求/root 取消打断的尝试不计入失败。
+		return
 	}
-	if failures > 32 {
-		return options.MaxDelay
+	snapshot, recordErr := DefaultMCPRecovery.RecordFailure(ctx, id, options.BaseDelay, options.MaxDelay, now)
+	fields := append(mcpFailureFields(id, string(row.Transport), err), zap.Int("failures", snapshot.Failures))
+	if snapshot.Open {
+		fields = append(fields, zap.Time("circuit_opened_at", snapshot.OpenedAt))
+	} else {
+		fields = append(fields, zap.Duration("next_retry", snapshot.NextAt.Sub(now)))
 	}
-	delay := time.Duration(float64(options.BaseDelay) * math.Pow(2, float64(failures-1)))
-	if delay <= 0 || delay > options.MaxDelay {
-		return options.MaxDelay
+	global.Logger.Warn("MCP reconnect attempt failed", fields...)
+	if recordErr != nil {
+		agentmcp.Default.Failed(id, "重连状态保存失败，已停止自动重连")
 	}
-	return delay
 }
 
 func mcpConfig(row *ent.KaguyaMCPServer) agentmcp.Config {
@@ -327,6 +315,12 @@ func (s *SystemSvc) MCPUpdate(ctx context.Context, id string, req *dtosystem.Sys
 		return nil, err
 	}
 	agentmcp.Default.Replace(id, next)
+	if old.Enabled {
+		// 替代连接验证成功才开始新的健康周期，失败不会清除原熔断。
+		if err := DefaultMCPRecovery.RecordSuccess(ctx, id); err != nil {
+			global.Logger.Warn("clear MCP recovery state failed", zap.String("service_id", id))
+		}
+	}
 	return mcpResponse(row, true), nil
 }
 func (s *SystemSvc) MCPSetEnabled(ctx context.Context, id string, enabled bool) (*dtosystem.SystemMCPResp, error) {
@@ -339,8 +333,12 @@ func (s *SystemSvc) MCPSetEnabled(ctx context.Context, id string, enabled bool) 
 	if err != nil {
 		return nil, err
 	}
-	if enabled && old.Enabled && agentmcp.Default.Status(id).State == "running" {
-		return mcpResponse(old, true), nil
+	if enabled && old.Enabled {
+		if agentmcp.Default.Status(id).State == "running" {
+			return mcpResponse(old, true), nil
+		}
+		// 旧客户端对“已启用但异常”的服务重新 PUT enabled=true：委托手动重连语义。
+		return s.mcpReconnectLocked(ctx, old)
 	}
 	var next *agentmcp.Connection
 	if enabled {
@@ -359,8 +357,58 @@ func (s *SystemSvc) MCPSetEnabled(ctx context.Context, id string, enabled bool) 
 		return nil, err
 	}
 	agentmcp.Default.Replace(id, next)
+	if enabled {
+		if err := DefaultMCPRecovery.RecordSuccess(ctx, id); err != nil {
+			global.Logger.Warn("clear MCP recovery state failed", zap.String("service_id", id))
+		}
+	} else if err := DefaultMCPRecovery.Clear(ctx, id); err != nil {
+		global.Logger.Warn("clear MCP recovery state failed", zap.String("service_id", id))
+	}
 	return mcpResponse(row, true), nil
 }
+
+// MCPReconnect 手动开启一次新连接周期并立即尝试 Prepare。
+// 只对已启用服务有效；同一服务的并发手动请求返回忙碌，不做隐式排队。
+func (s *SystemSvc) MCPReconnect(ctx context.Context, id string) (*dtosystem.SystemMCPResp, error) {
+	unlock, ok := mcpMutations.tryAcquire(id)
+	if !ok {
+		return nil, ErrMCPReconnectBusy
+	}
+	defer unlock()
+	row, err := mcpFind(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if !row.Enabled {
+		return nil, ErrMCPDisabled
+	}
+	return s.mcpReconnectLocked(ctx, row)
+}
+
+// mcpReconnectLocked 在已持有服务门时执行手动新周期：先持久化 cycle/清零熔断，
+// 再尝试一次 Prepare；失败进入新周期的第 1 次退避，仍由监督器继续。
+func (s *SystemSvc) mcpReconnectLocked(ctx context.Context, row *ent.KaguyaMCPServer) (*dtosystem.SystemMCPResp, error) {
+	if _, err := DefaultMCPRecovery.StartManualCycle(ctx, row.ID); err != nil {
+		return nil, err
+	}
+	connection, err := agentmcp.Prepare(ctx, mcpConfig(row))
+	if err == nil {
+		agentmcp.Default.Replace(row.ID, connection)
+		if err := DefaultMCPRecovery.RecordSuccess(ctx, row.ID); err != nil {
+			global.Logger.Warn("clear MCP recovery state failed", zap.String("service_id", row.ID))
+		}
+		return mcpResponse(row, true), nil
+	}
+	if ctx.Err() == nil {
+		if _, recordErr := DefaultMCPRecovery.RecordFailure(ctx, row.ID, DefaultMCPRecoveryOptions.BaseDelay, DefaultMCPRecoveryOptions.MaxDelay, time.Now()); recordErr != nil {
+			agentmcp.Default.Failed(row.ID, "重连状态保存失败，已停止自动重连")
+		}
+	}
+	agentmcp.Default.Failed(row.ID, "MCP 重连失败")
+	logMCPFailure("manual MCP reconnect failed", row.ID, string(row.Transport), err)
+	return nil, fmt.Errorf("%w: %w", ErrMCPConnect, err)
+}
+
 func (s *SystemSvc) MCPDelete(ctx context.Context, id string) error {
 	release, err := mcpMutations.acquire(ctx, id)
 	if err != nil {
@@ -374,6 +422,9 @@ func (s *SystemSvc) MCPDelete(ctx context.Context, id string) error {
 	_, err = db.EntClient.KaguyaMCPServer.UpdateOneID(id).SetDeletedAt(time.Now()).SetEnabled(false).SetEnv(map[string]string{}).SetHeaders(map[string]string{}).SetArgs([]string{}).SetCommand("").SetURL("").Save(ctx)
 	if err != nil {
 		return err
+	}
+	if err := DefaultMCPRecovery.Clear(ctx, id); err != nil {
+		global.Logger.Warn("clear MCP recovery state failed", zap.String("service_id", id))
 	}
 	agentmcp.Default.Replace(id, nil)
 	return nil
@@ -407,13 +458,22 @@ func (s *SystemSvc) RestoreMCP(ctx context.Context) error {
 			if !row.Enabled || agentmcp.Default.Status(id).State == "running" {
 				return nil
 			}
+			// 熔断在重启后仍保持打开，启动恢复不自动绕过。
+			if DefaultMCPRecovery.Load(row).Open {
+				return nil
+			}
 			connection, err := agentmcp.Prepare(ctx, mcpConfig(row))
 			if err != nil {
 				agentmcp.Default.Failed(id, err.Error())
 				logMCPFailure("restore MCP connection failed", id, string(row.Transport), err)
+				if ctx.Err() == nil {
+					// 启动恢复失败计入同一连接周期的失败次数。
+					DefaultMCPRecovery.RecordFailure(ctx, id, DefaultMCPRecoveryOptions.BaseDelay, DefaultMCPRecoveryOptions.MaxDelay, time.Now())
+				}
 				return nil
 			}
 			agentmcp.Default.Replace(id, connection)
+			DefaultMCPRecovery.RecordSuccess(ctx, id)
 			return nil
 		}()
 		if err != nil {

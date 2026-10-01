@@ -198,3 +198,23 @@ it('formats command arguments, preserves invalid input and saves argument bounda
   fireEvent.click(within(dialog).getByRole('button', { name: /保.*存/ }))
   await waitFor(() => assert.deepEqual(saved?.args, ['-y', 'package name', '']))
 })
+
+it('shows circuit breaker state and reconnects without disabling other services', async () => {
+  let reconnects = 0
+  let current: MCPServer = { ...server, enabled: true, phase: 'circuit_open', consecutive_failures: 5, status: { state: 'error', message: '连接断开', tools: [] } }
+  globalThis.fetch = (async (url, init) => {
+    if (String(url).endsWith('/reconnect') && init?.method === 'POST') {
+      reconnects += 1
+      current = { ...server, enabled: true, phase: 'running', status: { state: 'running', tools: ['echo'] } }
+      return response(current)
+    }
+    return response({ items: [current], total: 1, page: 1, page_size: 10 })
+  }) as typeof fetch
+  const view = render(<App><MCPManagementPanel /></App>)
+  await view.findByText('示例服务')
+  assert.ok(view.getByText('熔断'))
+  assert.ok(view.getByText('自动重连已停止，可手动重新连接'))
+  fireEvent.click(view.getByRole('button', { name: '重新连接' }))
+  await waitFor(() => assert.equal(reconnects, 1))
+  await view.findByText('运行中')
+})
