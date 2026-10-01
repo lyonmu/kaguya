@@ -44,27 +44,27 @@ type BlockDetailReq struct {
 	Sequence  int64  `uri:"sequence" binding:"min=1"`
 }
 type ConversationResp struct {
-	IsProject     bool                      `json:"is_project"` // 根据 project_id 是否为空派生，不单独存储
-	ProjectID     *string                   `json:"project_id"`
-	ID            string                    `json:"id"`
-	Title         string                    `json:"title"` // AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试
-	Favorite      bool                      `json:"favorite"`
-	TurnCount     int64                     `json:"turn_count"`
-	ModelID       string                    `json:"model_id"`
-	ModelName     string                    `json:"model_name"`
-	LastModelID   string                    `json:"last_model_id,omitempty"` // 最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型
-	CreatedAt     time.Time                 `json:"created_at"`
-	LastMessageAt time.Time                 `json:"last_message_at"`
-	DurationMS    int64                     `json:"duration_ms"`
-	ToolCalls     int64                     `json:"tool_calls"`
-	Usage         Usage                     `json:"usage"`                 // 仅累计已完成轮次
-	MemoryMode    string                    `json:"memory_mode"`           // inherit/off/readonly
-	MemoryRefs    *dtomemory.MemoryRefsResp `json:"memory_refs,omitempty"` // 最近一轮自动召回的选择记录；已删除页面显示“已删除”
-	PermissionMode string                   `json:"permission_mode"`       // full_approval/auto_approval/full_access
-	InstructionsFormat string               `json:"instructions_format"`   // split：动态全局+冻结项目；legacy：旧合并快照
-	InstructionsLegacy bool                 `json:"instructions_legacy"`   // 旧项目会话仍使用不可拆解快照，需显式升级
-	TitleRevision  int64                    `json:"title_revision"`        // 标题版本，事件按它只前进合并
-	TitleJobStatus string                   `json:"title_job_status,omitempty"` // pending/running/succeeded/failed/canceled；无任务时为空
+	IsProject          bool                      `json:"is_project"` // 根据 project_id 是否为空派生，不单独存储
+	ProjectID          *string                   `json:"project_id"`
+	ID                 string                    `json:"id"`
+	Title              string                    `json:"title"` // AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试
+	Favorite           bool                      `json:"favorite"`
+	TurnCount          int64                     `json:"turn_count"`
+	ModelID            string                    `json:"model_id"`
+	ModelName          string                    `json:"model_name"`
+	LastModelID        string                    `json:"last_model_id,omitempty"` // 最近一轮使用的本地模型记录 ID；无轮次或模型、提供商已删除时为空，前端续聊回落到全局默认模型
+	CreatedAt          time.Time                 `json:"created_at"`
+	LastMessageAt      time.Time                 `json:"last_message_at"`
+	DurationMS         int64                     `json:"duration_ms"`
+	ToolCalls          int64                     `json:"tool_calls"`
+	Usage              Usage                     `json:"usage"`                      // 仅累计已完成轮次
+	MemoryMode         string                    `json:"memory_mode"`                // inherit/off/readonly
+	MemoryRefs         *dtomemory.MemoryRefsResp `json:"memory_refs,omitempty"`      // 最近一轮自动召回的选择记录；已删除页面显示“已删除”
+	PermissionMode     string                    `json:"permission_mode"`            // full_approval/auto_approval/full_access
+	InstructionsFormat string                    `json:"instructions_format"`        // split：动态全局+冻结项目；legacy：旧合并快照
+	InstructionsLegacy bool                      `json:"instructions_legacy"`        // 旧项目会话仍使用不可拆解快照，需显式升级
+	TitleRevision      int64                     `json:"title_revision"`             // 标题版本，事件按它只前进合并
+	TitleJobStatus     string                    `json:"title_job_status,omitempty"` // pending/running/succeeded/failed/canceled；无任务时为空
 }
 type ConversationListResp struct {
 	Items    []ConversationResp `json:"items"`

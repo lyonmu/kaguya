@@ -39,10 +39,10 @@ type AgentsPathsReq struct {
 type SystemInfoResp struct {
 	SystemInfoSaveReq
 	InstructionStatus      *InstructionStatus `json:"instruction_status,omitempty"`
-	MemoryPolicyEpoch      int64      `json:"memory_policy_epoch"`
-	ModelSyncCatalogCount  int        `json:"model_sync_catalog_count"`
-	ProviderCatalogCount   int        `json:"provider_catalog_count"`
-	ModelSyncLastAttemptAt *time.Time `json:"model_sync_last_attempt_at,omitempty"`
-	ModelSyncLastSuccessAt *time.Time `json:"model_sync_last_success_at,omitempty"`
-	ModelSyncLastError     string     `json:"model_sync_last_error"`
+	MemoryPolicyEpoch      int64              `json:"memory_policy_epoch"`
+	ModelSyncCatalogCount  int                `json:"model_sync_catalog_count"`
+	ProviderCatalogCount   int                `json:"provider_catalog_count"`
+	ModelSyncLastAttemptAt *time.Time         `json:"model_sync_last_attempt_at,omitempty"`
+	ModelSyncLastSuccessAt *time.Time         `json:"model_sync_last_success_at,omitempty"`
+	ModelSyncLastError     string             `json:"model_sync_last_error"`
 }

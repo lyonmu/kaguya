@@ -5,8 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
-	"github.com/lyonmu/kaguya/internal/global"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
+	"github.com/lyonmu/kaguya/internal/global"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
 )
 

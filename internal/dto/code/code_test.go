@@ -165,7 +165,8 @@ func TestOldResponseCodesAreStable(t *testing.T) {
 }
 
 // 102009 已保留，不得被新语义复用。
-func TestReservedChatConcurrencyCode(t *testing.T) {	if ChatConcurrencyLimited.Code != 102009 {
+func TestReservedChatConcurrencyCode(t *testing.T) {
+	if ChatConcurrencyLimited.Code != 102009 {
 		t.Fatalf("reserved code changed: %d", ChatConcurrencyLimited.Code)
 	}
 	used := make(map[int]string)

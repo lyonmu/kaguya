@@ -26,10 +26,10 @@ type contextCompactor struct {
 	// 变化时调用方不得复用上一轮 context_tokens 基线。
 	budget      contextBudget
 	fingerprint contextFingerprint
-	seen            int
-	messages        []fantasy.Message
-	count           int
-	usage           fantasy.Usage
+	seen        int
+	messages    []fantasy.Message
+	count       int
+	usage       fantasy.Usage
 }
 
 func estimateMessages(messages []fantasy.Message) int64 {

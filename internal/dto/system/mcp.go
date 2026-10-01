@@ -19,9 +19,9 @@ type SystemMCPPageReq struct {
 
 type SystemMCPResp struct {
 	agentmcp.Config
-	ID     string          `json:"id"`
-	Enabled bool           `json:"enabled"`
-	Status agentmcp.Status `json:"status"`
+	ID      string          `json:"id"`
+	Enabled bool            `json:"enabled"`
+	Status  agentmcp.Status `json:"status"`
 	// Phase 是细粒度状态：stopped/connecting/running/backoff/circuit_open；
 	// 旧 state 字段保持 running/stopped/error 兼容。
 	Phase               string     `json:"phase"`

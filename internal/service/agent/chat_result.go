@@ -53,12 +53,12 @@ func instructionVersionPointer(version int64) *int64 {
 func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 	target := exec.target
 	err := saveCompletedTurn(ctx, completedTurn{
-		MemorySelection:   exec.prompt.memory.selection(),
-		ProjectInstructions: exec.prompt.projectSnapshot,
-		InstructionsFormat:  exec.prompt.instructionsFormat,
-		GlobalInstructionHash: exec.prompt.globalHash,
+		MemorySelection:          exec.prompt.memory.selection(),
+		ProjectInstructions:      exec.prompt.projectSnapshot,
+		InstructionsFormat:       exec.prompt.instructionsFormat,
+		GlobalInstructionHash:    exec.prompt.globalHash,
 		GlobalInstructionVersion: instructionVersionPointer(exec.prompt.globalVersion),
-		ConversationID:    exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
+		ConversationID:           exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
 		TurnID:      exec.turnID,
 		UserContent: exec.userContent,
 		ProviderID:  target.provider.ID, ProviderName: target.provider.ProviderName,
