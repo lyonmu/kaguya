@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-func openReadFile(root *os.Root, path string) (*os.File, error) {
-	return root.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
-}
-
 func configureProcess(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {

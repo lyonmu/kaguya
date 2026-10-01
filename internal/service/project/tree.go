@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/lyonmu/kaguya/internal/agent/workspace"
 	dto "github.com/lyonmu/kaguya/internal/dto/project"
 	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 )
@@ -46,7 +47,7 @@ func (s *ProjectSvc) Tree(ctx context.Context, id string) (*dto.TreeResp, error)
 		return nil, err
 	}
 	defer root.Close()
-	ignore := newIgnoreMatcher(root)
+	ignore := workspace.NewLenientIgnoreMatcher(root)
 	children := map[string][]*dto.TreeItem{}
 	visited := 0
 	resp := &dto.TreeResp{Name: filepath.Base(dir), Items: []*dto.TreeItem{}}
@@ -70,7 +71,7 @@ func (s *ProjectSvc) Tree(ctx context.Context, id string) (*dto.TreeResp, error)
 		if entry.IsDir() && excludedTreeDir(name) {
 			return fs.SkipDir
 		}
-		if ignore.ignored(path, entry.IsDir()) {
+		if ignore.Ignored(path, entry.IsDir()) {
 			if entry.IsDir() {
 				return fs.SkipDir
 			}
@@ -145,12 +146,12 @@ func (s *ProjectSvc) Content(ctx context.Context, id, path string) (*dto.Content
 	defer root.Close()
 	// 先非阻塞打开再看类型：项目内的 FIFO 无写端时，普通 Open 会永久阻塞，
 	// 且不受 context 取消影响；lstat 预检查也无法阻止检查后的替换。
-	file, err := openReadFile(root, rel)
+	file, err := workspace.OpenNonblock(root, rel)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	clearNonblock(file)
+	workspace.ClearNonblock(file)
 	info, err := file.Stat()
 	if err != nil {
 		return nil, err
@@ -207,15 +208,18 @@ func (s *ProjectSvc) ReadDocument(ctx context.Context, projectID, path string, m
 		return nil, err
 	}
 	defer root.Close()
-	if newIgnoreMatcher(root).ignored(rel, false) {
+	// 严格模式：忽略文件不可读时拒绝，而不是按“未忽略”继续导入内容。
+	if matcher, matchErr := workspace.NewIgnoreMatcher(root); matchErr != nil {
+		return nil, ErrInvalid
+	} else if ignored, _ := matcher.Match(rel, false); ignored {
 		return nil, ErrInvalid
 	}
-	file, err := openReadFile(root, rel)
+	file, err := workspace.OpenNonblock(root, rel)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	clearNonblock(file)
+	workspace.ClearNonblock(file)
 	info, err := file.Stat()
 	if err != nil {
 		return nil, err

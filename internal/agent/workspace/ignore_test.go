@@ -1,4 +1,4 @@
-package project
+package workspace
 
 import (
 	"os"
@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// newTestIgnoreMatcher 在临时项目根写入 .gitignore 后返回匹配器。
-func newTestIgnoreMatcher(t *testing.T, lines ...string) *ignoreMatcher {
+// newTestIgnoreMatcher 在临时项目根写入 .gitignore 后返回宽松匹配器。
+func newTestIgnoreMatcher(t *testing.T, lines ...string) *IgnoreMatcher {
 	t.Helper()
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte(strings.Join(lines, "\n")), 0600); err != nil {
@@ -19,7 +19,7 @@ func newTestIgnoreMatcher(t *testing.T, lines ...string) *ignoreMatcher {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { root.Close() })
-	return newIgnoreMatcher(root)
+	return NewLenientIgnoreMatcher(root)
 }
 
 func TestIgnoreRuleMatching(t *testing.T) {
@@ -58,8 +58,8 @@ func TestIgnoreRuleMatching(t *testing.T) {
 		{path: "#literal", want: true},
 	}
 	for _, item := range cases {
-		if got := matcher.ignored(item.path, item.dir); got != item.want {
-			t.Errorf("ignored(%q, dir=%t)=%t want %t", item.path, item.dir, got, item.want)
+		if got := matcher.Ignored(item.path, item.dir); got != item.want {
+			t.Errorf("Ignored(%q, dir=%t)=%t want %t", item.path, item.dir, got, item.want)
 		}
 	}
 }
@@ -77,18 +77,45 @@ func TestIgnoreRuleNestedBase(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	matcher := newIgnoreMatcher(root)
-	if !matcher.ignored("web/dist", true) {
+	matcher := NewLenientIgnoreMatcher(root)
+	if !matcher.Ignored("web/dist", true) {
 		t.Fatal("web/dist should be ignored")
 	}
-	if matcher.ignored("dist", true) || matcher.ignored("web/dist", false) {
+	if matcher.Ignored("dist", true) || matcher.Ignored("web/dist", false) {
 		t.Fatal("nested base should not leak")
 	}
 	// 子目录规则只对自身子树生效。
-	if matcher.ignored("lib/dist", true) || matcher.ignored("web2/dist", true) {
+	if matcher.Ignored("lib/dist", true) || matcher.Ignored("web2/dist", true) {
 		t.Fatal("nested rules applied outside their directory")
 	}
-	if matcher.ignored("web/other", true) {
+	if matcher.Ignored("web/other", true) {
 		t.Fatal("unrelated path ignored")
+	}
+}
+
+func TestStrictIgnoreMatcherReportsUnreadableNestedRules(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "web"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	// 目录冒充 .gitignore：读取一定失败，严格模式必须报错而不是放行内容。
+	if err := os.MkdirAll(filepath.Join(dir, "web", ".gitignore"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	matcher, err := NewIgnoreMatcher(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := matcher.Match("web/main.go", false); err == nil {
+		t.Fatal("strict matcher silently ignored an unreadable ignore file")
+	}
+	// 宽松模式保持 UI 文件树的默认语义：读不到就按空规则。
+	if NewLenientIgnoreMatcher(root).Ignored("web/main.go", false) {
+		t.Fatal("lenient matcher must not fail closed")
 	}
 }

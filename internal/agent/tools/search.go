@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/agent/workspace"
 )
 
 type LsInput struct {
@@ -124,7 +125,8 @@ func (s *Set) ls(ctx context.Context, in LsInput) (fantasy.ToolResponse, error) 
 	if !info.IsDir() {
 		return fantasy.ToolResponse{}, errors.New("path must be a directory")
 	}
-	f, err := openReadFile(s.root, path)
+	// ls 打开的是目录：只需非阻塞打开，regular 限制由调用方按类型处理。
+	f, err := workspace.OpenNonblock(s.root, path)
 	if err != nil {
 		return fantasy.ToolResponse{}, err
 	}

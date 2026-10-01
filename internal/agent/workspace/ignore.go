@@ -1,4 +1,4 @@
-package project
+package workspace
 
 import (
 	"bufio"
@@ -6,12 +6,19 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"sync"
 )
 
-// ignoreMatcher 按 .gitignore / .dockerignore 的常用语义过滤文件树：
+// IgnoreMatcher 按 .gitignore / .dockerignore 的常用语义过滤工作区文件树：
 // 注释、空行、! 取反、结尾 / 限定目录、前导或内嵌 / 锚定、*、?、[]、**。
-type ignoreMatcher struct {
+//
+// 子目录 .gitignore 在首次匹配到对应路径时懒加载；strict 模式下读取失败会返回
+// 错误，调用方不得把它当作“没有忽略规则”继续放行内容。
+type IgnoreMatcher struct {
 	root   *os.Root
+	strict bool
+
+	mu     sync.Mutex
 	rules  []ignoreRule            // 根 .gitignore 与 .dockerignore，按文件顺序
 	nested map[string][]ignoreRule // 子目录 .gitignore，首次访问时加载
 }
@@ -22,18 +29,44 @@ type ignoreRule struct {
 	dirOnly bool
 }
 
-// newIgnoreMatcher 读取项目根的忽略文件；子目录 .gitignore 在遍历到对应路径时懒加载。
-func newIgnoreMatcher(root *os.Root) *ignoreMatcher {
-	matcher := &ignoreMatcher{root: root, nested: map[string][]ignoreRule{}}
-	matcher.rules = append(matcher.rules, readIgnoreFile(root, ".gitignore", "")...)
-	matcher.rules = append(matcher.rules, readIgnoreFile(root, ".dockerignore", "")...)
+// NewIgnoreMatcher 读取项目根的忽略文件；读取失败立即返回错误。
+// 用于必须完整解释忽略规则的引用解析等场景。
+func NewIgnoreMatcher(root *os.Root) (*IgnoreMatcher, error) {
+	matcher := &IgnoreMatcher{root: root, strict: true, nested: map[string][]ignoreRule{}}
+	for _, name := range []string{".gitignore", ".dockerignore"} {
+		rules, err := readIgnoreFile(root, name, "")
+		if err != nil {
+			return nil, err
+		}
+		matcher.rules = append(matcher.rules, rules...)
+	}
+	return matcher, nil
+}
+
+// NewLenientIgnoreMatcher 复用同一匹配语义，但忽略文件不可读时按空规则处理，
+// 保持现有 UI 文件树的默认行为。
+func NewLenientIgnoreMatcher(root *os.Root) *IgnoreMatcher {
+	matcher := &IgnoreMatcher{root: root, nested: map[string][]ignoreRule{}}
+	for _, name := range []string{".gitignore", ".dockerignore"} {
+		rules, _ := readIgnoreFile(root, name, "")
+		matcher.rules = append(matcher.rules, rules...)
+	}
 	return matcher
 }
 
-// ignored 判断项目根相对路径是否被忽略；目录被忽略时调用方应跳过整个子树。
-func (m *ignoreMatcher) ignored(rel string, isDir bool) bool {
-	if m == nil {
+// Ignored 是宽松入口：读取失败按“未忽略”处理；strict 模式应使用 Match。
+func (m *IgnoreMatcher) Ignored(rel string, isDir bool) bool {
+	ignored, err := m.Match(rel, isDir)
+	if err != nil {
 		return false
+	}
+	return ignored
+}
+
+// Match 判断工作区相对路径是否被忽略；目录被忽略时调用方应跳过整个子树。
+func (m *IgnoreMatcher) Match(rel string, isDir bool) (bool, error) {
+	if m == nil {
+		return false, nil
 	}
 	ignored := false
 	apply := func(rules []ignoreRule) {
@@ -53,25 +86,37 @@ func (m *ignoreMatcher) ignored(rel string, isDir bool) bool {
 		} else {
 			prefix += "/" + part
 		}
-		apply(m.rulesFor(prefix))
+		rules, err := m.rulesFor(prefix)
+		if err != nil {
+			return false, err
+		}
+		apply(rules)
 	}
-	return ignored
+	return ignored, nil
 }
 
-func (m *ignoreMatcher) rulesFor(dir string) []ignoreRule {
+func (m *IgnoreMatcher) rulesFor(dir string) ([]ignoreRule, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if rules, ok := m.nested[dir]; ok {
-		return rules
+		return rules, nil
 	}
-	rules := readIgnoreFile(m.root, path.Join(dir, ".gitignore"), dir)
+	rules, err := readIgnoreFile(m.root, path.Join(dir, ".gitignore"), dir)
+	if err != nil && m.strict {
+		return nil, err
+	}
 	m.nested[dir] = rules
-	return rules
+	return rules, nil
 }
 
-// readIgnoreFile 读取并编译忽略文件；文件不存在或不可读时返回空规则。
-func readIgnoreFile(root *os.Root, name, base string) []ignoreRule {
+// readIgnoreFile 读取并编译忽略文件；文件不存在返回空规则，其它错误原样返回。
+func readIgnoreFile(root *os.Root, name, base string) ([]ignoreRule, error) {
 	file, err := root.Open(name)
 	if err != nil {
-		return nil
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
 	defer file.Close()
 	var rules []ignoreRule
@@ -82,10 +127,13 @@ func readIgnoreFile(root *os.Root, name, base string) []ignoreRule {
 			rules = append(rules, rule)
 		}
 	}
-	return rules
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return rules, nil
 }
 
-// parseIgnoreRule 编译单行规则；base 是该忽略文件所在目录的项目根相对路径。
+// parseIgnoreRule 编译单行规则；base 是该忽略文件所在目录的工作区相对路径。
 func parseIgnoreRule(line, base string) (ignoreRule, bool) {
 	line = strings.TrimSuffix(line, "\r")
 	if line == "" || strings.HasPrefix(line, "#") {
