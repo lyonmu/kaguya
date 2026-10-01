@@ -20,7 +20,7 @@ const sseHeartbeatInterval = 15 * time.Second
 // @Summary 标题事件订阅（SSE）
 // @Description 只推送已提交的标题更新与任务状态事件，形如 {"type":"conversation.title.updated",...}。数据库是权威来源：断线重连后客户端应重新读取会话列表并补齐快照，不提供事件重放。每 15 秒发送 comment 心跳。
 // @Produce json
-// @Success 200 {object} dtocode.Response{code=number,data=dtochat.TitleEvent,message=string} "SSE 流式响应"
+// @Success 200 {object} dtocode.Response "SSE 流式响应，data 为 TitleEvent 事件"
 // @Router /v1/events [get]
 func (b *ChatApiV1Group) ChatEvents(c *gin.Context) {
 	subscription, unsubscribe, err := serviceagent.DefaultTitlePublisher.Subscribe()

@@ -241,7 +241,7 @@ Create / edit MCP service:
 Behavior:
 
 - New services are disabled by default; enabling connects and discovers tools, and enabled services are restored on restart.
-- An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor with exponential backoff (checked every 2 seconds, delays 1s, 2s, 4s… up to 60s); the status shows “正在自动重连” while retrying, and retries stop once the service is disabled or deleted.
+- An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor with exponential backoff (checked every 2 seconds, delays 1s, 2s, 4s… up to 60s). After five consecutive connection failures the circuit opens and automatic retries stop; the interface shows the open circuit and failure count, and “重新连接” starts a new cycle. Retries stop once the service is disabled or deleted.
 - Editing an enabled service validates the replacement connection first: on success it replaces the old connection, on failure the existing configuration is kept.
 - Enabled MCP tools are available to ordinary and project conversations from the next request; title tasks use no tools.
 - Disabling or deleting closes the connection and cancels in-flight MCP requests; external side effects already performed are not undone.
@@ -273,14 +273,14 @@ System configuration is a single form; saved values apply to newly issued reques
 | 命令超时（秒） | `120` / `1–86400` | Default and maximum Bash timeout; the model may request less |
 | 聊天最大重试次数 | `5` / `0–20` | Exponential backoff for transient model-service failures; never after content has been emitted |
 | 会话压缩比例（%） | `90` / `10–95` | Compaction threshold; the rest of the window is reserved for output |
-| 全局 AGENTS.md 路径 | `~/.config/agents/AGENTS.md`, `~/.codex/AGENTS.md` | Several absolute or `~/` paths read in order; clearing disables global instructions |
+| 全局 AGENTS.md 路径 | `~/.config/agents/AGENTS.md`, `~/.codex/AGENTS.md` | Several absolute or `~/` paths read in order; no limit on path count or content size; file changes are watched automatically; clearing disables global instructions |
 | 提供商目录同步地址 | `https://models.dev/api.json` | Must be a full HTTP(S) URL |
 | 模型目录同步地址 | `https://models.dev/models.json` | Must be a full HTTP(S) URL |
 | 定时同步目录 / 同步间隔（小时） | off / `1–720` | Manual “立即同步” or interval-based; one sync updates both catalogs; provider count, model count, and last success are shown |
 | 全局基础提示词 (base prompt) | built-in Kaguya persona | Base persona for new chats; may be empty; up to 20000 characters |
 | 附加系统提示词 (additional prompt) | empty | Appended after the base prompt; up to 20000 characters |
 
-The project root's `AGENTS.md` is included automatically (filenames are case-insensitive). Instructions are captured as a snapshot with the conversation's first successful turn and reused across restarts and compaction; changing instruction files or paths affects only new conversations. Global and project instructions share a 256 KiB limit.
+The project root's `AGENTS.md` is included automatically (filenames are case-insensitive). Global instructions are watched and reloaded dynamically: each turn uses the current published version, file or path changes take effect on the next turn, and a failed reload keeps the last valid version; there is no application-level limit on path count or content size. Project instructions are frozen as a snapshot on the conversation's first successful turn and reused across restarts and compaction. Merged snapshots stored by older versions are never split silently: the interface shows a prompt and can upgrade them explicitly, archiving the old text and freezing the current project instructions.
 
 The interface also offers theme switching and sidebar collapse (see [1. Interface overview](#1-interface-overview)).
 
@@ -311,7 +311,7 @@ Accounting rules: input includes cache writes, output excludes reasoning, and th
 
 ### 7.2 Title generation
 
-Conversation titles are generated automatically by the background-task model after the first turn; the task is independent of the chat context and chat usage, and title failures never affect the conversation.
+Conversation titles are generated automatically by the background-task model after the first turn; the task is independent of the chat context and chat usage, and title failures never affect the conversation. Jobs enter a persistent FIFO queue and run one at a time, so they are never skipped because the worker is busy; the title write and its conversation revision commit in one transaction, after which a title event is pushed over `GET /v1/events` so the front end can update lists and the active session. The wait endpoint waits up to 30 seconds and otherwise returns the current title plus the job status.
 
 ### 7.3 Context compaction
 
@@ -333,7 +333,7 @@ Conversation titles are generated automatically by the background-task model aft
 - HTTP requests stay same-origin with the configured URL; cross-origin redirects and HTTPS downgrade are refused.
 - Lists and logs never return environment variables or auth headers; the edit dialog shows stored values so they can be changed, and they are never written to logs.
 - New configurations start disabled; editing an enabled service validates the replacement connection first; disabling or deleting closes the connection and cancels requests.
-- An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor: exponential backoff of 1s, 2s, 4s… checked every 2 seconds, capped at 60s; retries stop once the service is disabled or deleted.
+- An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor: exponential backoff of 1s, 2s, 4s… checked every 2 seconds, capped at 60s. After five consecutive failures the circuit opens and automatic retries stop, and the open circuit survives a restart; “重新连接” starts a new cycle manually. Retries stop once the service is disabled or deleted.
 
 ### 7.6 Model requests
 

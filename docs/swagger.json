@@ -238,6 +238,44 @@
                 }
             }
         },
+        "/v1/chat/conversation/{id}/instructions/upgrade": {
+            "post": {
+                "description": "仅旧项目会话需要；运行中的会话返回 102002，下一轮生效。旧 agent_instructions 保留为归档不再参与上下文。",
+                "tags": [
+                    "Chat History"
+                ],
+                "summary": "将旧合并指令快照升级为 split（归档旧文本并冻结当前项目指令）",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ConversationResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/chat/conversation/{id}/stop": {
             "post": {
                 "description": "记录指定会话当前轮次是用户主动停止，使落库状态区分为 canceled 而不是断联的 interrupted。没有运行轮次时为幂等空操作；取消本身仍由客户端断开流式连接完成。",
@@ -499,6 +537,26 @@
                                     }
                                 }
                             ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/events": {
+            "get": {
+                "description": "只推送已提交的标题更新与任务状态事件，形如 {\"type\":\"conversation.title.updated\",...}。数据库是权威来源：断线重连后客户端应重新读取会话列表并补齐快照，不提供事件重放。每 15 秒发送 comment 心跳。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "标题事件订阅（SSE）",
+                "responses": {
+                    "200": {
+                        "description": "SSE 流式响应，data 为 TitleEvent 事件",
+                        "schema": {
+                            "$ref": "#/definitions/code.Response"
                         }
                     }
                 }
@@ -1810,6 +1868,46 @@
                 }
             }
         },
+        "/v1/system/info/agents-paths": {
+            "put": {
+                "description": "路径顺序即读取顺序；空数组表示不读取任何全局指令。保存后由指令 Manager 重建监听并原子发布新版本。",
+                "tags": [
+                    "System Info"
+                ],
+                "summary": "保存全局 AGENTS.md 路径列表（不受通用请求体大小限制）",
+                "parameters": [
+                    {
+                        "description": "路径列表",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.AgentsPathsReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemInfoResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/system/mcp": {
             "post": {
                 "tags": [
@@ -1996,6 +2094,44 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/code.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/system/mcp/{id}/reconnect": {
+            "post": {
+                "description": "只对已启用服务有效；熔断打开后仍可手动开启新周期。同一服务的并发重连返回忙碌。",
+                "tags": [
+                    "System MCP"
+                ],
+                "summary": "手动重连已启用的 MCP 服务；开启新周期并立即尝试一次连接",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MCP ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.SystemMCPResp"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -2915,9 +3051,6 @@
                     "description": "创建时间时间戳",
                     "type": "integer"
                 },
-                "err": {
-                    "description": "错误信息"
-                },
                 "finish_reason": {
                     "description": "stop 或 step_limit（已保存，可继续）",
                     "type": "string"
@@ -2933,6 +3066,10 @@
                 "model_name": {
                     "description": "模型名称",
                     "type": "string"
+                },
+                "seq": {
+                    "description": "轮内发帧序号，由 TurnEmitter 串行分配",
+                    "type": "integer"
                 },
                 "usage": {
                     "description": "token 使用信息",
@@ -3049,6 +3186,14 @@
                 "id": {
                     "type": "string"
                 },
+                "instructions_format": {
+                    "description": "split：动态全局+冻结项目；legacy：旧合并快照",
+                    "type": "string"
+                },
+                "instructions_legacy": {
+                    "description": "旧项目会话仍使用不可拆解快照，需显式升级",
+                    "type": "boolean"
+                },
                 "is_project": {
                     "description": "根据 project_id 是否为空派生，不单独存储",
                     "type": "boolean"
@@ -3078,12 +3223,24 @@
                 "model_name": {
                     "type": "string"
                 },
+                "permission_mode": {
+                    "description": "full_approval/auto_approval/full_access",
+                    "type": "string"
+                },
                 "project_id": {
                     "type": "string"
                 },
                 "title": {
                     "description": "AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试",
                     "type": "string"
+                },
+                "title_job_status": {
+                    "description": "pending/running/succeeded/failed/canceled；无任务时为空",
+                    "type": "string"
+                },
+                "title_revision": {
+                    "description": "标题版本，事件按它只前进合并",
+                    "type": "integer"
                 },
                 "tool_calls": {
                     "type": "integer"
@@ -3105,6 +3262,14 @@
             "type": "object",
             "properties": {
                 "id": {
+                    "type": "string"
+                },
+                "revision": {
+                    "description": "与标题同时提交的 revision",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "标题任务状态；等待超时仍返回当前值",
                     "type": "string"
                 },
                 "title": {
@@ -3320,12 +3485,16 @@
         "chat.Usage": {
             "type": "object",
             "properties": {
+                "cache_creation_tokens": {
+                    "description": "缓存写入的 Token 数",
+                    "type": "integer"
+                },
                 "cached_tokens": {
-                    "description": "命中缓存的 Token 数",
+                    "description": "命中缓存的 Token 数（缓存读取）",
                     "type": "integer"
                 },
                 "input_tokens": {
-                    "description": "输入 Token 数。",
+                    "description": "输入 Token 数（不含缓存读写）",
                     "type": "integer"
                 },
                 "output_tokens": {
@@ -4674,6 +4843,37 @@
                 }
             }
         },
+        "system.AgentsPathsReq": {
+            "type": "object",
+            "properties": {
+                "paths": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "system.InstructionStatus": {
+            "type": "object",
+            "properties": {
+                "generation": {
+                    "type": "integer"
+                },
+                "hash": {
+                    "type": "string"
+                },
+                "last_error": {
+                    "type": "string"
+                },
+                "loaded_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
         "system.SystemInfoResp": {
             "type": "object",
             "properties": {
@@ -4710,6 +4910,9 @@
                 "global_system_prompt": {
                     "type": "string",
                     "maxLength": 20000
+                },
+                "instruction_status": {
+                    "$ref": "#/definitions/system.InstructionStatus"
                 },
                 "memory_auto_capture": {
                     "type": "boolean"
@@ -4874,8 +5077,14 @@
                         "type": "string"
                     }
                 },
+                "circuit_opened_at": {
+                    "type": "string"
+                },
                 "command": {
                     "type": "string"
+                },
+                "consecutive_failures": {
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -4901,6 +5110,16 @@
                 "name": {
                     "type": "string",
                     "maxLength": 100
+                },
+                "next_retry_at": {
+                    "type": "string"
+                },
+                "phase": {
+                    "description": "Phase 是细粒度状态：stopped/connecting/running/backoff/circuit_open；\n旧 state 字段保持 running/stopped/error 兼容。",
+                    "type": "string"
+                },
+                "reconnect_cycle": {
+                    "type": "integer"
                 },
                 "status": {
                     "$ref": "#/definitions/mcp.Status"
