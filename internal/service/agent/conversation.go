@@ -403,6 +403,32 @@ func conversationResp(row *ent.KaguyaConversation) dtochat.ConversationResp {
 		DurationMS: row.DurationMs, ToolCalls: row.ToolCalls,
 		Usage: dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)}}
 }
+
+// attachTitleJobStatus 用一次批量查询补齐列表/详情的标题任务状态；无任务保持为空。
+func attachTitleJobStatus(ctx context.Context, items []dtochat.ConversationResp) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	jobs, err := db.EntClient.KaguyaTitleJob.Query().
+		Where(kaguyatitlejob.ConversationIDIn(ids...)).
+		Select(kaguyatitlejob.FieldConversationID, kaguyatitlejob.FieldStatus).All(ctx)
+	if err != nil {
+		return err
+	}
+	status := make(map[string]string, len(jobs))
+	for _, job := range jobs {
+		status[job.ConversationID] = string(job.Status)
+	}
+	for index := range items {
+		items[index].TitleJobStatus = status[items[index].ID]
+	}
+	return nil
+}
+
 func (s *AgentSvc) ConversationPage(ctx context.Context, req *dtochat.ConversationPageReq) (*dtochat.ConversationListResp, error) {
 	q := db.EntClient.KaguyaConversation.Query().Where(kaguyaconversation.DeletedAtIsNil())
 	if req.ProjectID != "" {
@@ -437,6 +463,9 @@ func (s *AgentSvc) ConversationPage(ctx context.Context, req *dtochat.Conversati
 	for _, row := range rows {
 		resp.Items = append(resp.Items, conversationResp(row))
 	}
+	if err := attachTitleJobStatus(ctx, resp.Items); err != nil {
+		return nil, err
+	}
 	return resp, nil
 }
 func (s *AgentSvc) ConversationDetail(ctx context.Context, id string) (*dtochat.ConversationResp, error) {
@@ -458,7 +487,11 @@ func (s *AgentSvc) ConversationDetail(ctx context.Context, id string) (*dtochat.
 		return nil, err
 	}
 	resp.MemoryRefs = refs
-	return &resp, nil
+	items := []dtochat.ConversationResp{resp}
+	if err := attachTitleJobStatus(ctx, items); err != nil {
+		return nil, err
+	}
+	return &items[0], nil
 }
 
 // lastTurnMemoryRefs 解析最近一轮的召回引用；已删除页面显示“已删除”，
