@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// KaguyaApproval is the predicate function for kaguyaapproval builders.
+type KaguyaApproval func(*sql.Selector)
+
 // KaguyaChatBlock is the predicate function for kaguyachatblock builders.
 type KaguyaChatBlock func(*sql.Selector)
 
@@ -56,3 +59,6 @@ type KaguyaSystemInfo func(*sql.Selector)
 
 // KaguyaTaskUsage is the predicate function for kaguyataskusage builders.
 type KaguyaTaskUsage func(*sql.Selector)
+
+// KaguyaTitleJob is the predicate function for kaguyatitlejob builders.
+type KaguyaTitleJob func(*sql.Selector)

@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
@@ -489,6 +490,87 @@ func (_u *KaguyaChatTurnUpdate) ClearMemoryRefs() *KaguyaChatTurnUpdate {
 	return _u
 }
 
+// SetPermissionMode sets the "permission_mode" field.
+func (_u *KaguyaChatTurnUpdate) SetPermissionMode(v kaguyachatturn.PermissionMode) *KaguyaChatTurnUpdate {
+	_u.mutation.SetPermissionMode(v)
+	return _u
+}
+
+// SetNillablePermissionMode sets the "permission_mode" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillablePermissionMode(v *kaguyachatturn.PermissionMode) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetPermissionMode(*v)
+	}
+	return _u
+}
+
+// SetGlobalInstructionHash sets the "global_instruction_hash" field.
+func (_u *KaguyaChatTurnUpdate) SetGlobalInstructionHash(v string) *KaguyaChatTurnUpdate {
+	_u.mutation.SetGlobalInstructionHash(v)
+	return _u
+}
+
+// SetNillableGlobalInstructionHash sets the "global_instruction_hash" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableGlobalInstructionHash(v *string) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetGlobalInstructionHash(*v)
+	}
+	return _u
+}
+
+// ClearGlobalInstructionHash clears the value of the "global_instruction_hash" field.
+func (_u *KaguyaChatTurnUpdate) ClearGlobalInstructionHash() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearGlobalInstructionHash()
+	return _u
+}
+
+// SetGlobalInstructionVersion sets the "global_instruction_version" field.
+func (_u *KaguyaChatTurnUpdate) SetGlobalInstructionVersion(v int64) *KaguyaChatTurnUpdate {
+	_u.mutation.ResetGlobalInstructionVersion()
+	_u.mutation.SetGlobalInstructionVersion(v)
+	return _u
+}
+
+// SetNillableGlobalInstructionVersion sets the "global_instruction_version" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableGlobalInstructionVersion(v *int64) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetGlobalInstructionVersion(*v)
+	}
+	return _u
+}
+
+// AddGlobalInstructionVersion adds value to the "global_instruction_version" field.
+func (_u *KaguyaChatTurnUpdate) AddGlobalInstructionVersion(v int64) *KaguyaChatTurnUpdate {
+	_u.mutation.AddGlobalInstructionVersion(v)
+	return _u
+}
+
+// ClearGlobalInstructionVersion clears the value of the "global_instruction_version" field.
+func (_u *KaguyaChatTurnUpdate) ClearGlobalInstructionVersion() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearGlobalInstructionVersion()
+	return _u
+}
+
+// SetReferenceSummary sets the "reference_summary" field.
+func (_u *KaguyaChatTurnUpdate) SetReferenceSummary(v chat.TurnReferenceSummary) *KaguyaChatTurnUpdate {
+	_u.mutation.SetReferenceSummary(v)
+	return _u
+}
+
+// SetNillableReferenceSummary sets the "reference_summary" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableReferenceSummary(v *chat.TurnReferenceSummary) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetReferenceSummary(*v)
+	}
+	return _u
+}
+
+// ClearReferenceSummary clears the value of the "reference_summary" field.
+func (_u *KaguyaChatTurnUpdate) ClearReferenceSummary() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearReferenceSummary()
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdate) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdate {
 	_u.mutation.SetMessages(v)
@@ -662,6 +744,16 @@ func (_u *KaguyaChatTurnUpdate) check() error {
 			return &ValidationError{Name: "compaction_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.compaction_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PermissionMode(); ok {
+		if err := kaguyachatturn.PermissionModeValidator(v); err != nil {
+			return &ValidationError{Name: "permission_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.permission_mode": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.GlobalInstructionVersion(); ok {
+		if err := kaguyachatturn.GlobalInstructionVersionValidator(v); err != nil {
+			return &ValidationError{Name: "global_instruction_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.global_instruction_version": %w`, err)}
+		}
+	}
 	if _u.mutation.ConversationCleared() && len(_u.mutation.ConversationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaChatTurn.conversation"`)
 	}
@@ -810,6 +902,30 @@ func (_u *KaguyaChatTurnUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.MemoryRefsCleared() {
 		_spec.ClearField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.PermissionMode(); ok {
+		_spec.SetField(kaguyachatturn.FieldPermissionMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.GlobalInstructionHash(); ok {
+		_spec.SetField(kaguyachatturn.FieldGlobalInstructionHash, field.TypeString, value)
+	}
+	if _u.mutation.GlobalInstructionHashCleared() {
+		_spec.ClearField(kaguyachatturn.FieldGlobalInstructionHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.GlobalInstructionVersion(); ok {
+		_spec.SetField(kaguyachatturn.FieldGlobalInstructionVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGlobalInstructionVersion(); ok {
+		_spec.AddField(kaguyachatturn.FieldGlobalInstructionVersion, field.TypeInt64, value)
+	}
+	if _u.mutation.GlobalInstructionVersionCleared() {
+		_spec.ClearField(kaguyachatturn.FieldGlobalInstructionVersion, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ReferenceSummary(); ok {
+		_spec.SetField(kaguyachatturn.FieldReferenceSummary, field.TypeJSON, value)
+	}
+	if _u.mutation.ReferenceSummaryCleared() {
+		_spec.ClearField(kaguyachatturn.FieldReferenceSummary, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -1370,6 +1486,87 @@ func (_u *KaguyaChatTurnUpdateOne) ClearMemoryRefs() *KaguyaChatTurnUpdateOne {
 	return _u
 }
 
+// SetPermissionMode sets the "permission_mode" field.
+func (_u *KaguyaChatTurnUpdateOne) SetPermissionMode(v kaguyachatturn.PermissionMode) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetPermissionMode(v)
+	return _u
+}
+
+// SetNillablePermissionMode sets the "permission_mode" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillablePermissionMode(v *kaguyachatturn.PermissionMode) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetPermissionMode(*v)
+	}
+	return _u
+}
+
+// SetGlobalInstructionHash sets the "global_instruction_hash" field.
+func (_u *KaguyaChatTurnUpdateOne) SetGlobalInstructionHash(v string) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetGlobalInstructionHash(v)
+	return _u
+}
+
+// SetNillableGlobalInstructionHash sets the "global_instruction_hash" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableGlobalInstructionHash(v *string) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetGlobalInstructionHash(*v)
+	}
+	return _u
+}
+
+// ClearGlobalInstructionHash clears the value of the "global_instruction_hash" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearGlobalInstructionHash() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearGlobalInstructionHash()
+	return _u
+}
+
+// SetGlobalInstructionVersion sets the "global_instruction_version" field.
+func (_u *KaguyaChatTurnUpdateOne) SetGlobalInstructionVersion(v int64) *KaguyaChatTurnUpdateOne {
+	_u.mutation.ResetGlobalInstructionVersion()
+	_u.mutation.SetGlobalInstructionVersion(v)
+	return _u
+}
+
+// SetNillableGlobalInstructionVersion sets the "global_instruction_version" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableGlobalInstructionVersion(v *int64) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetGlobalInstructionVersion(*v)
+	}
+	return _u
+}
+
+// AddGlobalInstructionVersion adds value to the "global_instruction_version" field.
+func (_u *KaguyaChatTurnUpdateOne) AddGlobalInstructionVersion(v int64) *KaguyaChatTurnUpdateOne {
+	_u.mutation.AddGlobalInstructionVersion(v)
+	return _u
+}
+
+// ClearGlobalInstructionVersion clears the value of the "global_instruction_version" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearGlobalInstructionVersion() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearGlobalInstructionVersion()
+	return _u
+}
+
+// SetReferenceSummary sets the "reference_summary" field.
+func (_u *KaguyaChatTurnUpdateOne) SetReferenceSummary(v chat.TurnReferenceSummary) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetReferenceSummary(v)
+	return _u
+}
+
+// SetNillableReferenceSummary sets the "reference_summary" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableReferenceSummary(v *chat.TurnReferenceSummary) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetReferenceSummary(*v)
+	}
+	return _u
+}
+
+// ClearReferenceSummary clears the value of the "reference_summary" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearReferenceSummary() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearReferenceSummary()
+	return _u
+}
+
 // SetMessages sets the "messages" field.
 func (_u *KaguyaChatTurnUpdateOne) SetMessages(v []fantasy.Message) *KaguyaChatTurnUpdateOne {
 	_u.mutation.SetMessages(v)
@@ -1556,6 +1753,16 @@ func (_u *KaguyaChatTurnUpdateOne) check() error {
 			return &ValidationError{Name: "compaction_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.compaction_count": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PermissionMode(); ok {
+		if err := kaguyachatturn.PermissionModeValidator(v); err != nil {
+			return &ValidationError{Name: "permission_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.permission_mode": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.GlobalInstructionVersion(); ok {
+		if err := kaguyachatturn.GlobalInstructionVersionValidator(v); err != nil {
+			return &ValidationError{Name: "global_instruction_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.global_instruction_version": %w`, err)}
+		}
+	}
 	if _u.mutation.ConversationCleared() && len(_u.mutation.ConversationIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "KaguyaChatTurn.conversation"`)
 	}
@@ -1721,6 +1928,30 @@ func (_u *KaguyaChatTurnUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaCh
 	}
 	if _u.mutation.MemoryRefsCleared() {
 		_spec.ClearField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.PermissionMode(); ok {
+		_spec.SetField(kaguyachatturn.FieldPermissionMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.GlobalInstructionHash(); ok {
+		_spec.SetField(kaguyachatturn.FieldGlobalInstructionHash, field.TypeString, value)
+	}
+	if _u.mutation.GlobalInstructionHashCleared() {
+		_spec.ClearField(kaguyachatturn.FieldGlobalInstructionHash, field.TypeString)
+	}
+	if value, ok := _u.mutation.GlobalInstructionVersion(); ok {
+		_spec.SetField(kaguyachatturn.FieldGlobalInstructionVersion, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedGlobalInstructionVersion(); ok {
+		_spec.AddField(kaguyachatturn.FieldGlobalInstructionVersion, field.TypeInt64, value)
+	}
+	if _u.mutation.GlobalInstructionVersionCleared() {
+		_spec.ClearField(kaguyachatturn.FieldGlobalInstructionVersion, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.ReferenceSummary(); ok {
+		_spec.SetField(kaguyachatturn.FieldReferenceSummary, field.TypeJSON, value)
+	}
+	if _u.mutation.ReferenceSummaryCleared() {
+		_spec.ClearField(kaguyachatturn.FieldReferenceSummary, field.TypeJSON)
 	}
 	if value, ok := _u.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)

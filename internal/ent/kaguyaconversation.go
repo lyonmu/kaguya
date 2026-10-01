@@ -29,8 +29,16 @@ type KaguyaConversation struct {
 	Title string `json:"title,omitempty"`
 	// ProjectID holds the value of the "project_id" field.
 	ProjectID *string `json:"project_id,omitempty"`
-	// 会话首次成功轮次保存的全局及项目指令快照；NULL 表示尚未加载
+	// 旧版合并指令快照：split 会话中仅作归档，legacy 会话仍可读取
 	AgentInstructions *string `json:"-"`
+	// split 模式下冻结的项目指令；NULL 表示尚未冻结，空字符串表示冻结为空
+	ProjectInstructions *string `json:"-"`
+	// legacy 保留旧合并快照；新会话显式 split，动态全局加冻结项目
+	InstructionsFormat kaguyaconversation.InstructionsFormat `json:"instructions_format,omitempty"`
+	// 会话级工具权限模式；未知值拒绝，旧行按兼容默认
+	PermissionMode kaguyaconversation.PermissionMode `json:"permission_mode,omitempty"`
+	// 标题版本：自动生成与手动改名同事务递增，事件携带该值防止延迟覆盖
+	TitleRevision int64 `json:"title_revision,omitempty"`
 	// Favorite holds the value of the "favorite" field.
 	Favorite bool `json:"favorite,omitempty"`
 	// 会话记忆模式：继承全局 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史
@@ -67,11 +75,13 @@ type KaguyaConversation struct {
 type KaguyaConversationEdges struct {
 	// Turns holds the value of the turns edge.
 	Turns []*KaguyaChatTurn `json:"turns,omitempty"`
+	// TitleJobs holds the value of the title_jobs edge.
+	TitleJobs []*KaguyaTitleJob `json:"title_jobs,omitempty"`
 	// Project holds the value of the project edge.
 	Project *KaguyaProject `json:"project,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // TurnsOrErr returns the Turns value or an error if the edge
@@ -83,12 +93,21 @@ func (e KaguyaConversationEdges) TurnsOrErr() ([]*KaguyaChatTurn, error) {
 	return nil, &NotLoadedError{edge: "turns"}
 }
 
+// TitleJobsOrErr returns the TitleJobs value or an error if the edge
+// was not loaded in eager-loading.
+func (e KaguyaConversationEdges) TitleJobsOrErr() ([]*KaguyaTitleJob, error) {
+	if e.loadedTypes[1] {
+		return e.TitleJobs, nil
+	}
+	return nil, &NotLoadedError{edge: "title_jobs"}
+}
+
 // ProjectOrErr returns the Project value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e KaguyaConversationEdges) ProjectOrErr() (*KaguyaProject, error) {
 	if e.Project != nil {
 		return e.Project, nil
-	} else if e.loadedTypes[1] {
+	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: kaguyaproject.Label}
 	}
 	return nil, &NotLoadedError{edge: "project"}
@@ -101,9 +120,9 @@ func (*KaguyaConversation) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyaconversation.FieldFavorite:
 			values[i] = new(sql.NullBool)
-		case kaguyaconversation.FieldTurnCount, kaguyaconversation.FieldDurationMs, kaguyaconversation.FieldToolCalls, kaguyaconversation.FieldInputTokens, kaguyaconversation.FieldOutputTokens, kaguyaconversation.FieldTotalTokens, kaguyaconversation.FieldCachedTokens, kaguyaconversation.FieldReasoningTokens:
+		case kaguyaconversation.FieldTitleRevision, kaguyaconversation.FieldTurnCount, kaguyaconversation.FieldDurationMs, kaguyaconversation.FieldToolCalls, kaguyaconversation.FieldInputTokens, kaguyaconversation.FieldOutputTokens, kaguyaconversation.FieldTotalTokens, kaguyaconversation.FieldCachedTokens, kaguyaconversation.FieldReasoningTokens:
 			values[i] = new(sql.NullInt64)
-		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldProjectID, kaguyaconversation.FieldAgentInstructions, kaguyaconversation.FieldMemoryMode, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
+		case kaguyaconversation.FieldID, kaguyaconversation.FieldTitle, kaguyaconversation.FieldProjectID, kaguyaconversation.FieldAgentInstructions, kaguyaconversation.FieldProjectInstructions, kaguyaconversation.FieldInstructionsFormat, kaguyaconversation.FieldPermissionMode, kaguyaconversation.FieldMemoryMode, kaguyaconversation.FieldModelID, kaguyaconversation.FieldModelName:
 			values[i] = new(sql.NullString)
 		case kaguyaconversation.FieldCreatedAt, kaguyaconversation.FieldUpdatedAt, kaguyaconversation.FieldDeletedAt, kaguyaconversation.FieldLastMessageAt:
 			values[i] = new(sql.NullTime)
@@ -166,6 +185,31 @@ func (_m *KaguyaConversation) assignValues(columns []string, values []any) error
 			} else if value.Valid {
 				_m.AgentInstructions = new(string)
 				*_m.AgentInstructions = value.String
+			}
+		case kaguyaconversation.FieldProjectInstructions:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field project_instructions", values[i])
+			} else if value.Valid {
+				_m.ProjectInstructions = new(string)
+				*_m.ProjectInstructions = value.String
+			}
+		case kaguyaconversation.FieldInstructionsFormat:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field instructions_format", values[i])
+			} else if value.Valid {
+				_m.InstructionsFormat = kaguyaconversation.InstructionsFormat(value.String)
+			}
+		case kaguyaconversation.FieldPermissionMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field permission_mode", values[i])
+			} else if value.Valid {
+				_m.PermissionMode = kaguyaconversation.PermissionMode(value.String)
+			}
+		case kaguyaconversation.FieldTitleRevision:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field title_revision", values[i])
+			} else if value.Valid {
+				_m.TitleRevision = value.Int64
 			}
 		case kaguyaconversation.FieldFavorite:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -263,6 +307,11 @@ func (_m *KaguyaConversation) QueryTurns() *KaguyaChatTurnQuery {
 	return NewKaguyaConversationClient(_m.config).QueryTurns(_m)
 }
 
+// QueryTitleJobs queries the "title_jobs" edge of the KaguyaConversation entity.
+func (_m *KaguyaConversation) QueryTitleJobs() *KaguyaTitleJobQuery {
+	return NewKaguyaConversationClient(_m.config).QueryTitleJobs(_m)
+}
+
 // QueryProject queries the "project" edge of the KaguyaConversation entity.
 func (_m *KaguyaConversation) QueryProject() *KaguyaProjectQuery {
 	return NewKaguyaConversationClient(_m.config).QueryProject(_m)
@@ -311,6 +360,17 @@ func (_m *KaguyaConversation) String() string {
 	}
 	builder.WriteString(", ")
 	builder.WriteString("agent_instructions=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("project_instructions=<sensitive>")
+	builder.WriteString(", ")
+	builder.WriteString("instructions_format=")
+	builder.WriteString(fmt.Sprintf("%v", _m.InstructionsFormat))
+	builder.WriteString(", ")
+	builder.WriteString("permission_mode=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PermissionMode))
+	builder.WriteString(", ")
+	builder.WriteString("title_revision=")
+	builder.WriteString(fmt.Sprintf("%v", _m.TitleRevision))
 	builder.WriteString(", ")
 	builder.WriteString("favorite=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Favorite))

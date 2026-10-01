@@ -185,6 +185,16 @@ func CompactionCount(v int) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCompactionCount, v))
 }
 
+// GlobalInstructionHash applies equality check predicate on the "global_instruction_hash" field. It's identical to GlobalInstructionHashEQ.
+func GlobalInstructionHash(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionVersion applies equality check predicate on the "global_instruction_version" field. It's identical to GlobalInstructionVersionEQ.
+func GlobalInstructionVersion(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldGlobalInstructionVersion, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCreatedAt, v))
@@ -1403,6 +1413,161 @@ func MemoryRefsIsNil() predicate.KaguyaChatTurn {
 // MemoryRefsNotNil applies the NotNil predicate on the "memory_refs" field.
 func MemoryRefsNotNil() predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldMemoryRefs))
+}
+
+// PermissionModeEQ applies the EQ predicate on the "permission_mode" field.
+func PermissionModeEQ(v PermissionMode) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldPermissionMode, v))
+}
+
+// PermissionModeNEQ applies the NEQ predicate on the "permission_mode" field.
+func PermissionModeNEQ(v PermissionMode) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldPermissionMode, v))
+}
+
+// PermissionModeIn applies the In predicate on the "permission_mode" field.
+func PermissionModeIn(vs ...PermissionMode) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldPermissionMode, vs...))
+}
+
+// PermissionModeNotIn applies the NotIn predicate on the "permission_mode" field.
+func PermissionModeNotIn(vs ...PermissionMode) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldPermissionMode, vs...))
+}
+
+// GlobalInstructionHashEQ applies the EQ predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashEQ(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashNEQ applies the NEQ predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashNEQ(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashIn applies the In predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashIn(vs ...string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldGlobalInstructionHash, vs...))
+}
+
+// GlobalInstructionHashNotIn applies the NotIn predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashNotIn(vs ...string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldGlobalInstructionHash, vs...))
+}
+
+// GlobalInstructionHashGT applies the GT predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashGT(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashGTE applies the GTE predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashGTE(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashLT applies the LT predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashLT(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashLTE applies the LTE predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashLTE(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashContains applies the Contains predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashContains(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldContains(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashHasPrefix applies the HasPrefix predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashHasPrefix(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldHasPrefix(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashHasSuffix applies the HasSuffix predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashHasSuffix(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldHasSuffix(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashIsNil applies the IsNil predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldGlobalInstructionHash))
+}
+
+// GlobalInstructionHashNotNil applies the NotNil predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldGlobalInstructionHash))
+}
+
+// GlobalInstructionHashEqualFold applies the EqualFold predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashEqualFold(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEqualFold(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionHashContainsFold applies the ContainsFold predicate on the "global_instruction_hash" field.
+func GlobalInstructionHashContainsFold(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldContainsFold(FieldGlobalInstructionHash, v))
+}
+
+// GlobalInstructionVersionEQ applies the EQ predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionEQ(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldGlobalInstructionVersion, v))
+}
+
+// GlobalInstructionVersionNEQ applies the NEQ predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionNEQ(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldGlobalInstructionVersion, v))
+}
+
+// GlobalInstructionVersionIn applies the In predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionIn(vs ...int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldGlobalInstructionVersion, vs...))
+}
+
+// GlobalInstructionVersionNotIn applies the NotIn predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionNotIn(vs ...int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldGlobalInstructionVersion, vs...))
+}
+
+// GlobalInstructionVersionGT applies the GT predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionGT(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldGlobalInstructionVersion, v))
+}
+
+// GlobalInstructionVersionGTE applies the GTE predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionGTE(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldGlobalInstructionVersion, v))
+}
+
+// GlobalInstructionVersionLT applies the LT predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionLT(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldGlobalInstructionVersion, v))
+}
+
+// GlobalInstructionVersionLTE applies the LTE predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionLTE(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldGlobalInstructionVersion, v))
+}
+
+// GlobalInstructionVersionIsNil applies the IsNil predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldGlobalInstructionVersion))
+}
+
+// GlobalInstructionVersionNotNil applies the NotNil predicate on the "global_instruction_version" field.
+func GlobalInstructionVersionNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldGlobalInstructionVersion))
+}
+
+// ReferenceSummaryIsNil applies the IsNil predicate on the "reference_summary" field.
+func ReferenceSummaryIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldReferenceSummary))
+}
+
+// ReferenceSummaryNotNil applies the NotNil predicate on the "reference_summary" field.
+func ReferenceSummaryNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldReferenceSummary))
 }
 
 // HasConversation applies the HasEdge predicate on the "conversation" edge.

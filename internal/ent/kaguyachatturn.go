@@ -11,6 +11,7 @@ import (
 	"charm.land/fantasy"
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
@@ -76,6 +77,14 @@ type KaguyaChatTurn struct {
 	CompactionCount int `json:"compaction_count,omitempty"`
 	// 本轮自动召回选择的页面版本与检索器版本；不复制正文，失败轮次为空
 	MemoryRefs memory.TurnMemorySelection `json:"memory_refs,omitempty"`
+	// 本轮实际使用的权限模式；旧记录按兼容默认，不代表过去审批过
+	PermissionMode kaguyachatturn.PermissionMode `json:"permission_mode,omitempty"`
+	// 本轮动态全局指令内容哈希；只用于排障，不是全文归档
+	GlobalInstructionHash *string `json:"global_instruction_hash,omitempty"`
+	// 本轮全局指令版本；进程内单调递增，跨重启只保证哈希可比
+	GlobalInstructionVersion *int64 `json:"global_instruction_version,omitempty"`
+	// 本轮引用选择与包含范围摘要；不保存第二份正文
+	ReferenceSummary chat.TurnReferenceSummary `json:"reference_summary,omitempty"`
 	// 仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端
 	Messages []fantasy.Message `json:"messages,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -120,11 +129,11 @@ func (*KaguyaChatTurn) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldMemoryRefs, kaguyachatturn.FieldMessages:
+		case kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldMemoryRefs, kaguyachatturn.FieldReferenceSummary, kaguyachatturn.FieldMessages:
 			values[i] = new([]byte)
-		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow, kaguyachatturn.FieldCompactionCount:
+		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow, kaguyachatturn.FieldCompactionCount, kaguyachatturn.FieldGlobalInstructionVersion:
 			values[i] = new(sql.NullInt64)
-		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldStatus, kaguyachatturn.FieldFinishReason:
+		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldStatus, kaguyachatturn.FieldFinishReason, kaguyachatturn.FieldPermissionMode, kaguyachatturn.FieldGlobalInstructionHash:
 			values[i] = new(sql.NullString)
 		case kaguyachatturn.FieldCreatedAt, kaguyachatturn.FieldUpdatedAt, kaguyachatturn.FieldDeletedAt, kaguyachatturn.FieldStartedAt, kaguyachatturn.FieldFinishedAt:
 			values[i] = new(sql.NullTime)
@@ -317,6 +326,34 @@ func (_m *KaguyaChatTurn) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field memory_refs: %w", err)
 				}
 			}
+		case kaguyachatturn.FieldPermissionMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field permission_mode", values[i])
+			} else if value.Valid {
+				_m.PermissionMode = kaguyachatturn.PermissionMode(value.String)
+			}
+		case kaguyachatturn.FieldGlobalInstructionHash:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field global_instruction_hash", values[i])
+			} else if value.Valid {
+				_m.GlobalInstructionHash = new(string)
+				*_m.GlobalInstructionHash = value.String
+			}
+		case kaguyachatturn.FieldGlobalInstructionVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field global_instruction_version", values[i])
+			} else if value.Valid {
+				_m.GlobalInstructionVersion = new(int64)
+				*_m.GlobalInstructionVersion = value.Int64
+			}
+		case kaguyachatturn.FieldReferenceSummary:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field reference_summary", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.ReferenceSummary); err != nil {
+					return fmt.Errorf("unmarshal field reference_summary: %w", err)
+				}
+			}
 		case kaguyachatturn.FieldMessages:
 			if value, ok := values[i].(*[]byte); !ok {
 				return fmt.Errorf("unexpected type %T for field messages", values[i])
@@ -455,6 +492,22 @@ func (_m *KaguyaChatTurn) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("memory_refs=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MemoryRefs))
+	builder.WriteString(", ")
+	builder.WriteString("permission_mode=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PermissionMode))
+	builder.WriteString(", ")
+	if v := _m.GlobalInstructionHash; v != nil {
+		builder.WriteString("global_instruction_hash=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.GlobalInstructionVersion; v != nil {
+		builder.WriteString("global_instruction_version=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("reference_summary=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReferenceSummary))
 	builder.WriteString(", ")
 	builder.WriteString("messages=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Messages))

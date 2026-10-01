@@ -109,6 +109,31 @@ func Enabled(v bool) predicate.KaguyaMCPServer {
 	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldEnabled, v))
 }
 
+// ReconnectFailures applies equality check predicate on the "reconnect_failures" field. It's identical to ReconnectFailuresEQ.
+func ReconnectFailures(v int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectFailures, v))
+}
+
+// ReconnectCircuitOpen applies equality check predicate on the "reconnect_circuit_open" field. It's identical to ReconnectCircuitOpenEQ.
+func ReconnectCircuitOpen(v bool) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectCircuitOpen, v))
+}
+
+// ReconnectCycle applies equality check predicate on the "reconnect_cycle" field. It's identical to ReconnectCycleEQ.
+func ReconnectCycle(v int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectCycle, v))
+}
+
+// ReconnectNextAt applies equality check predicate on the "reconnect_next_at" field. It's identical to ReconnectNextAtEQ.
+func ReconnectNextAt(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectNextAt, v))
+}
+
+// ReconnectOpenedAt applies equality check predicate on the "reconnect_opened_at" field. It's identical to ReconnectOpenedAtEQ.
+func ReconnectOpenedAt(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectOpenedAt, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.KaguyaMCPServer {
 	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldCreatedAt, v))
@@ -567,6 +592,196 @@ func EnabledEQ(v bool) predicate.KaguyaMCPServer {
 // EnabledNEQ applies the NEQ predicate on the "enabled" field.
 func EnabledNEQ(v bool) predicate.KaguyaMCPServer {
 	return predicate.KaguyaMCPServer(sql.FieldNEQ(FieldEnabled, v))
+}
+
+// ReconnectFailuresEQ applies the EQ predicate on the "reconnect_failures" field.
+func ReconnectFailuresEQ(v int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectFailures, v))
+}
+
+// ReconnectFailuresNEQ applies the NEQ predicate on the "reconnect_failures" field.
+func ReconnectFailuresNEQ(v int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNEQ(FieldReconnectFailures, v))
+}
+
+// ReconnectFailuresIn applies the In predicate on the "reconnect_failures" field.
+func ReconnectFailuresIn(vs ...int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldIn(FieldReconnectFailures, vs...))
+}
+
+// ReconnectFailuresNotIn applies the NotIn predicate on the "reconnect_failures" field.
+func ReconnectFailuresNotIn(vs ...int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNotIn(FieldReconnectFailures, vs...))
+}
+
+// ReconnectFailuresGT applies the GT predicate on the "reconnect_failures" field.
+func ReconnectFailuresGT(v int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGT(FieldReconnectFailures, v))
+}
+
+// ReconnectFailuresGTE applies the GTE predicate on the "reconnect_failures" field.
+func ReconnectFailuresGTE(v int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGTE(FieldReconnectFailures, v))
+}
+
+// ReconnectFailuresLT applies the LT predicate on the "reconnect_failures" field.
+func ReconnectFailuresLT(v int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLT(FieldReconnectFailures, v))
+}
+
+// ReconnectFailuresLTE applies the LTE predicate on the "reconnect_failures" field.
+func ReconnectFailuresLTE(v int) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLTE(FieldReconnectFailures, v))
+}
+
+// ReconnectCircuitOpenEQ applies the EQ predicate on the "reconnect_circuit_open" field.
+func ReconnectCircuitOpenEQ(v bool) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectCircuitOpen, v))
+}
+
+// ReconnectCircuitOpenNEQ applies the NEQ predicate on the "reconnect_circuit_open" field.
+func ReconnectCircuitOpenNEQ(v bool) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNEQ(FieldReconnectCircuitOpen, v))
+}
+
+// ReconnectCycleEQ applies the EQ predicate on the "reconnect_cycle" field.
+func ReconnectCycleEQ(v int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectCycle, v))
+}
+
+// ReconnectCycleNEQ applies the NEQ predicate on the "reconnect_cycle" field.
+func ReconnectCycleNEQ(v int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNEQ(FieldReconnectCycle, v))
+}
+
+// ReconnectCycleIn applies the In predicate on the "reconnect_cycle" field.
+func ReconnectCycleIn(vs ...int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldIn(FieldReconnectCycle, vs...))
+}
+
+// ReconnectCycleNotIn applies the NotIn predicate on the "reconnect_cycle" field.
+func ReconnectCycleNotIn(vs ...int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNotIn(FieldReconnectCycle, vs...))
+}
+
+// ReconnectCycleGT applies the GT predicate on the "reconnect_cycle" field.
+func ReconnectCycleGT(v int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGT(FieldReconnectCycle, v))
+}
+
+// ReconnectCycleGTE applies the GTE predicate on the "reconnect_cycle" field.
+func ReconnectCycleGTE(v int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGTE(FieldReconnectCycle, v))
+}
+
+// ReconnectCycleLT applies the LT predicate on the "reconnect_cycle" field.
+func ReconnectCycleLT(v int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLT(FieldReconnectCycle, v))
+}
+
+// ReconnectCycleLTE applies the LTE predicate on the "reconnect_cycle" field.
+func ReconnectCycleLTE(v int64) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLTE(FieldReconnectCycle, v))
+}
+
+// ReconnectNextAtEQ applies the EQ predicate on the "reconnect_next_at" field.
+func ReconnectNextAtEQ(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectNextAt, v))
+}
+
+// ReconnectNextAtNEQ applies the NEQ predicate on the "reconnect_next_at" field.
+func ReconnectNextAtNEQ(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNEQ(FieldReconnectNextAt, v))
+}
+
+// ReconnectNextAtIn applies the In predicate on the "reconnect_next_at" field.
+func ReconnectNextAtIn(vs ...time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldIn(FieldReconnectNextAt, vs...))
+}
+
+// ReconnectNextAtNotIn applies the NotIn predicate on the "reconnect_next_at" field.
+func ReconnectNextAtNotIn(vs ...time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNotIn(FieldReconnectNextAt, vs...))
+}
+
+// ReconnectNextAtGT applies the GT predicate on the "reconnect_next_at" field.
+func ReconnectNextAtGT(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGT(FieldReconnectNextAt, v))
+}
+
+// ReconnectNextAtGTE applies the GTE predicate on the "reconnect_next_at" field.
+func ReconnectNextAtGTE(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGTE(FieldReconnectNextAt, v))
+}
+
+// ReconnectNextAtLT applies the LT predicate on the "reconnect_next_at" field.
+func ReconnectNextAtLT(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLT(FieldReconnectNextAt, v))
+}
+
+// ReconnectNextAtLTE applies the LTE predicate on the "reconnect_next_at" field.
+func ReconnectNextAtLTE(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLTE(FieldReconnectNextAt, v))
+}
+
+// ReconnectNextAtIsNil applies the IsNil predicate on the "reconnect_next_at" field.
+func ReconnectNextAtIsNil() predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldIsNull(FieldReconnectNextAt))
+}
+
+// ReconnectNextAtNotNil applies the NotNil predicate on the "reconnect_next_at" field.
+func ReconnectNextAtNotNil() predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNotNull(FieldReconnectNextAt))
+}
+
+// ReconnectOpenedAtEQ applies the EQ predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtEQ(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldEQ(FieldReconnectOpenedAt, v))
+}
+
+// ReconnectOpenedAtNEQ applies the NEQ predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtNEQ(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNEQ(FieldReconnectOpenedAt, v))
+}
+
+// ReconnectOpenedAtIn applies the In predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtIn(vs ...time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldIn(FieldReconnectOpenedAt, vs...))
+}
+
+// ReconnectOpenedAtNotIn applies the NotIn predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtNotIn(vs ...time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNotIn(FieldReconnectOpenedAt, vs...))
+}
+
+// ReconnectOpenedAtGT applies the GT predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtGT(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGT(FieldReconnectOpenedAt, v))
+}
+
+// ReconnectOpenedAtGTE applies the GTE predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtGTE(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldGTE(FieldReconnectOpenedAt, v))
+}
+
+// ReconnectOpenedAtLT applies the LT predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtLT(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLT(FieldReconnectOpenedAt, v))
+}
+
+// ReconnectOpenedAtLTE applies the LTE predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtLTE(v time.Time) predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldLTE(FieldReconnectOpenedAt, v))
+}
+
+// ReconnectOpenedAtIsNil applies the IsNil predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtIsNil() predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldIsNull(FieldReconnectOpenedAt))
+}
+
+// ReconnectOpenedAtNotNil applies the NotNil predicate on the "reconnect_opened_at" field.
+func ReconnectOpenedAtNotNil() predicate.KaguyaMCPServer {
+	return predicate.KaguyaMCPServer(sql.FieldNotNull(FieldReconnectOpenedAt))
 }
 
 // And groups predicates with the AND operator between them.

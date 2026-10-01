@@ -14,7 +14,9 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/lyonmu/kaguya/internal/consts"
+	"github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/dto/memory"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaapproval"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
@@ -32,6 +34,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyataskusage"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 )
 
@@ -44,6 +47,7 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeKaguyaApproval        = "KaguyaApproval"
 	TypeKaguyaChatBlock       = "KaguyaChatBlock"
 	TypeKaguyaChatTurn        = "KaguyaChatTurn"
 	TypeKaguyaConversation    = "KaguyaConversation"
@@ -61,7 +65,1264 @@ const (
 	TypeKaguyaProviderInfo    = "KaguyaProviderInfo"
 	TypeKaguyaSystemInfo      = "KaguyaSystemInfo"
 	TypeKaguyaTaskUsage       = "KaguyaTaskUsage"
+	TypeKaguyaTitleJob        = "KaguyaTitleJob"
 )
+
+// KaguyaApprovalMutation represents an operation that mutates the KaguyaApproval nodes in the graph.
+type KaguyaApprovalMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *string
+	created_at      *time.Time
+	updated_at      *time.Time
+	deleted_at      *time.Time
+	approval_id     *string
+	conversation_id *string
+	turn_id         *string
+	tool_call_id    *string
+	input_hash      *string
+	tool_identity   *string
+	effect          *kaguyaapproval.Effect
+	mode            *kaguyaapproval.Mode
+	status          *kaguyaapproval.Status
+	decision        *string
+	requested_at    *time.Time
+	resolved_at     *time.Time
+	consumed_at     *time.Time
+	reason_code     *string
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*KaguyaApproval, error)
+	predicates      []predicate.KaguyaApproval
+}
+
+var _ ent.Mutation = (*KaguyaApprovalMutation)(nil)
+
+// kaguyaapprovalOption allows management of the mutation configuration using functional options.
+type kaguyaapprovalOption func(*KaguyaApprovalMutation)
+
+// newKaguyaApprovalMutation creates new mutation for the KaguyaApproval entity.
+func newKaguyaApprovalMutation(c config, op Op, opts ...kaguyaapprovalOption) *KaguyaApprovalMutation {
+	m := &KaguyaApprovalMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKaguyaApproval,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKaguyaApprovalID sets the ID field of the mutation.
+func withKaguyaApprovalID(id string) kaguyaapprovalOption {
+	return func(m *KaguyaApprovalMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KaguyaApproval
+		)
+		m.oldValue = func(ctx context.Context) (*KaguyaApproval, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KaguyaApproval.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKaguyaApproval sets the old KaguyaApproval of the mutation.
+func withKaguyaApproval(node *KaguyaApproval) kaguyaapprovalOption {
+	return func(m *KaguyaApprovalMutation) {
+		m.oldValue = func(context.Context) (*KaguyaApproval, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KaguyaApprovalMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KaguyaApprovalMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of KaguyaApproval entities.
+func (m *KaguyaApprovalMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KaguyaApprovalMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KaguyaApprovalMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KaguyaApproval.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KaguyaApprovalMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KaguyaApprovalMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KaguyaApprovalMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KaguyaApprovalMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KaguyaApprovalMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KaguyaApprovalMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *KaguyaApprovalMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *KaguyaApprovalMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *KaguyaApprovalMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[kaguyaapproval.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *KaguyaApprovalMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyaapproval.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *KaguyaApprovalMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, kaguyaapproval.FieldDeletedAt)
+}
+
+// SetApprovalID sets the "approval_id" field.
+func (m *KaguyaApprovalMutation) SetApprovalID(s string) {
+	m.approval_id = &s
+}
+
+// ApprovalID returns the value of the "approval_id" field in the mutation.
+func (m *KaguyaApprovalMutation) ApprovalID() (r string, exists bool) {
+	v := m.approval_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldApprovalID returns the old "approval_id" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldApprovalID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldApprovalID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldApprovalID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldApprovalID: %w", err)
+	}
+	return oldValue.ApprovalID, nil
+}
+
+// ResetApprovalID resets all changes to the "approval_id" field.
+func (m *KaguyaApprovalMutation) ResetApprovalID() {
+	m.approval_id = nil
+}
+
+// SetConversationID sets the "conversation_id" field.
+func (m *KaguyaApprovalMutation) SetConversationID(s string) {
+	m.conversation_id = &s
+}
+
+// ConversationID returns the value of the "conversation_id" field in the mutation.
+func (m *KaguyaApprovalMutation) ConversationID() (r string, exists bool) {
+	v := m.conversation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConversationID returns the old "conversation_id" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldConversationID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConversationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConversationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConversationID: %w", err)
+	}
+	return oldValue.ConversationID, nil
+}
+
+// ResetConversationID resets all changes to the "conversation_id" field.
+func (m *KaguyaApprovalMutation) ResetConversationID() {
+	m.conversation_id = nil
+}
+
+// SetTurnID sets the "turn_id" field.
+func (m *KaguyaApprovalMutation) SetTurnID(s string) {
+	m.turn_id = &s
+}
+
+// TurnID returns the value of the "turn_id" field in the mutation.
+func (m *KaguyaApprovalMutation) TurnID() (r string, exists bool) {
+	v := m.turn_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTurnID returns the old "turn_id" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldTurnID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTurnID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTurnID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTurnID: %w", err)
+	}
+	return oldValue.TurnID, nil
+}
+
+// ResetTurnID resets all changes to the "turn_id" field.
+func (m *KaguyaApprovalMutation) ResetTurnID() {
+	m.turn_id = nil
+}
+
+// SetToolCallID sets the "tool_call_id" field.
+func (m *KaguyaApprovalMutation) SetToolCallID(s string) {
+	m.tool_call_id = &s
+}
+
+// ToolCallID returns the value of the "tool_call_id" field in the mutation.
+func (m *KaguyaApprovalMutation) ToolCallID() (r string, exists bool) {
+	v := m.tool_call_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToolCallID returns the old "tool_call_id" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldToolCallID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToolCallID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToolCallID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToolCallID: %w", err)
+	}
+	return oldValue.ToolCallID, nil
+}
+
+// ResetToolCallID resets all changes to the "tool_call_id" field.
+func (m *KaguyaApprovalMutation) ResetToolCallID() {
+	m.tool_call_id = nil
+}
+
+// SetInputHash sets the "input_hash" field.
+func (m *KaguyaApprovalMutation) SetInputHash(s string) {
+	m.input_hash = &s
+}
+
+// InputHash returns the value of the "input_hash" field in the mutation.
+func (m *KaguyaApprovalMutation) InputHash() (r string, exists bool) {
+	v := m.input_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInputHash returns the old "input_hash" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldInputHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInputHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInputHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInputHash: %w", err)
+	}
+	return oldValue.InputHash, nil
+}
+
+// ResetInputHash resets all changes to the "input_hash" field.
+func (m *KaguyaApprovalMutation) ResetInputHash() {
+	m.input_hash = nil
+}
+
+// SetToolIdentity sets the "tool_identity" field.
+func (m *KaguyaApprovalMutation) SetToolIdentity(s string) {
+	m.tool_identity = &s
+}
+
+// ToolIdentity returns the value of the "tool_identity" field in the mutation.
+func (m *KaguyaApprovalMutation) ToolIdentity() (r string, exists bool) {
+	v := m.tool_identity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToolIdentity returns the old "tool_identity" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldToolIdentity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToolIdentity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToolIdentity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToolIdentity: %w", err)
+	}
+	return oldValue.ToolIdentity, nil
+}
+
+// ResetToolIdentity resets all changes to the "tool_identity" field.
+func (m *KaguyaApprovalMutation) ResetToolIdentity() {
+	m.tool_identity = nil
+}
+
+// SetEffect sets the "effect" field.
+func (m *KaguyaApprovalMutation) SetEffect(k kaguyaapproval.Effect) {
+	m.effect = &k
+}
+
+// Effect returns the value of the "effect" field in the mutation.
+func (m *KaguyaApprovalMutation) Effect() (r kaguyaapproval.Effect, exists bool) {
+	v := m.effect
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEffect returns the old "effect" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldEffect(ctx context.Context) (v kaguyaapproval.Effect, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEffect is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEffect requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEffect: %w", err)
+	}
+	return oldValue.Effect, nil
+}
+
+// ResetEffect resets all changes to the "effect" field.
+func (m *KaguyaApprovalMutation) ResetEffect() {
+	m.effect = nil
+}
+
+// SetMode sets the "mode" field.
+func (m *KaguyaApprovalMutation) SetMode(k kaguyaapproval.Mode) {
+	m.mode = &k
+}
+
+// Mode returns the value of the "mode" field in the mutation.
+func (m *KaguyaApprovalMutation) Mode() (r kaguyaapproval.Mode, exists bool) {
+	v := m.mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMode returns the old "mode" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldMode(ctx context.Context) (v kaguyaapproval.Mode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMode: %w", err)
+	}
+	return oldValue.Mode, nil
+}
+
+// ResetMode resets all changes to the "mode" field.
+func (m *KaguyaApprovalMutation) ResetMode() {
+	m.mode = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *KaguyaApprovalMutation) SetStatus(k kaguyaapproval.Status) {
+	m.status = &k
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *KaguyaApprovalMutation) Status() (r kaguyaapproval.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldStatus(ctx context.Context) (v kaguyaapproval.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *KaguyaApprovalMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetDecision sets the "decision" field.
+func (m *KaguyaApprovalMutation) SetDecision(s string) {
+	m.decision = &s
+}
+
+// Decision returns the value of the "decision" field in the mutation.
+func (m *KaguyaApprovalMutation) Decision() (r string, exists bool) {
+	v := m.decision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDecision returns the old "decision" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldDecision(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDecision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDecision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDecision: %w", err)
+	}
+	return oldValue.Decision, nil
+}
+
+// ResetDecision resets all changes to the "decision" field.
+func (m *KaguyaApprovalMutation) ResetDecision() {
+	m.decision = nil
+}
+
+// SetRequestedAt sets the "requested_at" field.
+func (m *KaguyaApprovalMutation) SetRequestedAt(t time.Time) {
+	m.requested_at = &t
+}
+
+// RequestedAt returns the value of the "requested_at" field in the mutation.
+func (m *KaguyaApprovalMutation) RequestedAt() (r time.Time, exists bool) {
+	v := m.requested_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedAt returns the old "requested_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldRequestedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedAt: %w", err)
+	}
+	return oldValue.RequestedAt, nil
+}
+
+// ResetRequestedAt resets all changes to the "requested_at" field.
+func (m *KaguyaApprovalMutation) ResetRequestedAt() {
+	m.requested_at = nil
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *KaguyaApprovalMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *KaguyaApprovalMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *KaguyaApprovalMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[kaguyaapproval.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *KaguyaApprovalMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyaapproval.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *KaguyaApprovalMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, kaguyaapproval.FieldResolvedAt)
+}
+
+// SetConsumedAt sets the "consumed_at" field.
+func (m *KaguyaApprovalMutation) SetConsumedAt(t time.Time) {
+	m.consumed_at = &t
+}
+
+// ConsumedAt returns the value of the "consumed_at" field in the mutation.
+func (m *KaguyaApprovalMutation) ConsumedAt() (r time.Time, exists bool) {
+	v := m.consumed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConsumedAt returns the old "consumed_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldConsumedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConsumedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConsumedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConsumedAt: %w", err)
+	}
+	return oldValue.ConsumedAt, nil
+}
+
+// ClearConsumedAt clears the value of the "consumed_at" field.
+func (m *KaguyaApprovalMutation) ClearConsumedAt() {
+	m.consumed_at = nil
+	m.clearedFields[kaguyaapproval.FieldConsumedAt] = struct{}{}
+}
+
+// ConsumedAtCleared returns if the "consumed_at" field was cleared in this mutation.
+func (m *KaguyaApprovalMutation) ConsumedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyaapproval.FieldConsumedAt]
+	return ok
+}
+
+// ResetConsumedAt resets all changes to the "consumed_at" field.
+func (m *KaguyaApprovalMutation) ResetConsumedAt() {
+	m.consumed_at = nil
+	delete(m.clearedFields, kaguyaapproval.FieldConsumedAt)
+}
+
+// SetReasonCode sets the "reason_code" field.
+func (m *KaguyaApprovalMutation) SetReasonCode(s string) {
+	m.reason_code = &s
+}
+
+// ReasonCode returns the value of the "reason_code" field in the mutation.
+func (m *KaguyaApprovalMutation) ReasonCode() (r string, exists bool) {
+	v := m.reason_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasonCode returns the old "reason_code" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldReasonCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasonCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasonCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasonCode: %w", err)
+	}
+	return oldValue.ReasonCode, nil
+}
+
+// ResetReasonCode resets all changes to the "reason_code" field.
+func (m *KaguyaApprovalMutation) ResetReasonCode() {
+	m.reason_code = nil
+}
+
+// Where appends a list predicates to the KaguyaApprovalMutation builder.
+func (m *KaguyaApprovalMutation) Where(ps ...predicate.KaguyaApproval) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KaguyaApprovalMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KaguyaApprovalMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KaguyaApproval, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KaguyaApprovalMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KaguyaApprovalMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KaguyaApproval).
+func (m *KaguyaApprovalMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KaguyaApprovalMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.created_at != nil {
+		fields = append(fields, kaguyaapproval.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, kaguyaapproval.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, kaguyaapproval.FieldDeletedAt)
+	}
+	if m.approval_id != nil {
+		fields = append(fields, kaguyaapproval.FieldApprovalID)
+	}
+	if m.conversation_id != nil {
+		fields = append(fields, kaguyaapproval.FieldConversationID)
+	}
+	if m.turn_id != nil {
+		fields = append(fields, kaguyaapproval.FieldTurnID)
+	}
+	if m.tool_call_id != nil {
+		fields = append(fields, kaguyaapproval.FieldToolCallID)
+	}
+	if m.input_hash != nil {
+		fields = append(fields, kaguyaapproval.FieldInputHash)
+	}
+	if m.tool_identity != nil {
+		fields = append(fields, kaguyaapproval.FieldToolIdentity)
+	}
+	if m.effect != nil {
+		fields = append(fields, kaguyaapproval.FieldEffect)
+	}
+	if m.mode != nil {
+		fields = append(fields, kaguyaapproval.FieldMode)
+	}
+	if m.status != nil {
+		fields = append(fields, kaguyaapproval.FieldStatus)
+	}
+	if m.decision != nil {
+		fields = append(fields, kaguyaapproval.FieldDecision)
+	}
+	if m.requested_at != nil {
+		fields = append(fields, kaguyaapproval.FieldRequestedAt)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, kaguyaapproval.FieldResolvedAt)
+	}
+	if m.consumed_at != nil {
+		fields = append(fields, kaguyaapproval.FieldConsumedAt)
+	}
+	if m.reason_code != nil {
+		fields = append(fields, kaguyaapproval.FieldReasonCode)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KaguyaApprovalMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyaapproval.FieldCreatedAt:
+		return m.CreatedAt()
+	case kaguyaapproval.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case kaguyaapproval.FieldDeletedAt:
+		return m.DeletedAt()
+	case kaguyaapproval.FieldApprovalID:
+		return m.ApprovalID()
+	case kaguyaapproval.FieldConversationID:
+		return m.ConversationID()
+	case kaguyaapproval.FieldTurnID:
+		return m.TurnID()
+	case kaguyaapproval.FieldToolCallID:
+		return m.ToolCallID()
+	case kaguyaapproval.FieldInputHash:
+		return m.InputHash()
+	case kaguyaapproval.FieldToolIdentity:
+		return m.ToolIdentity()
+	case kaguyaapproval.FieldEffect:
+		return m.Effect()
+	case kaguyaapproval.FieldMode:
+		return m.Mode()
+	case kaguyaapproval.FieldStatus:
+		return m.Status()
+	case kaguyaapproval.FieldDecision:
+		return m.Decision()
+	case kaguyaapproval.FieldRequestedAt:
+		return m.RequestedAt()
+	case kaguyaapproval.FieldResolvedAt:
+		return m.ResolvedAt()
+	case kaguyaapproval.FieldConsumedAt:
+		return m.ConsumedAt()
+	case kaguyaapproval.FieldReasonCode:
+		return m.ReasonCode()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KaguyaApprovalMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kaguyaapproval.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kaguyaapproval.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case kaguyaapproval.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case kaguyaapproval.FieldApprovalID:
+		return m.OldApprovalID(ctx)
+	case kaguyaapproval.FieldConversationID:
+		return m.OldConversationID(ctx)
+	case kaguyaapproval.FieldTurnID:
+		return m.OldTurnID(ctx)
+	case kaguyaapproval.FieldToolCallID:
+		return m.OldToolCallID(ctx)
+	case kaguyaapproval.FieldInputHash:
+		return m.OldInputHash(ctx)
+	case kaguyaapproval.FieldToolIdentity:
+		return m.OldToolIdentity(ctx)
+	case kaguyaapproval.FieldEffect:
+		return m.OldEffect(ctx)
+	case kaguyaapproval.FieldMode:
+		return m.OldMode(ctx)
+	case kaguyaapproval.FieldStatus:
+		return m.OldStatus(ctx)
+	case kaguyaapproval.FieldDecision:
+		return m.OldDecision(ctx)
+	case kaguyaapproval.FieldRequestedAt:
+		return m.OldRequestedAt(ctx)
+	case kaguyaapproval.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	case kaguyaapproval.FieldConsumedAt:
+		return m.OldConsumedAt(ctx)
+	case kaguyaapproval.FieldReasonCode:
+		return m.OldReasonCode(ctx)
+	}
+	return nil, fmt.Errorf("unknown KaguyaApproval field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaApprovalMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kaguyaapproval.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kaguyaapproval.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case kaguyaapproval.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case kaguyaapproval.FieldApprovalID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetApprovalID(v)
+		return nil
+	case kaguyaapproval.FieldConversationID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConversationID(v)
+		return nil
+	case kaguyaapproval.FieldTurnID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTurnID(v)
+		return nil
+	case kaguyaapproval.FieldToolCallID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToolCallID(v)
+		return nil
+	case kaguyaapproval.FieldInputHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInputHash(v)
+		return nil
+	case kaguyaapproval.FieldToolIdentity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToolIdentity(v)
+		return nil
+	case kaguyaapproval.FieldEffect:
+		v, ok := value.(kaguyaapproval.Effect)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEffect(v)
+		return nil
+	case kaguyaapproval.FieldMode:
+		v, ok := value.(kaguyaapproval.Mode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMode(v)
+		return nil
+	case kaguyaapproval.FieldStatus:
+		v, ok := value.(kaguyaapproval.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case kaguyaapproval.FieldDecision:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDecision(v)
+		return nil
+	case kaguyaapproval.FieldRequestedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedAt(v)
+		return nil
+	case kaguyaapproval.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	case kaguyaapproval.FieldConsumedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConsumedAt(v)
+		return nil
+	case kaguyaapproval.FieldReasonCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasonCode(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaApproval field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KaguyaApprovalMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KaguyaApprovalMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaApprovalMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown KaguyaApproval numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KaguyaApprovalMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kaguyaapproval.FieldDeletedAt) {
+		fields = append(fields, kaguyaapproval.FieldDeletedAt)
+	}
+	if m.FieldCleared(kaguyaapproval.FieldResolvedAt) {
+		fields = append(fields, kaguyaapproval.FieldResolvedAt)
+	}
+	if m.FieldCleared(kaguyaapproval.FieldConsumedAt) {
+		fields = append(fields, kaguyaapproval.FieldConsumedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KaguyaApprovalMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KaguyaApprovalMutation) ClearField(name string) error {
+	switch name {
+	case kaguyaapproval.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case kaguyaapproval.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	case kaguyaapproval.FieldConsumedAt:
+		m.ClearConsumedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaApproval nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KaguyaApprovalMutation) ResetField(name string) error {
+	switch name {
+	case kaguyaapproval.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kaguyaapproval.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case kaguyaapproval.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case kaguyaapproval.FieldApprovalID:
+		m.ResetApprovalID()
+		return nil
+	case kaguyaapproval.FieldConversationID:
+		m.ResetConversationID()
+		return nil
+	case kaguyaapproval.FieldTurnID:
+		m.ResetTurnID()
+		return nil
+	case kaguyaapproval.FieldToolCallID:
+		m.ResetToolCallID()
+		return nil
+	case kaguyaapproval.FieldInputHash:
+		m.ResetInputHash()
+		return nil
+	case kaguyaapproval.FieldToolIdentity:
+		m.ResetToolIdentity()
+		return nil
+	case kaguyaapproval.FieldEffect:
+		m.ResetEffect()
+		return nil
+	case kaguyaapproval.FieldMode:
+		m.ResetMode()
+		return nil
+	case kaguyaapproval.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case kaguyaapproval.FieldDecision:
+		m.ResetDecision()
+		return nil
+	case kaguyaapproval.FieldRequestedAt:
+		m.ResetRequestedAt()
+		return nil
+	case kaguyaapproval.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	case kaguyaapproval.FieldConsumedAt:
+		m.ResetConsumedAt()
+		return nil
+	case kaguyaapproval.FieldReasonCode:
+		m.ResetReasonCode()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaApproval field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KaguyaApprovalMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KaguyaApprovalMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KaguyaApprovalMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KaguyaApprovalMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KaguyaApprovalMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KaguyaApprovalMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KaguyaApprovalMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown KaguyaApproval unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KaguyaApprovalMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown KaguyaApproval edge %s", name)
+}
 
 // KaguyaChatBlockMutation represents an operation that mutates the KaguyaChatBlock nodes in the graph.
 type KaguyaChatBlockMutation struct {
@@ -1530,58 +2791,63 @@ func (m *KaguyaChatBlockMutation) ResetEdge(name string) error {
 // KaguyaChatTurnMutation represents an operation that mutates the KaguyaChatTurn nodes in the graph.
 type KaguyaChatTurnMutation struct {
 	config
-	op                     Op
-	typ                    string
-	id                     *string
-	created_at             *time.Time
-	updated_at             *time.Time
-	deleted_at             *time.Time
-	turn_index             *int64
-	addturn_index          *int64
-	user_content           *string
-	provider_id            *string
-	provider_name          *string
-	model_id               *string
-	model_name             *string
-	api_protocol           *string
-	status                 *kaguyachatturn.Status
-	started_at             *time.Time
-	finished_at            *time.Time
-	duration_ms            *int64
-	addduration_ms         *int64
-	tool_calls             *int64
-	addtool_calls          *int64
-	finish_reason          *string
-	input_tokens           *int64
-	addinput_tokens        *int64
-	output_tokens          *int64
-	addoutput_tokens       *int64
-	total_tokens           *int64
-	addtotal_tokens        *int64
-	cached_tokens          *int64
-	addcached_tokens       *int64
-	reasoning_tokens       *int64
-	addreasoning_tokens    *int64
-	context_tokens         *int64
-	addcontext_tokens      *int64
-	context_window         *int
-	addcontext_window      *int
-	context_messages       *[]fantasy.Message
-	appendcontext_messages []fantasy.Message
-	compaction_count       *int
-	addcompaction_count    *int
-	memory_refs            *memory.TurnMemorySelection
-	messages               *[]fantasy.Message
-	appendmessages         []fantasy.Message
-	clearedFields          map[string]struct{}
-	conversation           *string
-	clearedconversation    bool
-	blocks                 map[string]struct{}
-	removedblocks          map[string]struct{}
-	clearedblocks          bool
-	done                   bool
-	oldValue               func(context.Context) (*KaguyaChatTurn, error)
-	predicates             []predicate.KaguyaChatTurn
+	op                            Op
+	typ                           string
+	id                            *string
+	created_at                    *time.Time
+	updated_at                    *time.Time
+	deleted_at                    *time.Time
+	turn_index                    *int64
+	addturn_index                 *int64
+	user_content                  *string
+	provider_id                   *string
+	provider_name                 *string
+	model_id                      *string
+	model_name                    *string
+	api_protocol                  *string
+	status                        *kaguyachatturn.Status
+	started_at                    *time.Time
+	finished_at                   *time.Time
+	duration_ms                   *int64
+	addduration_ms                *int64
+	tool_calls                    *int64
+	addtool_calls                 *int64
+	finish_reason                 *string
+	input_tokens                  *int64
+	addinput_tokens               *int64
+	output_tokens                 *int64
+	addoutput_tokens              *int64
+	total_tokens                  *int64
+	addtotal_tokens               *int64
+	cached_tokens                 *int64
+	addcached_tokens              *int64
+	reasoning_tokens              *int64
+	addreasoning_tokens           *int64
+	context_tokens                *int64
+	addcontext_tokens             *int64
+	context_window                *int
+	addcontext_window             *int
+	context_messages              *[]fantasy.Message
+	appendcontext_messages        []fantasy.Message
+	compaction_count              *int
+	addcompaction_count           *int
+	memory_refs                   *memory.TurnMemorySelection
+	permission_mode               *kaguyachatturn.PermissionMode
+	global_instruction_hash       *string
+	global_instruction_version    *int64
+	addglobal_instruction_version *int64
+	reference_summary             *chat.TurnReferenceSummary
+	messages                      *[]fantasy.Message
+	appendmessages                []fantasy.Message
+	clearedFields                 map[string]struct{}
+	conversation                  *string
+	clearedconversation           bool
+	blocks                        map[string]struct{}
+	removedblocks                 map[string]struct{}
+	clearedblocks                 bool
+	done                          bool
+	oldValue                      func(context.Context) (*KaguyaChatTurn, error)
+	predicates                    []predicate.KaguyaChatTurn
 }
 
 var _ ent.Mutation = (*KaguyaChatTurnMutation)(nil)
@@ -2949,6 +4215,210 @@ func (m *KaguyaChatTurnMutation) ResetMemoryRefs() {
 	delete(m.clearedFields, kaguyachatturn.FieldMemoryRefs)
 }
 
+// SetPermissionMode sets the "permission_mode" field.
+func (m *KaguyaChatTurnMutation) SetPermissionMode(km kaguyachatturn.PermissionMode) {
+	m.permission_mode = &km
+}
+
+// PermissionMode returns the value of the "permission_mode" field in the mutation.
+func (m *KaguyaChatTurnMutation) PermissionMode() (r kaguyachatturn.PermissionMode, exists bool) {
+	v := m.permission_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPermissionMode returns the old "permission_mode" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldPermissionMode(ctx context.Context) (v kaguyachatturn.PermissionMode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPermissionMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPermissionMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPermissionMode: %w", err)
+	}
+	return oldValue.PermissionMode, nil
+}
+
+// ResetPermissionMode resets all changes to the "permission_mode" field.
+func (m *KaguyaChatTurnMutation) ResetPermissionMode() {
+	m.permission_mode = nil
+}
+
+// SetGlobalInstructionHash sets the "global_instruction_hash" field.
+func (m *KaguyaChatTurnMutation) SetGlobalInstructionHash(s string) {
+	m.global_instruction_hash = &s
+}
+
+// GlobalInstructionHash returns the value of the "global_instruction_hash" field in the mutation.
+func (m *KaguyaChatTurnMutation) GlobalInstructionHash() (r string, exists bool) {
+	v := m.global_instruction_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGlobalInstructionHash returns the old "global_instruction_hash" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldGlobalInstructionHash(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGlobalInstructionHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGlobalInstructionHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGlobalInstructionHash: %w", err)
+	}
+	return oldValue.GlobalInstructionHash, nil
+}
+
+// ClearGlobalInstructionHash clears the value of the "global_instruction_hash" field.
+func (m *KaguyaChatTurnMutation) ClearGlobalInstructionHash() {
+	m.global_instruction_hash = nil
+	m.clearedFields[kaguyachatturn.FieldGlobalInstructionHash] = struct{}{}
+}
+
+// GlobalInstructionHashCleared returns if the "global_instruction_hash" field was cleared in this mutation.
+func (m *KaguyaChatTurnMutation) GlobalInstructionHashCleared() bool {
+	_, ok := m.clearedFields[kaguyachatturn.FieldGlobalInstructionHash]
+	return ok
+}
+
+// ResetGlobalInstructionHash resets all changes to the "global_instruction_hash" field.
+func (m *KaguyaChatTurnMutation) ResetGlobalInstructionHash() {
+	m.global_instruction_hash = nil
+	delete(m.clearedFields, kaguyachatturn.FieldGlobalInstructionHash)
+}
+
+// SetGlobalInstructionVersion sets the "global_instruction_version" field.
+func (m *KaguyaChatTurnMutation) SetGlobalInstructionVersion(i int64) {
+	m.global_instruction_version = &i
+	m.addglobal_instruction_version = nil
+}
+
+// GlobalInstructionVersion returns the value of the "global_instruction_version" field in the mutation.
+func (m *KaguyaChatTurnMutation) GlobalInstructionVersion() (r int64, exists bool) {
+	v := m.global_instruction_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGlobalInstructionVersion returns the old "global_instruction_version" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldGlobalInstructionVersion(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGlobalInstructionVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGlobalInstructionVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGlobalInstructionVersion: %w", err)
+	}
+	return oldValue.GlobalInstructionVersion, nil
+}
+
+// AddGlobalInstructionVersion adds i to the "global_instruction_version" field.
+func (m *KaguyaChatTurnMutation) AddGlobalInstructionVersion(i int64) {
+	if m.addglobal_instruction_version != nil {
+		*m.addglobal_instruction_version += i
+	} else {
+		m.addglobal_instruction_version = &i
+	}
+}
+
+// AddedGlobalInstructionVersion returns the value that was added to the "global_instruction_version" field in this mutation.
+func (m *KaguyaChatTurnMutation) AddedGlobalInstructionVersion() (r int64, exists bool) {
+	v := m.addglobal_instruction_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearGlobalInstructionVersion clears the value of the "global_instruction_version" field.
+func (m *KaguyaChatTurnMutation) ClearGlobalInstructionVersion() {
+	m.global_instruction_version = nil
+	m.addglobal_instruction_version = nil
+	m.clearedFields[kaguyachatturn.FieldGlobalInstructionVersion] = struct{}{}
+}
+
+// GlobalInstructionVersionCleared returns if the "global_instruction_version" field was cleared in this mutation.
+func (m *KaguyaChatTurnMutation) GlobalInstructionVersionCleared() bool {
+	_, ok := m.clearedFields[kaguyachatturn.FieldGlobalInstructionVersion]
+	return ok
+}
+
+// ResetGlobalInstructionVersion resets all changes to the "global_instruction_version" field.
+func (m *KaguyaChatTurnMutation) ResetGlobalInstructionVersion() {
+	m.global_instruction_version = nil
+	m.addglobal_instruction_version = nil
+	delete(m.clearedFields, kaguyachatturn.FieldGlobalInstructionVersion)
+}
+
+// SetReferenceSummary sets the "reference_summary" field.
+func (m *KaguyaChatTurnMutation) SetReferenceSummary(crs chat.TurnReferenceSummary) {
+	m.reference_summary = &crs
+}
+
+// ReferenceSummary returns the value of the "reference_summary" field in the mutation.
+func (m *KaguyaChatTurnMutation) ReferenceSummary() (r chat.TurnReferenceSummary, exists bool) {
+	v := m.reference_summary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReferenceSummary returns the old "reference_summary" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldReferenceSummary(ctx context.Context) (v chat.TurnReferenceSummary, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReferenceSummary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReferenceSummary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReferenceSummary: %w", err)
+	}
+	return oldValue.ReferenceSummary, nil
+}
+
+// ClearReferenceSummary clears the value of the "reference_summary" field.
+func (m *KaguyaChatTurnMutation) ClearReferenceSummary() {
+	m.reference_summary = nil
+	m.clearedFields[kaguyachatturn.FieldReferenceSummary] = struct{}{}
+}
+
+// ReferenceSummaryCleared returns if the "reference_summary" field was cleared in this mutation.
+func (m *KaguyaChatTurnMutation) ReferenceSummaryCleared() bool {
+	_, ok := m.clearedFields[kaguyachatturn.FieldReferenceSummary]
+	return ok
+}
+
+// ResetReferenceSummary resets all changes to the "reference_summary" field.
+func (m *KaguyaChatTurnMutation) ResetReferenceSummary() {
+	m.reference_summary = nil
+	delete(m.clearedFields, kaguyachatturn.FieldReferenceSummary)
+}
+
 // SetMessages sets the "messages" field.
 func (m *KaguyaChatTurnMutation) SetMessages(f []fantasy.Message) {
 	m.messages = &f
@@ -3115,7 +4585,7 @@ func (m *KaguyaChatTurnMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaChatTurnMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 32)
 	if m.created_at != nil {
 		fields = append(fields, kaguyachatturn.FieldCreatedAt)
 	}
@@ -3197,6 +4667,18 @@ func (m *KaguyaChatTurnMutation) Fields() []string {
 	if m.memory_refs != nil {
 		fields = append(fields, kaguyachatturn.FieldMemoryRefs)
 	}
+	if m.permission_mode != nil {
+		fields = append(fields, kaguyachatturn.FieldPermissionMode)
+	}
+	if m.global_instruction_hash != nil {
+		fields = append(fields, kaguyachatturn.FieldGlobalInstructionHash)
+	}
+	if m.global_instruction_version != nil {
+		fields = append(fields, kaguyachatturn.FieldGlobalInstructionVersion)
+	}
+	if m.reference_summary != nil {
+		fields = append(fields, kaguyachatturn.FieldReferenceSummary)
+	}
 	if m.messages != nil {
 		fields = append(fields, kaguyachatturn.FieldMessages)
 	}
@@ -3262,6 +4744,14 @@ func (m *KaguyaChatTurnMutation) Field(name string) (ent.Value, bool) {
 		return m.CompactionCount()
 	case kaguyachatturn.FieldMemoryRefs:
 		return m.MemoryRefs()
+	case kaguyachatturn.FieldPermissionMode:
+		return m.PermissionMode()
+	case kaguyachatturn.FieldGlobalInstructionHash:
+		return m.GlobalInstructionHash()
+	case kaguyachatturn.FieldGlobalInstructionVersion:
+		return m.GlobalInstructionVersion()
+	case kaguyachatturn.FieldReferenceSummary:
+		return m.ReferenceSummary()
 	case kaguyachatturn.FieldMessages:
 		return m.Messages()
 	}
@@ -3327,6 +4817,14 @@ func (m *KaguyaChatTurnMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldCompactionCount(ctx)
 	case kaguyachatturn.FieldMemoryRefs:
 		return m.OldMemoryRefs(ctx)
+	case kaguyachatturn.FieldPermissionMode:
+		return m.OldPermissionMode(ctx)
+	case kaguyachatturn.FieldGlobalInstructionHash:
+		return m.OldGlobalInstructionHash(ctx)
+	case kaguyachatturn.FieldGlobalInstructionVersion:
+		return m.OldGlobalInstructionVersion(ctx)
+	case kaguyachatturn.FieldReferenceSummary:
+		return m.OldReferenceSummary(ctx)
 	case kaguyachatturn.FieldMessages:
 		return m.OldMessages(ctx)
 	}
@@ -3527,6 +5025,34 @@ func (m *KaguyaChatTurnMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMemoryRefs(v)
 		return nil
+	case kaguyachatturn.FieldPermissionMode:
+		v, ok := value.(kaguyachatturn.PermissionMode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPermissionMode(v)
+		return nil
+	case kaguyachatturn.FieldGlobalInstructionHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGlobalInstructionHash(v)
+		return nil
+	case kaguyachatturn.FieldGlobalInstructionVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGlobalInstructionVersion(v)
+		return nil
+	case kaguyachatturn.FieldReferenceSummary:
+		v, ok := value.(chat.TurnReferenceSummary)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReferenceSummary(v)
+		return nil
 	case kaguyachatturn.FieldMessages:
 		v, ok := value.([]fantasy.Message)
 		if !ok {
@@ -3575,6 +5101,9 @@ func (m *KaguyaChatTurnMutation) AddedFields() []string {
 	if m.addcompaction_count != nil {
 		fields = append(fields, kaguyachatturn.FieldCompactionCount)
 	}
+	if m.addglobal_instruction_version != nil {
+		fields = append(fields, kaguyachatturn.FieldGlobalInstructionVersion)
+	}
 	return fields
 }
 
@@ -3605,6 +5134,8 @@ func (m *KaguyaChatTurnMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedContextWindow()
 	case kaguyachatturn.FieldCompactionCount:
 		return m.AddedCompactionCount()
+	case kaguyachatturn.FieldGlobalInstructionVersion:
+		return m.AddedGlobalInstructionVersion()
 	}
 	return nil, false
 }
@@ -3691,6 +5222,13 @@ func (m *KaguyaChatTurnMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddCompactionCount(v)
 		return nil
+	case kaguyachatturn.FieldGlobalInstructionVersion:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddGlobalInstructionVersion(v)
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaChatTurn numeric field %s", name)
 }
@@ -3710,6 +5248,15 @@ func (m *KaguyaChatTurnMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(kaguyachatturn.FieldMemoryRefs) {
 		fields = append(fields, kaguyachatturn.FieldMemoryRefs)
+	}
+	if m.FieldCleared(kaguyachatturn.FieldGlobalInstructionHash) {
+		fields = append(fields, kaguyachatturn.FieldGlobalInstructionHash)
+	}
+	if m.FieldCleared(kaguyachatturn.FieldGlobalInstructionVersion) {
+		fields = append(fields, kaguyachatturn.FieldGlobalInstructionVersion)
+	}
+	if m.FieldCleared(kaguyachatturn.FieldReferenceSummary) {
+		fields = append(fields, kaguyachatturn.FieldReferenceSummary)
 	}
 	return fields
 }
@@ -3736,6 +5283,15 @@ func (m *KaguyaChatTurnMutation) ClearField(name string) error {
 		return nil
 	case kaguyachatturn.FieldMemoryRefs:
 		m.ClearMemoryRefs()
+		return nil
+	case kaguyachatturn.FieldGlobalInstructionHash:
+		m.ClearGlobalInstructionHash()
+		return nil
+	case kaguyachatturn.FieldGlobalInstructionVersion:
+		m.ClearGlobalInstructionVersion()
+		return nil
+	case kaguyachatturn.FieldReferenceSummary:
+		m.ClearReferenceSummary()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaChatTurn nullable field %s", name)
@@ -3825,6 +5381,18 @@ func (m *KaguyaChatTurnMutation) ResetField(name string) error {
 		return nil
 	case kaguyachatturn.FieldMemoryRefs:
 		m.ResetMemoryRefs()
+		return nil
+	case kaguyachatturn.FieldPermissionMode:
+		m.ResetPermissionMode()
+		return nil
+	case kaguyachatturn.FieldGlobalInstructionHash:
+		m.ResetGlobalInstructionHash()
+		return nil
+	case kaguyachatturn.FieldGlobalInstructionVersion:
+		m.ResetGlobalInstructionVersion()
+		return nil
+	case kaguyachatturn.FieldReferenceSummary:
+		m.ResetReferenceSummary()
 		return nil
 	case kaguyachatturn.FieldMessages:
 		m.ResetMessages()
@@ -3938,44 +5506,52 @@ func (m *KaguyaChatTurnMutation) ResetEdge(name string) error {
 // KaguyaConversationMutation represents an operation that mutates the KaguyaConversation nodes in the graph.
 type KaguyaConversationMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *string
-	created_at          *time.Time
-	updated_at          *time.Time
-	deleted_at          *time.Time
-	title               *string
-	agent_instructions  *string
-	favorite            *bool
-	memory_mode         *kaguyaconversation.MemoryMode
-	turn_count          *int64
-	addturn_count       *int64
-	last_message_at     *time.Time
-	model_id            *string
-	model_name          *string
-	duration_ms         *int64
-	addduration_ms      *int64
-	tool_calls          *int64
-	addtool_calls       *int64
-	input_tokens        *int64
-	addinput_tokens     *int64
-	output_tokens       *int64
-	addoutput_tokens    *int64
-	total_tokens        *int64
-	addtotal_tokens     *int64
-	cached_tokens       *int64
-	addcached_tokens    *int64
-	reasoning_tokens    *int64
-	addreasoning_tokens *int64
-	clearedFields       map[string]struct{}
-	turns               map[string]struct{}
-	removedturns        map[string]struct{}
-	clearedturns        bool
-	project             *string
-	clearedproject      bool
-	done                bool
-	oldValue            func(context.Context) (*KaguyaConversation, error)
-	predicates          []predicate.KaguyaConversation
+	op                   Op
+	typ                  string
+	id                   *string
+	created_at           *time.Time
+	updated_at           *time.Time
+	deleted_at           *time.Time
+	title                *string
+	agent_instructions   *string
+	project_instructions *string
+	instructions_format  *kaguyaconversation.InstructionsFormat
+	permission_mode      *kaguyaconversation.PermissionMode
+	title_revision       *int64
+	addtitle_revision    *int64
+	favorite             *bool
+	memory_mode          *kaguyaconversation.MemoryMode
+	turn_count           *int64
+	addturn_count        *int64
+	last_message_at      *time.Time
+	model_id             *string
+	model_name           *string
+	duration_ms          *int64
+	addduration_ms       *int64
+	tool_calls           *int64
+	addtool_calls        *int64
+	input_tokens         *int64
+	addinput_tokens      *int64
+	output_tokens        *int64
+	addoutput_tokens     *int64
+	total_tokens         *int64
+	addtotal_tokens      *int64
+	cached_tokens        *int64
+	addcached_tokens     *int64
+	reasoning_tokens     *int64
+	addreasoning_tokens  *int64
+	clearedFields        map[string]struct{}
+	turns                map[string]struct{}
+	removedturns         map[string]struct{}
+	clearedturns         bool
+	title_jobs           map[string]struct{}
+	removedtitle_jobs    map[string]struct{}
+	clearedtitle_jobs    bool
+	project              *string
+	clearedproject       bool
+	done                 bool
+	oldValue             func(context.Context) (*KaguyaConversation, error)
+	predicates           []predicate.KaguyaConversation
 }
 
 var _ ent.Mutation = (*KaguyaConversationMutation)(nil)
@@ -4335,6 +5911,183 @@ func (m *KaguyaConversationMutation) AgentInstructionsCleared() bool {
 func (m *KaguyaConversationMutation) ResetAgentInstructions() {
 	m.agent_instructions = nil
 	delete(m.clearedFields, kaguyaconversation.FieldAgentInstructions)
+}
+
+// SetProjectInstructions sets the "project_instructions" field.
+func (m *KaguyaConversationMutation) SetProjectInstructions(s string) {
+	m.project_instructions = &s
+}
+
+// ProjectInstructions returns the value of the "project_instructions" field in the mutation.
+func (m *KaguyaConversationMutation) ProjectInstructions() (r string, exists bool) {
+	v := m.project_instructions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProjectInstructions returns the old "project_instructions" field's value of the KaguyaConversation entity.
+// If the KaguyaConversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaConversationMutation) OldProjectInstructions(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProjectInstructions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProjectInstructions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProjectInstructions: %w", err)
+	}
+	return oldValue.ProjectInstructions, nil
+}
+
+// ClearProjectInstructions clears the value of the "project_instructions" field.
+func (m *KaguyaConversationMutation) ClearProjectInstructions() {
+	m.project_instructions = nil
+	m.clearedFields[kaguyaconversation.FieldProjectInstructions] = struct{}{}
+}
+
+// ProjectInstructionsCleared returns if the "project_instructions" field was cleared in this mutation.
+func (m *KaguyaConversationMutation) ProjectInstructionsCleared() bool {
+	_, ok := m.clearedFields[kaguyaconversation.FieldProjectInstructions]
+	return ok
+}
+
+// ResetProjectInstructions resets all changes to the "project_instructions" field.
+func (m *KaguyaConversationMutation) ResetProjectInstructions() {
+	m.project_instructions = nil
+	delete(m.clearedFields, kaguyaconversation.FieldProjectInstructions)
+}
+
+// SetInstructionsFormat sets the "instructions_format" field.
+func (m *KaguyaConversationMutation) SetInstructionsFormat(kf kaguyaconversation.InstructionsFormat) {
+	m.instructions_format = &kf
+}
+
+// InstructionsFormat returns the value of the "instructions_format" field in the mutation.
+func (m *KaguyaConversationMutation) InstructionsFormat() (r kaguyaconversation.InstructionsFormat, exists bool) {
+	v := m.instructions_format
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInstructionsFormat returns the old "instructions_format" field's value of the KaguyaConversation entity.
+// If the KaguyaConversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaConversationMutation) OldInstructionsFormat(ctx context.Context) (v kaguyaconversation.InstructionsFormat, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInstructionsFormat is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInstructionsFormat requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInstructionsFormat: %w", err)
+	}
+	return oldValue.InstructionsFormat, nil
+}
+
+// ResetInstructionsFormat resets all changes to the "instructions_format" field.
+func (m *KaguyaConversationMutation) ResetInstructionsFormat() {
+	m.instructions_format = nil
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (m *KaguyaConversationMutation) SetPermissionMode(km kaguyaconversation.PermissionMode) {
+	m.permission_mode = &km
+}
+
+// PermissionMode returns the value of the "permission_mode" field in the mutation.
+func (m *KaguyaConversationMutation) PermissionMode() (r kaguyaconversation.PermissionMode, exists bool) {
+	v := m.permission_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPermissionMode returns the old "permission_mode" field's value of the KaguyaConversation entity.
+// If the KaguyaConversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaConversationMutation) OldPermissionMode(ctx context.Context) (v kaguyaconversation.PermissionMode, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPermissionMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPermissionMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPermissionMode: %w", err)
+	}
+	return oldValue.PermissionMode, nil
+}
+
+// ResetPermissionMode resets all changes to the "permission_mode" field.
+func (m *KaguyaConversationMutation) ResetPermissionMode() {
+	m.permission_mode = nil
+}
+
+// SetTitleRevision sets the "title_revision" field.
+func (m *KaguyaConversationMutation) SetTitleRevision(i int64) {
+	m.title_revision = &i
+	m.addtitle_revision = nil
+}
+
+// TitleRevision returns the value of the "title_revision" field in the mutation.
+func (m *KaguyaConversationMutation) TitleRevision() (r int64, exists bool) {
+	v := m.title_revision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitleRevision returns the old "title_revision" field's value of the KaguyaConversation entity.
+// If the KaguyaConversation object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaConversationMutation) OldTitleRevision(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitleRevision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitleRevision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitleRevision: %w", err)
+	}
+	return oldValue.TitleRevision, nil
+}
+
+// AddTitleRevision adds i to the "title_revision" field.
+func (m *KaguyaConversationMutation) AddTitleRevision(i int64) {
+	if m.addtitle_revision != nil {
+		*m.addtitle_revision += i
+	} else {
+		m.addtitle_revision = &i
+	}
+}
+
+// AddedTitleRevision returns the value that was added to the "title_revision" field in this mutation.
+func (m *KaguyaConversationMutation) AddedTitleRevision() (r int64, exists bool) {
+	v := m.addtitle_revision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetTitleRevision resets all changes to the "title_revision" field.
+func (m *KaguyaConversationMutation) ResetTitleRevision() {
+	m.title_revision = nil
+	m.addtitle_revision = nil
 }
 
 // SetFavorite sets the "favorite" field.
@@ -5019,6 +6772,60 @@ func (m *KaguyaConversationMutation) ResetTurns() {
 	m.removedturns = nil
 }
 
+// AddTitleJobIDs adds the "title_jobs" edge to the KaguyaTitleJob entity by ids.
+func (m *KaguyaConversationMutation) AddTitleJobIDs(ids ...string) {
+	if m.title_jobs == nil {
+		m.title_jobs = make(map[string]struct{})
+	}
+	for i := range ids {
+		m.title_jobs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearTitleJobs clears the "title_jobs" edge to the KaguyaTitleJob entity.
+func (m *KaguyaConversationMutation) ClearTitleJobs() {
+	m.clearedtitle_jobs = true
+}
+
+// TitleJobsCleared reports if the "title_jobs" edge to the KaguyaTitleJob entity was cleared.
+func (m *KaguyaConversationMutation) TitleJobsCleared() bool {
+	return m.clearedtitle_jobs
+}
+
+// RemoveTitleJobIDs removes the "title_jobs" edge to the KaguyaTitleJob entity by IDs.
+func (m *KaguyaConversationMutation) RemoveTitleJobIDs(ids ...string) {
+	if m.removedtitle_jobs == nil {
+		m.removedtitle_jobs = make(map[string]struct{})
+	}
+	for i := range ids {
+		delete(m.title_jobs, ids[i])
+		m.removedtitle_jobs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedTitleJobs returns the removed IDs of the "title_jobs" edge to the KaguyaTitleJob entity.
+func (m *KaguyaConversationMutation) RemovedTitleJobsIDs() (ids []string) {
+	for id := range m.removedtitle_jobs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// TitleJobsIDs returns the "title_jobs" edge IDs in the mutation.
+func (m *KaguyaConversationMutation) TitleJobsIDs() (ids []string) {
+	for id := range m.title_jobs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetTitleJobs resets all changes to the "title_jobs" edge.
+func (m *KaguyaConversationMutation) ResetTitleJobs() {
+	m.title_jobs = nil
+	m.clearedtitle_jobs = false
+	m.removedtitle_jobs = nil
+}
+
 // ClearProject clears the "project" edge to the KaguyaProject entity.
 func (m *KaguyaConversationMutation) ClearProject() {
 	m.clearedproject = true
@@ -5080,7 +6887,7 @@ func (m *KaguyaConversationMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaConversationMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 23)
 	if m.created_at != nil {
 		fields = append(fields, kaguyaconversation.FieldCreatedAt)
 	}
@@ -5098,6 +6905,18 @@ func (m *KaguyaConversationMutation) Fields() []string {
 	}
 	if m.agent_instructions != nil {
 		fields = append(fields, kaguyaconversation.FieldAgentInstructions)
+	}
+	if m.project_instructions != nil {
+		fields = append(fields, kaguyaconversation.FieldProjectInstructions)
+	}
+	if m.instructions_format != nil {
+		fields = append(fields, kaguyaconversation.FieldInstructionsFormat)
+	}
+	if m.permission_mode != nil {
+		fields = append(fields, kaguyaconversation.FieldPermissionMode)
+	}
+	if m.title_revision != nil {
+		fields = append(fields, kaguyaconversation.FieldTitleRevision)
 	}
 	if m.favorite != nil {
 		fields = append(fields, kaguyaconversation.FieldFavorite)
@@ -5158,6 +6977,14 @@ func (m *KaguyaConversationMutation) Field(name string) (ent.Value, bool) {
 		return m.ProjectID()
 	case kaguyaconversation.FieldAgentInstructions:
 		return m.AgentInstructions()
+	case kaguyaconversation.FieldProjectInstructions:
+		return m.ProjectInstructions()
+	case kaguyaconversation.FieldInstructionsFormat:
+		return m.InstructionsFormat()
+	case kaguyaconversation.FieldPermissionMode:
+		return m.PermissionMode()
+	case kaguyaconversation.FieldTitleRevision:
+		return m.TitleRevision()
 	case kaguyaconversation.FieldFavorite:
 		return m.Favorite()
 	case kaguyaconversation.FieldMemoryMode:
@@ -5205,6 +7032,14 @@ func (m *KaguyaConversationMutation) OldField(ctx context.Context, name string) 
 		return m.OldProjectID(ctx)
 	case kaguyaconversation.FieldAgentInstructions:
 		return m.OldAgentInstructions(ctx)
+	case kaguyaconversation.FieldProjectInstructions:
+		return m.OldProjectInstructions(ctx)
+	case kaguyaconversation.FieldInstructionsFormat:
+		return m.OldInstructionsFormat(ctx)
+	case kaguyaconversation.FieldPermissionMode:
+		return m.OldPermissionMode(ctx)
+	case kaguyaconversation.FieldTitleRevision:
+		return m.OldTitleRevision(ctx)
 	case kaguyaconversation.FieldFavorite:
 		return m.OldFavorite(ctx)
 	case kaguyaconversation.FieldMemoryMode:
@@ -5281,6 +7116,34 @@ func (m *KaguyaConversationMutation) SetField(name string, value ent.Value) erro
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAgentInstructions(v)
+		return nil
+	case kaguyaconversation.FieldProjectInstructions:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProjectInstructions(v)
+		return nil
+	case kaguyaconversation.FieldInstructionsFormat:
+		v, ok := value.(kaguyaconversation.InstructionsFormat)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInstructionsFormat(v)
+		return nil
+	case kaguyaconversation.FieldPermissionMode:
+		v, ok := value.(kaguyaconversation.PermissionMode)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPermissionMode(v)
+		return nil
+	case kaguyaconversation.FieldTitleRevision:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitleRevision(v)
 		return nil
 	case kaguyaconversation.FieldFavorite:
 		v, ok := value.(bool)
@@ -5381,6 +7244,9 @@ func (m *KaguyaConversationMutation) SetField(name string, value ent.Value) erro
 // this mutation.
 func (m *KaguyaConversationMutation) AddedFields() []string {
 	var fields []string
+	if m.addtitle_revision != nil {
+		fields = append(fields, kaguyaconversation.FieldTitleRevision)
+	}
 	if m.addturn_count != nil {
 		fields = append(fields, kaguyaconversation.FieldTurnCount)
 	}
@@ -5413,6 +7279,8 @@ func (m *KaguyaConversationMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *KaguyaConversationMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case kaguyaconversation.FieldTitleRevision:
+		return m.AddedTitleRevision()
 	case kaguyaconversation.FieldTurnCount:
 		return m.AddedTurnCount()
 	case kaguyaconversation.FieldDurationMs:
@@ -5438,6 +7306,13 @@ func (m *KaguyaConversationMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *KaguyaConversationMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case kaguyaconversation.FieldTitleRevision:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTitleRevision(v)
+		return nil
 	case kaguyaconversation.FieldTurnCount:
 		v, ok := value.(int64)
 		if !ok {
@@ -5511,6 +7386,9 @@ func (m *KaguyaConversationMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyaconversation.FieldAgentInstructions) {
 		fields = append(fields, kaguyaconversation.FieldAgentInstructions)
 	}
+	if m.FieldCleared(kaguyaconversation.FieldProjectInstructions) {
+		fields = append(fields, kaguyaconversation.FieldProjectInstructions)
+	}
 	return fields
 }
 
@@ -5533,6 +7411,9 @@ func (m *KaguyaConversationMutation) ClearField(name string) error {
 		return nil
 	case kaguyaconversation.FieldAgentInstructions:
 		m.ClearAgentInstructions()
+		return nil
+	case kaguyaconversation.FieldProjectInstructions:
+		m.ClearProjectInstructions()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaConversation nullable field %s", name)
@@ -5559,6 +7440,18 @@ func (m *KaguyaConversationMutation) ResetField(name string) error {
 		return nil
 	case kaguyaconversation.FieldAgentInstructions:
 		m.ResetAgentInstructions()
+		return nil
+	case kaguyaconversation.FieldProjectInstructions:
+		m.ResetProjectInstructions()
+		return nil
+	case kaguyaconversation.FieldInstructionsFormat:
+		m.ResetInstructionsFormat()
+		return nil
+	case kaguyaconversation.FieldPermissionMode:
+		m.ResetPermissionMode()
+		return nil
+	case kaguyaconversation.FieldTitleRevision:
+		m.ResetTitleRevision()
 		return nil
 	case kaguyaconversation.FieldFavorite:
 		m.ResetFavorite()
@@ -5605,9 +7498,12 @@ func (m *KaguyaConversationMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *KaguyaConversationMutation) AddedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.turns != nil {
 		edges = append(edges, kaguyaconversation.EdgeTurns)
+	}
+	if m.title_jobs != nil {
+		edges = append(edges, kaguyaconversation.EdgeTitleJobs)
 	}
 	if m.project != nil {
 		edges = append(edges, kaguyaconversation.EdgeProject)
@@ -5625,6 +7521,12 @@ func (m *KaguyaConversationMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case kaguyaconversation.EdgeTitleJobs:
+		ids := make([]ent.Value, 0, len(m.title_jobs))
+		for id := range m.title_jobs {
+			ids = append(ids, id)
+		}
+		return ids
 	case kaguyaconversation.EdgeProject:
 		if id := m.project; id != nil {
 			return []ent.Value{*id}
@@ -5635,9 +7537,12 @@ func (m *KaguyaConversationMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *KaguyaConversationMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.removedturns != nil {
 		edges = append(edges, kaguyaconversation.EdgeTurns)
+	}
+	if m.removedtitle_jobs != nil {
+		edges = append(edges, kaguyaconversation.EdgeTitleJobs)
 	}
 	return edges
 }
@@ -5652,15 +7557,24 @@ func (m *KaguyaConversationMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case kaguyaconversation.EdgeTitleJobs:
+		ids := make([]ent.Value, 0, len(m.removedtitle_jobs))
+		for id := range m.removedtitle_jobs {
+			ids = append(ids, id)
+		}
+		return ids
 	}
 	return nil
 }
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *KaguyaConversationMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 2)
+	edges := make([]string, 0, 3)
 	if m.clearedturns {
 		edges = append(edges, kaguyaconversation.EdgeTurns)
+	}
+	if m.clearedtitle_jobs {
+		edges = append(edges, kaguyaconversation.EdgeTitleJobs)
 	}
 	if m.clearedproject {
 		edges = append(edges, kaguyaconversation.EdgeProject)
@@ -5674,6 +7588,8 @@ func (m *KaguyaConversationMutation) EdgeCleared(name string) bool {
 	switch name {
 	case kaguyaconversation.EdgeTurns:
 		return m.clearedturns
+	case kaguyaconversation.EdgeTitleJobs:
+		return m.clearedtitle_jobs
 	case kaguyaconversation.EdgeProject:
 		return m.clearedproject
 	}
@@ -5698,6 +7614,9 @@ func (m *KaguyaConversationMutation) ResetEdge(name string) error {
 	case kaguyaconversation.EdgeTurns:
 		m.ResetTurns()
 		return nil
+	case kaguyaconversation.EdgeTitleJobs:
+		m.ResetTitleJobs()
+		return nil
 	case kaguyaconversation.EdgeProject:
 		m.ResetProject()
 		return nil
@@ -5708,28 +7627,35 @@ func (m *KaguyaConversationMutation) ResetEdge(name string) error {
 // KaguyaMCPServerMutation represents an operation that mutates the KaguyaMCPServer nodes in the graph.
 type KaguyaMCPServerMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *string
-	created_at         *time.Time
-	updated_at         *time.Time
-	deleted_at         *time.Time
-	name               *string
-	transport          *kaguyamcpserver.Transport
-	command            *string
-	args               *[]string
-	appendargs         []string
-	env                *map[string]string
-	working_directory  *string
-	url                *string
-	headers            *map[string]string
-	timeout_seconds    *int
-	addtimeout_seconds *int
-	enabled            *bool
-	clearedFields      map[string]struct{}
-	done               bool
-	oldValue           func(context.Context) (*KaguyaMCPServer, error)
-	predicates         []predicate.KaguyaMCPServer
+	op                     Op
+	typ                    string
+	id                     *string
+	created_at             *time.Time
+	updated_at             *time.Time
+	deleted_at             *time.Time
+	name                   *string
+	transport              *kaguyamcpserver.Transport
+	command                *string
+	args                   *[]string
+	appendargs             []string
+	env                    *map[string]string
+	working_directory      *string
+	url                    *string
+	headers                *map[string]string
+	timeout_seconds        *int
+	addtimeout_seconds     *int
+	enabled                *bool
+	reconnect_failures     *int
+	addreconnect_failures  *int
+	reconnect_circuit_open *bool
+	reconnect_cycle        *int64
+	addreconnect_cycle     *int64
+	reconnect_next_at      *time.Time
+	reconnect_opened_at    *time.Time
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*KaguyaMCPServer, error)
+	predicates             []predicate.KaguyaMCPServer
 }
 
 var _ ent.Mutation = (*KaguyaMCPServerMutation)(nil)
@@ -6352,6 +8278,252 @@ func (m *KaguyaMCPServerMutation) ResetEnabled() {
 	m.enabled = nil
 }
 
+// SetReconnectFailures sets the "reconnect_failures" field.
+func (m *KaguyaMCPServerMutation) SetReconnectFailures(i int) {
+	m.reconnect_failures = &i
+	m.addreconnect_failures = nil
+}
+
+// ReconnectFailures returns the value of the "reconnect_failures" field in the mutation.
+func (m *KaguyaMCPServerMutation) ReconnectFailures() (r int, exists bool) {
+	v := m.reconnect_failures
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReconnectFailures returns the old "reconnect_failures" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldReconnectFailures(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReconnectFailures is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReconnectFailures requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReconnectFailures: %w", err)
+	}
+	return oldValue.ReconnectFailures, nil
+}
+
+// AddReconnectFailures adds i to the "reconnect_failures" field.
+func (m *KaguyaMCPServerMutation) AddReconnectFailures(i int) {
+	if m.addreconnect_failures != nil {
+		*m.addreconnect_failures += i
+	} else {
+		m.addreconnect_failures = &i
+	}
+}
+
+// AddedReconnectFailures returns the value that was added to the "reconnect_failures" field in this mutation.
+func (m *KaguyaMCPServerMutation) AddedReconnectFailures() (r int, exists bool) {
+	v := m.addreconnect_failures
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetReconnectFailures resets all changes to the "reconnect_failures" field.
+func (m *KaguyaMCPServerMutation) ResetReconnectFailures() {
+	m.reconnect_failures = nil
+	m.addreconnect_failures = nil
+}
+
+// SetReconnectCircuitOpen sets the "reconnect_circuit_open" field.
+func (m *KaguyaMCPServerMutation) SetReconnectCircuitOpen(b bool) {
+	m.reconnect_circuit_open = &b
+}
+
+// ReconnectCircuitOpen returns the value of the "reconnect_circuit_open" field in the mutation.
+func (m *KaguyaMCPServerMutation) ReconnectCircuitOpen() (r bool, exists bool) {
+	v := m.reconnect_circuit_open
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReconnectCircuitOpen returns the old "reconnect_circuit_open" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldReconnectCircuitOpen(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReconnectCircuitOpen is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReconnectCircuitOpen requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReconnectCircuitOpen: %w", err)
+	}
+	return oldValue.ReconnectCircuitOpen, nil
+}
+
+// ResetReconnectCircuitOpen resets all changes to the "reconnect_circuit_open" field.
+func (m *KaguyaMCPServerMutation) ResetReconnectCircuitOpen() {
+	m.reconnect_circuit_open = nil
+}
+
+// SetReconnectCycle sets the "reconnect_cycle" field.
+func (m *KaguyaMCPServerMutation) SetReconnectCycle(i int64) {
+	m.reconnect_cycle = &i
+	m.addreconnect_cycle = nil
+}
+
+// ReconnectCycle returns the value of the "reconnect_cycle" field in the mutation.
+func (m *KaguyaMCPServerMutation) ReconnectCycle() (r int64, exists bool) {
+	v := m.reconnect_cycle
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReconnectCycle returns the old "reconnect_cycle" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldReconnectCycle(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReconnectCycle is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReconnectCycle requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReconnectCycle: %w", err)
+	}
+	return oldValue.ReconnectCycle, nil
+}
+
+// AddReconnectCycle adds i to the "reconnect_cycle" field.
+func (m *KaguyaMCPServerMutation) AddReconnectCycle(i int64) {
+	if m.addreconnect_cycle != nil {
+		*m.addreconnect_cycle += i
+	} else {
+		m.addreconnect_cycle = &i
+	}
+}
+
+// AddedReconnectCycle returns the value that was added to the "reconnect_cycle" field in this mutation.
+func (m *KaguyaMCPServerMutation) AddedReconnectCycle() (r int64, exists bool) {
+	v := m.addreconnect_cycle
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetReconnectCycle resets all changes to the "reconnect_cycle" field.
+func (m *KaguyaMCPServerMutation) ResetReconnectCycle() {
+	m.reconnect_cycle = nil
+	m.addreconnect_cycle = nil
+}
+
+// SetReconnectNextAt sets the "reconnect_next_at" field.
+func (m *KaguyaMCPServerMutation) SetReconnectNextAt(t time.Time) {
+	m.reconnect_next_at = &t
+}
+
+// ReconnectNextAt returns the value of the "reconnect_next_at" field in the mutation.
+func (m *KaguyaMCPServerMutation) ReconnectNextAt() (r time.Time, exists bool) {
+	v := m.reconnect_next_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReconnectNextAt returns the old "reconnect_next_at" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldReconnectNextAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReconnectNextAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReconnectNextAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReconnectNextAt: %w", err)
+	}
+	return oldValue.ReconnectNextAt, nil
+}
+
+// ClearReconnectNextAt clears the value of the "reconnect_next_at" field.
+func (m *KaguyaMCPServerMutation) ClearReconnectNextAt() {
+	m.reconnect_next_at = nil
+	m.clearedFields[kaguyamcpserver.FieldReconnectNextAt] = struct{}{}
+}
+
+// ReconnectNextAtCleared returns if the "reconnect_next_at" field was cleared in this mutation.
+func (m *KaguyaMCPServerMutation) ReconnectNextAtCleared() bool {
+	_, ok := m.clearedFields[kaguyamcpserver.FieldReconnectNextAt]
+	return ok
+}
+
+// ResetReconnectNextAt resets all changes to the "reconnect_next_at" field.
+func (m *KaguyaMCPServerMutation) ResetReconnectNextAt() {
+	m.reconnect_next_at = nil
+	delete(m.clearedFields, kaguyamcpserver.FieldReconnectNextAt)
+}
+
+// SetReconnectOpenedAt sets the "reconnect_opened_at" field.
+func (m *KaguyaMCPServerMutation) SetReconnectOpenedAt(t time.Time) {
+	m.reconnect_opened_at = &t
+}
+
+// ReconnectOpenedAt returns the value of the "reconnect_opened_at" field in the mutation.
+func (m *KaguyaMCPServerMutation) ReconnectOpenedAt() (r time.Time, exists bool) {
+	v := m.reconnect_opened_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReconnectOpenedAt returns the old "reconnect_opened_at" field's value of the KaguyaMCPServer entity.
+// If the KaguyaMCPServer object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaMCPServerMutation) OldReconnectOpenedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReconnectOpenedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReconnectOpenedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReconnectOpenedAt: %w", err)
+	}
+	return oldValue.ReconnectOpenedAt, nil
+}
+
+// ClearReconnectOpenedAt clears the value of the "reconnect_opened_at" field.
+func (m *KaguyaMCPServerMutation) ClearReconnectOpenedAt() {
+	m.reconnect_opened_at = nil
+	m.clearedFields[kaguyamcpserver.FieldReconnectOpenedAt] = struct{}{}
+}
+
+// ReconnectOpenedAtCleared returns if the "reconnect_opened_at" field was cleared in this mutation.
+func (m *KaguyaMCPServerMutation) ReconnectOpenedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyamcpserver.FieldReconnectOpenedAt]
+	return ok
+}
+
+// ResetReconnectOpenedAt resets all changes to the "reconnect_opened_at" field.
+func (m *KaguyaMCPServerMutation) ResetReconnectOpenedAt() {
+	m.reconnect_opened_at = nil
+	delete(m.clearedFields, kaguyamcpserver.FieldReconnectOpenedAt)
+}
+
 // Where appends a list predicates to the KaguyaMCPServerMutation builder.
 func (m *KaguyaMCPServerMutation) Where(ps ...predicate.KaguyaMCPServer) {
 	m.predicates = append(m.predicates, ps...)
@@ -6386,7 +8558,7 @@ func (m *KaguyaMCPServerMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaMCPServerMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 18)
 	if m.created_at != nil {
 		fields = append(fields, kaguyamcpserver.FieldCreatedAt)
 	}
@@ -6426,6 +8598,21 @@ func (m *KaguyaMCPServerMutation) Fields() []string {
 	if m.enabled != nil {
 		fields = append(fields, kaguyamcpserver.FieldEnabled)
 	}
+	if m.reconnect_failures != nil {
+		fields = append(fields, kaguyamcpserver.FieldReconnectFailures)
+	}
+	if m.reconnect_circuit_open != nil {
+		fields = append(fields, kaguyamcpserver.FieldReconnectCircuitOpen)
+	}
+	if m.reconnect_cycle != nil {
+		fields = append(fields, kaguyamcpserver.FieldReconnectCycle)
+	}
+	if m.reconnect_next_at != nil {
+		fields = append(fields, kaguyamcpserver.FieldReconnectNextAt)
+	}
+	if m.reconnect_opened_at != nil {
+		fields = append(fields, kaguyamcpserver.FieldReconnectOpenedAt)
+	}
 	return fields
 }
 
@@ -6460,6 +8647,16 @@ func (m *KaguyaMCPServerMutation) Field(name string) (ent.Value, bool) {
 		return m.TimeoutSeconds()
 	case kaguyamcpserver.FieldEnabled:
 		return m.Enabled()
+	case kaguyamcpserver.FieldReconnectFailures:
+		return m.ReconnectFailures()
+	case kaguyamcpserver.FieldReconnectCircuitOpen:
+		return m.ReconnectCircuitOpen()
+	case kaguyamcpserver.FieldReconnectCycle:
+		return m.ReconnectCycle()
+	case kaguyamcpserver.FieldReconnectNextAt:
+		return m.ReconnectNextAt()
+	case kaguyamcpserver.FieldReconnectOpenedAt:
+		return m.ReconnectOpenedAt()
 	}
 	return nil, false
 }
@@ -6495,6 +8692,16 @@ func (m *KaguyaMCPServerMutation) OldField(ctx context.Context, name string) (en
 		return m.OldTimeoutSeconds(ctx)
 	case kaguyamcpserver.FieldEnabled:
 		return m.OldEnabled(ctx)
+	case kaguyamcpserver.FieldReconnectFailures:
+		return m.OldReconnectFailures(ctx)
+	case kaguyamcpserver.FieldReconnectCircuitOpen:
+		return m.OldReconnectCircuitOpen(ctx)
+	case kaguyamcpserver.FieldReconnectCycle:
+		return m.OldReconnectCycle(ctx)
+	case kaguyamcpserver.FieldReconnectNextAt:
+		return m.OldReconnectNextAt(ctx)
+	case kaguyamcpserver.FieldReconnectOpenedAt:
+		return m.OldReconnectOpenedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown KaguyaMCPServer field %s", name)
 }
@@ -6595,6 +8802,41 @@ func (m *KaguyaMCPServerMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetEnabled(v)
 		return nil
+	case kaguyamcpserver.FieldReconnectFailures:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReconnectFailures(v)
+		return nil
+	case kaguyamcpserver.FieldReconnectCircuitOpen:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReconnectCircuitOpen(v)
+		return nil
+	case kaguyamcpserver.FieldReconnectCycle:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReconnectCycle(v)
+		return nil
+	case kaguyamcpserver.FieldReconnectNextAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReconnectNextAt(v)
+		return nil
+	case kaguyamcpserver.FieldReconnectOpenedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReconnectOpenedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaMCPServer field %s", name)
 }
@@ -6606,6 +8848,12 @@ func (m *KaguyaMCPServerMutation) AddedFields() []string {
 	if m.addtimeout_seconds != nil {
 		fields = append(fields, kaguyamcpserver.FieldTimeoutSeconds)
 	}
+	if m.addreconnect_failures != nil {
+		fields = append(fields, kaguyamcpserver.FieldReconnectFailures)
+	}
+	if m.addreconnect_cycle != nil {
+		fields = append(fields, kaguyamcpserver.FieldReconnectCycle)
+	}
 	return fields
 }
 
@@ -6616,6 +8864,10 @@ func (m *KaguyaMCPServerMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case kaguyamcpserver.FieldTimeoutSeconds:
 		return m.AddedTimeoutSeconds()
+	case kaguyamcpserver.FieldReconnectFailures:
+		return m.AddedReconnectFailures()
+	case kaguyamcpserver.FieldReconnectCycle:
+		return m.AddedReconnectCycle()
 	}
 	return nil, false
 }
@@ -6632,6 +8884,20 @@ func (m *KaguyaMCPServerMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddTimeoutSeconds(v)
 		return nil
+	case kaguyamcpserver.FieldReconnectFailures:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReconnectFailures(v)
+		return nil
+	case kaguyamcpserver.FieldReconnectCycle:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddReconnectCycle(v)
+		return nil
 	}
 	return fmt.Errorf("unknown KaguyaMCPServer numeric field %s", name)
 }
@@ -6642,6 +8908,12 @@ func (m *KaguyaMCPServerMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(kaguyamcpserver.FieldDeletedAt) {
 		fields = append(fields, kaguyamcpserver.FieldDeletedAt)
+	}
+	if m.FieldCleared(kaguyamcpserver.FieldReconnectNextAt) {
+		fields = append(fields, kaguyamcpserver.FieldReconnectNextAt)
+	}
+	if m.FieldCleared(kaguyamcpserver.FieldReconnectOpenedAt) {
+		fields = append(fields, kaguyamcpserver.FieldReconnectOpenedAt)
 	}
 	return fields
 }
@@ -6659,6 +8931,12 @@ func (m *KaguyaMCPServerMutation) ClearField(name string) error {
 	switch name {
 	case kaguyamcpserver.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case kaguyamcpserver.FieldReconnectNextAt:
+		m.ClearReconnectNextAt()
+		return nil
+	case kaguyamcpserver.FieldReconnectOpenedAt:
+		m.ClearReconnectOpenedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaMCPServer nullable field %s", name)
@@ -6706,6 +8984,21 @@ func (m *KaguyaMCPServerMutation) ResetField(name string) error {
 		return nil
 	case kaguyamcpserver.FieldEnabled:
 		m.ResetEnabled()
+		return nil
+	case kaguyamcpserver.FieldReconnectFailures:
+		m.ResetReconnectFailures()
+		return nil
+	case kaguyamcpserver.FieldReconnectCircuitOpen:
+		m.ResetReconnectCircuitOpen()
+		return nil
+	case kaguyamcpserver.FieldReconnectCycle:
+		m.ResetReconnectCycle()
+		return nil
+	case kaguyamcpserver.FieldReconnectNextAt:
+		m.ResetReconnectNextAt()
+		return nil
+	case kaguyamcpserver.FieldReconnectOpenedAt:
+		m.ResetReconnectOpenedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaMCPServer field %s", name)
@@ -22587,4 +24880,1200 @@ func (m *KaguyaTaskUsageMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *KaguyaTaskUsageMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown KaguyaTaskUsage edge %s", name)
+}
+
+// KaguyaTitleJobMutation represents an operation that mutates the KaguyaTitleJob nodes in the graph.
+type KaguyaTitleJobMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *string
+	created_at          *time.Time
+	updated_at          *time.Time
+	deleted_at          *time.Time
+	enqueue_order       *int64
+	addenqueue_order    *int64
+	status              *kaguyatitlejob.Status
+	question            *string
+	answer              *string
+	attempt_count       *int
+	addattempt_count    *int
+	started_at          *time.Time
+	finished_at         *time.Time
+	error_code          *string
+	revision            *int64
+	addrevision         *int64
+	clearedFields       map[string]struct{}
+	conversation        *string
+	clearedconversation bool
+	done                bool
+	oldValue            func(context.Context) (*KaguyaTitleJob, error)
+	predicates          []predicate.KaguyaTitleJob
+}
+
+var _ ent.Mutation = (*KaguyaTitleJobMutation)(nil)
+
+// kaguyatitlejobOption allows management of the mutation configuration using functional options.
+type kaguyatitlejobOption func(*KaguyaTitleJobMutation)
+
+// newKaguyaTitleJobMutation creates new mutation for the KaguyaTitleJob entity.
+func newKaguyaTitleJobMutation(c config, op Op, opts ...kaguyatitlejobOption) *KaguyaTitleJobMutation {
+	m := &KaguyaTitleJobMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeKaguyaTitleJob,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withKaguyaTitleJobID sets the ID field of the mutation.
+func withKaguyaTitleJobID(id string) kaguyatitlejobOption {
+	return func(m *KaguyaTitleJobMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *KaguyaTitleJob
+		)
+		m.oldValue = func(ctx context.Context) (*KaguyaTitleJob, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().KaguyaTitleJob.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withKaguyaTitleJob sets the old KaguyaTitleJob of the mutation.
+func withKaguyaTitleJob(node *KaguyaTitleJob) kaguyatitlejobOption {
+	return func(m *KaguyaTitleJobMutation) {
+		m.oldValue = func(context.Context) (*KaguyaTitleJob, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m KaguyaTitleJobMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m KaguyaTitleJobMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of KaguyaTitleJob entities.
+func (m *KaguyaTitleJobMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *KaguyaTitleJobMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *KaguyaTitleJobMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().KaguyaTitleJob.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *KaguyaTitleJobMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *KaguyaTitleJobMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *KaguyaTitleJobMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *KaguyaTitleJobMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *KaguyaTitleJobMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *KaguyaTitleJobMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *KaguyaTitleJobMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *KaguyaTitleJobMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *KaguyaTitleJobMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[kaguyatitlejob.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *KaguyaTitleJobMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyatitlejob.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *KaguyaTitleJobMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, kaguyatitlejob.FieldDeletedAt)
+}
+
+// SetConversationID sets the "conversation_id" field.
+func (m *KaguyaTitleJobMutation) SetConversationID(s string) {
+	m.conversation = &s
+}
+
+// ConversationID returns the value of the "conversation_id" field in the mutation.
+func (m *KaguyaTitleJobMutation) ConversationID() (r string, exists bool) {
+	v := m.conversation
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConversationID returns the old "conversation_id" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldConversationID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConversationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConversationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConversationID: %w", err)
+	}
+	return oldValue.ConversationID, nil
+}
+
+// ResetConversationID resets all changes to the "conversation_id" field.
+func (m *KaguyaTitleJobMutation) ResetConversationID() {
+	m.conversation = nil
+}
+
+// SetEnqueueOrder sets the "enqueue_order" field.
+func (m *KaguyaTitleJobMutation) SetEnqueueOrder(i int64) {
+	m.enqueue_order = &i
+	m.addenqueue_order = nil
+}
+
+// EnqueueOrder returns the value of the "enqueue_order" field in the mutation.
+func (m *KaguyaTitleJobMutation) EnqueueOrder() (r int64, exists bool) {
+	v := m.enqueue_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnqueueOrder returns the old "enqueue_order" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldEnqueueOrder(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnqueueOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnqueueOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnqueueOrder: %w", err)
+	}
+	return oldValue.EnqueueOrder, nil
+}
+
+// AddEnqueueOrder adds i to the "enqueue_order" field.
+func (m *KaguyaTitleJobMutation) AddEnqueueOrder(i int64) {
+	if m.addenqueue_order != nil {
+		*m.addenqueue_order += i
+	} else {
+		m.addenqueue_order = &i
+	}
+}
+
+// AddedEnqueueOrder returns the value that was added to the "enqueue_order" field in this mutation.
+func (m *KaguyaTitleJobMutation) AddedEnqueueOrder() (r int64, exists bool) {
+	v := m.addenqueue_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetEnqueueOrder resets all changes to the "enqueue_order" field.
+func (m *KaguyaTitleJobMutation) ResetEnqueueOrder() {
+	m.enqueue_order = nil
+	m.addenqueue_order = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *KaguyaTitleJobMutation) SetStatus(k kaguyatitlejob.Status) {
+	m.status = &k
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *KaguyaTitleJobMutation) Status() (r kaguyatitlejob.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldStatus(ctx context.Context) (v kaguyatitlejob.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *KaguyaTitleJobMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetQuestion sets the "question" field.
+func (m *KaguyaTitleJobMutation) SetQuestion(s string) {
+	m.question = &s
+}
+
+// Question returns the value of the "question" field in the mutation.
+func (m *KaguyaTitleJobMutation) Question() (r string, exists bool) {
+	v := m.question
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuestion returns the old "question" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldQuestion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuestion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuestion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuestion: %w", err)
+	}
+	return oldValue.Question, nil
+}
+
+// ResetQuestion resets all changes to the "question" field.
+func (m *KaguyaTitleJobMutation) ResetQuestion() {
+	m.question = nil
+}
+
+// SetAnswer sets the "answer" field.
+func (m *KaguyaTitleJobMutation) SetAnswer(s string) {
+	m.answer = &s
+}
+
+// Answer returns the value of the "answer" field in the mutation.
+func (m *KaguyaTitleJobMutation) Answer() (r string, exists bool) {
+	v := m.answer
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAnswer returns the old "answer" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldAnswer(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAnswer is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAnswer requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAnswer: %w", err)
+	}
+	return oldValue.Answer, nil
+}
+
+// ResetAnswer resets all changes to the "answer" field.
+func (m *KaguyaTitleJobMutation) ResetAnswer() {
+	m.answer = nil
+}
+
+// SetAttemptCount sets the "attempt_count" field.
+func (m *KaguyaTitleJobMutation) SetAttemptCount(i int) {
+	m.attempt_count = &i
+	m.addattempt_count = nil
+}
+
+// AttemptCount returns the value of the "attempt_count" field in the mutation.
+func (m *KaguyaTitleJobMutation) AttemptCount() (r int, exists bool) {
+	v := m.attempt_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttemptCount returns the old "attempt_count" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldAttemptCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttemptCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttemptCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttemptCount: %w", err)
+	}
+	return oldValue.AttemptCount, nil
+}
+
+// AddAttemptCount adds i to the "attempt_count" field.
+func (m *KaguyaTitleJobMutation) AddAttemptCount(i int) {
+	if m.addattempt_count != nil {
+		*m.addattempt_count += i
+	} else {
+		m.addattempt_count = &i
+	}
+}
+
+// AddedAttemptCount returns the value that was added to the "attempt_count" field in this mutation.
+func (m *KaguyaTitleJobMutation) AddedAttemptCount() (r int, exists bool) {
+	v := m.addattempt_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttemptCount resets all changes to the "attempt_count" field.
+func (m *KaguyaTitleJobMutation) ResetAttemptCount() {
+	m.attempt_count = nil
+	m.addattempt_count = nil
+}
+
+// SetStartedAt sets the "started_at" field.
+func (m *KaguyaTitleJobMutation) SetStartedAt(t time.Time) {
+	m.started_at = &t
+}
+
+// StartedAt returns the value of the "started_at" field in the mutation.
+func (m *KaguyaTitleJobMutation) StartedAt() (r time.Time, exists bool) {
+	v := m.started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartedAt returns the old "started_at" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldStartedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartedAt: %w", err)
+	}
+	return oldValue.StartedAt, nil
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (m *KaguyaTitleJobMutation) ClearStartedAt() {
+	m.started_at = nil
+	m.clearedFields[kaguyatitlejob.FieldStartedAt] = struct{}{}
+}
+
+// StartedAtCleared returns if the "started_at" field was cleared in this mutation.
+func (m *KaguyaTitleJobMutation) StartedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyatitlejob.FieldStartedAt]
+	return ok
+}
+
+// ResetStartedAt resets all changes to the "started_at" field.
+func (m *KaguyaTitleJobMutation) ResetStartedAt() {
+	m.started_at = nil
+	delete(m.clearedFields, kaguyatitlejob.FieldStartedAt)
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (m *KaguyaTitleJobMutation) SetFinishedAt(t time.Time) {
+	m.finished_at = &t
+}
+
+// FinishedAt returns the value of the "finished_at" field in the mutation.
+func (m *KaguyaTitleJobMutation) FinishedAt() (r time.Time, exists bool) {
+	v := m.finished_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinishedAt returns the old "finished_at" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldFinishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinishedAt: %w", err)
+	}
+	return oldValue.FinishedAt, nil
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (m *KaguyaTitleJobMutation) ClearFinishedAt() {
+	m.finished_at = nil
+	m.clearedFields[kaguyatitlejob.FieldFinishedAt] = struct{}{}
+}
+
+// FinishedAtCleared returns if the "finished_at" field was cleared in this mutation.
+func (m *KaguyaTitleJobMutation) FinishedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyatitlejob.FieldFinishedAt]
+	return ok
+}
+
+// ResetFinishedAt resets all changes to the "finished_at" field.
+func (m *KaguyaTitleJobMutation) ResetFinishedAt() {
+	m.finished_at = nil
+	delete(m.clearedFields, kaguyatitlejob.FieldFinishedAt)
+}
+
+// SetErrorCode sets the "error_code" field.
+func (m *KaguyaTitleJobMutation) SetErrorCode(s string) {
+	m.error_code = &s
+}
+
+// ErrorCode returns the value of the "error_code" field in the mutation.
+func (m *KaguyaTitleJobMutation) ErrorCode() (r string, exists bool) {
+	v := m.error_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErrorCode returns the old "error_code" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldErrorCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErrorCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErrorCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErrorCode: %w", err)
+	}
+	return oldValue.ErrorCode, nil
+}
+
+// ResetErrorCode resets all changes to the "error_code" field.
+func (m *KaguyaTitleJobMutation) ResetErrorCode() {
+	m.error_code = nil
+}
+
+// SetRevision sets the "revision" field.
+func (m *KaguyaTitleJobMutation) SetRevision(i int64) {
+	m.revision = &i
+	m.addrevision = nil
+}
+
+// Revision returns the value of the "revision" field in the mutation.
+func (m *KaguyaTitleJobMutation) Revision() (r int64, exists bool) {
+	v := m.revision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevision returns the old "revision" field's value of the KaguyaTitleJob entity.
+// If the KaguyaTitleJob object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaTitleJobMutation) OldRevision(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevision is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevision requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevision: %w", err)
+	}
+	return oldValue.Revision, nil
+}
+
+// AddRevision adds i to the "revision" field.
+func (m *KaguyaTitleJobMutation) AddRevision(i int64) {
+	if m.addrevision != nil {
+		*m.addrevision += i
+	} else {
+		m.addrevision = &i
+	}
+}
+
+// AddedRevision returns the value that was added to the "revision" field in this mutation.
+func (m *KaguyaTitleJobMutation) AddedRevision() (r int64, exists bool) {
+	v := m.addrevision
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetRevision resets all changes to the "revision" field.
+func (m *KaguyaTitleJobMutation) ResetRevision() {
+	m.revision = nil
+	m.addrevision = nil
+}
+
+// ClearConversation clears the "conversation" edge to the KaguyaConversation entity.
+func (m *KaguyaTitleJobMutation) ClearConversation() {
+	m.clearedconversation = true
+	m.clearedFields[kaguyatitlejob.FieldConversationID] = struct{}{}
+}
+
+// ConversationCleared reports if the "conversation" edge to the KaguyaConversation entity was cleared.
+func (m *KaguyaTitleJobMutation) ConversationCleared() bool {
+	return m.clearedconversation
+}
+
+// ConversationIDs returns the "conversation" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// ConversationID instead. It exists only for internal usage by the builders.
+func (m *KaguyaTitleJobMutation) ConversationIDs() (ids []string) {
+	if id := m.conversation; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetConversation resets all changes to the "conversation" edge.
+func (m *KaguyaTitleJobMutation) ResetConversation() {
+	m.conversation = nil
+	m.clearedconversation = false
+}
+
+// Where appends a list predicates to the KaguyaTitleJobMutation builder.
+func (m *KaguyaTitleJobMutation) Where(ps ...predicate.KaguyaTitleJob) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the KaguyaTitleJobMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *KaguyaTitleJobMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.KaguyaTitleJob, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *KaguyaTitleJobMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *KaguyaTitleJobMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (KaguyaTitleJob).
+func (m *KaguyaTitleJobMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *KaguyaTitleJobMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, kaguyatitlejob.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, kaguyatitlejob.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, kaguyatitlejob.FieldDeletedAt)
+	}
+	if m.conversation != nil {
+		fields = append(fields, kaguyatitlejob.FieldConversationID)
+	}
+	if m.enqueue_order != nil {
+		fields = append(fields, kaguyatitlejob.FieldEnqueueOrder)
+	}
+	if m.status != nil {
+		fields = append(fields, kaguyatitlejob.FieldStatus)
+	}
+	if m.question != nil {
+		fields = append(fields, kaguyatitlejob.FieldQuestion)
+	}
+	if m.answer != nil {
+		fields = append(fields, kaguyatitlejob.FieldAnswer)
+	}
+	if m.attempt_count != nil {
+		fields = append(fields, kaguyatitlejob.FieldAttemptCount)
+	}
+	if m.started_at != nil {
+		fields = append(fields, kaguyatitlejob.FieldStartedAt)
+	}
+	if m.finished_at != nil {
+		fields = append(fields, kaguyatitlejob.FieldFinishedAt)
+	}
+	if m.error_code != nil {
+		fields = append(fields, kaguyatitlejob.FieldErrorCode)
+	}
+	if m.revision != nil {
+		fields = append(fields, kaguyatitlejob.FieldRevision)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *KaguyaTitleJobMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyatitlejob.FieldCreatedAt:
+		return m.CreatedAt()
+	case kaguyatitlejob.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case kaguyatitlejob.FieldDeletedAt:
+		return m.DeletedAt()
+	case kaguyatitlejob.FieldConversationID:
+		return m.ConversationID()
+	case kaguyatitlejob.FieldEnqueueOrder:
+		return m.EnqueueOrder()
+	case kaguyatitlejob.FieldStatus:
+		return m.Status()
+	case kaguyatitlejob.FieldQuestion:
+		return m.Question()
+	case kaguyatitlejob.FieldAnswer:
+		return m.Answer()
+	case kaguyatitlejob.FieldAttemptCount:
+		return m.AttemptCount()
+	case kaguyatitlejob.FieldStartedAt:
+		return m.StartedAt()
+	case kaguyatitlejob.FieldFinishedAt:
+		return m.FinishedAt()
+	case kaguyatitlejob.FieldErrorCode:
+		return m.ErrorCode()
+	case kaguyatitlejob.FieldRevision:
+		return m.Revision()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *KaguyaTitleJobMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case kaguyatitlejob.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case kaguyatitlejob.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case kaguyatitlejob.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case kaguyatitlejob.FieldConversationID:
+		return m.OldConversationID(ctx)
+	case kaguyatitlejob.FieldEnqueueOrder:
+		return m.OldEnqueueOrder(ctx)
+	case kaguyatitlejob.FieldStatus:
+		return m.OldStatus(ctx)
+	case kaguyatitlejob.FieldQuestion:
+		return m.OldQuestion(ctx)
+	case kaguyatitlejob.FieldAnswer:
+		return m.OldAnswer(ctx)
+	case kaguyatitlejob.FieldAttemptCount:
+		return m.OldAttemptCount(ctx)
+	case kaguyatitlejob.FieldStartedAt:
+		return m.OldStartedAt(ctx)
+	case kaguyatitlejob.FieldFinishedAt:
+		return m.OldFinishedAt(ctx)
+	case kaguyatitlejob.FieldErrorCode:
+		return m.OldErrorCode(ctx)
+	case kaguyatitlejob.FieldRevision:
+		return m.OldRevision(ctx)
+	}
+	return nil, fmt.Errorf("unknown KaguyaTitleJob field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaTitleJobMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case kaguyatitlejob.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case kaguyatitlejob.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case kaguyatitlejob.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case kaguyatitlejob.FieldConversationID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConversationID(v)
+		return nil
+	case kaguyatitlejob.FieldEnqueueOrder:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnqueueOrder(v)
+		return nil
+	case kaguyatitlejob.FieldStatus:
+		v, ok := value.(kaguyatitlejob.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case kaguyatitlejob.FieldQuestion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuestion(v)
+		return nil
+	case kaguyatitlejob.FieldAnswer:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAnswer(v)
+		return nil
+	case kaguyatitlejob.FieldAttemptCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttemptCount(v)
+		return nil
+	case kaguyatitlejob.FieldStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartedAt(v)
+		return nil
+	case kaguyatitlejob.FieldFinishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinishedAt(v)
+		return nil
+	case kaguyatitlejob.FieldErrorCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErrorCode(v)
+		return nil
+	case kaguyatitlejob.FieldRevision:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevision(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaTitleJob field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *KaguyaTitleJobMutation) AddedFields() []string {
+	var fields []string
+	if m.addenqueue_order != nil {
+		fields = append(fields, kaguyatitlejob.FieldEnqueueOrder)
+	}
+	if m.addattempt_count != nil {
+		fields = append(fields, kaguyatitlejob.FieldAttemptCount)
+	}
+	if m.addrevision != nil {
+		fields = append(fields, kaguyatitlejob.FieldRevision)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *KaguyaTitleJobMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case kaguyatitlejob.FieldEnqueueOrder:
+		return m.AddedEnqueueOrder()
+	case kaguyatitlejob.FieldAttemptCount:
+		return m.AddedAttemptCount()
+	case kaguyatitlejob.FieldRevision:
+		return m.AddedRevision()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *KaguyaTitleJobMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case kaguyatitlejob.FieldEnqueueOrder:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddEnqueueOrder(v)
+		return nil
+	case kaguyatitlejob.FieldAttemptCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttemptCount(v)
+		return nil
+	case kaguyatitlejob.FieldRevision:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRevision(v)
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaTitleJob numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *KaguyaTitleJobMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(kaguyatitlejob.FieldDeletedAt) {
+		fields = append(fields, kaguyatitlejob.FieldDeletedAt)
+	}
+	if m.FieldCleared(kaguyatitlejob.FieldStartedAt) {
+		fields = append(fields, kaguyatitlejob.FieldStartedAt)
+	}
+	if m.FieldCleared(kaguyatitlejob.FieldFinishedAt) {
+		fields = append(fields, kaguyatitlejob.FieldFinishedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *KaguyaTitleJobMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *KaguyaTitleJobMutation) ClearField(name string) error {
+	switch name {
+	case kaguyatitlejob.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case kaguyatitlejob.FieldStartedAt:
+		m.ClearStartedAt()
+		return nil
+	case kaguyatitlejob.FieldFinishedAt:
+		m.ClearFinishedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaTitleJob nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *KaguyaTitleJobMutation) ResetField(name string) error {
+	switch name {
+	case kaguyatitlejob.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case kaguyatitlejob.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case kaguyatitlejob.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case kaguyatitlejob.FieldConversationID:
+		m.ResetConversationID()
+		return nil
+	case kaguyatitlejob.FieldEnqueueOrder:
+		m.ResetEnqueueOrder()
+		return nil
+	case kaguyatitlejob.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case kaguyatitlejob.FieldQuestion:
+		m.ResetQuestion()
+		return nil
+	case kaguyatitlejob.FieldAnswer:
+		m.ResetAnswer()
+		return nil
+	case kaguyatitlejob.FieldAttemptCount:
+		m.ResetAttemptCount()
+		return nil
+	case kaguyatitlejob.FieldStartedAt:
+		m.ResetStartedAt()
+		return nil
+	case kaguyatitlejob.FieldFinishedAt:
+		m.ResetFinishedAt()
+		return nil
+	case kaguyatitlejob.FieldErrorCode:
+		m.ResetErrorCode()
+		return nil
+	case kaguyatitlejob.FieldRevision:
+		m.ResetRevision()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaTitleJob field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *KaguyaTitleJobMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.conversation != nil {
+		edges = append(edges, kaguyatitlejob.EdgeConversation)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *KaguyaTitleJobMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case kaguyatitlejob.EdgeConversation:
+		if id := m.conversation; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *KaguyaTitleJobMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *KaguyaTitleJobMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *KaguyaTitleJobMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedconversation {
+		edges = append(edges, kaguyatitlejob.EdgeConversation)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *KaguyaTitleJobMutation) EdgeCleared(name string) bool {
+	switch name {
+	case kaguyatitlejob.EdgeConversation:
+		return m.clearedconversation
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *KaguyaTitleJobMutation) ClearEdge(name string) error {
+	switch name {
+	case kaguyatitlejob.EdgeConversation:
+		m.ClearConversation()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaTitleJob unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *KaguyaTitleJobMutation) ResetEdge(name string) error {
+	switch name {
+	case kaguyatitlejob.EdgeConversation:
+		m.ResetConversation()
+		return nil
+	}
+	return fmt.Errorf("unknown KaguyaTitleJob edge %s", name)
 }

@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"entgo.io/ent/schema/index"
+	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 )
 
@@ -34,6 +35,10 @@ func (KaguyaChatTurn) Fields() []ent.Field {
 		field.JSON("context_messages", []fantasy.Message{}).Optional().Comment("发生压缩后的完整续聊快照；原始 messages 始终保留"),
 		field.Int("compaction_count").Default(0).NonNegative(),
 		field.JSON("memory_refs", dtomemory.TurnMemorySelection{}).Optional().Comment("本轮自动召回选择的页面版本与检索器版本；不复制正文，失败轮次为空"),
+		field.Enum("permission_mode").Values("full_approval", "auto_approval", "full_access").Default("full_access").Comment("本轮实际使用的权限模式；旧记录按兼容默认，不代表过去审批过"),
+		field.String("global_instruction_hash").Optional().Nillable().Comment("本轮动态全局指令内容哈希；只用于排障，不是全文归档"),
+		field.Int64("global_instruction_version").Optional().Nillable().NonNegative().Comment("本轮全局指令版本；进程内单调递增，跨重启只保证哈希可比"),
+		field.JSON("reference_summary", dtochat.TurnReferenceSummary{}).Optional().Comment("本轮引用选择与包含范围摘要；不保存第二份正文"),
 		field.JSON("messages", []fantasy.Message{}).Comment("仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"),
 	}
 }

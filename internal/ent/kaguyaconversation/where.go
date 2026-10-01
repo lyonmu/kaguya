@@ -95,6 +95,16 @@ func AgentInstructions(v string) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldEQ(FieldAgentInstructions, v))
 }
 
+// ProjectInstructions applies equality check predicate on the "project_instructions" field. It's identical to ProjectInstructionsEQ.
+func ProjectInstructions(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldProjectInstructions, v))
+}
+
+// TitleRevision applies equality check predicate on the "title_revision" field. It's identical to TitleRevisionEQ.
+func TitleRevision(v int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldTitleRevision, v))
+}
+
 // Favorite applies equality check predicate on the "favorite" field. It's identical to FavoriteEQ.
 func Favorite(v bool) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldEQ(FieldFavorite, v))
@@ -498,6 +508,161 @@ func AgentInstructionsEqualFold(v string) predicate.KaguyaConversation {
 // AgentInstructionsContainsFold applies the ContainsFold predicate on the "agent_instructions" field.
 func AgentInstructionsContainsFold(v string) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(sql.FieldContainsFold(FieldAgentInstructions, v))
+}
+
+// ProjectInstructionsEQ applies the EQ predicate on the "project_instructions" field.
+func ProjectInstructionsEQ(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsNEQ applies the NEQ predicate on the "project_instructions" field.
+func ProjectInstructionsNEQ(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNEQ(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsIn applies the In predicate on the "project_instructions" field.
+func ProjectInstructionsIn(vs ...string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIn(FieldProjectInstructions, vs...))
+}
+
+// ProjectInstructionsNotIn applies the NotIn predicate on the "project_instructions" field.
+func ProjectInstructionsNotIn(vs ...string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotIn(FieldProjectInstructions, vs...))
+}
+
+// ProjectInstructionsGT applies the GT predicate on the "project_instructions" field.
+func ProjectInstructionsGT(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGT(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsGTE applies the GTE predicate on the "project_instructions" field.
+func ProjectInstructionsGTE(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGTE(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsLT applies the LT predicate on the "project_instructions" field.
+func ProjectInstructionsLT(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLT(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsLTE applies the LTE predicate on the "project_instructions" field.
+func ProjectInstructionsLTE(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLTE(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsContains applies the Contains predicate on the "project_instructions" field.
+func ProjectInstructionsContains(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldContains(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsHasPrefix applies the HasPrefix predicate on the "project_instructions" field.
+func ProjectInstructionsHasPrefix(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldHasPrefix(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsHasSuffix applies the HasSuffix predicate on the "project_instructions" field.
+func ProjectInstructionsHasSuffix(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldHasSuffix(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsIsNil applies the IsNil predicate on the "project_instructions" field.
+func ProjectInstructionsIsNil() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIsNull(FieldProjectInstructions))
+}
+
+// ProjectInstructionsNotNil applies the NotNil predicate on the "project_instructions" field.
+func ProjectInstructionsNotNil() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotNull(FieldProjectInstructions))
+}
+
+// ProjectInstructionsEqualFold applies the EqualFold predicate on the "project_instructions" field.
+func ProjectInstructionsEqualFold(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEqualFold(FieldProjectInstructions, v))
+}
+
+// ProjectInstructionsContainsFold applies the ContainsFold predicate on the "project_instructions" field.
+func ProjectInstructionsContainsFold(v string) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldContainsFold(FieldProjectInstructions, v))
+}
+
+// InstructionsFormatEQ applies the EQ predicate on the "instructions_format" field.
+func InstructionsFormatEQ(v InstructionsFormat) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldInstructionsFormat, v))
+}
+
+// InstructionsFormatNEQ applies the NEQ predicate on the "instructions_format" field.
+func InstructionsFormatNEQ(v InstructionsFormat) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNEQ(FieldInstructionsFormat, v))
+}
+
+// InstructionsFormatIn applies the In predicate on the "instructions_format" field.
+func InstructionsFormatIn(vs ...InstructionsFormat) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIn(FieldInstructionsFormat, vs...))
+}
+
+// InstructionsFormatNotIn applies the NotIn predicate on the "instructions_format" field.
+func InstructionsFormatNotIn(vs ...InstructionsFormat) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotIn(FieldInstructionsFormat, vs...))
+}
+
+// PermissionModeEQ applies the EQ predicate on the "permission_mode" field.
+func PermissionModeEQ(v PermissionMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldPermissionMode, v))
+}
+
+// PermissionModeNEQ applies the NEQ predicate on the "permission_mode" field.
+func PermissionModeNEQ(v PermissionMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNEQ(FieldPermissionMode, v))
+}
+
+// PermissionModeIn applies the In predicate on the "permission_mode" field.
+func PermissionModeIn(vs ...PermissionMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIn(FieldPermissionMode, vs...))
+}
+
+// PermissionModeNotIn applies the NotIn predicate on the "permission_mode" field.
+func PermissionModeNotIn(vs ...PermissionMode) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotIn(FieldPermissionMode, vs...))
+}
+
+// TitleRevisionEQ applies the EQ predicate on the "title_revision" field.
+func TitleRevisionEQ(v int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldEQ(FieldTitleRevision, v))
+}
+
+// TitleRevisionNEQ applies the NEQ predicate on the "title_revision" field.
+func TitleRevisionNEQ(v int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNEQ(FieldTitleRevision, v))
+}
+
+// TitleRevisionIn applies the In predicate on the "title_revision" field.
+func TitleRevisionIn(vs ...int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldIn(FieldTitleRevision, vs...))
+}
+
+// TitleRevisionNotIn applies the NotIn predicate on the "title_revision" field.
+func TitleRevisionNotIn(vs ...int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldNotIn(FieldTitleRevision, vs...))
+}
+
+// TitleRevisionGT applies the GT predicate on the "title_revision" field.
+func TitleRevisionGT(v int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGT(FieldTitleRevision, v))
+}
+
+// TitleRevisionGTE applies the GTE predicate on the "title_revision" field.
+func TitleRevisionGTE(v int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldGTE(FieldTitleRevision, v))
+}
+
+// TitleRevisionLT applies the LT predicate on the "title_revision" field.
+func TitleRevisionLT(v int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLT(FieldTitleRevision, v))
+}
+
+// TitleRevisionLTE applies the LTE predicate on the "title_revision" field.
+func TitleRevisionLTE(v int64) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(sql.FieldLTE(FieldTitleRevision, v))
 }
 
 // FavoriteEQ applies the EQ predicate on the "favorite" field.
@@ -1035,6 +1200,29 @@ func HasTurns() predicate.KaguyaConversation {
 func HasTurnsWith(preds ...predicate.KaguyaChatTurn) predicate.KaguyaConversation {
 	return predicate.KaguyaConversation(func(s *sql.Selector) {
 		step := newTurnsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasTitleJobs applies the HasEdge predicate on the "title_jobs" edge.
+func HasTitleJobs() predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, TitleJobsTable, TitleJobsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasTitleJobsWith applies the HasEdge predicate on the "title_jobs" edge with a given conditions (other predicates).
+func HasTitleJobsWith(preds ...predicate.KaguyaTitleJob) predicate.KaguyaConversation {
+	return predicate.KaguyaConversation(func(s *sql.Selector) {
+		step := newTitleJobsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

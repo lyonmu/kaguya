@@ -44,8 +44,18 @@ type KaguyaMCPServer struct {
 	// TimeoutSeconds holds the value of the "timeout_seconds" field.
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 	// Enabled holds the value of the "enabled" field.
-	Enabled      bool `json:"enabled,omitempty"`
-	selectValues sql.SelectValues
+	Enabled bool `json:"enabled,omitempty"`
+	// 当前连接周期内 Prepare 连续失败次数
+	ReconnectFailures int `json:"reconnect_failures,omitempty"`
+	// 熔断是否打开；重启后保持，不由启动恢复自动清除
+	ReconnectCircuitOpen bool `json:"reconnect_circuit_open,omitempty"`
+	// 手动重连开启的新连接周期
+	ReconnectCycle int64 `json:"reconnect_cycle,omitempty"`
+	// 下一次自动重连时间；熔断/open 或运行中为空
+	ReconnectNextAt *time.Time `json:"reconnect_next_at,omitempty"`
+	// 熔断打开时间
+	ReconnectOpenedAt *time.Time `json:"reconnect_opened_at,omitempty"`
+	selectValues      sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -55,13 +65,13 @@ func (*KaguyaMCPServer) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyamcpserver.FieldArgs, kaguyamcpserver.FieldEnv, kaguyamcpserver.FieldHeaders:
 			values[i] = new([]byte)
-		case kaguyamcpserver.FieldEnabled:
+		case kaguyamcpserver.FieldEnabled, kaguyamcpserver.FieldReconnectCircuitOpen:
 			values[i] = new(sql.NullBool)
-		case kaguyamcpserver.FieldTimeoutSeconds:
+		case kaguyamcpserver.FieldTimeoutSeconds, kaguyamcpserver.FieldReconnectFailures, kaguyamcpserver.FieldReconnectCycle:
 			values[i] = new(sql.NullInt64)
 		case kaguyamcpserver.FieldID, kaguyamcpserver.FieldName, kaguyamcpserver.FieldTransport, kaguyamcpserver.FieldCommand, kaguyamcpserver.FieldWorkingDirectory, kaguyamcpserver.FieldURL:
 			values[i] = new(sql.NullString)
-		case kaguyamcpserver.FieldCreatedAt, kaguyamcpserver.FieldUpdatedAt, kaguyamcpserver.FieldDeletedAt:
+		case kaguyamcpserver.FieldCreatedAt, kaguyamcpserver.FieldUpdatedAt, kaguyamcpserver.FieldDeletedAt, kaguyamcpserver.FieldReconnectNextAt, kaguyamcpserver.FieldReconnectOpenedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -169,6 +179,38 @@ func (_m *KaguyaMCPServer) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.Enabled = value.Bool
 			}
+		case kaguyamcpserver.FieldReconnectFailures:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reconnect_failures", values[i])
+			} else if value.Valid {
+				_m.ReconnectFailures = int(value.Int64)
+			}
+		case kaguyamcpserver.FieldReconnectCircuitOpen:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field reconnect_circuit_open", values[i])
+			} else if value.Valid {
+				_m.ReconnectCircuitOpen = value.Bool
+			}
+		case kaguyamcpserver.FieldReconnectCycle:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reconnect_cycle", values[i])
+			} else if value.Valid {
+				_m.ReconnectCycle = value.Int64
+			}
+		case kaguyamcpserver.FieldReconnectNextAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field reconnect_next_at", values[i])
+			} else if value.Valid {
+				_m.ReconnectNextAt = new(time.Time)
+				*_m.ReconnectNextAt = value.Time
+			}
+		case kaguyamcpserver.FieldReconnectOpenedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field reconnect_opened_at", values[i])
+			} else if value.Valid {
+				_m.ReconnectOpenedAt = new(time.Time)
+				*_m.ReconnectOpenedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -243,6 +285,25 @@ func (_m *KaguyaMCPServer) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Enabled))
+	builder.WriteString(", ")
+	builder.WriteString("reconnect_failures=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReconnectFailures))
+	builder.WriteString(", ")
+	builder.WriteString("reconnect_circuit_open=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReconnectCircuitOpen))
+	builder.WriteString(", ")
+	builder.WriteString("reconnect_cycle=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReconnectCycle))
+	builder.WriteString(", ")
+	if v := _m.ReconnectNextAt; v != nil {
+		builder.WriteString("reconnect_next_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ReconnectOpenedAt; v != nil {
+		builder.WriteString("reconnect_opened_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

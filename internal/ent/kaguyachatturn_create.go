@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
@@ -253,6 +254,62 @@ func (_c *KaguyaChatTurnCreate) SetNillableMemoryRefs(v *memory.TurnMemorySelect
 	return _c
 }
 
+// SetPermissionMode sets the "permission_mode" field.
+func (_c *KaguyaChatTurnCreate) SetPermissionMode(v kaguyachatturn.PermissionMode) *KaguyaChatTurnCreate {
+	_c.mutation.SetPermissionMode(v)
+	return _c
+}
+
+// SetNillablePermissionMode sets the "permission_mode" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillablePermissionMode(v *kaguyachatturn.PermissionMode) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetPermissionMode(*v)
+	}
+	return _c
+}
+
+// SetGlobalInstructionHash sets the "global_instruction_hash" field.
+func (_c *KaguyaChatTurnCreate) SetGlobalInstructionHash(v string) *KaguyaChatTurnCreate {
+	_c.mutation.SetGlobalInstructionHash(v)
+	return _c
+}
+
+// SetNillableGlobalInstructionHash sets the "global_instruction_hash" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableGlobalInstructionHash(v *string) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetGlobalInstructionHash(*v)
+	}
+	return _c
+}
+
+// SetGlobalInstructionVersion sets the "global_instruction_version" field.
+func (_c *KaguyaChatTurnCreate) SetGlobalInstructionVersion(v int64) *KaguyaChatTurnCreate {
+	_c.mutation.SetGlobalInstructionVersion(v)
+	return _c
+}
+
+// SetNillableGlobalInstructionVersion sets the "global_instruction_version" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableGlobalInstructionVersion(v *int64) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetGlobalInstructionVersion(*v)
+	}
+	return _c
+}
+
+// SetReferenceSummary sets the "reference_summary" field.
+func (_c *KaguyaChatTurnCreate) SetReferenceSummary(v chat.TurnReferenceSummary) *KaguyaChatTurnCreate {
+	_c.mutation.SetReferenceSummary(v)
+	return _c
+}
+
+// SetNillableReferenceSummary sets the "reference_summary" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableReferenceSummary(v *chat.TurnReferenceSummary) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetReferenceSummary(*v)
+	}
+	return _c
+}
+
 // SetMessages sets the "messages" field.
 func (_c *KaguyaChatTurnCreate) SetMessages(v []fantasy.Message) *KaguyaChatTurnCreate {
 	_c.mutation.SetMessages(v)
@@ -355,6 +412,10 @@ func (_c *KaguyaChatTurnCreate) defaults() error {
 	if _, ok := _c.mutation.CompactionCount(); !ok {
 		v := kaguyachatturn.DefaultCompactionCount
 		_c.mutation.SetCompactionCount(v)
+	}
+	if _, ok := _c.mutation.PermissionMode(); !ok {
+		v := kaguyachatturn.DefaultPermissionMode
+		_c.mutation.SetPermissionMode(v)
 	}
 	if _, ok := _c.mutation.ID(); !ok {
 		if kaguyachatturn.DefaultID == nil {
@@ -500,6 +561,19 @@ func (_c *KaguyaChatTurnCreate) check() error {
 	if v, ok := _c.mutation.CompactionCount(); ok {
 		if err := kaguyachatturn.CompactionCountValidator(v); err != nil {
 			return &ValidationError{Name: "compaction_count", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.compaction_count": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PermissionMode(); !ok {
+		return &ValidationError{Name: "permission_mode", err: errors.New(`ent: missing required field "KaguyaChatTurn.permission_mode"`)}
+	}
+	if v, ok := _c.mutation.PermissionMode(); ok {
+		if err := kaguyachatturn.PermissionModeValidator(v); err != nil {
+			return &ValidationError{Name: "permission_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.permission_mode": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.GlobalInstructionVersion(); ok {
+		if err := kaguyachatturn.GlobalInstructionVersionValidator(v); err != nil {
+			return &ValidationError{Name: "global_instruction_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.global_instruction_version": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Messages(); !ok {
@@ -652,6 +726,22 @@ func (_c *KaguyaChatTurnCreate) createSpec() (*KaguyaChatTurn, *sqlgraph.CreateS
 	if value, ok := _c.mutation.MemoryRefs(); ok {
 		_spec.SetField(kaguyachatturn.FieldMemoryRefs, field.TypeJSON, value)
 		_node.MemoryRefs = value
+	}
+	if value, ok := _c.mutation.PermissionMode(); ok {
+		_spec.SetField(kaguyachatturn.FieldPermissionMode, field.TypeEnum, value)
+		_node.PermissionMode = value
+	}
+	if value, ok := _c.mutation.GlobalInstructionHash(); ok {
+		_spec.SetField(kaguyachatturn.FieldGlobalInstructionHash, field.TypeString, value)
+		_node.GlobalInstructionHash = &value
+	}
+	if value, ok := _c.mutation.GlobalInstructionVersion(); ok {
+		_spec.SetField(kaguyachatturn.FieldGlobalInstructionVersion, field.TypeInt64, value)
+		_node.GlobalInstructionVersion = &value
+	}
+	if value, ok := _c.mutation.ReferenceSummary(); ok {
+		_spec.SetField(kaguyachatturn.FieldReferenceSummary, field.TypeJSON, value)
+		_node.ReferenceSummary = value
 	}
 	if value, ok := _c.mutation.Messages(); ok {
 		_spec.SetField(kaguyachatturn.FieldMessages, field.TypeJSON, value)
@@ -1141,6 +1231,78 @@ func (u *KaguyaChatTurnUpsert) UpdateMemoryRefs() *KaguyaChatTurnUpsert {
 // ClearMemoryRefs clears the value of the "memory_refs" field.
 func (u *KaguyaChatTurnUpsert) ClearMemoryRefs() *KaguyaChatTurnUpsert {
 	u.SetNull(kaguyachatturn.FieldMemoryRefs)
+	return u
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (u *KaguyaChatTurnUpsert) SetPermissionMode(v kaguyachatturn.PermissionMode) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldPermissionMode, v)
+	return u
+}
+
+// UpdatePermissionMode sets the "permission_mode" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdatePermissionMode() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldPermissionMode)
+	return u
+}
+
+// SetGlobalInstructionHash sets the "global_instruction_hash" field.
+func (u *KaguyaChatTurnUpsert) SetGlobalInstructionHash(v string) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldGlobalInstructionHash, v)
+	return u
+}
+
+// UpdateGlobalInstructionHash sets the "global_instruction_hash" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateGlobalInstructionHash() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldGlobalInstructionHash)
+	return u
+}
+
+// ClearGlobalInstructionHash clears the value of the "global_instruction_hash" field.
+func (u *KaguyaChatTurnUpsert) ClearGlobalInstructionHash() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldGlobalInstructionHash)
+	return u
+}
+
+// SetGlobalInstructionVersion sets the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsert) SetGlobalInstructionVersion(v int64) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldGlobalInstructionVersion, v)
+	return u
+}
+
+// UpdateGlobalInstructionVersion sets the "global_instruction_version" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateGlobalInstructionVersion() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldGlobalInstructionVersion)
+	return u
+}
+
+// AddGlobalInstructionVersion adds v to the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsert) AddGlobalInstructionVersion(v int64) *KaguyaChatTurnUpsert {
+	u.Add(kaguyachatturn.FieldGlobalInstructionVersion, v)
+	return u
+}
+
+// ClearGlobalInstructionVersion clears the value of the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsert) ClearGlobalInstructionVersion() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldGlobalInstructionVersion)
+	return u
+}
+
+// SetReferenceSummary sets the "reference_summary" field.
+func (u *KaguyaChatTurnUpsert) SetReferenceSummary(v chat.TurnReferenceSummary) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldReferenceSummary, v)
+	return u
+}
+
+// UpdateReferenceSummary sets the "reference_summary" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateReferenceSummary() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldReferenceSummary)
+	return u
+}
+
+// ClearReferenceSummary clears the value of the "reference_summary" field.
+func (u *KaguyaChatTurnUpsert) ClearReferenceSummary() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldReferenceSummary)
 	return u
 }
 
@@ -1673,6 +1835,90 @@ func (u *KaguyaChatTurnUpsertOne) UpdateMemoryRefs() *KaguyaChatTurnUpsertOne {
 func (u *KaguyaChatTurnUpsertOne) ClearMemoryRefs() *KaguyaChatTurnUpsertOne {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.ClearMemoryRefs()
+	})
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (u *KaguyaChatTurnUpsertOne) SetPermissionMode(v kaguyachatturn.PermissionMode) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetPermissionMode(v)
+	})
+}
+
+// UpdatePermissionMode sets the "permission_mode" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdatePermissionMode() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdatePermissionMode()
+	})
+}
+
+// SetGlobalInstructionHash sets the "global_instruction_hash" field.
+func (u *KaguyaChatTurnUpsertOne) SetGlobalInstructionHash(v string) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetGlobalInstructionHash(v)
+	})
+}
+
+// UpdateGlobalInstructionHash sets the "global_instruction_hash" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateGlobalInstructionHash() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateGlobalInstructionHash()
+	})
+}
+
+// ClearGlobalInstructionHash clears the value of the "global_instruction_hash" field.
+func (u *KaguyaChatTurnUpsertOne) ClearGlobalInstructionHash() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearGlobalInstructionHash()
+	})
+}
+
+// SetGlobalInstructionVersion sets the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsertOne) SetGlobalInstructionVersion(v int64) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetGlobalInstructionVersion(v)
+	})
+}
+
+// AddGlobalInstructionVersion adds v to the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsertOne) AddGlobalInstructionVersion(v int64) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddGlobalInstructionVersion(v)
+	})
+}
+
+// UpdateGlobalInstructionVersion sets the "global_instruction_version" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateGlobalInstructionVersion() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateGlobalInstructionVersion()
+	})
+}
+
+// ClearGlobalInstructionVersion clears the value of the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsertOne) ClearGlobalInstructionVersion() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearGlobalInstructionVersion()
+	})
+}
+
+// SetReferenceSummary sets the "reference_summary" field.
+func (u *KaguyaChatTurnUpsertOne) SetReferenceSummary(v chat.TurnReferenceSummary) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetReferenceSummary(v)
+	})
+}
+
+// UpdateReferenceSummary sets the "reference_summary" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateReferenceSummary() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateReferenceSummary()
+	})
+}
+
+// ClearReferenceSummary clears the value of the "reference_summary" field.
+func (u *KaguyaChatTurnUpsertOne) ClearReferenceSummary() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearReferenceSummary()
 	})
 }
 
@@ -2374,6 +2620,90 @@ func (u *KaguyaChatTurnUpsertBulk) UpdateMemoryRefs() *KaguyaChatTurnUpsertBulk 
 func (u *KaguyaChatTurnUpsertBulk) ClearMemoryRefs() *KaguyaChatTurnUpsertBulk {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.ClearMemoryRefs()
+	})
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (u *KaguyaChatTurnUpsertBulk) SetPermissionMode(v kaguyachatturn.PermissionMode) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetPermissionMode(v)
+	})
+}
+
+// UpdatePermissionMode sets the "permission_mode" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdatePermissionMode() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdatePermissionMode()
+	})
+}
+
+// SetGlobalInstructionHash sets the "global_instruction_hash" field.
+func (u *KaguyaChatTurnUpsertBulk) SetGlobalInstructionHash(v string) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetGlobalInstructionHash(v)
+	})
+}
+
+// UpdateGlobalInstructionHash sets the "global_instruction_hash" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateGlobalInstructionHash() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateGlobalInstructionHash()
+	})
+}
+
+// ClearGlobalInstructionHash clears the value of the "global_instruction_hash" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearGlobalInstructionHash() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearGlobalInstructionHash()
+	})
+}
+
+// SetGlobalInstructionVersion sets the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsertBulk) SetGlobalInstructionVersion(v int64) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetGlobalInstructionVersion(v)
+	})
+}
+
+// AddGlobalInstructionVersion adds v to the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsertBulk) AddGlobalInstructionVersion(v int64) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddGlobalInstructionVersion(v)
+	})
+}
+
+// UpdateGlobalInstructionVersion sets the "global_instruction_version" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateGlobalInstructionVersion() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateGlobalInstructionVersion()
+	})
+}
+
+// ClearGlobalInstructionVersion clears the value of the "global_instruction_version" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearGlobalInstructionVersion() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearGlobalInstructionVersion()
+	})
+}
+
+// SetReferenceSummary sets the "reference_summary" field.
+func (u *KaguyaChatTurnUpsertBulk) SetReferenceSummary(v chat.TurnReferenceSummary) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetReferenceSummary(v)
+	})
+}
+
+// UpdateReferenceSummary sets the "reference_summary" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateReferenceSummary() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateReferenceSummary()
+	})
+}
+
+// ClearReferenceSummary clears the value of the "reference_summary" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearReferenceSummary() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearReferenceSummary()
 	})
 }
 

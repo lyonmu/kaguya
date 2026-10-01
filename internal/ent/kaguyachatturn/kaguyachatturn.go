@@ -70,6 +70,14 @@ const (
 	FieldCompactionCount = "compaction_count"
 	// FieldMemoryRefs holds the string denoting the memory_refs field in the database.
 	FieldMemoryRefs = "memory_refs"
+	// FieldPermissionMode holds the string denoting the permission_mode field in the database.
+	FieldPermissionMode = "permission_mode"
+	// FieldGlobalInstructionHash holds the string denoting the global_instruction_hash field in the database.
+	FieldGlobalInstructionHash = "global_instruction_hash"
+	// FieldGlobalInstructionVersion holds the string denoting the global_instruction_version field in the database.
+	FieldGlobalInstructionVersion = "global_instruction_version"
+	// FieldReferenceSummary holds the string denoting the reference_summary field in the database.
+	FieldReferenceSummary = "reference_summary"
 	// FieldMessages holds the string denoting the messages field in the database.
 	FieldMessages = "messages"
 	// EdgeConversation holds the string denoting the conversation edge name in mutations.
@@ -124,6 +132,10 @@ var Columns = []string{
 	FieldContextMessages,
 	FieldCompactionCount,
 	FieldMemoryRefs,
+	FieldPermissionMode,
+	FieldGlobalInstructionHash,
+	FieldGlobalInstructionVersion,
+	FieldReferenceSummary,
 	FieldMessages,
 }
 
@@ -178,6 +190,8 @@ var (
 	DefaultCompactionCount int
 	// CompactionCountValidator is a validator for the "compaction_count" field. It is called by the builders before save.
 	CompactionCountValidator func(int) error
+	// GlobalInstructionVersionValidator is a validator for the "global_instruction_version" field. It is called by the builders before save.
+	GlobalInstructionVersionValidator func(int64) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() string
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
@@ -210,6 +224,33 @@ func StatusValidator(s Status) error {
 		return nil
 	default:
 		return fmt.Errorf("kaguyachatturn: invalid enum value for status field: %q", s)
+	}
+}
+
+// PermissionMode defines the type for the "permission_mode" enum field.
+type PermissionMode string
+
+// PermissionModeFullAccess is the default value of the PermissionMode enum.
+const DefaultPermissionMode = PermissionModeFullAccess
+
+// PermissionMode values.
+const (
+	PermissionModeFullApproval PermissionMode = "full_approval"
+	PermissionModeAutoApproval PermissionMode = "auto_approval"
+	PermissionModeFullAccess   PermissionMode = "full_access"
+)
+
+func (pm PermissionMode) String() string {
+	return string(pm)
+}
+
+// PermissionModeValidator is a validator for the "permission_mode" field enum values. It is called by the builders before save.
+func PermissionModeValidator(pm PermissionMode) error {
+	switch pm {
+	case PermissionModeFullApproval, PermissionModeAutoApproval, PermissionModeFullAccess:
+		return nil
+	default:
+		return fmt.Errorf("kaguyachatturn: invalid enum value for permission_mode field: %q", pm)
 	}
 }
 
@@ -344,6 +385,21 @@ func ByContextWindow(opts ...sql.OrderTermOption) OrderOption {
 // ByCompactionCount orders the results by the compaction_count field.
 func ByCompactionCount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCompactionCount, opts...).ToFunc()
+}
+
+// ByPermissionMode orders the results by the permission_mode field.
+func ByPermissionMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPermissionMode, opts...).ToFunc()
+}
+
+// ByGlobalInstructionHash orders the results by the global_instruction_hash field.
+func ByGlobalInstructionHash(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGlobalInstructionHash, opts...).ToFunc()
+}
+
+// ByGlobalInstructionVersion orders the results by the global_instruction_version field.
+func ByGlobalInstructionVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGlobalInstructionVersion, opts...).ToFunc()
 }
 
 // ByConversationField orders the results by conversation field.

@@ -15,19 +15,21 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 )
 
 // KaguyaConversationQuery is the builder for querying KaguyaConversation entities.
 type KaguyaConversationQuery struct {
 	config
-	ctx         *QueryContext
-	order       []kaguyaconversation.OrderOption
-	inters      []Interceptor
-	predicates  []predicate.KaguyaConversation
-	withTurns   *KaguyaChatTurnQuery
-	withProject *KaguyaProjectQuery
-	modifiers   []func(*sql.Selector)
+	ctx           *QueryContext
+	order         []kaguyaconversation.OrderOption
+	inters        []Interceptor
+	predicates    []predicate.KaguyaConversation
+	withTurns     *KaguyaChatTurnQuery
+	withTitleJobs *KaguyaTitleJobQuery
+	withProject   *KaguyaProjectQuery
+	modifiers     []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -79,6 +81,28 @@ func (_q *KaguyaConversationQuery) QueryTurns() *KaguyaChatTurnQuery {
 			sqlgraph.From(kaguyaconversation.Table, kaguyaconversation.FieldID, selector),
 			sqlgraph.To(kaguyachatturn.Table, kaguyachatturn.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, kaguyaconversation.TurnsTable, kaguyaconversation.TurnsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryTitleJobs chains the current query on the "title_jobs" edge.
+func (_q *KaguyaConversationQuery) QueryTitleJobs() *KaguyaTitleJobQuery {
+	query := (&KaguyaTitleJobClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(kaguyaconversation.Table, kaguyaconversation.FieldID, selector),
+			sqlgraph.To(kaguyatitlejob.Table, kaguyatitlejob.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, kaguyaconversation.TitleJobsTable, kaguyaconversation.TitleJobsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -295,13 +319,14 @@ func (_q *KaguyaConversationQuery) Clone() *KaguyaConversationQuery {
 		return nil
 	}
 	return &KaguyaConversationQuery{
-		config:      _q.config,
-		ctx:         _q.ctx.Clone(),
-		order:       append([]kaguyaconversation.OrderOption{}, _q.order...),
-		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.KaguyaConversation{}, _q.predicates...),
-		withTurns:   _q.withTurns.Clone(),
-		withProject: _q.withProject.Clone(),
+		config:        _q.config,
+		ctx:           _q.ctx.Clone(),
+		order:         append([]kaguyaconversation.OrderOption{}, _q.order...),
+		inters:        append([]Interceptor{}, _q.inters...),
+		predicates:    append([]predicate.KaguyaConversation{}, _q.predicates...),
+		withTurns:     _q.withTurns.Clone(),
+		withTitleJobs: _q.withTitleJobs.Clone(),
+		withProject:   _q.withProject.Clone(),
 		// clone intermediate query.
 		sql:       _q.sql.Clone(),
 		path:      _q.path,
@@ -317,6 +342,17 @@ func (_q *KaguyaConversationQuery) WithTurns(opts ...func(*KaguyaChatTurnQuery))
 		opt(query)
 	}
 	_q.withTurns = query
+	return _q
+}
+
+// WithTitleJobs tells the query-builder to eager-load the nodes that are connected to
+// the "title_jobs" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *KaguyaConversationQuery) WithTitleJobs(opts ...func(*KaguyaTitleJobQuery)) *KaguyaConversationQuery {
+	query := (&KaguyaTitleJobClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withTitleJobs = query
 	return _q
 }
 
@@ -409,8 +445,9 @@ func (_q *KaguyaConversationQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 	var (
 		nodes       = []*KaguyaConversation{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withTurns != nil,
+			_q.withTitleJobs != nil,
 			_q.withProject != nil,
 		}
 	)
@@ -442,6 +479,13 @@ func (_q *KaguyaConversationQuery) sqlAll(ctx context.Context, hooks ...queryHoo
 			return nil, err
 		}
 	}
+	if query := _q.withTitleJobs; query != nil {
+		if err := _q.loadTitleJobs(ctx, query, nodes,
+			func(n *KaguyaConversation) { n.Edges.TitleJobs = []*KaguyaTitleJob{} },
+			func(n *KaguyaConversation, e *KaguyaTitleJob) { n.Edges.TitleJobs = append(n.Edges.TitleJobs, e) }); err != nil {
+			return nil, err
+		}
+	}
 	if query := _q.withProject; query != nil {
 		if err := _q.loadProject(ctx, query, nodes, nil,
 			func(n *KaguyaConversation, e *KaguyaProject) { n.Edges.Project = e }); err != nil {
@@ -466,6 +510,36 @@ func (_q *KaguyaConversationQuery) loadTurns(ctx context.Context, query *KaguyaC
 	}
 	query.Where(predicate.KaguyaChatTurn(func(s *sql.Selector) {
 		s.Where(sql.InValues(s.C(kaguyaconversation.TurnsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ConversationID
+		node, ok := nodeids[fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "conversation_id" returned %v for node %v`, fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *KaguyaConversationQuery) loadTitleJobs(ctx context.Context, query *KaguyaTitleJobQuery, nodes []*KaguyaConversation, init func(*KaguyaConversation), assign func(*KaguyaConversation, *KaguyaTitleJob)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[string]*KaguyaConversation)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(kaguyatitlejob.FieldConversationID)
+	}
+	query.Where(predicate.KaguyaTitleJob(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(kaguyaconversation.TitleJobsColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {

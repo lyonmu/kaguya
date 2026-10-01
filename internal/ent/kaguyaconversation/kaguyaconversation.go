@@ -28,6 +28,14 @@ const (
 	FieldProjectID = "project_id"
 	// FieldAgentInstructions holds the string denoting the agent_instructions field in the database.
 	FieldAgentInstructions = "agent_instructions"
+	// FieldProjectInstructions holds the string denoting the project_instructions field in the database.
+	FieldProjectInstructions = "project_instructions"
+	// FieldInstructionsFormat holds the string denoting the instructions_format field in the database.
+	FieldInstructionsFormat = "instructions_format"
+	// FieldPermissionMode holds the string denoting the permission_mode field in the database.
+	FieldPermissionMode = "permission_mode"
+	// FieldTitleRevision holds the string denoting the title_revision field in the database.
+	FieldTitleRevision = "title_revision"
 	// FieldFavorite holds the string denoting the favorite field in the database.
 	FieldFavorite = "favorite"
 	// FieldMemoryMode holds the string denoting the memory_mode field in the database.
@@ -56,6 +64,8 @@ const (
 	FieldReasoningTokens = "reasoning_tokens"
 	// EdgeTurns holds the string denoting the turns edge name in mutations.
 	EdgeTurns = "turns"
+	// EdgeTitleJobs holds the string denoting the title_jobs edge name in mutations.
+	EdgeTitleJobs = "title_jobs"
 	// EdgeProject holds the string denoting the project edge name in mutations.
 	EdgeProject = "project"
 	// Table holds the table name of the kaguyaconversation in the database.
@@ -67,6 +77,13 @@ const (
 	TurnsInverseTable = "kaguya_chat_turn"
 	// TurnsColumn is the table column denoting the turns relation/edge.
 	TurnsColumn = "conversation_id"
+	// TitleJobsTable is the table that holds the title_jobs relation/edge.
+	TitleJobsTable = "kaguya_title_job"
+	// TitleJobsInverseTable is the table name for the KaguyaTitleJob entity.
+	// It exists in this package in order to avoid circular dependency with the "kaguyatitlejob" package.
+	TitleJobsInverseTable = "kaguya_title_job"
+	// TitleJobsColumn is the table column denoting the title_jobs relation/edge.
+	TitleJobsColumn = "conversation_id"
 	// ProjectTable is the table that holds the project relation/edge.
 	ProjectTable = "kaguya_conversation"
 	// ProjectInverseTable is the table name for the KaguyaProject entity.
@@ -85,6 +102,10 @@ var Columns = []string{
 	FieldTitle,
 	FieldProjectID,
 	FieldAgentInstructions,
+	FieldProjectInstructions,
+	FieldInstructionsFormat,
+	FieldPermissionMode,
+	FieldTitleRevision,
 	FieldFavorite,
 	FieldMemoryMode,
 	FieldTurnCount,
@@ -125,6 +146,10 @@ var (
 	UpdateDefaultUpdatedAt func() time.Time
 	// TitleValidator is a validator for the "title" field. It is called by the builders before save.
 	TitleValidator func(string) error
+	// DefaultTitleRevision holds the default value on creation for the "title_revision" field.
+	DefaultTitleRevision int64
+	// TitleRevisionValidator is a validator for the "title_revision" field. It is called by the builders before save.
+	TitleRevisionValidator func(int64) error
 	// DefaultFavorite holds the default value on creation for the "favorite" field.
 	DefaultFavorite bool
 	// DefaultTurnCount holds the default value on creation for the "turn_count" field.
@@ -164,6 +189,59 @@ var (
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
 	IDValidator func(string) error
 )
+
+// InstructionsFormat defines the type for the "instructions_format" enum field.
+type InstructionsFormat string
+
+// InstructionsFormatLegacy is the default value of the InstructionsFormat enum.
+const DefaultInstructionsFormat = InstructionsFormatLegacy
+
+// InstructionsFormat values.
+const (
+	InstructionsFormatLegacy InstructionsFormat = "legacy"
+	InstructionsFormatSplit  InstructionsFormat = "split"
+)
+
+func (_if InstructionsFormat) String() string {
+	return string(_if)
+}
+
+// InstructionsFormatValidator is a validator for the "instructions_format" field enum values. It is called by the builders before save.
+func InstructionsFormatValidator(_if InstructionsFormat) error {
+	switch _if {
+	case InstructionsFormatLegacy, InstructionsFormatSplit:
+		return nil
+	default:
+		return fmt.Errorf("kaguyaconversation: invalid enum value for instructions_format field: %q", _if)
+	}
+}
+
+// PermissionMode defines the type for the "permission_mode" enum field.
+type PermissionMode string
+
+// PermissionModeFullAccess is the default value of the PermissionMode enum.
+const DefaultPermissionMode = PermissionModeFullAccess
+
+// PermissionMode values.
+const (
+	PermissionModeFullApproval PermissionMode = "full_approval"
+	PermissionModeAutoApproval PermissionMode = "auto_approval"
+	PermissionModeFullAccess   PermissionMode = "full_access"
+)
+
+func (pm PermissionMode) String() string {
+	return string(pm)
+}
+
+// PermissionModeValidator is a validator for the "permission_mode" field enum values. It is called by the builders before save.
+func PermissionModeValidator(pm PermissionMode) error {
+	switch pm {
+	case PermissionModeFullApproval, PermissionModeAutoApproval, PermissionModeFullAccess:
+		return nil
+	default:
+		return fmt.Errorf("kaguyaconversation: invalid enum value for permission_mode field: %q", pm)
+	}
+}
 
 // MemoryMode defines the type for the "memory_mode" enum field.
 type MemoryMode string
@@ -228,6 +306,26 @@ func ByProjectID(opts ...sql.OrderTermOption) OrderOption {
 // ByAgentInstructions orders the results by the agent_instructions field.
 func ByAgentInstructions(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAgentInstructions, opts...).ToFunc()
+}
+
+// ByProjectInstructions orders the results by the project_instructions field.
+func ByProjectInstructions(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldProjectInstructions, opts...).ToFunc()
+}
+
+// ByInstructionsFormat orders the results by the instructions_format field.
+func ByInstructionsFormat(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldInstructionsFormat, opts...).ToFunc()
+}
+
+// ByPermissionMode orders the results by the permission_mode field.
+func ByPermissionMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPermissionMode, opts...).ToFunc()
+}
+
+// ByTitleRevision orders the results by the title_revision field.
+func ByTitleRevision(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTitleRevision, opts...).ToFunc()
 }
 
 // ByFavorite orders the results by the favorite field.
@@ -309,6 +407,20 @@ func ByTurns(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// ByTitleJobsCount orders the results by title_jobs count.
+func ByTitleJobsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newTitleJobsStep(), opts...)
+	}
+}
+
+// ByTitleJobs orders the results by title_jobs terms.
+func ByTitleJobs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newTitleJobsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByProjectField orders the results by project field.
 func ByProjectField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -320,6 +432,13 @@ func newTurnsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(TurnsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, TurnsTable, TurnsColumn),
+	)
+}
+func newTitleJobsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(TitleJobsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, TitleJobsTable, TitleJobsColumn),
 	)
 }
 func newProjectStep() *sqlgraph.Step {

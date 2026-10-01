@@ -15,6 +15,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 )
 
 // KaguyaConversationCreate is the builder for creating a KaguyaConversation entity.
@@ -97,6 +98,62 @@ func (_c *KaguyaConversationCreate) SetAgentInstructions(v string) *KaguyaConver
 func (_c *KaguyaConversationCreate) SetNillableAgentInstructions(v *string) *KaguyaConversationCreate {
 	if v != nil {
 		_c.SetAgentInstructions(*v)
+	}
+	return _c
+}
+
+// SetProjectInstructions sets the "project_instructions" field.
+func (_c *KaguyaConversationCreate) SetProjectInstructions(v string) *KaguyaConversationCreate {
+	_c.mutation.SetProjectInstructions(v)
+	return _c
+}
+
+// SetNillableProjectInstructions sets the "project_instructions" field if the given value is not nil.
+func (_c *KaguyaConversationCreate) SetNillableProjectInstructions(v *string) *KaguyaConversationCreate {
+	if v != nil {
+		_c.SetProjectInstructions(*v)
+	}
+	return _c
+}
+
+// SetInstructionsFormat sets the "instructions_format" field.
+func (_c *KaguyaConversationCreate) SetInstructionsFormat(v kaguyaconversation.InstructionsFormat) *KaguyaConversationCreate {
+	_c.mutation.SetInstructionsFormat(v)
+	return _c
+}
+
+// SetNillableInstructionsFormat sets the "instructions_format" field if the given value is not nil.
+func (_c *KaguyaConversationCreate) SetNillableInstructionsFormat(v *kaguyaconversation.InstructionsFormat) *KaguyaConversationCreate {
+	if v != nil {
+		_c.SetInstructionsFormat(*v)
+	}
+	return _c
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (_c *KaguyaConversationCreate) SetPermissionMode(v kaguyaconversation.PermissionMode) *KaguyaConversationCreate {
+	_c.mutation.SetPermissionMode(v)
+	return _c
+}
+
+// SetNillablePermissionMode sets the "permission_mode" field if the given value is not nil.
+func (_c *KaguyaConversationCreate) SetNillablePermissionMode(v *kaguyaconversation.PermissionMode) *KaguyaConversationCreate {
+	if v != nil {
+		_c.SetPermissionMode(*v)
+	}
+	return _c
+}
+
+// SetTitleRevision sets the "title_revision" field.
+func (_c *KaguyaConversationCreate) SetTitleRevision(v int64) *KaguyaConversationCreate {
+	_c.mutation.SetTitleRevision(v)
+	return _c
+}
+
+// SetNillableTitleRevision sets the "title_revision" field if the given value is not nil.
+func (_c *KaguyaConversationCreate) SetNillableTitleRevision(v *int64) *KaguyaConversationCreate {
+	if v != nil {
+		_c.SetTitleRevision(*v)
 	}
 	return _c
 }
@@ -288,6 +345,21 @@ func (_c *KaguyaConversationCreate) AddTurns(v ...*KaguyaChatTurn) *KaguyaConver
 	return _c.AddTurnIDs(ids...)
 }
 
+// AddTitleJobIDs adds the "title_jobs" edge to the KaguyaTitleJob entity by IDs.
+func (_c *KaguyaConversationCreate) AddTitleJobIDs(ids ...string) *KaguyaConversationCreate {
+	_c.mutation.AddTitleJobIDs(ids...)
+	return _c
+}
+
+// AddTitleJobs adds the "title_jobs" edges to the KaguyaTitleJob entity.
+func (_c *KaguyaConversationCreate) AddTitleJobs(v ...*KaguyaTitleJob) *KaguyaConversationCreate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddTitleJobIDs(ids...)
+}
+
 // SetProject sets the "project" edge to the KaguyaProject entity.
 func (_c *KaguyaConversationCreate) SetProject(v *KaguyaProject) *KaguyaConversationCreate {
 	return _c.SetProjectID(v.ID)
@@ -343,6 +415,18 @@ func (_c *KaguyaConversationCreate) defaults() error {
 		}
 		v := kaguyaconversation.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
+	}
+	if _, ok := _c.mutation.InstructionsFormat(); !ok {
+		v := kaguyaconversation.DefaultInstructionsFormat
+		_c.mutation.SetInstructionsFormat(v)
+	}
+	if _, ok := _c.mutation.PermissionMode(); !ok {
+		v := kaguyaconversation.DefaultPermissionMode
+		_c.mutation.SetPermissionMode(v)
+	}
+	if _, ok := _c.mutation.TitleRevision(); !ok {
+		v := kaguyaconversation.DefaultTitleRevision
+		_c.mutation.SetTitleRevision(v)
 	}
 	if _, ok := _c.mutation.Favorite(); !ok {
 		v := kaguyaconversation.DefaultFavorite
@@ -408,6 +492,30 @@ func (_c *KaguyaConversationCreate) check() error {
 	if v, ok := _c.mutation.Title(); ok {
 		if err := kaguyaconversation.TitleValidator(v); err != nil {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.InstructionsFormat(); !ok {
+		return &ValidationError{Name: "instructions_format", err: errors.New(`ent: missing required field "KaguyaConversation.instructions_format"`)}
+	}
+	if v, ok := _c.mutation.InstructionsFormat(); ok {
+		if err := kaguyaconversation.InstructionsFormatValidator(v); err != nil {
+			return &ValidationError{Name: "instructions_format", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.instructions_format": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.PermissionMode(); !ok {
+		return &ValidationError{Name: "permission_mode", err: errors.New(`ent: missing required field "KaguyaConversation.permission_mode"`)}
+	}
+	if v, ok := _c.mutation.PermissionMode(); ok {
+		if err := kaguyaconversation.PermissionModeValidator(v); err != nil {
+			return &ValidationError{Name: "permission_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.permission_mode": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.TitleRevision(); !ok {
+		return &ValidationError{Name: "title_revision", err: errors.New(`ent: missing required field "KaguyaConversation.title_revision"`)}
+	}
+	if v, ok := _c.mutation.TitleRevision(); ok {
+		if err := kaguyaconversation.TitleRevisionValidator(v); err != nil {
+			return &ValidationError{Name: "title_revision", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title_revision": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Favorite(); !ok {
@@ -555,6 +663,22 @@ func (_c *KaguyaConversationCreate) createSpec() (*KaguyaConversation, *sqlgraph
 		_spec.SetField(kaguyaconversation.FieldAgentInstructions, field.TypeString, value)
 		_node.AgentInstructions = &value
 	}
+	if value, ok := _c.mutation.ProjectInstructions(); ok {
+		_spec.SetField(kaguyaconversation.FieldProjectInstructions, field.TypeString, value)
+		_node.ProjectInstructions = &value
+	}
+	if value, ok := _c.mutation.InstructionsFormat(); ok {
+		_spec.SetField(kaguyaconversation.FieldInstructionsFormat, field.TypeEnum, value)
+		_node.InstructionsFormat = value
+	}
+	if value, ok := _c.mutation.PermissionMode(); ok {
+		_spec.SetField(kaguyaconversation.FieldPermissionMode, field.TypeEnum, value)
+		_node.PermissionMode = value
+	}
+	if value, ok := _c.mutation.TitleRevision(); ok {
+		_spec.SetField(kaguyaconversation.FieldTitleRevision, field.TypeInt64, value)
+		_node.TitleRevision = value
+	}
 	if value, ok := _c.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
 		_node.Favorite = value
@@ -616,6 +740,22 @@ func (_c *KaguyaConversationCreate) createSpec() (*KaguyaConversation, *sqlgraph
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(kaguyachatturn.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.TitleJobsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaconversation.TitleJobsTable,
+			Columns: []string{kaguyaconversation.TitleJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyatitlejob.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -767,6 +907,66 @@ func (u *KaguyaConversationUpsert) UpdateAgentInstructions() *KaguyaConversation
 // ClearAgentInstructions clears the value of the "agent_instructions" field.
 func (u *KaguyaConversationUpsert) ClearAgentInstructions() *KaguyaConversationUpsert {
 	u.SetNull(kaguyaconversation.FieldAgentInstructions)
+	return u
+}
+
+// SetProjectInstructions sets the "project_instructions" field.
+func (u *KaguyaConversationUpsert) SetProjectInstructions(v string) *KaguyaConversationUpsert {
+	u.Set(kaguyaconversation.FieldProjectInstructions, v)
+	return u
+}
+
+// UpdateProjectInstructions sets the "project_instructions" field to the value that was provided on create.
+func (u *KaguyaConversationUpsert) UpdateProjectInstructions() *KaguyaConversationUpsert {
+	u.SetExcluded(kaguyaconversation.FieldProjectInstructions)
+	return u
+}
+
+// ClearProjectInstructions clears the value of the "project_instructions" field.
+func (u *KaguyaConversationUpsert) ClearProjectInstructions() *KaguyaConversationUpsert {
+	u.SetNull(kaguyaconversation.FieldProjectInstructions)
+	return u
+}
+
+// SetInstructionsFormat sets the "instructions_format" field.
+func (u *KaguyaConversationUpsert) SetInstructionsFormat(v kaguyaconversation.InstructionsFormat) *KaguyaConversationUpsert {
+	u.Set(kaguyaconversation.FieldInstructionsFormat, v)
+	return u
+}
+
+// UpdateInstructionsFormat sets the "instructions_format" field to the value that was provided on create.
+func (u *KaguyaConversationUpsert) UpdateInstructionsFormat() *KaguyaConversationUpsert {
+	u.SetExcluded(kaguyaconversation.FieldInstructionsFormat)
+	return u
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (u *KaguyaConversationUpsert) SetPermissionMode(v kaguyaconversation.PermissionMode) *KaguyaConversationUpsert {
+	u.Set(kaguyaconversation.FieldPermissionMode, v)
+	return u
+}
+
+// UpdatePermissionMode sets the "permission_mode" field to the value that was provided on create.
+func (u *KaguyaConversationUpsert) UpdatePermissionMode() *KaguyaConversationUpsert {
+	u.SetExcluded(kaguyaconversation.FieldPermissionMode)
+	return u
+}
+
+// SetTitleRevision sets the "title_revision" field.
+func (u *KaguyaConversationUpsert) SetTitleRevision(v int64) *KaguyaConversationUpsert {
+	u.Set(kaguyaconversation.FieldTitleRevision, v)
+	return u
+}
+
+// UpdateTitleRevision sets the "title_revision" field to the value that was provided on create.
+func (u *KaguyaConversationUpsert) UpdateTitleRevision() *KaguyaConversationUpsert {
+	u.SetExcluded(kaguyaconversation.FieldTitleRevision)
+	return u
+}
+
+// AddTitleRevision adds v to the "title_revision" field.
+func (u *KaguyaConversationUpsert) AddTitleRevision(v int64) *KaguyaConversationUpsert {
+	u.Add(kaguyaconversation.FieldTitleRevision, v)
 	return u
 }
 
@@ -1113,6 +1313,76 @@ func (u *KaguyaConversationUpsertOne) UpdateAgentInstructions() *KaguyaConversat
 func (u *KaguyaConversationUpsertOne) ClearAgentInstructions() *KaguyaConversationUpsertOne {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.ClearAgentInstructions()
+	})
+}
+
+// SetProjectInstructions sets the "project_instructions" field.
+func (u *KaguyaConversationUpsertOne) SetProjectInstructions(v string) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetProjectInstructions(v)
+	})
+}
+
+// UpdateProjectInstructions sets the "project_instructions" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertOne) UpdateProjectInstructions() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateProjectInstructions()
+	})
+}
+
+// ClearProjectInstructions clears the value of the "project_instructions" field.
+func (u *KaguyaConversationUpsertOne) ClearProjectInstructions() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.ClearProjectInstructions()
+	})
+}
+
+// SetInstructionsFormat sets the "instructions_format" field.
+func (u *KaguyaConversationUpsertOne) SetInstructionsFormat(v kaguyaconversation.InstructionsFormat) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetInstructionsFormat(v)
+	})
+}
+
+// UpdateInstructionsFormat sets the "instructions_format" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertOne) UpdateInstructionsFormat() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateInstructionsFormat()
+	})
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (u *KaguyaConversationUpsertOne) SetPermissionMode(v kaguyaconversation.PermissionMode) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetPermissionMode(v)
+	})
+}
+
+// UpdatePermissionMode sets the "permission_mode" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertOne) UpdatePermissionMode() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdatePermissionMode()
+	})
+}
+
+// SetTitleRevision sets the "title_revision" field.
+func (u *KaguyaConversationUpsertOne) SetTitleRevision(v int64) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetTitleRevision(v)
+	})
+}
+
+// AddTitleRevision adds v to the "title_revision" field.
+func (u *KaguyaConversationUpsertOne) AddTitleRevision(v int64) *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.AddTitleRevision(v)
+	})
+}
+
+// UpdateTitleRevision sets the "title_revision" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertOne) UpdateTitleRevision() *KaguyaConversationUpsertOne {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateTitleRevision()
 	})
 }
 
@@ -1660,6 +1930,76 @@ func (u *KaguyaConversationUpsertBulk) UpdateAgentInstructions() *KaguyaConversa
 func (u *KaguyaConversationUpsertBulk) ClearAgentInstructions() *KaguyaConversationUpsertBulk {
 	return u.Update(func(s *KaguyaConversationUpsert) {
 		s.ClearAgentInstructions()
+	})
+}
+
+// SetProjectInstructions sets the "project_instructions" field.
+func (u *KaguyaConversationUpsertBulk) SetProjectInstructions(v string) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetProjectInstructions(v)
+	})
+}
+
+// UpdateProjectInstructions sets the "project_instructions" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertBulk) UpdateProjectInstructions() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateProjectInstructions()
+	})
+}
+
+// ClearProjectInstructions clears the value of the "project_instructions" field.
+func (u *KaguyaConversationUpsertBulk) ClearProjectInstructions() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.ClearProjectInstructions()
+	})
+}
+
+// SetInstructionsFormat sets the "instructions_format" field.
+func (u *KaguyaConversationUpsertBulk) SetInstructionsFormat(v kaguyaconversation.InstructionsFormat) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetInstructionsFormat(v)
+	})
+}
+
+// UpdateInstructionsFormat sets the "instructions_format" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertBulk) UpdateInstructionsFormat() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateInstructionsFormat()
+	})
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (u *KaguyaConversationUpsertBulk) SetPermissionMode(v kaguyaconversation.PermissionMode) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetPermissionMode(v)
+	})
+}
+
+// UpdatePermissionMode sets the "permission_mode" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertBulk) UpdatePermissionMode() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdatePermissionMode()
+	})
+}
+
+// SetTitleRevision sets the "title_revision" field.
+func (u *KaguyaConversationUpsertBulk) SetTitleRevision(v int64) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.SetTitleRevision(v)
+	})
+}
+
+// AddTitleRevision adds v to the "title_revision" field.
+func (u *KaguyaConversationUpsertBulk) AddTitleRevision(v int64) *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.AddTitleRevision(v)
+	})
+}
+
+// UpdateTitleRevision sets the "title_revision" field to the value that was provided on create.
+func (u *KaguyaConversationUpsertBulk) UpdateTitleRevision() *KaguyaConversationUpsertBulk {
+	return u.Update(func(s *KaguyaConversationUpsert) {
+		s.UpdateTitleRevision()
 	})
 }
 

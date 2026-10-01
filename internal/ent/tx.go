@@ -14,6 +14,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// KaguyaApproval is the client for interacting with the KaguyaApproval builders.
+	KaguyaApproval *KaguyaApprovalClient
 	// KaguyaChatBlock is the client for interacting with the KaguyaChatBlock builders.
 	KaguyaChatBlock *KaguyaChatBlockClient
 	// KaguyaChatTurn is the client for interacting with the KaguyaChatTurn builders.
@@ -48,6 +50,8 @@ type Tx struct {
 	KaguyaSystemInfo *KaguyaSystemInfoClient
 	// KaguyaTaskUsage is the client for interacting with the KaguyaTaskUsage builders.
 	KaguyaTaskUsage *KaguyaTaskUsageClient
+	// KaguyaTitleJob is the client for interacting with the KaguyaTitleJob builders.
+	KaguyaTitleJob *KaguyaTitleJobClient
 
 	// lazily loaded.
 	client     *Client
@@ -179,6 +183,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.KaguyaApproval = NewKaguyaApprovalClient(tx.config)
 	tx.KaguyaChatBlock = NewKaguyaChatBlockClient(tx.config)
 	tx.KaguyaChatTurn = NewKaguyaChatTurnClient(tx.config)
 	tx.KaguyaConversation = NewKaguyaConversationClient(tx.config)
@@ -196,6 +201,7 @@ func (tx *Tx) init() {
 	tx.KaguyaProviderInfo = NewKaguyaProviderInfoClient(tx.config)
 	tx.KaguyaSystemInfo = NewKaguyaSystemInfoClient(tx.config)
 	tx.KaguyaTaskUsage = NewKaguyaTaskUsageClient(tx.config)
+	tx.KaguyaTitleJob = NewKaguyaTitleJobClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.
@@ -205,7 +211,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: KaguyaChatBlock.QueryXXX(), the query will be executed
+// applies a query, for example: KaguyaApproval.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

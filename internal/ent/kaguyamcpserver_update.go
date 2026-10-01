@@ -185,6 +185,102 @@ func (_u *KaguyaMCPServerUpdate) SetNillableEnabled(v *bool) *KaguyaMCPServerUpd
 	return _u
 }
 
+// SetReconnectFailures sets the "reconnect_failures" field.
+func (_u *KaguyaMCPServerUpdate) SetReconnectFailures(v int) *KaguyaMCPServerUpdate {
+	_u.mutation.ResetReconnectFailures()
+	_u.mutation.SetReconnectFailures(v)
+	return _u
+}
+
+// SetNillableReconnectFailures sets the "reconnect_failures" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdate) SetNillableReconnectFailures(v *int) *KaguyaMCPServerUpdate {
+	if v != nil {
+		_u.SetReconnectFailures(*v)
+	}
+	return _u
+}
+
+// AddReconnectFailures adds value to the "reconnect_failures" field.
+func (_u *KaguyaMCPServerUpdate) AddReconnectFailures(v int) *KaguyaMCPServerUpdate {
+	_u.mutation.AddReconnectFailures(v)
+	return _u
+}
+
+// SetReconnectCircuitOpen sets the "reconnect_circuit_open" field.
+func (_u *KaguyaMCPServerUpdate) SetReconnectCircuitOpen(v bool) *KaguyaMCPServerUpdate {
+	_u.mutation.SetReconnectCircuitOpen(v)
+	return _u
+}
+
+// SetNillableReconnectCircuitOpen sets the "reconnect_circuit_open" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdate) SetNillableReconnectCircuitOpen(v *bool) *KaguyaMCPServerUpdate {
+	if v != nil {
+		_u.SetReconnectCircuitOpen(*v)
+	}
+	return _u
+}
+
+// SetReconnectCycle sets the "reconnect_cycle" field.
+func (_u *KaguyaMCPServerUpdate) SetReconnectCycle(v int64) *KaguyaMCPServerUpdate {
+	_u.mutation.ResetReconnectCycle()
+	_u.mutation.SetReconnectCycle(v)
+	return _u
+}
+
+// SetNillableReconnectCycle sets the "reconnect_cycle" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdate) SetNillableReconnectCycle(v *int64) *KaguyaMCPServerUpdate {
+	if v != nil {
+		_u.SetReconnectCycle(*v)
+	}
+	return _u
+}
+
+// AddReconnectCycle adds value to the "reconnect_cycle" field.
+func (_u *KaguyaMCPServerUpdate) AddReconnectCycle(v int64) *KaguyaMCPServerUpdate {
+	_u.mutation.AddReconnectCycle(v)
+	return _u
+}
+
+// SetReconnectNextAt sets the "reconnect_next_at" field.
+func (_u *KaguyaMCPServerUpdate) SetReconnectNextAt(v time.Time) *KaguyaMCPServerUpdate {
+	_u.mutation.SetReconnectNextAt(v)
+	return _u
+}
+
+// SetNillableReconnectNextAt sets the "reconnect_next_at" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdate) SetNillableReconnectNextAt(v *time.Time) *KaguyaMCPServerUpdate {
+	if v != nil {
+		_u.SetReconnectNextAt(*v)
+	}
+	return _u
+}
+
+// ClearReconnectNextAt clears the value of the "reconnect_next_at" field.
+func (_u *KaguyaMCPServerUpdate) ClearReconnectNextAt() *KaguyaMCPServerUpdate {
+	_u.mutation.ClearReconnectNextAt()
+	return _u
+}
+
+// SetReconnectOpenedAt sets the "reconnect_opened_at" field.
+func (_u *KaguyaMCPServerUpdate) SetReconnectOpenedAt(v time.Time) *KaguyaMCPServerUpdate {
+	_u.mutation.SetReconnectOpenedAt(v)
+	return _u
+}
+
+// SetNillableReconnectOpenedAt sets the "reconnect_opened_at" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdate) SetNillableReconnectOpenedAt(v *time.Time) *KaguyaMCPServerUpdate {
+	if v != nil {
+		_u.SetReconnectOpenedAt(*v)
+	}
+	return _u
+}
+
+// ClearReconnectOpenedAt clears the value of the "reconnect_opened_at" field.
+func (_u *KaguyaMCPServerUpdate) ClearReconnectOpenedAt() *KaguyaMCPServerUpdate {
+	_u.mutation.ClearReconnectOpenedAt()
+	return _u
+}
+
 // Mutation returns the KaguyaMCPServerMutation object of the builder.
 func (_u *KaguyaMCPServerUpdate) Mutation() *KaguyaMCPServerMutation {
 	return _u.mutation
@@ -247,6 +343,16 @@ func (_u *KaguyaMCPServerUpdate) check() error {
 	if v, ok := _u.mutation.TimeoutSeconds(); ok {
 		if err := kaguyamcpserver.TimeoutSecondsValidator(v); err != nil {
 			return &ValidationError{Name: "timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaMCPServer.timeout_seconds": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReconnectFailures(); ok {
+		if err := kaguyamcpserver.ReconnectFailuresValidator(v); err != nil {
+			return &ValidationError{Name: "reconnect_failures", err: fmt.Errorf(`ent: validator failed for field "KaguyaMCPServer.reconnect_failures": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReconnectCycle(); ok {
+		if err := kaguyamcpserver.ReconnectCycleValidator(v); err != nil {
+			return &ValidationError{Name: "reconnect_cycle", err: fmt.Errorf(`ent: validator failed for field "KaguyaMCPServer.reconnect_cycle": %w`, err)}
 		}
 	}
 	return nil
@@ -316,6 +422,33 @@ func (_u *KaguyaMCPServerUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(kaguyamcpserver.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ReconnectFailures(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectFailures, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReconnectFailures(); ok {
+		_spec.AddField(kaguyamcpserver.FieldReconnectFailures, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ReconnectCircuitOpen(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectCircuitOpen, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ReconnectCycle(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectCycle, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedReconnectCycle(); ok {
+		_spec.AddField(kaguyamcpserver.FieldReconnectCycle, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ReconnectNextAt(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectNextAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReconnectNextAtCleared() {
+		_spec.ClearField(kaguyamcpserver.FieldReconnectNextAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReconnectOpenedAt(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectOpenedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReconnectOpenedAtCleared() {
+		_spec.ClearField(kaguyamcpserver.FieldReconnectOpenedAt, field.TypeTime)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -494,6 +627,102 @@ func (_u *KaguyaMCPServerUpdateOne) SetNillableEnabled(v *bool) *KaguyaMCPServer
 	return _u
 }
 
+// SetReconnectFailures sets the "reconnect_failures" field.
+func (_u *KaguyaMCPServerUpdateOne) SetReconnectFailures(v int) *KaguyaMCPServerUpdateOne {
+	_u.mutation.ResetReconnectFailures()
+	_u.mutation.SetReconnectFailures(v)
+	return _u
+}
+
+// SetNillableReconnectFailures sets the "reconnect_failures" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdateOne) SetNillableReconnectFailures(v *int) *KaguyaMCPServerUpdateOne {
+	if v != nil {
+		_u.SetReconnectFailures(*v)
+	}
+	return _u
+}
+
+// AddReconnectFailures adds value to the "reconnect_failures" field.
+func (_u *KaguyaMCPServerUpdateOne) AddReconnectFailures(v int) *KaguyaMCPServerUpdateOne {
+	_u.mutation.AddReconnectFailures(v)
+	return _u
+}
+
+// SetReconnectCircuitOpen sets the "reconnect_circuit_open" field.
+func (_u *KaguyaMCPServerUpdateOne) SetReconnectCircuitOpen(v bool) *KaguyaMCPServerUpdateOne {
+	_u.mutation.SetReconnectCircuitOpen(v)
+	return _u
+}
+
+// SetNillableReconnectCircuitOpen sets the "reconnect_circuit_open" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdateOne) SetNillableReconnectCircuitOpen(v *bool) *KaguyaMCPServerUpdateOne {
+	if v != nil {
+		_u.SetReconnectCircuitOpen(*v)
+	}
+	return _u
+}
+
+// SetReconnectCycle sets the "reconnect_cycle" field.
+func (_u *KaguyaMCPServerUpdateOne) SetReconnectCycle(v int64) *KaguyaMCPServerUpdateOne {
+	_u.mutation.ResetReconnectCycle()
+	_u.mutation.SetReconnectCycle(v)
+	return _u
+}
+
+// SetNillableReconnectCycle sets the "reconnect_cycle" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdateOne) SetNillableReconnectCycle(v *int64) *KaguyaMCPServerUpdateOne {
+	if v != nil {
+		_u.SetReconnectCycle(*v)
+	}
+	return _u
+}
+
+// AddReconnectCycle adds value to the "reconnect_cycle" field.
+func (_u *KaguyaMCPServerUpdateOne) AddReconnectCycle(v int64) *KaguyaMCPServerUpdateOne {
+	_u.mutation.AddReconnectCycle(v)
+	return _u
+}
+
+// SetReconnectNextAt sets the "reconnect_next_at" field.
+func (_u *KaguyaMCPServerUpdateOne) SetReconnectNextAt(v time.Time) *KaguyaMCPServerUpdateOne {
+	_u.mutation.SetReconnectNextAt(v)
+	return _u
+}
+
+// SetNillableReconnectNextAt sets the "reconnect_next_at" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdateOne) SetNillableReconnectNextAt(v *time.Time) *KaguyaMCPServerUpdateOne {
+	if v != nil {
+		_u.SetReconnectNextAt(*v)
+	}
+	return _u
+}
+
+// ClearReconnectNextAt clears the value of the "reconnect_next_at" field.
+func (_u *KaguyaMCPServerUpdateOne) ClearReconnectNextAt() *KaguyaMCPServerUpdateOne {
+	_u.mutation.ClearReconnectNextAt()
+	return _u
+}
+
+// SetReconnectOpenedAt sets the "reconnect_opened_at" field.
+func (_u *KaguyaMCPServerUpdateOne) SetReconnectOpenedAt(v time.Time) *KaguyaMCPServerUpdateOne {
+	_u.mutation.SetReconnectOpenedAt(v)
+	return _u
+}
+
+// SetNillableReconnectOpenedAt sets the "reconnect_opened_at" field if the given value is not nil.
+func (_u *KaguyaMCPServerUpdateOne) SetNillableReconnectOpenedAt(v *time.Time) *KaguyaMCPServerUpdateOne {
+	if v != nil {
+		_u.SetReconnectOpenedAt(*v)
+	}
+	return _u
+}
+
+// ClearReconnectOpenedAt clears the value of the "reconnect_opened_at" field.
+func (_u *KaguyaMCPServerUpdateOne) ClearReconnectOpenedAt() *KaguyaMCPServerUpdateOne {
+	_u.mutation.ClearReconnectOpenedAt()
+	return _u
+}
+
 // Mutation returns the KaguyaMCPServerMutation object of the builder.
 func (_u *KaguyaMCPServerUpdateOne) Mutation() *KaguyaMCPServerMutation {
 	return _u.mutation
@@ -569,6 +798,16 @@ func (_u *KaguyaMCPServerUpdateOne) check() error {
 	if v, ok := _u.mutation.TimeoutSeconds(); ok {
 		if err := kaguyamcpserver.TimeoutSecondsValidator(v); err != nil {
 			return &ValidationError{Name: "timeout_seconds", err: fmt.Errorf(`ent: validator failed for field "KaguyaMCPServer.timeout_seconds": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReconnectFailures(); ok {
+		if err := kaguyamcpserver.ReconnectFailuresValidator(v); err != nil {
+			return &ValidationError{Name: "reconnect_failures", err: fmt.Errorf(`ent: validator failed for field "KaguyaMCPServer.reconnect_failures": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReconnectCycle(); ok {
+		if err := kaguyamcpserver.ReconnectCycleValidator(v); err != nil {
+			return &ValidationError{Name: "reconnect_cycle", err: fmt.Errorf(`ent: validator failed for field "KaguyaMCPServer.reconnect_cycle": %w`, err)}
 		}
 	}
 	return nil
@@ -655,6 +894,33 @@ func (_u *KaguyaMCPServerUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaM
 	}
 	if value, ok := _u.mutation.Enabled(); ok {
 		_spec.SetField(kaguyamcpserver.FieldEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ReconnectFailures(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectFailures, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedReconnectFailures(); ok {
+		_spec.AddField(kaguyamcpserver.FieldReconnectFailures, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ReconnectCircuitOpen(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectCircuitOpen, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.ReconnectCycle(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectCycle, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedReconnectCycle(); ok {
+		_spec.AddField(kaguyamcpserver.FieldReconnectCycle, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.ReconnectNextAt(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectNextAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReconnectNextAtCleared() {
+		_spec.ClearField(kaguyamcpserver.FieldReconnectNextAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReconnectOpenedAt(); ok {
+		_spec.SetField(kaguyamcpserver.FieldReconnectOpenedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReconnectOpenedAtCleared() {
+		_spec.ClearField(kaguyamcpserver.FieldReconnectOpenedAt, field.TypeTime)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &KaguyaMCPServer{config: _u.config}

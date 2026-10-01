@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaapproval"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
@@ -29,6 +30,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproviderinfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyasysteminfo"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyataskusage"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -89,6 +91,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			kaguyaapproval.Table:        kaguyaapproval.ValidColumn,
 			kaguyachatblock.Table:       kaguyachatblock.ValidColumn,
 			kaguyachatturn.Table:        kaguyachatturn.ValidColumn,
 			kaguyaconversation.Table:    kaguyaconversation.ValidColumn,
@@ -106,6 +109,7 @@ func checkColumn(t, c string) error {
 			kaguyaproviderinfo.Table:    kaguyaproviderinfo.ValidColumn,
 			kaguyasysteminfo.Table:      kaguyasysteminfo.ValidColumn,
 			kaguyataskusage.Table:       kaguyataskusage.ValidColumn,
+			kaguyatitlejob.Table:        kaguyatitlejob.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -41,6 +41,16 @@ const (
 	FieldTimeoutSeconds = "timeout_seconds"
 	// FieldEnabled holds the string denoting the enabled field in the database.
 	FieldEnabled = "enabled"
+	// FieldReconnectFailures holds the string denoting the reconnect_failures field in the database.
+	FieldReconnectFailures = "reconnect_failures"
+	// FieldReconnectCircuitOpen holds the string denoting the reconnect_circuit_open field in the database.
+	FieldReconnectCircuitOpen = "reconnect_circuit_open"
+	// FieldReconnectCycle holds the string denoting the reconnect_cycle field in the database.
+	FieldReconnectCycle = "reconnect_cycle"
+	// FieldReconnectNextAt holds the string denoting the reconnect_next_at field in the database.
+	FieldReconnectNextAt = "reconnect_next_at"
+	// FieldReconnectOpenedAt holds the string denoting the reconnect_opened_at field in the database.
+	FieldReconnectOpenedAt = "reconnect_opened_at"
 	// Table holds the table name of the kaguyamcpserver in the database.
 	Table = "kaguya_mcp_server"
 )
@@ -61,6 +71,11 @@ var Columns = []string{
 	FieldHeaders,
 	FieldTimeoutSeconds,
 	FieldEnabled,
+	FieldReconnectFailures,
+	FieldReconnectCircuitOpen,
+	FieldReconnectCycle,
+	FieldReconnectNextAt,
+	FieldReconnectOpenedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -106,6 +121,16 @@ var (
 	TimeoutSecondsValidator func(int) error
 	// DefaultEnabled holds the default value on creation for the "enabled" field.
 	DefaultEnabled bool
+	// DefaultReconnectFailures holds the default value on creation for the "reconnect_failures" field.
+	DefaultReconnectFailures int
+	// ReconnectFailuresValidator is a validator for the "reconnect_failures" field. It is called by the builders before save.
+	ReconnectFailuresValidator func(int) error
+	// DefaultReconnectCircuitOpen holds the default value on creation for the "reconnect_circuit_open" field.
+	DefaultReconnectCircuitOpen bool
+	// DefaultReconnectCycle holds the default value on creation for the "reconnect_cycle" field.
+	DefaultReconnectCycle int64
+	// ReconnectCycleValidator is a validator for the "reconnect_cycle" field. It is called by the builders before save.
+	ReconnectCycleValidator func(int64) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() string
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
@@ -192,4 +217,29 @@ func ByTimeoutSeconds(opts ...sql.OrderTermOption) OrderOption {
 // ByEnabled orders the results by the enabled field.
 func ByEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldEnabled, opts...).ToFunc()
+}
+
+// ByReconnectFailures orders the results by the reconnect_failures field.
+func ByReconnectFailures(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReconnectFailures, opts...).ToFunc()
+}
+
+// ByReconnectCircuitOpen orders the results by the reconnect_circuit_open field.
+func ByReconnectCircuitOpen(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReconnectCircuitOpen, opts...).ToFunc()
+}
+
+// ByReconnectCycle orders the results by the reconnect_cycle field.
+func ByReconnectCycle(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReconnectCycle, opts...).ToFunc()
+}
+
+// ByReconnectNextAt orders the results by the reconnect_next_at field.
+func ByReconnectNextAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReconnectNextAt, opts...).ToFunc()
+}
+
+// ByReconnectOpenedAt orders the results by the reconnect_opened_at field.
+func ByReconnectOpenedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReconnectOpenedAt, opts...).ToFunc()
 }

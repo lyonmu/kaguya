@@ -9,6 +9,71 @@ import (
 )
 
 var (
+	// KaguyaApprovalColumns holds the columns for the "kaguya_approval" table.
+	KaguyaApprovalColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "approval_id", Type: field.TypeString, Size: 64, Comment: "随机高熵审批 ID，绑定单次工具调用"},
+		{Name: "conversation_id", Type: field.TypeString, Size: 64},
+		{Name: "turn_id", Type: field.TypeString, Size: 64},
+		{Name: "tool_call_id", Type: field.TypeString, Size: 128},
+		{Name: "input_hash", Type: field.TypeString, Size: 64, Comment: "最终完整参数哈希；裁决接口不能替换参数"},
+		{Name: "tool_identity", Type: field.TypeString, Size: 256, Comment: "可信工具身份：内置名或 MCP server/remote/generation/schema 绑定"},
+		{Name: "effect", Type: field.TypeEnum, Enums: []string{"read_only", "mutating", "unknown"}, Default: "unknown"},
+		{Name: "mode", Type: field.TypeEnum, Enums: []string{"full_approval", "auto_approval", "full_access"}, Default: "full_access"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "expired", "canceled", "consumed"}, Default: "pending"},
+		{Name: "decision", Type: field.TypeString, Comment: "approve 或 reject；pending 为空", Default: ""},
+		{Name: "requested_at", Type: field.TypeTime},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "consumed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "reason_code", Type: field.TypeString, Comment: "安全原因码，不保存原始错误或参数", Default: ""},
+	}
+	// KaguyaApprovalTable holds the schema information for the "kaguya_approval" table.
+	KaguyaApprovalTable = &schema.Table{
+		Name:       "kaguya_approval",
+		Comment:    "工具审批审计",
+		Columns:    KaguyaApprovalColumns,
+		PrimaryKey: []*schema.Column{KaguyaApprovalColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyaapproval_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaApprovalColumns[1]},
+			},
+			{
+				Name:    "kaguyaapproval_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaApprovalColumns[2]},
+			},
+			{
+				Name:    "kaguyaapproval_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaApprovalColumns[3]},
+			},
+			{
+				Name:    "kaguyaapproval_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaApprovalColumns[0]},
+			},
+			{
+				Name:    "kaguyaapproval_approval_id",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaApprovalColumns[4]},
+			},
+			{
+				Name:    "kaguyaapproval_turn_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaApprovalColumns[6], KaguyaApprovalColumns[12]},
+			},
+			{
+				Name:    "kaguyaapproval_turn_id_tool_call_id",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaApprovalColumns[6], KaguyaApprovalColumns[7]},
+			},
+		},
+	}
 	// KaguyaChatBlockColumns holds the columns for the "kaguya_chat_block" table.
 	KaguyaChatBlockColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
@@ -102,6 +167,10 @@ var (
 		{Name: "context_messages", Type: field.TypeJSON, Nullable: true, Comment: "发生压缩后的完整续聊快照；原始 messages 始终保留"},
 		{Name: "compaction_count", Type: field.TypeInt, Default: 0},
 		{Name: "memory_refs", Type: field.TypeJSON, Nullable: true, Comment: "本轮自动召回选择的页面版本与检索器版本；不复制正文，失败轮次为空"},
+		{Name: "permission_mode", Type: field.TypeEnum, Comment: "本轮实际使用的权限模式；旧记录按兼容默认，不代表过去审批过", Enums: []string{"full_approval", "auto_approval", "full_access"}, Default: "full_access"},
+		{Name: "global_instruction_hash", Type: field.TypeString, Nullable: true, Comment: "本轮动态全局指令内容哈希；只用于排障，不是全文归档"},
+		{Name: "global_instruction_version", Type: field.TypeInt64, Nullable: true, Comment: "本轮全局指令版本；进程内单调递增，跨重启只保证哈希可比"},
+		{Name: "reference_summary", Type: field.TypeJSON, Nullable: true, Comment: "本轮引用选择与包含范围摘要；不保存第二份正文"},
 		{Name: "messages", Type: field.TypeJSON, Comment: "仅本轮用户/模型/工具上下文，不含历史前缀；不直接返回前端"},
 		{Name: "conversation_id", Type: field.TypeString, Size: 64},
 	}
@@ -114,7 +183,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_chat_turn_kaguya_conversation_turns",
-				Columns:    []*schema.Column{KaguyaChatTurnColumns[28]},
+				Columns:    []*schema.Column{KaguyaChatTurnColumns[32]},
 				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -143,7 +212,7 @@ var (
 			{
 				Name:    "kaguyachatturn_conversation_id_turn_index",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaChatTurnColumns[28], KaguyaChatTurnColumns[4]},
+				Columns: []*schema.Column{KaguyaChatTurnColumns[32], KaguyaChatTurnColumns[4]},
 			},
 			{
 				Name:    "kaguyachatturn_finished_at",
@@ -159,7 +228,11 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
 		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "title", Type: field.TypeString, Size: 200},
-		{Name: "agent_instructions", Type: field.TypeString, Nullable: true, Size: 2147483647, Comment: "会话首次成功轮次保存的全局及项目指令快照；NULL 表示尚未加载"},
+		{Name: "agent_instructions", Type: field.TypeString, Nullable: true, Size: 2147483647, Comment: "旧版合并指令快照：split 会话中仅作归档，legacy 会话仍可读取"},
+		{Name: "project_instructions", Type: field.TypeString, Nullable: true, Size: 2147483647, Comment: "split 模式下冻结的项目指令；NULL 表示尚未冻结，空字符串表示冻结为空"},
+		{Name: "instructions_format", Type: field.TypeEnum, Comment: "legacy 保留旧合并快照；新会话显式 split，动态全局加冻结项目", Enums: []string{"legacy", "split"}, Default: "legacy"},
+		{Name: "permission_mode", Type: field.TypeEnum, Comment: "会话级工具权限模式；未知值拒绝，旧行按兼容默认", Enums: []string{"full_approval", "auto_approval", "full_access"}, Default: "full_access"},
+		{Name: "title_revision", Type: field.TypeInt64, Comment: "标题版本：自动生成与手动改名同事务递增，事件携带该值防止延迟覆盖", Default: 0},
 		{Name: "favorite", Type: field.TypeBool, Default: false},
 		{Name: "memory_mode", Type: field.TypeEnum, Comment: "会话记忆模式：继承全局 / 关闭 / 只读；关闭 Memory 不等于不保存聊天历史", Enums: []string{"inherit", "off", "readonly"}, Default: "inherit"},
 		{Name: "turn_count", Type: field.TypeInt64, Comment: "已提交轮数，同时用于乐观并发校验", Default: 0},
@@ -184,7 +257,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_conversation_kaguya_project_conversations",
-				Columns:    []*schema.Column{KaguyaConversationColumns[19]},
+				Columns:    []*schema.Column{KaguyaConversationColumns[23]},
 				RefColumns: []*schema.Column{KaguyaProjectColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -213,12 +286,12 @@ var (
 			{
 				Name:    "kaguyaconversation_deleted_at_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[9], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[13], KaguyaConversationColumns[0]},
 			},
 			{
 				Name:    "kaguyaconversation_deleted_at_favorite_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[6], KaguyaConversationColumns[9], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[3], KaguyaConversationColumns[10], KaguyaConversationColumns[13], KaguyaConversationColumns[0]},
 			},
 			{
 				Name:    "kaguyaconversation_deleted_at_title",
@@ -228,7 +301,7 @@ var (
 			{
 				Name:    "kaguyaconversation_project_id_deleted_at_last_message_at_id",
 				Unique:  false,
-				Columns: []*schema.Column{KaguyaConversationColumns[19], KaguyaConversationColumns[3], KaguyaConversationColumns[9], KaguyaConversationColumns[0]},
+				Columns: []*schema.Column{KaguyaConversationColumns[23], KaguyaConversationColumns[3], KaguyaConversationColumns[13], KaguyaConversationColumns[0]},
 			},
 		},
 	}
@@ -248,6 +321,11 @@ var (
 		{Name: "headers", Type: field.TypeJSON},
 		{Name: "timeout_seconds", Type: field.TypeInt, Default: 60},
 		{Name: "enabled", Type: field.TypeBool, Default: false},
+		{Name: "reconnect_failures", Type: field.TypeInt, Default: 0},
+		{Name: "reconnect_circuit_open", Type: field.TypeBool, Default: false},
+		{Name: "reconnect_cycle", Type: field.TypeInt64, Default: 0},
+		{Name: "reconnect_next_at", Type: field.TypeTime, Nullable: true},
+		{Name: "reconnect_opened_at", Type: field.TypeTime, Nullable: true},
 	}
 	// KaguyaMcpServerTable holds the schema information for the "kaguya_mcp_server" table.
 	KaguyaMcpServerTable = &schema.Table{
@@ -1010,8 +1088,73 @@ var (
 			},
 		},
 	}
+	// KaguyaTitleJobColumns holds the columns for the "kaguya_title_job" table.
+	KaguyaTitleJobColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString, Unique: true, Size: 64, Comment: "主键ID"},
+		{Name: "created_at", Type: field.TypeTime, Comment: "创建时间"},
+		{Name: "updated_at", Type: field.TypeTime, Comment: "更新时间"},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
+		{Name: "enqueue_order", Type: field.TypeInt64, Comment: "FIFO 顺序，使用入队时 global.Id.GenID() 的数值；终态重试更新顺序"},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "running", "succeeded", "failed", "canceled"}, Default: "pending"},
+		{Name: "question", Type: field.TypeString, Size: 2147483647, Comment: "标题摘要输入，服务层限制 4000 rune，不保存密钥"},
+		{Name: "answer", Type: field.TypeString, Size: 2147483647, Comment: "可选的助手回答开头，服务层限制 4000 rune", Default: ""},
+		{Name: "attempt_count", Type: field.TypeInt, Default: 0},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true, Comment: "worker 领取时间；排队等待不侵占 30 秒执行预算"},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "error_code", Type: field.TypeString, Comment: "安全错误码，不保存原始错误文本", Default: ""},
+		{Name: "revision", Type: field.TypeInt64, Comment: "任务自身版本；会话标题版本以 conversation.title_revision 为准", Default: 0},
+		{Name: "conversation_id", Type: field.TypeString, Size: 64},
+	}
+	// KaguyaTitleJobTable holds the schema information for the "kaguya_title_job" table.
+	KaguyaTitleJobTable = &schema.Table{
+		Name:       "kaguya_title_job",
+		Comment:    "标题生成 FIFO 队列",
+		Columns:    KaguyaTitleJobColumns,
+		PrimaryKey: []*schema.Column{KaguyaTitleJobColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "kaguya_title_job_kaguya_conversation_title_jobs",
+				Columns:    []*schema.Column{KaguyaTitleJobColumns[13]},
+				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "kaguyatitlejob_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTitleJobColumns[1]},
+			},
+			{
+				Name:    "kaguyatitlejob_updated_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTitleJobColumns[2]},
+			},
+			{
+				Name:    "kaguyatitlejob_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTitleJobColumns[3]},
+			},
+			{
+				Name:    "kaguyatitlejob_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTitleJobColumns[0]},
+			},
+			{
+				Name:    "kaguyatitlejob_conversation_id",
+				Unique:  true,
+				Columns: []*schema.Column{KaguyaTitleJobColumns[13]},
+			},
+			{
+				Name:    "kaguyatitlejob_status_enqueue_order",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaTitleJobColumns[5], KaguyaTitleJobColumns[4]},
+			},
+		},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		KaguyaApprovalTable,
 		KaguyaChatBlockTable,
 		KaguyaChatTurnTable,
 		KaguyaConversationTable,
@@ -1029,10 +1172,14 @@ var (
 		KaguyaProviderInfoTable,
 		KaguyaSystemInfoTable,
 		KaguyaTaskUsageTable,
+		KaguyaTitleJobTable,
 	}
 )
 
 func init() {
+	KaguyaApprovalTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_approval",
+	}
 	KaguyaChatBlockTable.ForeignKeys[0].RefTable = KaguyaChatTurnTable
 	KaguyaChatBlockTable.Annotation = &entsql.Annotation{
 		Table: "kaguya_chat_block",
@@ -1087,5 +1234,9 @@ func init() {
 	}
 	KaguyaTaskUsageTable.Annotation = &entsql.Annotation{
 		Table: "kaguya_task_usage",
+	}
+	KaguyaTitleJobTable.ForeignKeys[0].RefTable = KaguyaConversationTable
+	KaguyaTitleJobTable.Annotation = &entsql.Annotation{
+		Table: "kaguya_title_job",
 	}
 }

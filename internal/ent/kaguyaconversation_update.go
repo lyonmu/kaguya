@@ -14,6 +14,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaproject"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 	"github.com/lyonmu/kaguya/internal/ent/predicate"
 )
 
@@ -108,6 +109,75 @@ func (_u *KaguyaConversationUpdate) SetNillableAgentInstructions(v *string) *Kag
 // ClearAgentInstructions clears the value of the "agent_instructions" field.
 func (_u *KaguyaConversationUpdate) ClearAgentInstructions() *KaguyaConversationUpdate {
 	_u.mutation.ClearAgentInstructions()
+	return _u
+}
+
+// SetProjectInstructions sets the "project_instructions" field.
+func (_u *KaguyaConversationUpdate) SetProjectInstructions(v string) *KaguyaConversationUpdate {
+	_u.mutation.SetProjectInstructions(v)
+	return _u
+}
+
+// SetNillableProjectInstructions sets the "project_instructions" field if the given value is not nil.
+func (_u *KaguyaConversationUpdate) SetNillableProjectInstructions(v *string) *KaguyaConversationUpdate {
+	if v != nil {
+		_u.SetProjectInstructions(*v)
+	}
+	return _u
+}
+
+// ClearProjectInstructions clears the value of the "project_instructions" field.
+func (_u *KaguyaConversationUpdate) ClearProjectInstructions() *KaguyaConversationUpdate {
+	_u.mutation.ClearProjectInstructions()
+	return _u
+}
+
+// SetInstructionsFormat sets the "instructions_format" field.
+func (_u *KaguyaConversationUpdate) SetInstructionsFormat(v kaguyaconversation.InstructionsFormat) *KaguyaConversationUpdate {
+	_u.mutation.SetInstructionsFormat(v)
+	return _u
+}
+
+// SetNillableInstructionsFormat sets the "instructions_format" field if the given value is not nil.
+func (_u *KaguyaConversationUpdate) SetNillableInstructionsFormat(v *kaguyaconversation.InstructionsFormat) *KaguyaConversationUpdate {
+	if v != nil {
+		_u.SetInstructionsFormat(*v)
+	}
+	return _u
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (_u *KaguyaConversationUpdate) SetPermissionMode(v kaguyaconversation.PermissionMode) *KaguyaConversationUpdate {
+	_u.mutation.SetPermissionMode(v)
+	return _u
+}
+
+// SetNillablePermissionMode sets the "permission_mode" field if the given value is not nil.
+func (_u *KaguyaConversationUpdate) SetNillablePermissionMode(v *kaguyaconversation.PermissionMode) *KaguyaConversationUpdate {
+	if v != nil {
+		_u.SetPermissionMode(*v)
+	}
+	return _u
+}
+
+// SetTitleRevision sets the "title_revision" field.
+func (_u *KaguyaConversationUpdate) SetTitleRevision(v int64) *KaguyaConversationUpdate {
+	_u.mutation.ResetTitleRevision()
+	_u.mutation.SetTitleRevision(v)
+	return _u
+}
+
+// SetNillableTitleRevision sets the "title_revision" field if the given value is not nil.
+func (_u *KaguyaConversationUpdate) SetNillableTitleRevision(v *int64) *KaguyaConversationUpdate {
+	if v != nil {
+		_u.SetTitleRevision(*v)
+	}
+	return _u
+}
+
+// AddTitleRevision adds value to the "title_revision" field.
+func (_u *KaguyaConversationUpdate) AddTitleRevision(v int64) *KaguyaConversationUpdate {
+	_u.mutation.AddTitleRevision(v)
 	return _u
 }
 
@@ -364,6 +434,21 @@ func (_u *KaguyaConversationUpdate) AddTurns(v ...*KaguyaChatTurn) *KaguyaConver
 	return _u.AddTurnIDs(ids...)
 }
 
+// AddTitleJobIDs adds the "title_jobs" edge to the KaguyaTitleJob entity by IDs.
+func (_u *KaguyaConversationUpdate) AddTitleJobIDs(ids ...string) *KaguyaConversationUpdate {
+	_u.mutation.AddTitleJobIDs(ids...)
+	return _u
+}
+
+// AddTitleJobs adds the "title_jobs" edges to the KaguyaTitleJob entity.
+func (_u *KaguyaConversationUpdate) AddTitleJobs(v ...*KaguyaTitleJob) *KaguyaConversationUpdate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTitleJobIDs(ids...)
+}
+
 // SetProject sets the "project" edge to the KaguyaProject entity.
 func (_u *KaguyaConversationUpdate) SetProject(v *KaguyaProject) *KaguyaConversationUpdate {
 	return _u.SetProjectID(v.ID)
@@ -393,6 +478,27 @@ func (_u *KaguyaConversationUpdate) RemoveTurns(v ...*KaguyaChatTurn) *KaguyaCon
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTurnIDs(ids...)
+}
+
+// ClearTitleJobs clears all "title_jobs" edges to the KaguyaTitleJob entity.
+func (_u *KaguyaConversationUpdate) ClearTitleJobs() *KaguyaConversationUpdate {
+	_u.mutation.ClearTitleJobs()
+	return _u
+}
+
+// RemoveTitleJobIDs removes the "title_jobs" edge to KaguyaTitleJob entities by IDs.
+func (_u *KaguyaConversationUpdate) RemoveTitleJobIDs(ids ...string) *KaguyaConversationUpdate {
+	_u.mutation.RemoveTitleJobIDs(ids...)
+	return _u
+}
+
+// RemoveTitleJobs removes "title_jobs" edges to KaguyaTitleJob entities.
+func (_u *KaguyaConversationUpdate) RemoveTitleJobs(v ...*KaguyaTitleJob) *KaguyaConversationUpdate {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTitleJobIDs(ids...)
 }
 
 // ClearProject clears the "project" edge to the KaguyaProject entity.
@@ -448,6 +554,21 @@ func (_u *KaguyaConversationUpdate) check() error {
 	if v, ok := _u.mutation.Title(); ok {
 		if err := kaguyaconversation.TitleValidator(v); err != nil {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InstructionsFormat(); ok {
+		if err := kaguyaconversation.InstructionsFormatValidator(v); err != nil {
+			return &ValidationError{Name: "instructions_format", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.instructions_format": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PermissionMode(); ok {
+		if err := kaguyaconversation.PermissionModeValidator(v); err != nil {
+			return &ValidationError{Name: "permission_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.permission_mode": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TitleRevision(); ok {
+		if err := kaguyaconversation.TitleRevisionValidator(v); err != nil {
+			return &ValidationError{Name: "title_revision", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title_revision": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.MemoryMode(); ok {
@@ -533,6 +654,24 @@ func (_u *KaguyaConversationUpdate) sqlSave(ctx context.Context) (_node int, err
 	}
 	if _u.mutation.AgentInstructionsCleared() {
 		_spec.ClearField(kaguyaconversation.FieldAgentInstructions, field.TypeString)
+	}
+	if value, ok := _u.mutation.ProjectInstructions(); ok {
+		_spec.SetField(kaguyaconversation.FieldProjectInstructions, field.TypeString, value)
+	}
+	if _u.mutation.ProjectInstructionsCleared() {
+		_spec.ClearField(kaguyaconversation.FieldProjectInstructions, field.TypeString)
+	}
+	if value, ok := _u.mutation.InstructionsFormat(); ok {
+		_spec.SetField(kaguyaconversation.FieldInstructionsFormat, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PermissionMode(); ok {
+		_spec.SetField(kaguyaconversation.FieldPermissionMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.TitleRevision(); ok {
+		_spec.SetField(kaguyaconversation.FieldTitleRevision, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedTitleRevision(); ok {
+		_spec.AddField(kaguyaconversation.FieldTitleRevision, field.TypeInt64, value)
 	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
@@ -635,6 +774,51 @@ func (_u *KaguyaConversationUpdate) sqlSave(ctx context.Context) (_node int, err
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(kaguyachatturn.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TitleJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaconversation.TitleJobsTable,
+			Columns: []string{kaguyaconversation.TitleJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyatitlejob.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTitleJobsIDs(); len(nodes) > 0 && !_u.mutation.TitleJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaconversation.TitleJobsTable,
+			Columns: []string{kaguyaconversation.TitleJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyatitlejob.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TitleJobsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaconversation.TitleJobsTable,
+			Columns: []string{kaguyaconversation.TitleJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyatitlejob.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -770,6 +954,75 @@ func (_u *KaguyaConversationUpdateOne) SetNillableAgentInstructions(v *string) *
 // ClearAgentInstructions clears the value of the "agent_instructions" field.
 func (_u *KaguyaConversationUpdateOne) ClearAgentInstructions() *KaguyaConversationUpdateOne {
 	_u.mutation.ClearAgentInstructions()
+	return _u
+}
+
+// SetProjectInstructions sets the "project_instructions" field.
+func (_u *KaguyaConversationUpdateOne) SetProjectInstructions(v string) *KaguyaConversationUpdateOne {
+	_u.mutation.SetProjectInstructions(v)
+	return _u
+}
+
+// SetNillableProjectInstructions sets the "project_instructions" field if the given value is not nil.
+func (_u *KaguyaConversationUpdateOne) SetNillableProjectInstructions(v *string) *KaguyaConversationUpdateOne {
+	if v != nil {
+		_u.SetProjectInstructions(*v)
+	}
+	return _u
+}
+
+// ClearProjectInstructions clears the value of the "project_instructions" field.
+func (_u *KaguyaConversationUpdateOne) ClearProjectInstructions() *KaguyaConversationUpdateOne {
+	_u.mutation.ClearProjectInstructions()
+	return _u
+}
+
+// SetInstructionsFormat sets the "instructions_format" field.
+func (_u *KaguyaConversationUpdateOne) SetInstructionsFormat(v kaguyaconversation.InstructionsFormat) *KaguyaConversationUpdateOne {
+	_u.mutation.SetInstructionsFormat(v)
+	return _u
+}
+
+// SetNillableInstructionsFormat sets the "instructions_format" field if the given value is not nil.
+func (_u *KaguyaConversationUpdateOne) SetNillableInstructionsFormat(v *kaguyaconversation.InstructionsFormat) *KaguyaConversationUpdateOne {
+	if v != nil {
+		_u.SetInstructionsFormat(*v)
+	}
+	return _u
+}
+
+// SetPermissionMode sets the "permission_mode" field.
+func (_u *KaguyaConversationUpdateOne) SetPermissionMode(v kaguyaconversation.PermissionMode) *KaguyaConversationUpdateOne {
+	_u.mutation.SetPermissionMode(v)
+	return _u
+}
+
+// SetNillablePermissionMode sets the "permission_mode" field if the given value is not nil.
+func (_u *KaguyaConversationUpdateOne) SetNillablePermissionMode(v *kaguyaconversation.PermissionMode) *KaguyaConversationUpdateOne {
+	if v != nil {
+		_u.SetPermissionMode(*v)
+	}
+	return _u
+}
+
+// SetTitleRevision sets the "title_revision" field.
+func (_u *KaguyaConversationUpdateOne) SetTitleRevision(v int64) *KaguyaConversationUpdateOne {
+	_u.mutation.ResetTitleRevision()
+	_u.mutation.SetTitleRevision(v)
+	return _u
+}
+
+// SetNillableTitleRevision sets the "title_revision" field if the given value is not nil.
+func (_u *KaguyaConversationUpdateOne) SetNillableTitleRevision(v *int64) *KaguyaConversationUpdateOne {
+	if v != nil {
+		_u.SetTitleRevision(*v)
+	}
+	return _u
+}
+
+// AddTitleRevision adds value to the "title_revision" field.
+func (_u *KaguyaConversationUpdateOne) AddTitleRevision(v int64) *KaguyaConversationUpdateOne {
+	_u.mutation.AddTitleRevision(v)
 	return _u
 }
 
@@ -1026,6 +1279,21 @@ func (_u *KaguyaConversationUpdateOne) AddTurns(v ...*KaguyaChatTurn) *KaguyaCon
 	return _u.AddTurnIDs(ids...)
 }
 
+// AddTitleJobIDs adds the "title_jobs" edge to the KaguyaTitleJob entity by IDs.
+func (_u *KaguyaConversationUpdateOne) AddTitleJobIDs(ids ...string) *KaguyaConversationUpdateOne {
+	_u.mutation.AddTitleJobIDs(ids...)
+	return _u
+}
+
+// AddTitleJobs adds the "title_jobs" edges to the KaguyaTitleJob entity.
+func (_u *KaguyaConversationUpdateOne) AddTitleJobs(v ...*KaguyaTitleJob) *KaguyaConversationUpdateOne {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddTitleJobIDs(ids...)
+}
+
 // SetProject sets the "project" edge to the KaguyaProject entity.
 func (_u *KaguyaConversationUpdateOne) SetProject(v *KaguyaProject) *KaguyaConversationUpdateOne {
 	return _u.SetProjectID(v.ID)
@@ -1055,6 +1323,27 @@ func (_u *KaguyaConversationUpdateOne) RemoveTurns(v ...*KaguyaChatTurn) *Kaguya
 		ids[i] = v[i].ID
 	}
 	return _u.RemoveTurnIDs(ids...)
+}
+
+// ClearTitleJobs clears all "title_jobs" edges to the KaguyaTitleJob entity.
+func (_u *KaguyaConversationUpdateOne) ClearTitleJobs() *KaguyaConversationUpdateOne {
+	_u.mutation.ClearTitleJobs()
+	return _u
+}
+
+// RemoveTitleJobIDs removes the "title_jobs" edge to KaguyaTitleJob entities by IDs.
+func (_u *KaguyaConversationUpdateOne) RemoveTitleJobIDs(ids ...string) *KaguyaConversationUpdateOne {
+	_u.mutation.RemoveTitleJobIDs(ids...)
+	return _u
+}
+
+// RemoveTitleJobs removes "title_jobs" edges to KaguyaTitleJob entities.
+func (_u *KaguyaConversationUpdateOne) RemoveTitleJobs(v ...*KaguyaTitleJob) *KaguyaConversationUpdateOne {
+	ids := make([]string, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveTitleJobIDs(ids...)
 }
 
 // ClearProject clears the "project" edge to the KaguyaProject entity.
@@ -1123,6 +1412,21 @@ func (_u *KaguyaConversationUpdateOne) check() error {
 	if v, ok := _u.mutation.Title(); ok {
 		if err := kaguyaconversation.TitleValidator(v); err != nil {
 			return &ValidationError{Name: "title", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.InstructionsFormat(); ok {
+		if err := kaguyaconversation.InstructionsFormatValidator(v); err != nil {
+			return &ValidationError{Name: "instructions_format", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.instructions_format": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.PermissionMode(); ok {
+		if err := kaguyaconversation.PermissionModeValidator(v); err != nil {
+			return &ValidationError{Name: "permission_mode", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.permission_mode": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.TitleRevision(); ok {
+		if err := kaguyaconversation.TitleRevisionValidator(v); err != nil {
+			return &ValidationError{Name: "title_revision", err: fmt.Errorf(`ent: validator failed for field "KaguyaConversation.title_revision": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.MemoryMode(); ok {
@@ -1226,6 +1530,24 @@ func (_u *KaguyaConversationUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 	if _u.mutation.AgentInstructionsCleared() {
 		_spec.ClearField(kaguyaconversation.FieldAgentInstructions, field.TypeString)
 	}
+	if value, ok := _u.mutation.ProjectInstructions(); ok {
+		_spec.SetField(kaguyaconversation.FieldProjectInstructions, field.TypeString, value)
+	}
+	if _u.mutation.ProjectInstructionsCleared() {
+		_spec.ClearField(kaguyaconversation.FieldProjectInstructions, field.TypeString)
+	}
+	if value, ok := _u.mutation.InstructionsFormat(); ok {
+		_spec.SetField(kaguyaconversation.FieldInstructionsFormat, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.PermissionMode(); ok {
+		_spec.SetField(kaguyaconversation.FieldPermissionMode, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.TitleRevision(); ok {
+		_spec.SetField(kaguyaconversation.FieldTitleRevision, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedTitleRevision(); ok {
+		_spec.AddField(kaguyaconversation.FieldTitleRevision, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.Favorite(); ok {
 		_spec.SetField(kaguyaconversation.FieldFavorite, field.TypeBool, value)
 	}
@@ -1327,6 +1649,51 @@ func (_u *KaguyaConversationUpdateOne) sqlSave(ctx context.Context) (_node *Kagu
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(kaguyachatturn.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.TitleJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaconversation.TitleJobsTable,
+			Columns: []string{kaguyaconversation.TitleJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyatitlejob.FieldID, field.TypeString),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedTitleJobsIDs(); len(nodes) > 0 && !_u.mutation.TitleJobsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaconversation.TitleJobsTable,
+			Columns: []string{kaguyaconversation.TitleJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyatitlejob.FieldID, field.TypeString),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.TitleJobsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   kaguyaconversation.TitleJobsTable,
+			Columns: []string{kaguyaconversation.TitleJobsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(kaguyatitlejob.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {

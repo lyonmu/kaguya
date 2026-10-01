@@ -9,6 +9,18 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 )
 
+// The KaguyaApprovalFunc type is an adapter to allow the use of ordinary
+// function as KaguyaApproval mutator.
+type KaguyaApprovalFunc func(context.Context, *ent.KaguyaApprovalMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaApprovalFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaApprovalMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaApprovalMutation", m)
+}
+
 // The KaguyaChatBlockFunc type is an adapter to allow the use of ordinary
 // function as KaguyaChatBlock mutator.
 type KaguyaChatBlockFunc func(context.Context, *ent.KaguyaChatBlockMutation) (ent.Value, error)
@@ -211,6 +223,18 @@ func (f KaguyaTaskUsageFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Va
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaTaskUsageMutation", m)
+}
+
+// The KaguyaTitleJobFunc type is an adapter to allow the use of ordinary
+// function as KaguyaTitleJob mutator.
+type KaguyaTitleJobFunc func(context.Context, *ent.KaguyaTitleJobMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f KaguyaTitleJobFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.KaguyaTitleJobMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.KaguyaTitleJobMutation", m)
 }
 
 // Condition is a hook condition function.

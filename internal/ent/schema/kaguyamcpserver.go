@@ -23,6 +23,11 @@ func (KaguyaMCPServer) Fields() []ent.Field {
 		field.JSON("headers", map[string]string{}).Default(map[string]string{}).Sensitive(),
 		field.Int("timeout_seconds").Default(60).Min(1).Max(600),
 		field.Bool("enabled").Default(false),
+		field.Int("reconnect_failures").Default(0).NonNegative().Comment("当前连接周期内 Prepare 连续失败次数"),
+		field.Bool("reconnect_circuit_open").Default(false).Comment("熔断是否打开；重启后保持，不由启动恢复自动清除"),
+		field.Int64("reconnect_cycle").Default(0).NonNegative().Comment("手动重连开启的新连接周期"),
+		field.Time("reconnect_next_at").Optional().Nillable().Comment("下一次自动重连时间；熔断/open 或运行中为空"),
+		field.Time("reconnect_opened_at").Optional().Nillable().Comment("熔断打开时间"),
 	}
 }
 
