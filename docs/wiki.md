@@ -83,22 +83,34 @@ Deleting a conversation asks for confirmation and cannot be undone; titles are l
 | Element | Description |
 | --- | --- |
 | Input | Ordinary conversations prompt “输入问题，与 Kaguya 对话…”; project conversations prompt “描述任务，输入 @ 引用项目文件…”; auto-sizes between 2 and 7 rows |
-| Access badge | “普通对话” (ordinary: no project tools) or “完全访问” (full access: read and modify the project and run commands) |
+| Permission mode | Per-conversation tool policy: full approval / auto approval / full access. Existing conversations save changes with PUT (busy while running, effective next turn); new conversations send it with the request |
 | Context ring | Context occupancy from the latest model call; hovering shows the model, window, and used/remaining tokens; before the first turn it says “首轮对话结束后显示上下文占用” |
 | Model picker | Cascading “provider → model” selection; collapsed it shows only the model name; without a choice the system default chat model is used |
 | Send / Stop | Enter sends, Shift + Enter inserts a newline; becomes “停止” while streaming |
 
-### 2.5 @ file references (project conversations)
+### 2.5 @ file and directory references (project conversations)
 
-Typing `@` opens project file search: ↑/↓ to select, Enter to insert, Esc to dismiss; when results are capped it says “结果已限制，请输入更具体的路径”. Inserted references look like `@src/main.go` in the input; deleting that text removes the reference. Limits:
+Typing `@` opens project candidate search: files and directories are listed together; ↑/↓ selects, Enter inserts, Esc dismisses; when results are capped it says “结果已限制，请输入更具体的路径”. Inserted references look like `@src/main.go` or `@src` in the input; deleting that text removes the reference, and selected references are shown as removable chips above the input.
 
-| Limit | Value |
+On send, the server resolves references against the database project association: explicit files first, directories expanded recursively in path order; each path is read once. Directory content is injected as a manifest plus real excerpts, labeled as data rather than instructions, with a per-file status:
+
+| Status | Meaning |
 | --- | --- |
-| Files per message | at most 8 |
-| Per file read | at most 2000 lines / 50 KiB |
-| Total referenced content | at most 256 KiB |
+| `included lines 1-N of M` | First N lines included; when truncated a next offset is given for `read` |
+| `deferred: context budget` | Not included within this turn's reference budget; use `read` on demand |
+| `skipped: binary or invalid UTF-8` | Non-text file, skipped |
+| `skipped: file exceeds the 32MiB safety limit…` | Above the per-file safety limit; the whole file is never held in memory |
 
-Referenced text is read when sending and appended to the question, explicitly labeled as file data rather than instructions. Only UTF-8 text files are supported.
+| Boundary | Value / behavior |
+| --- | --- |
+| legacy `files` field | at most 8 files (old client contract) |
+| typed references | no file-count cap; bounded by total path bytes and the request body |
+| reference content budget | up to 25% of remaining budget when the model window is known; conservative 256 KiB fallback when unknown |
+| directory scanning | 2-second time budget and 2048 candidate metadata entries per request; overflow marks scan incomplete and keeps a continuation |
+| filtering | root and nested `.gitignore` / `.dockerignore` in strict mode; `.git`, `node_modules`, `vendor`, `target`, `dist`, `build`, `__pycache__`, dotfiles, and editor temp files excluded |
+| boundaries | `os.Root` confinement; absolute paths, `../` escapes, directory symlinks, and type mismatches rejected; references are not allowed in ordinary conversations |
+
+Only a selection and inclusion-range summary (path, hash, line ranges, omission reasons) is persisted with the turn, never a second copy of the content.
 
 ### 2.6 History, paging, and continuation
 
@@ -114,6 +126,18 @@ Occupancy comes from the latest model call. At the configured compaction thresho
 ### 2.8 Concurrent conversations
 
 Switching conversations, opening settings, or collapsing the sidebar never stops generation; one turn runs per conversation at a time and further requests queue. Running sessions can be inspected and stopped individually under “进行中与最近会话”. Closing the application, refreshing the page, or losing the streaming connection marks the current turn as interrupted (generated content is kept).
+
+### 2.9 Permission modes and tool approvals
+
+Every conversation has one persisted permission mode, switchable at the bottom of the composer; a continuation request must not carry a mode that differs from the database:
+
+| Mode | Trusted read-only tools (`read` / `grep` / `find` / `ls` / read-only memory) | `edit` / `write` | `bash` / unknown MCP tools |
+| --- | --- | --- | --- |
+| Full approval (`full_approval`) | approval | approval | approval |
+| Auto approval (`auto_approval`) | allowed | approval | approval unless a read-only proof applies |
+| Full access (`full_access`, compatible default) | allowed | allowed | allowed |
+
+When approval is required, the chat stream sends a `chat.flag=approval` frame and the interface shows an approval card above the composer: tool name, effect (read-only / mutating / unknown), full arguments, and “批准一次 / 拒绝”. One approval authorizes exactly that one call; the parameter hash cannot be replaced after registration. A rejected or expired call is never executed and the model receives a structured error so the turn can continue; waiting expires after 10 minutes. Audit records keep only association IDs, tool identity, the argument hash, and status — never command or argument bodies. Refreshing or disconnecting cancels every pending approval for the turn, and nothing is replayed across restarts.
 
 ## 3. Local project workspaces
 
@@ -147,7 +171,7 @@ Project conversations run with the project directory as working directory and en
 
 `grep`, `find`, and `ls` are read-only and depend on host `rg` and `fd`; they honor `.gitignore` and include hidden files. Ordinary conversations do not register these tools, but both ordinary and project conversations can use enabled MCP tools.
 
-![Project conversation: bash command cards, the full-access badge, and the project session list](../images/app/chat-4.png)
+![Project conversation: bash command cards, the permission-mode selector, and the project session list](../images/app/chat-4.png)
 
 ### 3.3 View code and changes
 
@@ -320,12 +344,14 @@ Conversation titles are generated automatically by the background-task model aft
 - Summary usage counts toward that turn; the summary is saved transactionally with the successful turn and reused on continuation.
 - Unknown model windows skip compaction; compaction failures are reported explicitly rather than silently degraded.
 
-### 7.4 Tool execution and security boundaries
+### 7.4 Tool execution and permission boundaries
 
-- File tools (`read` / `edit` / `write`) are constrained with `os.Root`, rejecting outside-workspace paths and symlink escapes.
-- `bash` runs with the service process permissions; cancellation stops the process group but does not undo side effects; edits to the same file are serialized.
+- File tools (`read` / `edit` / `write`) are constrained with `os.Root`, rejecting outside-workspace paths and symlink escapes; reference resolution reuses the same root confinement.
+- `bash` runs with the service process permissions; cancellation stops the process group but does not undo side effects; edits to the same file are serialized. Permission modes are not an OS sandbox: full access keeps host command permissions.
+- In restricted modes every registered tool (built-in, MCP, memory) passes through the same approval decorator; provider-executed tools cannot be approved locally, so restricted modes stop the turn and report unsupported instead.
+- The first shell read-only whitelist contains only argument-less `pwd` and `true` (AST-parsed, with no redirects, pipes, substitutions, functions, variables, env, eval, exec, or subshell); external commands such as `git` require approval as unknown side effects until a controlled execution profile is proven.
 - Output truncation: `read` returns at most 2000 lines / 50 KB per call; `grep` returns at most 100 matches (adjustable) or 50 KB with long lines cut to 500 characters; `bash` shows only the last 2000 lines / 50 KB and writes the full output to the conversation temp directory.
-- Logs never contain raw commands or file contents.
+- Logs never contain raw commands or file contents; approval audit records never contain command or argument bodies.
 
 ### 7.5 MCP runtime
 

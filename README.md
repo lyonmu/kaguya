@@ -20,7 +20,8 @@ The project targets a cross-platform Desktop application. **The native desktop h
 ## Features
 
 - **Conversations**: streaming Markdown answers, Mermaid diagrams, expandable reasoning and tool cards, per-turn tokens / duration / tool-call counts, paginated history, and concurrent sessions that keep running while you switch; titles come from a persistent FIFO queue and are pushed to the interface as events.
-- **Local projects**: work inside a home-directory project with seven built-in tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`), `@` file references, and a code browser with file tree and unified / split Git diffs.
+- **Local projects**: work inside a home-directory project with seven built-in tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`), `@` file and directory references with a typed candidate list, and a code browser with file tree and unified / split Git diffs.
+- **Permissions and approvals**: three per-conversation modes (full approval, auto approval, full access), per-call approval cards for `edit` / `write` / `bash` / unknown MCP tools, a 10-minute wait window, structured denials the model can recover from, and an audit trail that stores hashes instead of arguments.
 - **Models and providers**: OpenAI Chat, OpenAI Responses, and Anthropic protocols on a per-model basis, catalog prefill from [models.dev](https://models.dev), request-path overrides, and a mandatory model test before saving.
 - **MCP tools**: `stdio`, `streamable-http`, and `sse` services with dynamic enable / disable, runtime status and failure count, per-service timeouts, automatic reconnection with exponential backoff after a dropped connection, and a circuit breaker after five consecutive failures with manual reconnect.
 - **Instructions**: globally watched `AGENTS.md` files served per turn, project instructions frozen on the first successful turn, and explicit upgrade for merged legacy snapshots.

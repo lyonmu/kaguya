@@ -203,6 +203,101 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/chat/conversation/{id}/approvals": {
+            "get": {
+                "description": "仅作页面刷新后的状态补齐；不恢复已终结轮次，也不能跨进程复活审批。",
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "当前等待裁决的审批列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/chat.Approval"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/chat/conversation/{id}/approvals/{approval_id}": {
+            "post": {
+                "description": "仅对当前运行轮次中仍等待裁决的审批有效；相同裁决重复请求幂等返回，冲突裁决返回 102013。批准只授权一次调用，参数哈希在登记后不可替换；过期、取消或已执行的审批不能再裁决。",
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "批准或拒绝一次工具审批",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话雪花 ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "审批 ID",
+                        "name": "approval_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "approve 或 reject",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/chat.ApprovalDecisionReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/chat.ApprovalDecisionResp"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/chat/conversation/{id}/context": {
             "get": {
                 "description": "最近一次模型调用的输入（含缓存）及输出估算上下文占用，分母为模型窗口的90%；达到阈值后下一次模型调用前自动压缩。无供应商用量或模型窗口时 percent 为 null。",
@@ -1643,10 +1738,11 @@ const docTemplate = `{
         },
         "/v1/project/{id}/files": {
             "get": {
+                "description": "旧客户端读 files（仅文件字符串）；新选择器读 items 与 next_cursor。include_directories=true 时追加目录候选。cursor 与 query/include_directories 绑定，不匹配时从第一页开始。",
                 "tags": [
                     "Project"
                 ],
-                "summary": "搜索项目中的文件，用于输入框 @ 引用",
+                "summary": "搜索项目候选文件与目录，用于输入框 @ 引用",
                 "parameters": [
                     {
                         "type": "string",
@@ -1659,6 +1755,18 @@ const docTemplate = `{
                         "type": "string",
                         "description": "文件名或相对路径",
                         "name": "query",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "同时返回目录候选",
+                        "name": "include_directories",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "上一页 next_cursor",
+                        "name": "cursor",
                         "in": "query"
                     }
                 ],
@@ -2921,6 +3029,68 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "chat.Approval": {
+            "type": "object",
+            "properties": {
+                "approval_id": {
+                    "type": "string"
+                },
+                "effect": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "integer"
+                },
+                "input": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "pending/approved/rejected/expired/canceled/consumed",
+                    "type": "string"
+                },
+                "tool_call_id": {
+                    "type": "string"
+                },
+                "tool_identity": {
+                    "type": "string"
+                },
+                "tool_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "chat.ApprovalDecisionReq": {
+            "type": "object",
+            "required": [
+                "decision"
+            ],
+            "properties": {
+                "decision": {
+                    "type": "string",
+                    "enum": [
+                        "approve",
+                        "reject"
+                    ]
+                }
+            }
+        },
+        "chat.ApprovalDecisionResp": {
+            "type": "object",
+            "properties": {
+                "approval_id": {
+                    "type": "string"
+                },
+                "decision": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "chat.BlockPhase": {
             "type": "string",
             "enum": [
@@ -2979,9 +3149,11 @@ const docTemplate = `{
                 "start",
                 "delta",
                 "done",
-                "error"
+                "error",
+                "approval"
             ],
             "x-enum-comments": {
+                "ChatFlagApproval": "下行：权限审批状态帧，不结束本轮",
                 "ChatFlagDelta": "下行：增量内容帧",
                 "ChatFlagDone": "下行：唯一的本轮结束帧，仅携带 Usage，不重复内容",
                 "ChatFlagError": "下行：出错或被取消",
@@ -2991,13 +3163,15 @@ const docTemplate = `{
                 "下行：本轮首帧（会话 ID + 模型信息）",
                 "下行：增量内容帧",
                 "下行：唯一的本轮结束帧，仅携带 Usage，不重复内容",
-                "下行：出错或被取消"
+                "下行：出错或被取消",
+                "下行：权限审批状态帧，不结束本轮"
             ],
             "x-enum-varnames": [
                 "ChatFlagStart",
                 "ChatFlagDelta",
                 "ChatFlagDone",
-                "ChatFlagError"
+                "ChatFlagError",
+                "ChatFlagApproval"
             ]
         },
         "chat.ChatReq": {
@@ -3024,10 +3198,25 @@ const docTemplate = `{
                     "description": "本地模型记录 ID，空值使用全局默认模型",
                     "type": "string"
                 },
+                "permission_mode": {
+                    "description": "仅新对话使用；续聊以数据库为准，不一致时拒绝",
+                    "type": "string",
+                    "enum": [
+                        "full_approval",
+                        "auto_approval",
+                        "full_access"
+                    ]
+                },
                 "project_id": {
                     "description": "仅新对话使用",
                     "type": "string",
                     "maxLength": 64
+                },
+                "references": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chat.Reference"
+                    }
                 }
             }
         },
@@ -3039,6 +3228,14 @@ const docTemplate = `{
                     "allOf": [
                         {
                             "$ref": "#/definitions/consts.ProviderProtocol"
+                        }
+                    ]
+                },
+                "approval": {
+                    "description": "审批状态；仅 flag=approval 帧携带",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/chat.Approval"
                         }
                     ]
                 },
@@ -3296,10 +3493,42 @@ const docTemplate = `{
                         "readonly"
                     ]
                 },
+                "permission_mode": {
+                    "type": "string",
+                    "enum": [
+                        "full_approval",
+                        "auto_approval",
+                        "full_access"
+                    ]
+                },
                 "title": {
                     "type": "string",
                     "maxLength": 200,
                     "minLength": 1
+                }
+            }
+        },
+        "chat.Reference": {
+            "type": "object",
+            "required": [
+                "path",
+                "type"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 256
+                },
+                "path": {
+                    "type": "string",
+                    "maxLength": 4096
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "file",
+                        "directory"
+                    ]
                 }
             }
         },
@@ -3400,6 +3629,14 @@ const docTemplate = `{
                 "provider_name": {
                     "type": "string"
                 },
+                "reference_summary": {
+                    "description": "ReferenceSummary 是本轮引用选择、包含范围与遗漏原因；不保存第二份正文。",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/chat.TurnReferenceSummary"
+                        }
+                    ]
+                },
                 "started_at": {
                     "type": "string"
                 },
@@ -3425,6 +3662,10 @@ const docTemplate = `{
         "chat.ToolOutput": {
             "type": "object",
             "properties": {
+                "code": {
+                    "description": "结构化错误码；审批拒绝等由工具元数据映射，旧记录为 0",
+                    "type": "integer"
+                },
                 "data": {
                     "description": "base64 媒体数据",
                     "type": "string"
@@ -3482,6 +3723,70 @@ const docTemplate = `{
                 },
                 "total_pages": {
                     "type": "integer"
+                }
+            }
+        },
+        "chat.TurnReferenceRange": {
+            "type": "object",
+            "properties": {
+                "end": {
+                    "type": "integer"
+                },
+                "start": {
+                    "type": "integer"
+                }
+            }
+        },
+        "chat.TurnReferenceSource": {
+            "type": "object",
+            "properties": {
+                "hash": {
+                    "type": "string"
+                },
+                "included": {
+                    "type": "boolean"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "ranges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chat.TurnReferenceRange"
+                    }
+                },
+                "type": {
+                    "description": "file | directory",
+                    "type": "string"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "chat.TurnReferenceSummary": {
+            "type": "object",
+            "properties": {
+                "estimated_tokens": {
+                    "type": "integer"
+                },
+                "scan_incomplete": {
+                    "type": "boolean"
+                },
+                "sources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/chat.TurnReferenceSource"
+                    }
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -4671,6 +4976,15 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/project.ReferenceCandidate"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
+                },
                 "truncated": {
                     "type": "boolean"
                 }
@@ -4759,6 +5073,20 @@ const docTemplate = `{
                 },
                 "total": {
                     "type": "integer"
+                }
+            }
+        },
+        "project.ReferenceCandidate": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },

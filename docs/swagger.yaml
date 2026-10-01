@@ -1,5 +1,46 @@
 basePath: /kaguya/api
 definitions:
+  chat.Approval:
+    properties:
+      approval_id:
+        type: string
+      effect:
+        type: string
+      expires_at:
+        type: integer
+      input:
+        type: string
+      mode:
+        type: string
+      status:
+        description: pending/approved/rejected/expired/canceled/consumed
+        type: string
+      tool_call_id:
+        type: string
+      tool_identity:
+        type: string
+      tool_name:
+        type: string
+    type: object
+  chat.ApprovalDecisionReq:
+    properties:
+      decision:
+        enum:
+        - approve
+        - reject
+        type: string
+    required:
+    - decision
+    type: object
+  chat.ApprovalDecisionResp:
+    properties:
+      approval_id:
+        type: string
+      decision:
+        type: string
+      status:
+        type: string
+    type: object
   chat.BlockPhase:
     enum:
     - start
@@ -43,8 +84,10 @@ definitions:
     - delta
     - done
     - error
+    - approval
     type: string
     x-enum-comments:
+      ChatFlagApproval: 下行：权限审批状态帧，不结束本轮
       ChatFlagDelta: 下行：增量内容帧
       ChatFlagDone: 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
       ChatFlagError: 下行：出错或被取消
@@ -54,11 +97,13 @@ definitions:
     - 下行：增量内容帧
     - 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
     - 下行：出错或被取消
+    - 下行：权限审批状态帧，不结束本轮
     x-enum-varnames:
     - ChatFlagStart
     - ChatFlagDelta
     - ChatFlagDone
     - ChatFlagError
+    - ChatFlagApproval
   chat.ChatReq:
     properties:
       files:
@@ -74,10 +119,21 @@ definitions:
       model_id:
         description: 本地模型记录 ID，空值使用全局默认模型
         type: string
+      permission_mode:
+        description: 仅新对话使用；续聊以数据库为准，不一致时拒绝
+        enum:
+        - full_approval
+        - auto_approval
+        - full_access
+        type: string
       project_id:
         description: 仅新对话使用
         maxLength: 64
         type: string
+      references:
+        items:
+          $ref: '#/definitions/chat.Reference'
+        type: array
     required:
     - messages
     type: object
@@ -87,6 +143,10 @@ definitions:
         allOf:
         - $ref: '#/definitions/consts.ProviderProtocol'
         description: api接口类型
+      approval:
+        allOf:
+        - $ref: '#/definitions/chat.Approval'
+        description: 审批状态；仅 flag=approval 帧携带
       chat:
         allOf:
         - $ref: '#/definitions/chat.Chat'
@@ -256,10 +316,33 @@ definitions:
         - "off"
         - readonly
         type: string
+      permission_mode:
+        enum:
+        - full_approval
+        - auto_approval
+        - full_access
+        type: string
       title:
         maxLength: 200
         minLength: 1
         type: string
+    type: object
+  chat.Reference:
+    properties:
+      name:
+        maxLength: 256
+        type: string
+      path:
+        maxLength: 4096
+        type: string
+      type:
+        enum:
+        - file
+        - directory
+        type: string
+    required:
+    - path
+    - type
     type: object
   chat.StoredBlock:
     properties:
@@ -325,6 +408,10 @@ definitions:
         type: string
       provider_name:
         type: string
+      reference_summary:
+        allOf:
+        - $ref: '#/definitions/chat.TurnReferenceSummary'
+        description: ReferenceSummary 是本轮引用选择、包含范围与遗漏原因；不保存第二份正文。
       started_at:
         type: string
       status:
@@ -342,6 +429,9 @@ definitions:
     type: object
   chat.ToolOutput:
     properties:
+      code:
+        description: 结构化错误码；审批拒绝等由工具元数据映射，旧记录为 0
+        type: integer
       data:
         description: base64 媒体数据
         type: string
@@ -383,6 +473,48 @@ definitions:
         type: integer
       total_pages:
         type: integer
+    type: object
+  chat.TurnReferenceRange:
+    properties:
+      end:
+        type: integer
+      start:
+        type: integer
+    type: object
+  chat.TurnReferenceSource:
+    properties:
+      hash:
+        type: string
+      included:
+        type: boolean
+      path:
+        type: string
+      ranges:
+        items:
+          $ref: '#/definitions/chat.TurnReferenceRange'
+        type: array
+      type:
+        description: file | directory
+        type: string
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  chat.TurnReferenceSummary:
+    properties:
+      estimated_tokens:
+        type: integer
+      scan_incomplete:
+        type: boolean
+      sources:
+        items:
+          $ref: '#/definitions/chat.TurnReferenceSource'
+        type: array
+      warnings:
+        items:
+          type: string
+        type: array
     type: object
   chat.Usage:
     properties:
@@ -1182,6 +1314,12 @@ definitions:
         items:
           type: string
         type: array
+      items:
+        items:
+          $ref: '#/definitions/project.ReferenceCandidate'
+        type: array
+      next_cursor:
+        type: string
       truncated:
         type: boolean
     type: object
@@ -1240,6 +1378,15 @@ definitions:
         type: integer
       total:
         type: integer
+    type: object
+  project.ReferenceCandidate:
+    properties:
+      name:
+        type: string
+      path:
+        type: string
+      type:
+        type: string
     type: object
   project.Resp:
     properties:
@@ -2023,6 +2170,63 @@ paths:
       summary: 修改会话标题或收藏状态
       tags:
       - Chat History
+  /v1/chat/conversation/{id}/approvals:
+    get:
+      description: 仅作页面刷新后的状态补齐；不恢复已终结轮次，也不能跨进程复活审批。
+      parameters:
+      - description: 会话雪花 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/chat.Approval'
+                  type: array
+              type: object
+      summary: 当前等待裁决的审批列表
+      tags:
+      - Chat
+  /v1/chat/conversation/{id}/approvals/{approval_id}:
+    post:
+      description: 仅对当前运行轮次中仍等待裁决的审批有效；相同裁决重复请求幂等返回，冲突裁决返回 102013。批准只授权一次调用，参数哈希在登记后不可替换；过期、取消或已执行的审批不能再裁决。
+      parameters:
+      - description: 会话雪花 ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 审批 ID
+        in: path
+        name: approval_id
+        required: true
+        type: string
+      - description: approve 或 reject
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/chat.ApprovalDecisionReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/chat.ApprovalDecisionResp'
+              type: object
+      summary: 批准或拒绝一次工具审批
+      tags:
+      - Chat
   /v1/chat/conversation/{id}/context:
     get:
       description: 最近一次模型调用的输入（含缓存）及输出估算上下文占用，分母为模型窗口的90%；达到阈值后下一次模型调用前自动压缩。无供应商用量或模型窗口时
@@ -2899,6 +3103,8 @@ paths:
       - Project
   /v1/project/{id}/files:
     get:
+      description: 旧客户端读 files（仅文件字符串）；新选择器读 items 与 next_cursor。include_directories=true
+        时追加目录候选。cursor 与 query/include_directories 绑定，不匹配时从第一页开始。
       parameters:
       - description: 项目 ID
         in: path
@@ -2908,6 +3114,14 @@ paths:
       - description: 文件名或相对路径
         in: query
         name: query
+        type: string
+      - description: 同时返回目录候选
+        in: query
+        name: include_directories
+        type: boolean
+      - description: 上一页 next_cursor
+        in: query
+        name: cursor
         type: string
       responses:
         "200":
@@ -2919,7 +3133,7 @@ paths:
                 data:
                   $ref: '#/definitions/project.FileSearchResp'
               type: object
-      summary: 搜索项目中的文件，用于输入框 @ 引用
+      summary: 搜索项目候选文件与目录，用于输入框 @ 引用
       tags:
       - Project
   /v1/project/{id}/git/diff:
