@@ -22,6 +22,10 @@ type contextCompactor struct {
 	// 都为它预留空间，但 Memory 不进入历史摘要正文。
 	transientTokens int64
 	lastTokens      *int64
+	// budget 是统一口径的预算结果；fingerprint 标识本轮上下文特征，
+	// 变化时调用方不得复用上一轮 context_tokens 基线。
+	budget      contextBudget
+	fingerprint contextFingerprint
 	seen            int
 	messages        []fantasy.Message
 	count           int
@@ -67,7 +71,7 @@ func (c *contextCompactor) prepare(ctx context.Context, opts fantasy.PrepareStep
 		}
 	}
 	percent := compactionPercent(c.percent)
-	threshold := int64(c.window) * int64(percent) / 100
+	threshold := c.thresholdTokens()
 	if tokens < threshold {
 		return ctx, fantasy.PrepareStepResult{Messages: c.messages}, nil
 	}
@@ -176,6 +180,17 @@ func generateCompactionSummary(ctx context.Context, model fantasy.LanguageModel,
 	}
 	last.TotalUsage = usage
 	return last, nil
+}
+
+// thresholdTokens 统一触发阈值：优先使用预算结果；直接构造的实例回退到 window/percent。
+func (c *contextCompactor) thresholdTokens() int64 {
+	if c.budget.known {
+		return c.budget.threshold
+	}
+	if c.window <= 0 {
+		return 0
+	}
+	return int64(c.window) * int64(compactionPercent(c.percent)) / 100
 }
 
 func (c *contextCompactor) snapshot(result *fantasy.AgentResult) []fantasy.Message {

@@ -239,7 +239,9 @@ func chatTurnUsage(result *fantasy.AgentResult, compactor *contextCompactor) tok
 	return usage
 }
 
-// newContextCompactor 为本次轮次建立上下文压缩器，并把工具 Schema 的消息开销计入估算。
+// newContextCompactor 为本次轮次建立上下文压缩器：统一 system/tools/history/user/
+// memory/output 的预算口径，并记录本轮上下文特征（模型、指令、工具 schema、召回选择）。
+// 任一特征变化时调用方不得复用上一轮 context_tokens 基线，保守重估优于伪精确减法。
 func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, info *dtosystem.SystemInfoResp) (*contextCompactor, error) {
 	model := exec.target.model
 	compactor := &contextCompactor{
@@ -253,9 +255,28 @@ func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, 
 		}
 		compactor.toolTokens += int64((len(data) + 3) / 4)
 	}
+	compactor.fingerprint = contextFingerprint{
+		modelKey:           model.ModelID,
+		instructionHash:    textFingerprint(exec.prompt.system),
+		toolSchemaHash:     toolSchemaFingerprint(exec.prompt.tools),
+		memorySelectionKey: memorySelectionFingerprint(exec.prompt.memory.selection()),
+	}
+	var outputReserve int64
+	if limit := contextOutputLimit(model.TokenContextWindow, model.TokenMaxOutputTokens, *info.ContextCompactionPercent); limit != nil {
+		outputReserve = *limit
+	}
+	compactor.budget = computeContextBudget(contextBudgetInput{
+		window:            int64(model.TokenContextWindow),
+		compactionPercent: *info.ContextCompactionPercent,
+		systemTokens:      estimateMessages([]fantasy.Message{fantasy.NewSystemMessage(exec.prompt.system)}),
+		toolSchemaTokens:  compactor.toolTokens,
+		historyTokens:     estimateMessages(exec.history),
+		userTokens:        estimateMessages([]fantasy.Message{fantasy.NewUserMessage(exec.prompt.requestPrompt)}),
+		memoryTokens:      exec.prompt.memory.estimated,
+		outputReserve:     outputReserve,
+	})
 	// 续聊时用上一次完成轮次的实际占用作为基线，避免重复估算整段历史。
-	// 上一轮与本轮 Memory 选择不同时废弃旧估算基线，避免逐轮累积；
-	// 保守重估优于伪精确减法。
+	// 上一轮与本轮 Memory 选择不同时废弃旧估算基线，避免逐轮累积。
 	if exec.version > 0 {
 		previous, err := s.ConversationContext(ctx, exec.conversationID)
 		if err != nil {
