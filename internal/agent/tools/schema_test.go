@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/agent/toolcontract"
 )
 
 func TestToolExamplesMatchPublishedSchemas(t *testing.T) {
@@ -24,7 +25,7 @@ func TestToolExamplesMatchPublishedSchemas(t *testing.T) {
 			if err := json.NewDecoder(strings.NewReader(example)).Decode(&input); err != nil {
 				t.Fatal(err)
 			}
-			if result := tool.(*inputContractTool).validator.Validate(input); !result.IsValid() {
+			if result := tool.(*toolcontract.Tool).Validator().Validate(input); !result.IsValid() {
 				t.Fatalf("invalid example: %v", result.DetailedErrors())
 			}
 			for field, parameter := range info.Parameters {

@@ -1,26 +1,17 @@
 package tools
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
-	"strings"
 
 	"charm.land/fantasy"
 	"charm.land/fantasy/schema"
-	"github.com/kaptinlin/jsonschema"
+	"github.com/lyonmu/kaguya/internal/agent/toolcontract"
 )
 
 // Fantasy's Go reflection emits types/required/descriptions, but not bounds or
 // array lengths. Add the actual execution constraints before exposing metadata
 // and compile once per tool instead of compiling on every invocation.
-type inputContractTool struct {
-	fantasy.AgentTool
-	definition []byte
-	validator  *jsonschema.Schema
-}
-
 func withInputContract(base fantasy.AgentTool, generated schema.Schema) fantasy.AgentTool {
 	definition := schema.ToMap(generated)
 	props := definition["properties"].(map[string]any)
@@ -61,41 +52,5 @@ func withInputContract(base fantasy.AgentTool, generated schema.Schema) fantasy.
 	if err != nil {
 		panic(fmt.Sprintf("encode built-in tool schema: %v", err))
 	}
-	validator, err := jsonschema.NewCompiler().Compile(raw)
-	if err != nil {
-		panic(fmt.Sprintf("compile built-in tool schema: %v", err))
-	}
-	return &inputContractTool{AgentTool: base, definition: raw, validator: validator}
-}
-
-func (t *inputContractTool) Info() fantasy.ToolInfo {
-	// Providers may normalize nested schemas in place; return a fresh tree.
-	var definition map[string]any
-	if err := json.Unmarshal(t.definition, &definition); err != nil {
-		panic(err)
-	}
-	info := t.AgentTool.Info()
-	info.Parameters = definition["properties"].(map[string]any)
-	return info
-}
-
-func (t *inputContractTool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-	if err := ctx.Err(); err != nil {
-		return fantasy.ToolResponse{}, err
-	}
-	var input any
-	if err := json.Unmarshal([]byte(call.Input), &input); err != nil {
-		return fantasy.NewTextErrorResponse("invalid parameters: expected one valid JSON object using this tool's declared fields; do not send Markdown, a JSON string, or shell arguments"), nil
-	}
-	result := t.validator.Validate(input)
-	if !result.IsValid() {
-		var details []string
-		for path, message := range result.DetailedErrors() {
-			details = append(details, path+": "+message)
-		}
-		sort.Strings(details)
-		return fantasy.NewTextErrorResponse("invalid parameters for " + t.AgentTool.Info().Name + ": " + strings.Join(details, "; ") + ". Correct these fields using the tool schema before retrying; no action was executed."), nil
-	}
-	// Preserve the upstream call ID; it correlates tool results with model calls.
-	return t.AgentTool.Run(ctx, call)
+	return toolcontract.WrapRaw(base, raw)
 }

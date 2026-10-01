@@ -5,14 +5,11 @@ package memorytools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"charm.land/fantasy"
-	"charm.land/fantasy/schema"
-	"github.com/kaptinlin/jsonschema"
+	"github.com/lyonmu/kaguya/internal/agent/toolcontract"
 )
 
 // Reader 是记忆工具依赖的窄接口，由 service/memory 的范围绑定实现注入；
@@ -106,41 +103,5 @@ func Tools(reader Reader) []fantasy.AgentTool {
 // contractTool 沿用内置工具的 schema 校验风格：生成参数 schema、
 // 拒绝未知字段并在执行前完成边界校验。
 func contractTool[T any](name, description string, fn func(context.Context, T, fantasy.ToolCall) (fantasy.ToolResponse, error)) fantasy.AgentTool {
-	var input T
-	generated := schema.Generate(reflect.TypeOf(input))
-	definition := schema.ToMap(generated)
-	definition["additionalProperties"] = false
-	raw, err := json.Marshal(definition)
-	if err != nil {
-		panic(fmt.Sprintf("encode memory tool schema: %v", err))
-	}
-	validator, err := jsonschema.NewCompiler().Compile(raw)
-	if err != nil {
-		panic(fmt.Sprintf("compile memory tool schema: %v", err))
-	}
-	base := fantasy.NewAgentTool(name, description, fn)
-	return &memoryTool{AgentTool: base, validator: validator}
-}
-
-type memoryTool struct {
-	fantasy.AgentTool
-	validator *jsonschema.Schema
-}
-
-func (t *memoryTool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-	if err := ctx.Err(); err != nil {
-		return fantasy.ToolResponse{}, err
-	}
-	var input any
-	if err := json.Unmarshal([]byte(call.Input), &input); err != nil {
-		return fantasy.NewTextErrorResponse("invalid parameters: expected one valid JSON object using this tool's declared fields"), nil
-	}
-	if result := t.validator.Validate(input); !result.IsValid() {
-		var details []string
-		for path, message := range result.DetailedErrors() {
-			details = append(details, path+": "+message)
-		}
-		return fantasy.NewTextErrorResponse("invalid parameters for " + t.AgentTool.Info().Name + ": " + strings.Join(details, "; ")), nil
-	}
-	return t.AgentTool.Run(ctx, call)
+	return toolcontract.WrapGenerated[T](fantasy.NewAgentTool(name, description, fn))
 }
