@@ -3,11 +3,12 @@ import { ApiRequestError } from '../../api/errors'
 import { readEventStream } from '../../api/stream'
 import { isApiEnvelope, isRecord, isString } from '../../api/transport'
 import { sseFrameGuard } from './guards'
-import type { ChatFrame } from './types'
+import type { ChatFrame, ReferenceSummary } from './types'
 
 export interface ConversationSSEOptions {
   /** 首帧前已知的会话 ID，用于把失败关联到当前会话。 */
   conversationId?: string
+  onErrorAudit?: (conversationId: string, summary: ReferenceSummary) => void
 }
 
 // 失败帧尽量从 payload.data.chat.id 取出会话 ID；首帧失败时回退请求已知 ID。
@@ -28,6 +29,7 @@ export async function consumeSSE(
   options?: ConversationSSEOptions,
 ) {
   let done = false
+  let currentConversationId = options?.conversationId
   await readEventStream(
     body,
     raw => {
@@ -40,9 +42,16 @@ export async function consumeSSE(
       if (!isApiEnvelope(payload)) {
         throw new ApiRequestError('SSE 事件格式不正确', { kind: 'protocol' })
       }
-      const conversationId = frameConversationId(payload) ?? options?.conversationId
+      const suppliedId = frameConversationId(payload)
+      if (suppliedId && currentConversationId && suppliedId !== currentConversationId) throw new ApiRequestError('SSE 会话身份不匹配', { kind: 'protocol' })
+      const conversationId = suppliedId ?? currentConversationId
       const context = conversationId ? { conversationId } : undefined
       if (payload.code !== SUCCESS_CODE) {
+        if (isRecord(payload.data) && payload.data.reference_summary != null) {
+          const audit = sseFrameGuard(payload.data)
+          if (!audit.ok || !suppliedId || audit.value.chat.flag !== 'error') throw new ApiRequestError('失败引用资料格式不正确', { kind: 'protocol', context })
+          if (audit.value.reference_summary) options?.onErrorAudit?.(suppliedId, audit.value.reference_summary)
+        }
         throw new ApiRequestError(payload.message || '对话生成失败', {
           code: payload.code,
           kind: 'business',
@@ -54,7 +63,10 @@ export async function consumeSSE(
         throw new ApiRequestError(checked.error, { kind: 'protocol', context })
       }
       const frame = checked.value
+      if (frame.chat.id) currentConversationId = frame.chat.id
       if (frame.chat.flag === 'error') {
+        if (frame.reference_summary && !frame.chat.id) throw new ApiRequestError('失败引用资料缺少会话身份', { kind: 'protocol', context })
+        if (frame.chat.id && frame.reference_summary) options?.onErrorAudit?.(frame.chat.id, frame.reference_summary)
         // 成功码 + error flag 属于兼容帧，按协议兜底而不是未知业务码。
         throw new ApiRequestError(frame.chat.content || '对话生成失败', { kind: 'protocol', context })
       }

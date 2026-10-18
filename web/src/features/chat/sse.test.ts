@@ -111,3 +111,29 @@ describe('approval frames', () => {
     await assert.rejects(consumeSSE(stream(envelope({ chat: { id: '1', flag: 'approval' } })), () => {}), /格式不正确/)
   })
 })
+
+describe('failed reference audit frames', () => {
+  const summary = { preparation_state: 'requested', sources: [{ type: 'directory', path: 'pkg' }] }
+  const error = (id: string, reference_summary: unknown = summary, code = 102017) => `data: ${JSON.stringify({ code, message: 'reference unavailable', data: { chat: { id, flag: 'error' }, reference_summary } })}\n\n`
+  it('delivers a validated audit before business failure without dispatching done', async () => {
+    const frames: ChatFrame[] = [], audits: string[] = []
+    await assert.rejects(consumeSSE(stream(error('123')), frame => frames.push(frame), {
+      conversationId: '123', onErrorAudit: (id, value) => { audits.push(id); assert.equal(value.preparation_state, 'requested') },
+    }), (reason: unknown) => reason instanceof ApiRequestError && reason.kind === 'business')
+    assert.deepEqual(audits, ['123'])
+    assert.deepEqual(frames, [])
+  })
+  it('rejects mismatched identity and malformed summaries before audit callbacks', async () => {
+    let audits = 0
+    for (const text of [error('other'), error('123', { ...summary, preparation_state: 'future' }), error(''), error('', summary, 100000)]) {
+      await assert.rejects(consumeSSE(stream(text), () => { assert.fail('error must not become done') }, { conversationId: '123', onErrorAudit: () => { audits++ } }),
+        (reason: unknown) => reason instanceof ApiRequestError && reason.kind === 'protocol')
+    }
+    assert.equal(audits, 0)
+  })
+  it('binds errors to the start frame of a newly created conversation', async () => {
+    let audits = 0
+    await assert.rejects(consumeSSE(stream(`data: ${JSON.stringify(frame('start'))}\n\n` + error('other')), () => {}, { onErrorAudit: () => { audits++ } }), /身份不匹配/)
+    assert.equal(audits, 0)
+  })
+})

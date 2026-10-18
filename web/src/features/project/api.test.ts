@@ -2,6 +2,8 @@
 import { afterEach, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { deleteProject, fetchDirectories, fetchProject, fetchProjects, saveProject } from './api'
+import { fetchProjectFiles } from './api'
+import { projectFilesGuard } from './guards'
 import { fetchConversations, streamChat } from '../chat/api'
 
 const originalFetch = globalThis.fetch
@@ -29,6 +31,32 @@ it('uses project CRUD and host directory endpoints', async () => {
   assert.deepEqual(JSON.parse(String(calls[4].init?.body)), data)
   assert.equal(calls[5].init?.method, 'PUT')
   assert.equal(calls[6].init?.method, 'DELETE')
+})
+
+it('validates candidate pagination limits, status and legacy files-only responses', async () => {
+  const valid = { files: ['a'], items: [{ type: 'file', path: 'a' }], truncated: true, next_cursor: 'next', scan_incomplete: true, cursor_reset: true }
+  assert.equal(projectFilesGuard(valid).ok, true)
+  assert.equal(projectFilesGuard({ files: [], truncated: false }).ok, true)
+  for (const invalid of [
+    { ...valid, scan_incomplete: 'true' }, { ...valid, cursor_reset: 1 },
+    { ...valid, truncated: false }, { ...valid, next_cursor: 'x'.repeat(4097) },
+    { ...valid, files: Array.from({ length: 51 }, () => 'a') },
+    { ...valid, items: Array.from({ length: 51 }, () => ({ type: 'file', path: 'a' })) },
+    { ...valid, items: [{ type: 'unknown', path: 'a' }] },
+    { ...valid, files: [''] }, { ...valid, items: [{ type: 'file', path: 'x'.repeat(4097) }] },
+  ]) assert.equal(projectFilesGuard(invalid).ok, false)
+  globalThis.fetch = (async (url, init) => {
+    const parsed = new URL(String(url), 'http://localhost')
+    assert.ok(parsed.pathname.endsWith('/project/a%2Fb/files'))
+    assert.equal(parsed.searchParams.get('query'), '中文')
+    assert.equal(parsed.searchParams.get('cursor'), 'next')
+    assert.equal(parsed.searchParams.get('include_directories'), 'true')
+    assert.ok(init?.signal)
+    return Response.json({ code: 100000, data: valid })
+  }) as typeof fetch
+  const response = await fetchProjectFiles('a/b', '中文', { includeDirectories: true, cursor: 'next', signal: new AbortController().signal })
+  assert.equal(response.scan_incomplete, true)
+  assert.equal(response.cursor_reset, true)
 })
 it('ordinary conversations explicitly exclude project conversations', async () => {
   globalThis.fetch = (async url => {

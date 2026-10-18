@@ -1,7 +1,7 @@
 import type { Block, ChatFrame, Turn } from './types'
 
 export function applyFrame(turn: Turn, frame: ChatFrame): Turn {
-  const next = { ...turn, model_id: frame.model_id || turn.model_id, model_name: frame.model_name || turn.model_name, api_protocol: frame.api_protocol || turn.api_protocol }
+  const next = { ...turn, reference_summary: frame.reference_summary ?? turn.reference_summary, model_id: frame.model_id || turn.model_id, model_name: frame.model_name || turn.model_name, api_protocol: frame.api_protocol || turn.api_protocol }
   if (frame.chat.flag === 'done') {
     return { ...next, usage: frame.usage, finish_reason: frame.finish_reason, status: 'done', finished_at: new Date().toISOString(), duration_ms: Date.now() - Date.parse(turn.started_at) }
   }

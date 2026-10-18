@@ -1,8 +1,6 @@
-import { ApiRequestError, transportFailure } from './errors'
+import { ApiRequestError, isAbortError, transportFailure } from './errors'
 import { buildUrl, parseEnvelope } from './transport'
-
-/** 单帧上限，避免坏对端无限填充 data 行；正常聊天帧远小于该值。 */
-const MAX_FRAME_BYTES = 64 * 1024 * 1024
+import { EventStreamParser } from './streamParser'
 
 export interface StreamOptions {
   method?: 'GET' | 'POST'
@@ -43,11 +41,13 @@ export async function openStream(path: string, options?: StreamOptions): Promise
 export interface EventStreamOptions {
   /** 返回 true 时停止读取并取消 reader，用于聊天在 done 帧后结束。 */
   shouldStop?: () => boolean
+  /** 标题连接取消时终止等待中的reader，测试流也遵循真实fetch取消语义。 */
+  signal?: AbortSignal
 }
 
 /**
- * readEventStream 只做通用 SSE framing：UTF-8/CRLF 跨 chunk、多 data 行、
- * comment 心跳行、单帧上限。业务语义（envelope、done、error）由各 feature 校验。
+ * readEventStream 只做通用SSE framing：解码前wire预算、严格UTF-8、跨chunk
+ * CRLF与完整事件；业务语义（envelope、done、error）由各feature校验。
  */
 export async function readEventStream(
   body: ReadableStream<Uint8Array>,
@@ -55,53 +55,45 @@ export async function readEventStream(
   options?: EventStreamOptions,
 ): Promise<void> {
   const reader = body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let data: string[] = []
-  let frameBytes = 0
+  const parser = new EventStreamParser(onData)
+  let canceling: Promise<void> | undefined
+  const cancel = () => { canceling ??= reader.cancel(); return canceling }
+  const abort = () => { void cancel().catch(() => {}) }
   const stopped = () => options?.shouldStop?.() === true
-
-  const dispatch = () => {
-    if (!data.length) return
-    const raw = data.join('\n')
-    data = []
-    frameBytes = 0
-    onData(raw)
-  }
-
-  const line = (value: string) => {
-    if (!value) {
-      dispatch()
-      return
-    }
-    if (value.startsWith(':')) return // 心跳/注释
-    if (value !== 'data' && !value.startsWith('data:')) return
-    const chunk = value.slice(5).replace(/^ /, '')
-    frameBytes += chunk.length
-    if (frameBytes > MAX_FRAME_BYTES) {
-      throw new ApiRequestError('事件帧超过大小上限', { kind: 'protocol' })
-    }
-    data.push(chunk)
-  }
+  const checkAbort = () => { if (options?.signal?.aborted) throw new DOMException('事件流已取消', 'AbortError') }
+  let failed = false
+  let failure: unknown
 
   try {
+    options?.signal?.addEventListener('abort', abort, { once: true })
+    if (options?.signal?.aborted) abort()
+    checkAbort()
     while (!stopped()) {
-      const result = await reader.read()
-      buffer += decoder.decode(result.value, { stream: !result.done })
-      let match: RegExpExecArray | null
-      while ((match = /\r\n|\r|\n/.exec(buffer))) {
-        if (!result.done && match[0] === '\r' && match.index === buffer.length - 1) break
-        line(buffer.slice(0, match.index))
-        buffer = buffer.slice(match.index + match[0].length)
-        if (stopped()) break
+      let result: ReadableStreamReadResult<Uint8Array>
+      try { result = await reader.read() } catch (error) {
+        checkAbort()
+        if (isAbortError(error)) throw error
+        throw new ApiRequestError('事件流读取失败', { kind: 'network' })
       }
-      if (result.done) break
+      checkAbort()
+      if (result.done) {
+        parser.finish(stopped)
+        break
+      }
+      parser.push(result.value, () => { checkAbort(); return stopped() })
     }
+  } catch (error) {
+    failed = true
+    failure = error
   } finally {
-    try {
-      await reader.cancel()
-    } finally {
-      reader.releaseLock()
+    options?.signal?.removeEventListener('abort', abort)
+    parser.clear()
+    try { await cancel() } catch {
+      if (!failed) { failed = true; failure = new ApiRequestError('事件流关闭失败', { kind: 'network' }) }
+    }
+    try { reader.releaseLock() } catch {
+      if (!failed) { failed = true; failure = new ApiRequestError('事件流关闭失败', { kind: 'network' }) }
     }
   }
+  if (failed) throw failure
 }

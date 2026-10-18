@@ -22,6 +22,7 @@ export interface InstructionStatus {
   hash?: string
   loaded_at?: string
   generation: number
+  loaded_generation: number
   last_error?: string
 }
 

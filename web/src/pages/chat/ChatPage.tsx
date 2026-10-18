@@ -14,12 +14,13 @@ import { BottomActions } from '../../components/layout/BottomActions'
 import { ProjectPanel } from '../../features/project/ProjectPanel'
 import type { Project } from '../../features/project/api'
 import { fetchProject } from '../../features/project/api'
-import type { ConversationTarget, Reference } from '../../features/chat/types'
+import type { ConversationTarget, Reference, TitleJobStatus } from '../../features/chat/types'
 import { kaguyaAvatar } from '../../assets/avatars'
 import './chat.css'
 
 // 代码浏览器连同 diff 视图库只在打开时加载，避免进入主包。
 const CodeBrowserDrawer = lazy(() => import('../../features/code/components/CodeBrowserDrawer').then(module => ({ default: module.CodeBrowserDrawer })))
+const titleJobLabels: Record<TitleJobStatus, string> = { pending: '标题排队中', running: '正在生成标题', succeeded: '标题已生成', failed: '标题生成失败', canceled: '标题生成已取消' }
 
 export function ChatPage() {
   const { message } = App.useApp()
@@ -31,7 +32,7 @@ export function ChatPage() {
   const refreshProjects = () => setProjectVersion(value => value + 1)
   const chat = useWorkspaceChat(async () => { await sessions.refreshQuietly(); refreshProjects() }, title => { sessions.updateTitle(title); refreshProjects() })
   const { draft, references, modelId, setModelId } = chat
-  const { saving, update, remove, upgradeInstructions } = useConversationActions({ chat, sessions, onProjectsChanged: refreshProjects })
+  const { saving, update, remove, upgradeInstructions, generateTitle } = useConversationActions({ chat, sessions, onProjectsChanged: refreshProjects })
   const changePermission = (mode: 'full_approval' | 'auto_approval' | 'full_access') => {
     if (chat.conversation) { void update({ permission_mode: mode }); return }
     chat.setPermissionMode(mode)
@@ -95,6 +96,7 @@ export function ChatPage() {
     {view === '项目' && <ProjectPanel selected={project} disabled={saving} onSelect={chooseProject} activeId={chat.id || chat.sessionKey} reveal={target} localTarget={visibleTarget} refreshVersion={projectVersion} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
     {view === '对话' && <><div className="chat-session-status">
       {sessions.error && <Alert type="error" title={sessions.error} action={<Button size="small" onClick={sessions.refresh}>重试</Button>} />}
+      {sessions.titleError && <Alert type="warning" title={sessions.titleError} action={<Button size="small" onClick={sessions.refresh}>重新加载</Button>} />}
       {sessions.loading && !sessions.items.length && <div className="chat-center"><Spin size="small" /></div>}
       {!sessions.loading && !sessions.error && !conversationItems.length && <p className="chat-center chat-muted">暂无对话</p>}
     </div>
@@ -106,10 +108,10 @@ export function ChatPage() {
     {!sidebarCollapsed && <aside className="chat-sidebar">{sidebar}</aside>}
     <Drawer title="对话管理" placement="left" open={showSidebar} onClose={() => setShowSidebar(false)} styles={{ body: { padding: 0 } }}>{sidebar}</Drawer>
     <section className="chat-main">
-      <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><img className="chat-header-avatar" {...kaguyaAvatar} alt="Kaguya" width={26} height={26} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1>{chat.streaming && <span className="chat-pill is-running" role="status">正在生成</span>}{MEMORY_ENABLED && (chat.conversation?.memory_refs?.items.length ?? 0) > 0 && <Popover trigger="click" placement="bottom" title="本轮记忆目录" content={<div className="chat-memory-directory"><p>模型获得的标题与说明。正文是否读取，请查看 memory_read 执行记录。</p><ul>{chat.conversation!.memory_refs!.items.map(item => <li key={item.page_id}><strong>{item.deleted ? '已删除的记忆' : item.title}</strong><small>v{item.version}{item.deleted ? ' · 已删除' : ''}</small></li>)}</ul></div>}><Button type="text" className="chat-memory-trigger">本轮提供 {chat.conversation!.memory_refs!.items.length} 条记忆目录</Button></Popover>}</div>
+      <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><img className="chat-header-avatar" {...kaguyaAvatar} alt="Kaguya" width={26} height={26} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1>{chat.streaming && <span className="chat-pill is-running" role="status">正在生成</span>}{chat.conversation?.title === '新对话' && chat.conversation.title_job_status && <span className="chat-pill" role="status">{titleJobLabels[chat.conversation.title_job_status]}</span>}{MEMORY_ENABLED && (chat.conversation?.memory_refs?.items.length ?? 0) > 0 && <Popover trigger="click" placement="bottom" title="本轮记忆目录" content={<div className="chat-memory-directory"><p>模型获得的标题与说明。正文是否读取，请查看 memory_read 执行记录。</p><ul>{chat.conversation!.memory_refs!.items.map(item => <li key={item.page_id}><strong>{item.deleted ? '已删除的记忆' : item.title}</strong><small>v{item.version}{item.deleted ? ' · 已删除' : ''}</small></li>)}</ul></div>}><Button type="text" className="chat-memory-trigger">本轮提供 {chat.conversation!.memory_refs!.items.length} 条记忆目录</Button></Popover>}</div>
         <div className="chat-header-actions">
           {activeProjectId && <Button type="text" aria-label="查看代码与改动" icon={<CodeOutlined />} disabled={!chat.id || chat.streaming || saving || chat.loading} onClick={() => setCodeOpen(true)} />}
-          <Dropdown menu={{ items: [{ key: 'code', label: '查看代码与改动', icon: <CodeOutlined />, disabled: !activeProjectId }, { key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, ...(MEMORY_ENABLED ? [{
+          <Dropdown menu={{ items: [{ key: 'code', label: '查看代码与改动', icon: <CodeOutlined />, disabled: !activeProjectId }, { key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'generate-title', label: '补生成标题', disabled: chat.conversation?.title !== '新对话' }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, ...(MEMORY_ENABLED ? [{
             key: 'memory', label: '本会话记忆', disabled: !chat.conversation,
             children: [
               { key: 'memory-inherit', label: '继承全局' },
@@ -119,6 +121,7 @@ export function ChatPage() {
           }] : []), { key: 'delete', label: '删除对话', danger: true, icon: <DeleteOutlined />, disabled: !chat.conversation }], onClick: ({ key }) => {
             if (key === 'code') { setCodeOpen(true); return }
             if (key === 'reload') void chat.select(chat.id)
+            if (key === 'generate-title') { void generateTitle(); return }
             if (key === 'rename') { setTitle(chat.conversation?.title ?? ''); setRenaming(true) }
             if (key === 'delete') { remove(); return }
             if (key.startsWith('memory-')) void update({ memory_mode: key.slice('memory-'.length) })
@@ -126,6 +129,7 @@ export function ChatPage() {
         </div>
       </header>
       {chat.error && <Alert type="error" title={chat.error} showIcon />}
+      {chat.titleError && <Alert type="warning" title={chat.titleError} showIcon />}
       {chat.conversation?.instructions_legacy && <Alert
         type="warning"
         showIcon
@@ -134,7 +138,7 @@ export function ChatPage() {
         action={<Button size="small" disabled={chat.streaming || saving} onClick={() => void upgradeInstructions()}>升级指令</Button>}
       />}
       <AssistantThread key={chat.sessionKey} turns={chat.turns} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving} onSend={send} onStop={chat.stop}>
-      <MessageList conversationId={chat.id} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
+      <MessageList activeApprovalIds={chat.approvals.map(approval => approval.approval_id)} conversationId={chat.id} canRestoreReferences={!!(chat.conversation ? chat.conversation.project_id : chat.projectId)} onRestoreReferences={async turn => { const count = await chat.restoreReferences(turn); if (count) void message.success(`已恢复 ${count} 项引用选择`) }} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
       {chat.approvals.length > 0 && <div className="chat-approvals" aria-label="工具审批">
         {chat.approvals.map(approval => <ApprovalCard key={approval.approval_id} approval={approval} onDecide={chat.decideApproval} />)}
       </div>}

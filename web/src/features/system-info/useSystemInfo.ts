@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { App } from 'antd'
 import type { FormInstance } from 'antd'
 import { fetchSystemInfo, updateAgentsPaths, updateSystemInfo } from './api'
-import type { SystemInfo, SystemInfoPayload } from './types'
+import type { InstructionStatus, SystemInfo, SystemInfoPayload } from './types'
 
 /**
  * useSystemInfo 管理系统配置的加载、保存与目录同步状态。表单实例由页面持有：
@@ -15,6 +15,7 @@ export function useSystemInfo(form: FormInstance<SystemInfoPayload>) {
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
+  const [instructionStatusError, setInstructionStatusError] = useState(false)
   const [revision, setRevision] = useState(0)
   const syncRequest = useRef<AbortController | null>(null)
   useEffect(() => () => { syncRequest.current?.abort() }, [])
@@ -26,12 +27,36 @@ export function useSystemInfo(form: FormInstance<SystemInfoPayload>) {
     fetchSystemInfo(controller.signal).then(config => {
       if (controller.signal.aborted) return
       setInfo(config)
+      setInstructionStatusError(false)
       form.setFieldsValue(config)
     }).catch(err => {
       if (!controller.signal.aborted) setError(err instanceof Error ? err.message : '配置加载失败')
     }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [form, revision])
+
+  // 只轮询发布状态，不能用状态响应覆盖用户尚未保存的表单。
+  const hasInfo = !!info
+  useEffect(() => {
+    if (!hasInfo) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout>
+    const refresh = async () => {
+      try {
+        const config = await fetchSystemInfo(controller.signal)
+        if (!controller.signal.aborted) {
+          setInfo(current => current && { ...current, instruction_status: mergeInstructionStatus(current.instruction_status, config.instruction_status) })
+          setInstructionStatusError(false)
+        }
+      } catch {
+        if (!controller.signal.aborted) setInstructionStatusError(true)
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(() => void refresh(), 2000)
+      }
+    }
+    timer = setTimeout(() => void refresh(), 2000)
+    return () => { controller.abort(); clearTimeout(timer) }
+  }, [hasInfo, revision])
 
   const reload = () => setRevision(value => value + 1)
 
@@ -49,9 +74,9 @@ export function useSystemInfo(form: FormInstance<SystemInfoPayload>) {
       })
       // 路径保存使用专用端点；返回包含最新的指令 reload 状态。
       const config = await updateAgentsPaths(values.global_agents_paths ?? [])
-      setInfo(config)
+      setInfo(current => ({ ...config, instruction_status: mergeInstructionStatus(current?.instruction_status, config.instruction_status) }))
       form.setFieldsValue(config)
-      void message.success('系统配置已保存，新请求立即生效')
+      void message.success('系统配置已保存，全局指令在后台加载')
     } catch (err) {
       void message.error(err instanceof Error ? err.message : '保存失败')
       throw err
@@ -96,5 +121,12 @@ export function useSystemInfo(form: FormInstance<SystemInfoPayload>) {
     }
   }
 
-  return { info, setInfo, loading, saving, syncing, error, reload, save, syncNow }
+  return { info, setInfo, loading, saving, syncing, error, instructionStatusError, reload, save, syncNow }
+}
+
+// 单次应用生命周期内发布状态只前进；手动重新加载会重新建立基线。
+function mergeInstructionStatus(current: InstructionStatus | undefined, next: InstructionStatus | undefined) {
+  if (!current) return next
+  if (!next || next.generation < current.generation || next.loaded_generation < current.loaded_generation || next.version < current.version) return current
+  return next
 }

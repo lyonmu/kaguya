@@ -19,6 +19,7 @@ function mcpPhaseLabel(server: MCPServer) {
   if (!server.enabled) return '已停用'
   if (server.phase === 'running' || (!server.phase && server.status.state === 'running')) return '运行中'
   switch (server.phase) {
+    case 'storage_error': return server.status.state === 'running' ? '运行中（恢复策略保存失败）' : '恢复策略保存失败'
     case 'circuit_open': return '熔断'
     case 'backoff': return `重试中（连续失败 ${server.consecutive_failures ?? 0} 次）`
     default: return server.status.state === 'error' ? '连接异常' : '连接中'
@@ -70,13 +71,13 @@ export function MCPManagementPanel() {
         columns={[
           { title: '名称', dataIndex: 'name', width: 180, render: (name, server) => <Button type="link" className="px-0!" onClick={() => setDetails(server)}>{name}</Button> },
           { title: '传输', dataIndex: 'transport', width: 150 },
-          { title: '运行状态', width: 200, render: (_, server) => <div><Tag className={`lunar-tag${server.phase === 'running' || (!server.phase && server.status.state === 'running') ? ' lunar-tag-success' : server.phase === 'circuit_open' || server.status.state === 'error' ? ' lunar-tag-danger' : ''}`}>{mcpPhaseLabel(server)}</Tag>{server.status.message && <div className="mt-1 text-xs text-k-text-muted">{server.status.message}</div>}{server.phase === 'circuit_open' && <div className="mt-1 text-xs text-k-text-muted">自动重连已停止，可手动重新连接</div>}</div> },
+          { title: '运行状态', width: 200, render: (_, server) => <div><Tag className={`lunar-tag${server.phase === 'running' || (!server.phase && server.status.state === 'running') ? ' lunar-tag-success' : server.phase === 'circuit_open' || server.phase === 'storage_error' || server.status.state === 'error' ? ' lunar-tag-danger' : ''}`}>{mcpPhaseLabel(server)}</Tag>{server.status.message && <div className="mt-1 text-xs text-k-text-muted">{server.status.message}</div>}{(server.phase === 'circuit_open' || server.phase === 'storage_error') && <div className="mt-1 text-xs text-k-text-muted">{server.enabled ? '自动重连已停止，可手动重新连接' : '恢复策略保存失败；服务已停用，重新启用会开启新周期'}</div>}</div> },
           { title: '工具数', width: 70, render: (_, server) => server.status.tools.length },
           { title: <Space size={4}>启用<Tooltip trigger={['hover', 'focus']} title="启用的 MCP 工具对所有聊天生效；新启用的工具从下一轮对话可用。停用会中断正在执行的 MCP 请求，已产生的外部操作不会撤销。"><QuestionCircleOutlined tabIndex={0} aria-label="启停说明" className="text-k-text-muted" /></Tooltip></Space>, width: 90, render: (_, server) => <Switch aria-label={`启用 ${server.name}`} checked={server.enabled} loading={busy === server.id} disabled={!!busy || saving} onChange={enabled => void toggle(server, enabled)} /> },
           { title: '操作', width: 160, fixed: 'right', render: (_, server) => <Space size={0}><Button type="link" disabled={!!busy || saving} onClick={() => void edit(server)}>编辑</Button>{server.enabled && server.phase !== 'running' && <Button type="link" loading={busy === server.id} disabled={!!busy || saving} onClick={() => void reconnect(server)}>重新连接</Button>}<Popconfirm title={`删除 ${server.name}？`} description="运行中的连接会同时关闭。" okText="删除" cancelText="取消" onConfirm={() => remove(server)}><Button danger type="link" disabled={!!busy || saving}>删除</Button></Popconfirm></Space> },
         ]} />
     </Card>
-    <Modal title={<Space>{editing ? '编辑 MCP' : '新增 MCP'}{editing?.enabled && <Tooltip trigger={['hover', 'focus']} title="保存时会连接新配置；成功后替换原连接，失败时保留原配置。"><QuestionCircleOutlined tabIndex={0} aria-label="保存说明" className="text-k-text-muted" /></Tooltip>}</Space>} open={open} width={680} onCancel={() => { if (!saving) setOpen(false) }} onOk={() => void save()} confirmLoading={saving} cancelButtonProps={{ disabled: saving }} mask={{ closable: !saving }} closable={!saving} keyboard={!saving} okText="保存" cancelText="取消" destroyOnHidden>
+    <Modal title={<Space>{editing ? '编辑 MCP' : '新增 MCP'}{editing?.enabled && <Tooltip trigger={['hover', 'focus']} title="保存时会连接新配置；确认保存后替换原连接；提交前失败保留原配置。"><QuestionCircleOutlined tabIndex={0} aria-label="保存说明" className="text-k-text-muted" /></Tooltip>}</Space>} open={open} width={680} onCancel={() => { if (!saving) setOpen(false) }} onOk={() => void save()} confirmLoading={saving} cancelButtonProps={{ disabled: saving }} mask={{ closable: !saving }} closable={!saving} keyboard={!saving} okText="保存" cancelText="取消" destroyOnHidden>
       <Form form={form} layout="vertical" disabled={saving} preserve={false}>
         <Form.Item name="name" label="名称" rules={[{ required: true, whitespace: true, message: '请输入名称' }]}><Input aria-label="MCP 名称" maxLength={100} /></Form.Item>
         <Form.Item name="transport" label="传输方式" rules={[{ required: true }]}><Select options={transports} /></Form.Item>

@@ -26,3 +26,11 @@ describe('chat session merge', () => {
     assert.equal(upsertApproval(current, { ...approved, status: 'consumed' }).get('a1')?.status, 'consumed')
   })
 })
+
+it('does not regress execution results when delayed approval decisions arrive', () => {
+  const succeeded: Approval = { approval_id: 'a1', tool_call_id: 'c1', tool_name: 'write', effect: 'mutating', mode: 'full_approval', status: 'consumed', execution_state: 'succeeded' }
+  const current = upsertApproval(new Map(), succeeded)
+  assert.equal(upsertApproval(current, { ...succeeded, status: 'approved', execution_state: 'not_started' }), current)
+  assert.equal(upsertApproval(current, { ...succeeded, execution_state: 'unknown' }), current)
+  assert.equal(upsertApproval(current, { ...succeeded, execution_state: 'failed' }), current)
+})

@@ -16,20 +16,27 @@ const modeLabel = (mode: string) => {
   return mode
 }
 
-const statusLabel = (status: string) => {
-  switch (status) {
+const statusLabel = (approval: Approval) => {
+  switch (approval.status) {
     case 'pending': return '等待裁决'
-    case 'approved': case 'consumed': return '已批准并执行'
+    case 'approved': return '已批准'
+    case 'consumed':
+      switch (approval.execution_state) {
+        case 'succeeded': return '工具返回成功'
+        case 'failed': return '执行失败，可能已有副作用'
+        case 'canceled': return approval.execution_reason_code === 'canceled_before_execution' ? '执行前已取消' : '执行已取消，可能已有副作用'
+        default: return '已授权，执行结果未知'
+      }
     case 'rejected': return '已拒绝'
     case 'expired': return '已超时'
     case 'canceled': return '已取消'
-    default: return status
+    default: return '审批状态未知'
   }
 }
 
 interface Props {
   approval: Approval
-  onDecide: (approvalId: string, decision: 'approve' | 'reject') => Promise<void>
+  onDecide?: (approvalId: string, decision: 'approve' | 'reject') => Promise<void>
 }
 
 /**
@@ -42,6 +49,7 @@ export function ApprovalCard({ approval, onDecide }: Props) {
   const pending = approval.status === 'pending'
   const effect = effectLabel(approval.effect)
   const decide = async (decision: 'approve' | 'reject') => {
+    if (!onDecide || busy) return
     setBusy(true)
     setError('')
     try {
@@ -53,18 +61,18 @@ export function ApprovalCard({ approval, onDecide }: Props) {
     }
   }
   return (
-    <section className="chat-approval" aria-label={`工具审批 ${approval.tool_name}`}>
+    <section className="chat-approval" aria-label={`工具审批 ${approval.tool_name || 'MCP 工具'}`}>
       <div className="chat-approval-head">
         <SafetyCertificateOutlined />
-        <strong>{approval.tool_name}</strong>
+        <strong>{approval.tool_name || 'MCP 工具'}</strong>
         <Tag color={effect.color}>{effect.text}</Tag>
         <Tag>{modeLabel(approval.mode)}</Tag>
-        <span className={`chat-approval-status is-${approval.status}`}>{statusLabel(approval.status)}</span>
+        <span className={`chat-approval-status is-${approval.status}`}>{statusLabel(approval)}</span>
       </div>
-      <p className="chat-approval-hint">该调用需要你的确认；批准只对这一次调用生效，未批准不会产生任何副作用。</p>
+      {pending && <p className="chat-approval-hint">批准只对这一次调用生效；未批准不会执行该工具。</p>}
       {approval.input && <pre className="chat-approval-input">{approval.input}</pre>}
       {error && <Alert type="error" showIcon title={error} />}
-      {pending && (
+      {pending && onDecide && (
         <div className="chat-approval-actions">
           <Tooltip title="仅批准本次调用">
             <Button type="primary" size="small" icon={<CheckOutlined />} loading={busy} onClick={() => void decide('approve')}>批准一次</Button>

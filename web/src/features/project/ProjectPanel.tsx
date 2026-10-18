@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, App, Button, Input, Modal, Space, Spin } from 'antd'
 import { FolderOutlined, PlusOutlined } from '@ant-design/icons'
-import { deleteProject, fetchDirectories, fetchProject, saveProject } from './api'
-import type { Directories, Project, ProjectInput } from './api'
+import type { Project, ProjectInput } from './types'
 import type { ConversationTarget } from '../chat/types'
 import { VirtualList } from '../chat/components/VirtualList'
 
 import { useProjects } from './useProjects'
+import { useProjectDirectories } from './useProjectDirectories'
 
 import { ProjectGroup } from './ProjectGroup'
 
@@ -15,16 +15,11 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : '
 
 export function ProjectPanel({ selected, disabled, onSelect, activeId, onConversationSelect, refreshVersion = 0, reveal, localTarget }: { selected?: Project; disabled: boolean; onSelect: (project?: Project) => void; activeId?: string; onConversationSelect?: (project: Project, id: string) => void; refreshVersion?: number; reveal?: ConversationTarget; localTarget?: ConversationTarget }) {
   const { message, modal } = App.useApp()
-  const { keyword, setKeyword, items, revision, loading, loadingMore, error, refresh, loadMore } = useProjects()
+  const { keyword, setKeyword, items, revision, loading, loadingMore, error, refresh, loadMore, saving, loadDetail, save: saveRecord, remove: removeRecord, cancelOperation } = useProjects()
+  const { directories, browsing, directoryError, browse: browseDirectories, cancel: cancelBrowse } = useProjectDirectories()
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set())
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<ProjectInput>(empty)
-  const [saving, setSaving] = useState(false)
-  const [directories, setDirectories] = useState<Directories>()
-  const [browsing, setBrowsing] = useState(false)
-  const [directoryError, setDirectoryError] = useState('')
-  const directoryRequest = useRef<AbortController | null>(null)
-  useEffect(() => () => directoryRequest.current?.abort(), [])
 
   useEffect(() => {
     if (reveal) setKeyword('')
@@ -44,48 +39,34 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
     onSelect(project)
   }
   const browse = async (path = '', selectDirectory = true) => {
-    directoryRequest.current?.abort()
-    const controller = new AbortController()
-    directoryRequest.current = controller
-    setBrowsing(true)
-    setDirectoryError('')
-    setDirectories(undefined)
-    try {
-      const result = await fetchDirectories(path, controller.signal)
-      if (!controller.signal.aborted) {
-        setDirectories(result)
-        if (selectDirectory) setForm(current => ({ ...current, path: result.path, name: !current.name || current.name === current.path.split('/').filter(Boolean).at(-1) ? result.path.split('/').filter(Boolean).at(-1) || '' : current.name }))
-      }
-    } catch (error) { if (!controller.signal.aborted) setDirectoryError(errorText(error)) }
-    finally { if (!controller.signal.aborted) setBrowsing(false) }
+    const result = await browseDirectories(path)
+    if (result && selectDirectory) setForm(current => ({ ...current, path: result.path, name: !current.name || current.name === current.path.split('/').filter(Boolean).at(-1) ? result.path.split('/').filter(Boolean).at(-1) || '' : current.name }))
   }
   const edit = async (project?: Project) => {
-    setSaving(true)
     try {
-      const detail = project ? await fetchProject(project.id) : undefined
+      cancelBrowse()
+      if (!project) cancelOperation()
+      const detail = project ? await loadDetail(project.id) : undefined
+      if (project && !detail) return
       setForm(detail ?? empty)
       setEditing(detail?.id ?? '')
       void browse('', !detail) // Editing keeps the saved path until the user navigates.
     } catch (error) { void message.error(errorText(error)) }
-    finally { setSaving(false) }
   }
   const save = async () => {
-    setSaving(true)
     try {
-      const project = await saveProject(editing ?? '', { ...form, name: form.name.trim() })
+      const project = await saveRecord(editing ?? '', { ...form, name: form.name.trim() })
+      if (!project) return
       setEditing(null)
-      refresh()
+      cancelBrowse()
       select(project)
     } catch (error) { void message.error(errorText(error)) }
-    finally { setSaving(false) }
   }
   const remove = (project: Project) => modal.confirm({
     title: `删除项目“${project.name}”？`, content: '仅删除项目记录；对话解除项目归属并保留在普通对话列表，主机文件不会删除。', okText: '删除', okButtonProps: { danger: true },
     onOk: async () => {
-      setSaving(true)
-      try { await deleteProject(project.id); if (selected?.id === project.id) onSelect(undefined); refresh() }
+      try { if (await removeRecord(project.id) && selected?.id === project.id) onSelect(undefined) }
       catch (error) { void message.error(errorText(error)); throw error }
-      finally { setSaving(false) }
     },
   })
   // Keep a directly selected project reachable even when it is outside the loaded page.
@@ -102,7 +83,7 @@ export function ProjectPanel({ selected, disabled, onSelect, activeId, onConvers
         {visibleItems.length > 0 && <VirtualList className="project-list" items={visibleItems} itemKey={project => project.id} estimate={44} onEnd={loadMore} reveal={reveal && selected && selected.id === reveal.projectId ? { key: selected.id, request: reveal } : undefined} renderItem={project => <ProjectGroup key={project.id} project={project} expanded={expanded.has(project.id)} onToggle={() => toggle(project.id)} activeId={activeId} selected={selected?.id === project.id} disabled={disabled || saving || loading} reveal={reveal?.projectId === project.id ? reveal : undefined} localTarget={localTarget?.projectId === project.id ? localTarget : undefined} version={revision + refreshVersion} onSelect={() => select(project)} onConversationSelect={id => onConversationSelect?.(project, id)} onEdit={() => void edit(project)} onDelete={() => remove(project)} />} />}
         {loadingMore && <div className="project-list-more"><Spin size="small" /></div>}
     </div>
-    <Modal title={editing ? '编辑项目' : '新建项目'} open={editing !== null} confirmLoading={saving} onCancel={() => { if (!saving) { setEditing(null); directoryRequest.current?.abort() } }} onOk={() => void save()} okButtonProps={{ disabled: disabled || browsing || !!directoryError || !form.name.trim() || !form.path }}>
+    <Modal title={editing ? '编辑项目' : '新建项目'} open={editing !== null} confirmLoading={saving} onCancel={() => { if (!saving) { setEditing(null); cancelBrowse(); cancelOperation() } }} onOk={() => void save()} okButtonProps={{ disabled: disabled || browsing || !!directoryError || !form.name.trim() || !form.path }}>
       <Space orientation="vertical" style={{ width: '100%' }}>
         <Input aria-label="项目名称" placeholder="项目名称" maxLength={200} value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} />
         <Input.TextArea aria-label="项目描述" placeholder="项目描述（可选）" maxLength={2000} value={form.description} onChange={event => setForm({ ...form, description: event.target.value })} />

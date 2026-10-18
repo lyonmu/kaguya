@@ -25,6 +25,7 @@ export function ProjectGroup({ project, expanded, onToggle, activeId, selected, 
     </div>
     {expanded && <>
       {sessions.error && <Alert type="error" title={sessions.error} action={<Button onClick={refresh}>重试</Button>} />}
+      {sessions.titleError && <Alert type="warning" title={sessions.titleError} action={<Button onClick={refresh}>重新加载</Button>} />}
       {sessions.loading && !sessions.items.length && <Spin size="small" />}
       {!sessions.loading && !sessions.error && !items.length && <p className="project-empty">暂无对话</p>}
       {items.length > 0 && <VirtualList className="project-conversations" items={items} itemKey={item => item.id} estimate={38} onEnd={sessions.loadMore} reveal={revealKey && reveal ? { key: revealKey, request: reveal } : undefined} renderItem={item => <button className={`project-conversation ${item.id === activeId ? 'active' : ''}`} disabled={disabled} onClick={() => onConversationSelect(item.id)} title={item.title}><MessageOutlined className="session-icon" aria-hidden="true" /><span className="project-conversation-text">{item.title}</span></button>} />}

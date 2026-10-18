@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchProjects } from './api'
-import type { Project } from './types'
+import { deleteProject, fetchProject, fetchProjects, saveProject } from './api'
+import type { Project, ProjectInput } from './types'
 
 /**
  * useProjects 管理项目列表：服务端分页、滚动加载、关键词去抖搜索与刷新。
- * 表单、目录浏览等 modal 局部状态仍由页面持有。
+ * 详情与写操作拥有独立请求；表单及 modal 局部状态仍由页面持有。
  */
 export function useProjects() {
   const [keyword, setKeyword] = useState('')
@@ -17,6 +17,67 @@ export function useProjects() {
   const [error, setError] = useState('')
   const request = useRef<AbortController | null>(null)
   const busy = useRef(false)
+  const operation = useRef<AbortController | null>(null)
+  const mutating = useRef(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => () => { operation.current?.abort() }, [])
+  const cancelOperation = () => {
+    operation.current?.abort()
+    operation.current = null
+    mutating.current = false
+    setSaving(false)
+  }
+  const loadDetail = async (id: string) => {
+    if (mutating.current) return
+    operation.current?.abort()
+    const controller = new AbortController()
+    operation.current = controller
+    setSaving(true)
+    try {
+      const result = await fetchProject(id, controller.signal)
+      if (!controller.signal.aborted && operation.current === controller) return result
+    } catch (error) {
+      if (!controller.signal.aborted && operation.current === controller) throw error
+    } finally {
+      if (operation.current === controller && !controller.signal.aborted) { operation.current = null; setSaving(false) }
+    }
+  }
+  const save = async (id: string, input: ProjectInput) => {
+    if (operation.current) return
+    const controller = new AbortController()
+    operation.current = controller
+    mutating.current = true
+    setSaving(true)
+    try {
+      const project = await saveProject(id, input, controller.signal)
+      if (controller.signal.aborted || operation.current !== controller) return
+      refresh()
+      return project
+    } catch (error) {
+      if (!controller.signal.aborted && operation.current === controller) throw error
+    } finally {
+      if (operation.current === controller && !controller.signal.aborted) { operation.current = null; mutating.current = false; setSaving(false) }
+    }
+  }
+  const remove = async (id: string) => {
+    if (operation.current) return false
+    const controller = new AbortController()
+    operation.current = controller
+    mutating.current = true
+    setSaving(true)
+    try {
+      await deleteProject(id, controller.signal)
+      if (controller.signal.aborted || operation.current !== controller) return false
+      refresh()
+      return true
+    } catch (error) {
+      if (!controller.signal.aborted && operation.current === controller) throw error
+      return false
+    } finally {
+      if (operation.current === controller && !controller.signal.aborted) { operation.current = null; mutating.current = false; setSaving(false) }
+    }
+  }
 
   const load = useCallback(async (page: number, append: boolean) => {
     if (append && busy.current) return
@@ -59,5 +120,5 @@ export function useProjects() {
     setLoading(true)
   }, [])
 
-  return { keyword, setKeyword: search, items, revision: version, loading, loadingMore, error, refresh, loadMore }
+  return { keyword, setKeyword: search, items, revision: version, loading, loadingMore, error, refresh, loadMore, saving, loadDetail, save, remove, cancelOperation }
 }

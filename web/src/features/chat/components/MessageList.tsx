@@ -7,6 +7,8 @@ import { isCanceledStatus, isCompleteStatus, isFailedStatus, isInterruptedStatus
 import type { Block, Turn } from "../types";
 import { userAvatar } from "../../../assets/avatars";
 import { KaguyaAvatar } from "../../../components/KaguyaAvatar";
+import { ApprovalCard } from "./ApprovalCard";
+import { ReferenceDetails } from "./ReferenceDetails";
 
 export function ContentBlock({ block, streaming = false, conversationId, turnIndex }: { block: Block; streaming?: boolean; conversationId?: string; turnIndex?: number }) {
  return block.type === 'text' ? <Markdown text={block.text ?? ''} streaming={streaming && block.phase !== 'block_end'} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
@@ -14,6 +16,7 @@ export function ContentBlock({ block, streaming = false, conversationId, turnInd
 
 interface Props {
   conversationId?: string;
+  activeApprovalIds?: string[];
   turns: Turn[];
   loading: boolean;
   streaming: boolean;
@@ -21,11 +24,14 @@ interface Props {
   totalPages: number;
   initialEnd: boolean;
   onContinue?: () => void;
+  onRestoreReferences?: (turn: Turn) => Promise<void>;
+  canRestoreReferences?: boolean;
   onPageChange: (page: number, fromEnd?: boolean) => Promise<void>;
 }
 
 export function MessageList({
   conversationId,
+  activeApprovalIds = [],
   turns,
   loading,
   streaming,
@@ -34,6 +40,8 @@ export function MessageList({
   initialEnd,
   onPageChange,
   onContinue,
+  onRestoreReferences,
+  canRestoreReferences = false,
 }: Props) {
   const rail = useRef<HTMLElement>(null);
   const viewport = useRef<HTMLDivElement>(null)
@@ -73,7 +81,7 @@ export function MessageList({
 
         </div>
       )}
-      <ContinueContext.Provider value={{ onContinue: page === totalPages ? onContinue : undefined, streaming, conversationId }}>
+      <ContinueContext.Provider value={{ onContinue: page === totalPages ? onContinue : undefined, streaming, loading, conversationId, activeApprovalIds, onRestoreReferences, canRestoreReferences }}>
         <ThreadPrimitive.Viewport ref={viewport} key={`${page}:${initialEnd}`} className="chat-messages" autoScroll={initialEnd} tabIndex={0}
           onWheel={event => { if (event.deltaY) boundary(event.deltaY < 0 ? -1 : 1) }}
           onTouchStart={event => { touchY.current = event.touches[0].clientY }}
@@ -109,7 +117,7 @@ export function MessageList({
   );
 }
 
-const ContinueContext = createContext<{ onContinue?: () => void; streaming: boolean; conversationId?: string }>({ streaming: false })
+const ContinueContext = createContext<{ onContinue?: () => void; streaming: boolean; loading: boolean; conversationId?: string; activeApprovalIds: string[]; onRestoreReferences?: (turn: Turn) => Promise<void>; canRestoreReferences: boolean }>({ streaming: false, loading: false, activeApprovalIds: [], canRestoreReferences: false })
 function RuntimeMessage() {
   const turn = useAuiState(state => state.message.metadata.custom.turn) as Turn
   const role = useAuiState(state => state.message.role)
@@ -144,8 +152,12 @@ function RuntimeMessage() {
                 <div className="chat-message-name">
                   Kaguya {turn.model_name && `· ${turn.model_name}`}
                 </div>
+                <ReferenceDetails summary={turn.reference_summary} disabled={streaming || context.loading} onRestore={!running && !isCompleteStatus(turn.status) && context.canRestoreReferences && context.onRestoreReferences ? () => void context.onRestoreReferences?.(turn) : undefined} />
                 {turn.blocks.map((block, index) => (
                   <ContentBlock key={block.sequence ?? index} block={block} streaming={running} conversationId={context.conversationId} turnIndex={turn.turn_index} />
+                ))}
+                {turn.approvals?.filter(approval => !context.activeApprovalIds.includes(approval.approval_id)).map(approval => (
+                  <ApprovalCard key={approval.approval_id} approval={approval} />
                 ))}
                 {running && (
                   <div className="chat-muted" role="status">
@@ -158,6 +170,13 @@ function RuntimeMessage() {
                     title={incompleteMessage}
                     showIcon
                   />
+                )}
+                {!running && !isCompleteStatus(turn.status) && turn.preparation_usage && (
+                  <div className="chat-turn-meta" role="status">
+                    摘要准备已报告 {turn.preparation_usage.usage.total_tokens.toLocaleString()} tokens
+                    {turn.preparation_usage.unreported_calls > 0 && `；另有 ${turn.preparation_usage.unreported_calls} 次调用用量未知`}
+                    ；未计入已完成轮次累计用量
+                  </div>
                 )}
                 {turn.finish_reason === 'step_limit' && <div className="chat-paused" role="status"><span>达到本轮步数上限，执行进度已保存。</span>{onContinue && <button type="button" onClick={onContinue} disabled={streaming}>继续执行 →</button>}</div>}
                 {!running && turn.blocks.some(b => b.type === 'text') && <div className="chat-response-actions"><CopyButton label="复制回答" text={turn.blocks.filter(b => b.type === 'text').map(b => b.text || '').join('\n\n')} /></div>}

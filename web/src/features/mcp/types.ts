@@ -12,7 +12,7 @@ export interface MCPConfig {
   timeout_seconds: number
 }
 
-export type MCPPhase = 'stopped' | 'connecting' | 'running' | 'backoff' | 'circuit_open'
+export type MCPPhase = 'stopped' | 'connecting' | 'running' | 'backoff' | 'circuit_open' | 'storage_error'
 
 export interface MCPServer extends MCPConfig {
   id: string

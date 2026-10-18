@@ -294,6 +294,52 @@ it('offers typed file and directory reference candidates', async () => {
   await waitFor(() => assert.ok(view.getByText(/目录 · src/)))
 })
 
+it('loads subsequent candidates with the keyboard, keeps focus, and labels the project root', async () => {
+  const cursors: (string | null)[] = []
+  globalThis.fetch = (async url => {
+    const parsed = new URL(String(url), 'http://localhost')
+    if (parsed.pathname.endsWith('/files')) {
+      const cursor = parsed.searchParams.get('cursor')
+      cursors.push(cursor)
+      return Response.json({ code: 100000, data: cursor
+        ? { files: ['b'], items: [{ type: 'file', path: 'b' }], truncated: true, scan_incomplete: true }
+        : { files: ['a'], items: [{ type: 'directory', path: '.', name: '.' }, { type: 'file', path: 'a' }], truncated: true, next_cursor: 'page-2', scan_incomplete: false } })
+    }
+    return Response.json({ code: 100000, data: [] })
+  }) as typeof fetch
+  let selected: Reference[] = []
+  function Draft() {
+    const [value, setValue] = useState('')
+    const [references, setReferences] = useState<Reference[]>([])
+    selected = references
+    return <AssistantThread turns={[]} streaming={false} disabled={false} onSend={async () => {}} onStop={() => {}}><Composer projectId="42" value={value} onChange={setValue} references={references} onReferencesChange={setReferences} modelId="" onModelChange={() => {}} permissionMode="full_access" onPermissionChange={() => {}} streaming={false} disabled={false} /></AssistantThread>
+  }
+  const view = render(<Draft />)
+  const textarea = view.getByLabelText('对话消息') as HTMLTextAreaElement
+  fireEvent.change(textarea, { target: { value: '@', selectionStart: 1 } })
+  await waitFor(() => assert.equal(view.getAllByRole('option').length, 2))
+  assert.ok(view.getByText('项目根目录'))
+  const more = view.getByRole('button', { name: '加载更多' })
+  more.scrollIntoView = () => {}
+  // 转移焦点到可Tab访问的loadMore不能把popover先卸载。
+  fireEvent.blur(textarea, { relatedTarget: more })
+  assert.ok(view.getByRole('button', { name: '加载更多' }))
+  fireEvent.focus(textarea)
+  fireEvent.keyDown(textarea, { key: 'ArrowUp' })
+  assert.equal(textarea.getAttribute('aria-activedescendant'), 'mention-load-more')
+  fireEvent.keyDown(textarea, { key: 'Enter' })
+  await waitFor(() => assert.deepEqual(cursors, [null, 'page-2']))
+  await waitFor(() => assert.equal(view.getAllByRole('option').length, 3))
+  assert.deepEqual(selected, [])
+  assert.equal(view.queryByRole('button', { name: '加载更多' }), null)
+  assert.ok(view.getByText('扫描未完成，请输入更具体的路径'))
+  view.getAllByRole('option').forEach(option => { option.scrollIntoView = () => {} })
+  fireEvent.keyDown(textarea, { key: 'ArrowUp' })
+  fireEvent.keyDown(textarea, { key: 'ArrowUp' })
+  fireEvent.keyDown(textarea, { key: 'Enter' })
+  await waitFor(() => assert.deepEqual(selected, [{ type: 'directory', path: '.' }]))
+})
+
 it('shows a pending approval once and reports one decision', async () => {
   const decisions: [string, string][] = []
   const { ApprovalCard } = await import('./ApprovalCard')
@@ -305,4 +351,68 @@ it('shows a pending approval once and reports one decision', async () => {
   await waitFor(() => assert.deepEqual(decisions, [['a1', 'approve']]))
   view.rerender(<ApprovalCard approval={{ ...approval, status: 'approved' }} onDecide={async () => {}} />)
   assert.equal(view.queryByRole('button', { name: /批准一次/ }), null)
+})
+
+it('distinguishes approval from execution and shows audit cards without replay buttons', async () => {
+  const { ApprovalCard } = await import('./ApprovalCard')
+  const approval = { approval_id: 'audit', tool_call_id: 'call', tool_name: 'write', effect: 'mutating', mode: 'full_approval', status: 'approved' }
+  const view = render(<ApprovalCard approval={approval} />)
+  assert.ok(view.getByText('已批准'))
+  assert.equal(view.queryByText('已批准并执行'), null)
+  view.rerender(<ApprovalCard approval={{ ...approval, status: 'consumed' }} />)
+  assert.ok(view.getByText('已授权，执行结果未知'))
+  view.rerender(<ApprovalCard approval={{ ...approval, status: 'consumed', execution_state: 'succeeded' }} />)
+  assert.ok(view.getByText('工具返回成功'))
+  view.rerender(<ApprovalCard approval={{ ...approval, status: 'consumed', execution_state: 'canceled' }} />)
+  assert.ok(view.getByText('执行已取消，可能已有副作用'))
+  view.rerender(<ApprovalCard approval={{ ...approval, status: 'consumed', execution_state: 'canceled', execution_reason_code: 'canceled_before_execution' }} />)
+  assert.ok(view.getByText('执行前已取消'))
+  view.rerender(<ApprovalCard approval={{ ...approval, status: 'pending' }} />)
+  assert.equal(view.queryByRole('button', { name: /批准一次/ }), null)
+})
+
+it('shows reported preparation consumption and unknown calls for a failed turn', () => {
+  const turn = { turn_index: 1, user_content: 'inspect file', model_id: 'm', model_name: 'model', api_protocol: 'openai', started_at: new Date().toISOString(), blocks: [], duration_ms: 1, tool_calls: 0, status: 'failed' as const,
+    preparation_usage: { version: 1 as const, summary_calls: 2, reported_calls: 1, unreported_calls: 1,
+      usage: { input_tokens: 10, output_tokens: 20, total_tokens: 42, cache_hit_tokens: 5, cache_creation_tokens: 7, reasoning_tokens: 3 } } }
+  const view = render(<MessageList turns={[turn]} loading={false} streaming={false} page={1} totalPages={1} initialEnd onPageChange={async () => {}} />)
+  assert.ok(view.getByText(/摘要准备已报告 42 tokens/))
+  assert.ok(view.getByText(/另有 1 次调用用量未知/))
+  assert.ok(view.getByText(/未计入已完成轮次累计用量/))
+  view.rerender(<MessageList turns={[{ ...turn, status: 'completed' }]} loading={false} streaming={false} page={1} totalPages={1} initialEnd onPageChange={async () => {}} />)
+  assert.equal(view.queryByText(/摘要准备已报告/), null)
+})
+
+it('shows requested reference intent safely and restores choices without replaying', async () => {
+  const { referenceSummaryGuard } = await import('../referenceSummary')
+  const path = '<img src=x onerror=alert(1)>'
+  const checked = referenceSummaryGuard({ preparation_state: 'requested', sources: [{ type: 'directory', path }] })
+  assert.ok(checked.ok)
+  const turn = { turn_index: 1, user_content: 'inspect', started_at: new Date().toISOString(), blocks: [], model_name: '', model_id: '', api_protocol: '', duration_ms: 0, tool_calls: 0, status: 'failed' as const, reference_summary: checked.value }
+  let restores = 0
+  const view = render(<MessageList turns={[turn]} loading={false} streaming={false} page={1} totalPages={1} initialEnd canRestoreReferences onRestoreReferences={async item => { assert.equal(item, turn); restores++ }} onPageChange={async () => {}} />)
+  assert.ok(view.getByText(/仅记录选择，尚未解析/))
+  assert.ok(view.getByText(`目录：${path}`))
+  assert.equal(view.container.querySelector('[onerror]'), null)
+  view.container.querySelector('details')!.setAttribute('open', '')
+  fireEvent.click(view.getByRole('button', { name: /恢复引用选择/ }))
+  await waitFor(() => assert.equal(restores, 1))
+  view.rerender(<MessageList turns={[{ ...turn, status: 'completed' }]} loading={false} streaming={false} page={1} totalPages={1} initialEnd canRestoreReferences onRestoreReferences={async () => { restores++ }} onPageChange={async () => {}} />)
+  assert.equal(view.queryByRole('button', { name: /恢复引用选择/ }), null)
+})
+
+it('distinguishes body truncation from incomplete scanning and unknown model capacity', async () => {
+  const { ReferenceDetails } = await import('./ReferenceDetails')
+  const { referenceSummaryGuard } = await import('../referenceSummary')
+  const checked = referenceSummaryGuard({ preparation_state: 'resolved', partial_reason: 'context_budget', budget_known: false, sources: [{ type: 'directory', path: '.', included: true, hash: 'b'.repeat(16), files: [{ path: 'a.go', included: true, status: 'included', ranges: [{ start: 1, end: 2 }], hash: 'a'.repeat(64), next_line: 3 }] }] })
+  assert.ok(checked.ok)
+  const view = render(<ReferenceDetails summary={checked.value} />)
+  assert.ok(view.getByText(/部分资料已包含.*模型窗口未知/))
+  assert.ok(view.getByText(/目录扫描未标记为未完成/))
+  assert.ok(view.getByText(/实际行：1–2/))
+  assert.ok(view.getByText(/下一行 3/))
+  assert.equal(view.queryByText('目录扫描未完成'), null)
+  const legacy = { ...checked.value, preparation_state: undefined }
+  view.rerender(<ReferenceDetails summary={legacy} />)
+  assert.ok(view.getByText(/旧记录，解析阶段未知/))
 })

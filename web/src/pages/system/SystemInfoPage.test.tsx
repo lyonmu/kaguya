@@ -181,3 +181,72 @@ it('toggles the system sidebar and exposes system config and usage in mobile nav
   assert.equal(next, 'system-info')
   await waitFor(() => assert.equal(view.getByLabelText('打开系统菜单').getAttribute('aria-expanded'), 'false'))
 })
+
+it('shows asynchronous instruction publication and refreshes it without replacing a draft', async () => {
+  const config = { context_compaction_percent: 90, agent_max_steps: 0, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: [], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: 'saved', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '', memory_enabled: false, memory_auto_capture: false, memory_context_tokens: 2000, memory_policy_epoch: 0, instruction_status: { generation: 2, loaded_generation: 1, version: 1, hash: 'first', last_error: '' } }
+  let calls = 0
+  let pollSignal: AbortSignal | null | undefined
+  globalThis.fetch = (async (url, init) => {
+    if (String(url).includes('/model/label')) return response([])
+    calls++
+    if (calls > 1) {
+      pollSignal = init?.signal
+      config.instruction_status = { generation: 2, loaded_generation: 2, version: 2, hash: 'second', last_error: '' }
+      config.global_system_prompt = 'different server value'
+    }
+    return response(config)
+  }) as typeof fetch
+  const view = render(<App><SystemInfoPage /></App>)
+  const input = await view.findByLabelText('全局基础提示词') as HTMLTextAreaElement
+  await view.findByText(/全局指令配置已保存，正在加载/)
+  fireEvent.change(input, { target: { value: 'unsaved instructions draft' } })
+  await waitFor(() => assert.ok(view.getByText(/全局指令已发布版本 v2/)), { timeout: 4000 })
+  assert.equal(input.value, 'unsaved instructions draft')
+  assert.equal(view.queryByText(/全局指令配置已保存，正在加载/), null)
+  view.unmount()
+  assert.equal(pollSignal?.aborted, true)
+})
+
+it('reports unavailable publication status and keeps the last confirmed version', async () => {
+  const config = { context_compaction_percent: 90, agent_max_steps: 0, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: [], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: 'saved', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://models.dev/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '', memory_enabled: false, memory_auto_capture: false, memory_context_tokens: 2000, memory_policy_epoch: 0, instruction_status: { generation: 3, loaded_generation: 2, version: 2, hash: 'old', last_error: 'source_missing' } }
+  let calls = 0
+  globalThis.fetch = (async url => {
+    if (String(url).includes('/model/label')) return response([])
+    return ++calls === 1 ? response(config) : Response.json({ code: 999999, message: 'unavailable' })
+  }) as typeof fetch
+  const view = render(<App><SystemInfoPage /></App>)
+  await view.findByText(/指令文件暂时不存在（继续使用版本 v2）/)
+  await waitFor(() => assert.ok(view.getByText(/全局指令发布状态暂时无法确认/)), { timeout: 4000 })
+  assert.ok(view.getByText(/继续使用版本 v2/))
+})
+
+it('ignores a status poll started before saving a newer instruction configuration', async () => {
+  const config = { context_compaction_percent: 90, agent_max_steps: 0, command_timeout_seconds: 120, chat_max_retries: 5, global_agents_paths: [], system_prompt: '', default_model_id: '', task_model_id: '', global_system_prompt: 'saved', model_sync_enabled: false, provider_sync_url: 'https://models.dev/api.json', model_sync_url: 'https://mirror.example/models.json', model_sync_interval_hours: 24, model_sync_catalog_count: 0, provider_catalog_count: 0, model_sync_last_error: '', memory_enabled: false, memory_auto_capture: false, memory_context_tokens: 2000, memory_policy_epoch: 0, instruction_status: { generation: 0, loaded_generation: 0, version: 1, hash: 'initial', last_error: '' } }
+  let reads = 0
+  let release: (() => void) | undefined
+  globalThis.fetch = (async (url, init) => {
+    if (String(url).includes('/model/label')) return response([])
+    if (init?.method === 'PUT') {
+      if (String(url).includes('/agents-paths')) config.instruction_status = { generation: 1, loaded_generation: 0, version: 1, hash: 'initial', last_error: '' }
+      return response(config)
+    }
+    if (++reads === 2) {
+      const old = response(config)
+      await new Promise<void>(resolve => { release = resolve })
+      return old
+    }
+    return response(config)
+  }) as typeof fetch
+  const view = render(<App><SystemInfoPage /></App>)
+  await view.findByLabelText('全局基础提示词')
+  try {
+    await waitFor(() => assert.ok(release), { timeout: 4000 })
+    fireEvent.click(view.getByRole('button', { name: /保存配置/ }))
+    await view.findByText(/全局指令配置已保存，正在加载/)
+    await act(async () => { release?.(); await new Promise(resolve => setTimeout(resolve, 0)) })
+    assert.ok(view.getByText(/全局指令配置已保存，正在加载/))
+  } finally {
+    release?.()
+    view.unmount()
+  }
+})

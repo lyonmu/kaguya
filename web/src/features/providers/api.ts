@@ -1,4 +1,5 @@
 import { del, get, post, put } from '../../api/http'
+import { modelLabelsGuard } from './guards'
 import type {
   AIModel,
   AIProvider,
@@ -56,7 +57,7 @@ export function deleteProvider(id: string) {
 }
 
 export function fetchModelLabels(signal?: AbortSignal) {
-  return get<ModelLabelOption[]>(`${MODEL_PATH}/label`, undefined, signal)
+  return get<ModelLabelOption[]>(`${MODEL_PATH}/label`, undefined, signal, modelLabelsGuard)
 }
 
 export function fetchModelCatalog(keyword = '', signal?: AbortSignal) {

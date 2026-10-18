@@ -1,7 +1,7 @@
 import { del, get, post, put } from '../../api/http'
 import { openStream } from '../../api/stream'
-import { approvalListGuard, blockGuard, conversationContextGuard, conversationGuard, conversationPageGuard, conversationTitleGuard, turnPageGuard } from './guards'
-import { consumeSSE } from './sse'
+import { approvalDecisionGuard, approvalListGuard, blockGuard, conversationContextGuard, conversationGuard, conversationPageGuard, conversationTitleGuard, titleSnapshotsGuard, turnPageGuard } from './guards'
+import { consumeSSE, type ConversationSSEOptions } from './sse'
 import type { Approval, ApprovalDecision, ChatFrame, Conversation, ConversationContext, ConversationPage, ConversationTitle, Reference, TurnPage, Block } from './types'
 
 export const HISTORY_PAGE_SIZE = 5
@@ -19,6 +19,10 @@ export function fetchConversationContext(id: string, signal?: AbortSignal) {
 }
 export function generateConversationTitle(id: string, signal?: AbortSignal) {
   return post<ConversationTitle>(`${PATH}/${encodeURIComponent(id)}/title/wait`, undefined, signal, conversationTitleGuard)
+}
+export function fetchTitleSnapshots(ids: string[], signal: AbortSignal) {
+  if (!ids.length || ids.length > 200) throw new Error('标题快照请求数量不正确')
+  return post(`${PATH}/title-snapshots`, { ids }, signal, titleSnapshotsGuard(ids))
 }
 export function fetchTurns(id: string, before = 0, signal?: AbortSignal) {
   return get<TurnPage>(`${PATH}/${encodeURIComponent(id)}/turns`, { before, limit: HISTORY_PAGE_SIZE, compact: true }, signal, turnPageGuard)
@@ -40,7 +44,7 @@ export function upgradeConversationInstructions(id: string) {
 }
 // 审批裁决：一次调用仅生效一次；相同裁决幂等，冲突裁决由后端返回明确错误。
 export function decideApproval(id: string, approvalId: string, decision: 'approve' | 'reject', signal?: AbortSignal) {
-  return post<ApprovalDecision>(`${PATH}/${encodeURIComponent(id)}/approvals/${encodeURIComponent(approvalId)}`, { decision }, signal)
+  return post<ApprovalDecision>(`${PATH}/${encodeURIComponent(id)}/approvals/${encodeURIComponent(approvalId)}`, { decision }, signal, approvalDecisionGuard)
 }
 // 当前等待裁决的审批；仅作页面刷新后的状态补齐。
 export function fetchApprovals(id: string, signal?: AbortSignal) {
@@ -49,7 +53,7 @@ export function fetchApprovals(id: string, signal?: AbortSignal) {
 export function deleteConversation(id: string) {
   return del(`${PATH}/${encodeURIComponent(id)}`)
 }
-export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string, references: Reference[] = [], permissionMode?: string) {
+export async function streamChat(id: string, messages: string, signal: AbortSignal, onFrame: (frame: ChatFrame) => void, modelId?: string, projectId?: string, references: Reference[] = [], permissionMode?: string, onErrorAudit?: ConversationSSEOptions['onErrorAudit']) {
   const body = await openStream('/v1/chat/sse', {
     method: 'POST',
     signal,
@@ -62,7 +66,7 @@ export async function streamChat(id: string, messages: string, signal: AbortSign
       permission_mode: !id && permissionMode ? permissionMode : undefined,
     },
   })
-  await consumeSSE(body, onFrame, { conversationId: id || undefined })
+  await consumeSSE(body, onFrame, { conversationId: id || undefined, onErrorAudit })
 }
 
 export function fetchBlock(id: string, turn: number, sequence: number, signal?: AbortSignal) {

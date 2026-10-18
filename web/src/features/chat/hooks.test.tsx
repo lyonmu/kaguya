@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { Window } from 'happy-dom'
 import { setConfirmRunningTurnDelay, useChat } from './useChat'
 import { useConversations } from './useConversations'
+import type { Reference } from './types'
 
 const dom = new Window({ url: 'http://localhost' })
 const globals = { window: dom, document: dom.document, navigator: dom.navigator, HTMLElement: dom.HTMLElement, MutationObserver: dom.MutationObserver, IS_REACT_ACT_ENVIRONMENT: true }
@@ -26,6 +27,84 @@ const onCompleted = async () => {}
 const onTitle = () => {}
 
 describe('chat refresh stability', () => {
+  it('revalidates cached project ownership without replacing history or discarding the draft', async () => {
+    let detached = false
+    let release!: (value: Response) => void
+    const historyRequests: string[] = []
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost').pathname
+      if (path.endsWith('/turns')) {
+        historyRequests.push(path)
+        return response({ items: [turn], page: 1, total_pages: 1 })
+      }
+      if (path.endsWith('/approvals')) return response([])
+      const id = path.endsWith('/123') ? '123' : '456'
+      if (id === '123' && detached) return new Promise<Response>(resolve => { release = resolve })
+      return response({ ...detail, id, is_project: true, project_id: id === '123' ? 'project-a' : 'project-b' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => {
+      result.current.setDraft('保留草稿 @example.md')
+      result.current.setReferences([{ type: 'file', path: 'example.md' }])
+    })
+    const history = result.current.turns
+    await act(async () => { await result.current.select('456') })
+    detached = true
+    let selected!: Promise<void>
+    act(() => { selected = result.current.select('123') })
+    assert.equal(result.current.loading, true, 'cached ownership must be checked before enabling project actions')
+    assert.equal(result.current.turns, history, 'cached messages remain visible during metadata validation')
+    await act(async () => {
+      release(response({ ...detail, is_project: false }))
+      await selected
+    })
+    assert.equal(result.current.projectId, undefined)
+    assert.equal(result.current.conversation?.project_id, undefined)
+    assert.equal(result.current.conversation?.is_project, false)
+    assert.deepEqual(result.current.references, [], 'deleted workspace selections must not carry into a normal conversation')
+    assert.equal(result.current.draft, '保留草稿 @example.md')
+    assert.equal(result.current.turns, history)
+    assert.equal(result.current.localSessions.find(item => item.id === '123')?.projectId, undefined)
+    assert.equal(result.current.localSessions.find(item => item.id === '456')?.projectId, 'project-b')
+    assert.equal(historyRequests.length, 2, 'cached navigation must not refetch message pages')
+  })
+
+  it('ignores a late cached ownership response after navigation and retains valid workspace selections', async () => {
+    let delayed = false
+    let release!: (value: Response) => void
+    let signal: AbortSignal | null | undefined
+    globalThis.fetch = (async (url, init) => {
+      const path = new URL(String(url), 'http://localhost').pathname
+      if (path.endsWith('/turns')) return response({ items: [turn], page: 1, total_pages: 1 })
+      if (path.endsWith('/approvals')) return response([])
+      const id = path.endsWith('/123') ? '123' : '456'
+      if (id === '123' && delayed) {
+        signal = init?.signal
+        return new Promise<Response>(resolve => { release = resolve })
+      }
+      return response({ ...detail, id, is_project: true, project_id: `project-${id}` })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => result.current.setReferences([{ type: 'file', path: 'example.md' }]))
+    await act(async () => { await result.current.select('456') })
+    delayed = true
+    let stale!: Promise<void>
+    act(() => { stale = result.current.select('123') })
+    assert.equal(result.current.loading, true)
+    await act(async () => { await result.current.select('456') })
+    assert.equal(signal?.aborted, true)
+    await act(async () => { release(response({ ...detail, is_project: false })); await stale })
+    assert.equal(result.current.id, '456')
+    assert.equal(result.current.projectId, 'project-456')
+    assert.equal(result.current.loading, false)
+    delayed = false
+    await act(async () => { await result.current.select('123') })
+    assert.equal(result.current.projectId, 'project-123')
+    assert.deepEqual(result.current.references, [{ type: 'file', path: 'example.md' }])
+  })
+
   it('resets pagination and ignores stale results when switching projects', async () => {
     let release!: (value: Response) => void
     globalThis.fetch = (async url => {
@@ -216,9 +295,8 @@ describe('chat refresh stability', () => {
     assert.deepEqual(result.current.turns, [])
   })
 
-  it('refreshes the list and patches the title as soon as the first start frame arrives', async () => {
+  it('refreshes detail/list on start without waiting for title and applies independent events', async () => {
     let titleRequests = 0
-    let releaseTitle!: (value: Response) => void
     globalThis.fetch = (async url => {
       const path = String(url)
       if (path.endsWith('/sse')) {
@@ -229,7 +307,7 @@ describe('chat refresh stability', () => {
       }
       if (path.endsWith('/title/wait')) {
         titleRequests++
-        return new Promise<Response>(resolve => { releaseTitle = resolve })
+        return response({ id: 'new-conv', title: 'unexpected' })
       }
       return response({ id: 'new-conv', title: '新对话', turn_count: 0 })
     }) as typeof fetch
@@ -239,9 +317,10 @@ describe('chat refresh stability', () => {
     await act(async () => { await result.current.send('新会话') })
     assert.equal(result.current.error, '')
     await waitFor(() => assert.equal(refreshes, 1))
-    await waitFor(() => assert.equal(titleRequests, 1))
-    await act(async () => { releaseTitle(response({ id: 'new-conv', title: '自动标题' })); await new Promise(resolve => setTimeout(resolve, 0)) })
-    assert.deepEqual(titles, ['自动标题'])
+    await waitFor(() => assert.equal(result.current.conversation?.title, '新对话'))
+    assert.equal(titleRequests, 0)
+    act(() => { result.current.applyTitleEvent({ id: 'new-conv', title: '自动标题', revision: 1 }) })
+    assert.deepEqual(titles, [])
     assert.equal(result.current.conversation?.title, '自动标题')
   })
 
@@ -268,13 +347,105 @@ describe('chat refresh stability', () => {
   })
 })
 
+describe('title reconciliation in list and sessions', () => {
+  it('manual detail reload clears only a current consistent title diagnostic', async () => {
+    let revision = 1
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost').pathname
+      if (path.endsWith('/turns')) return response({ items: [turn], page: 1, total_pages: 1 })
+      if (path.endsWith('/approvals')) return response([])
+      return response({ ...detail, title_revision: revision, title_job_status: 'canceled', title_job_revision: revision })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => { result.current.applyTitleEvent({ id: '123', title: 'newer', revision: 3, job_status: 'failed', job_revision: 3 }); result.current.titleSyncError('safe diagnostic') })
+    await act(async () => { await result.current.select('123') })
+    assert.equal(result.current.titleError, 'safe diagnostic')
+    revision = 4
+    await act(async () => { await result.current.select('123') })
+    assert.equal(result.current.titleError, '')
+    assert.equal(result.current.conversation?.title_revision, 4)
+  })
+  it('clears old title/job overlays when refreshed DB revisions advance', async () => {
+    let stored = { ...detail, title: 'db-1', title_revision: 1, title_job_status: 'pending', title_job_revision: 0 }
+    globalThis.fetch = (async () => response({ items: [stored], total: 1 })) as typeof fetch
+    const { result } = renderHook(() => useConversations())
+    await waitFor(() => assert.equal(result.current.items.length, 1))
+    act(() => { result.current.updateTitle({ id: '123', title: 'event-2', revision: 2, job_status: 'failed', job_revision: 3 }) })
+    assert.equal(result.current.items[0].title, 'event-2')
+    stored = { ...stored, title: 'db-4', title_revision: 4, title_job_status: 'canceled', title_job_revision: 5 }
+    await act(async () => { await result.current.refreshQuietly() })
+    assert.equal(result.current.items[0].title, 'db-4'); assert.equal(result.current.items[0].title_job_status, 'canceled')
+    act(() => { result.current.updateTitle({ id: '123', title: 'late-2', revision: 2, job_status: 'running', job_revision: 2 }) })
+    assert.equal(result.current.items[0].title, 'db-4'); assert.equal(result.current.items[0].title_job_revision, 5)
+    stored = { ...stored, title: 'db-6', title_revision: 6 }
+    await act(async () => { await result.current.refreshQuietly() })
+    assert.equal(result.current.items[0].title, 'db-6')
+  })
+  it('retains a confirmed overlay on conflicting same-version page data without regressing later job events', async () => {
+    let stored = { ...detail, title: 'initial', title_revision: 0 }
+    globalThis.fetch = (async () => response({ items: [stored], total: 1 })) as typeof fetch
+    const { result } = renderHook(() => useConversations())
+    await waitFor(() => assert.equal(result.current.items.length, 1))
+    act(() => { result.current.updateTitle({ id: '123', title: 'confirmed', revision: 1 }) })
+    stored = { ...stored, title: 'conflicting', title_revision: 1 }
+    await act(async () => { await result.current.refreshQuietly() })
+    assert.equal(result.current.items[0].title, 'confirmed')
+    act(() => { result.current.updateTitle({ id: '123', job_status: 'failed', job_revision: 4 }) })
+    assert.equal(result.current.items[0].title, 'confirmed'); assert.equal(result.current.items[0].title_job_status, 'failed')
+  })
+  it('detail/rename merges title and job independently and targets the matching session', async () => {
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost').pathname
+      if (path.endsWith('/turns')) return response({ items: [turn], page: 1, total_pages: 1 })
+      if (path.endsWith('/approvals')) return response([])
+      return response({ ...detail, id: path.endsWith('/456') ? '456' : '123', title_revision: 1, title_job_revision: 0 })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => { result.current.applyTitleEvent({ id: '123', title: 'manual', revision: 5, job_status: 'running', job_revision: 3 }) })
+    await act(async () => { await result.current.select('456') })
+    const original = result.current.conversation!
+    act(() => { result.current.setConversation({ ...original, id: '123', title: 'stale', title_revision: 2, title_job_status: 'failed', title_job_revision: 4 }) })
+    assert.equal(result.current.conversation?.id, '456'); assert.equal(result.current.conversation?.title, '已有标题')
+    await act(async () => { await result.current.select('123') })
+    assert.equal(result.current.conversation?.title, 'manual'); assert.equal(result.current.conversation?.title_job_status, 'failed')
+  })
+  it('a late explicit title after navigation or removal cannot update another session', async () => {
+    let release!: (value: Response) => void
+    globalThis.fetch = (async url => {
+      const path = new URL(String(url), 'http://localhost').pathname
+      if (path.endsWith('/title/wait')) return new Promise<Response>(resolve => { release = resolve })
+      if (path.endsWith('/turns')) return response({ items: [turn], page: 1, total_pages: 1 })
+      if (path.endsWith('/approvals')) return response([])
+      return response({ ...detail, id: path.endsWith('/456') ? '456' : '123', title: '新对话', title_revision: 0 })
+    }) as typeof fetch
+    const titles: string[] = []
+    const { result } = renderHook(() => useChat(onCompleted, value => titles.push(value.title)))
+    await act(async () => { await result.current.select('123') })
+    let task!: Promise<void>
+    act(() => { task = result.current.generateTitle() })
+    await act(async () => { await result.current.select('456') })
+    await act(async () => { release(response({ id: '123', title: 'stale', revision: 1 })); await task })
+    assert.equal(result.current.conversation?.id, '456'); assert.equal(result.current.conversation?.title, '新对话'); assert.deepEqual(titles, [])
+    await act(async () => { await result.current.select('123') })
+    act(() => { task = result.current.generateTitle(); result.current.removeConversation('123') })
+    await act(async () => { release(response({ id: '123', title: 'late', revision: 2 })); await task })
+    assert.equal(result.current.id, ''); assert.deepEqual(result.current.knownConversationIDs, ['456']); assert.deepEqual(titles, [])
+  })
+})
+
 describe('independent conversation streams', () => {
   it('keeps interleaved streams isolated before IDs arrive and cancels only the selected one', async () => {
     const streams: Array<{ emit: (id: string, flag: string, text?: string) => void; signal: AbortSignal }> = []
     const requested: string[] = []
     globalThis.fetch = (async (url, init) => {
       requested.push(String(url))
-      if (!String(url).endsWith('/sse')) return response({ ...detail, id: String(url).split('/').at(-1) })
+      if (!String(url).endsWith('/sse')) {
+        const id = String(url).split('/').at(-1)
+        // 首条流是项目会话；详情必须与已持久化的请求归属一致。
+        return response({ ...detail, id, is_project: id === '111', project_id: id === '111' ? 'project-a' : undefined })
+      }
       const signal = init!.signal as AbortSignal
       return new Response(new ReadableStream({ start(controller) {
         streams.push({ signal, emit(id, flag, text) {
@@ -607,7 +778,7 @@ describe('conversation defaults on open', () => {
     assert.equal(sent[1], 'manual-model')
   })
 
-  it('generates a default title once when opening a conversation detail', async () => {
+  it('only generates a default title on explicit action, never when opening detail', async () => {
     let titleRequests = 0
     globalThis.fetch = (async url => {
       const path = new URL(String(url), 'http://localhost')
@@ -622,16 +793,20 @@ describe('conversation defaults on open', () => {
     const titles: string[] = []
     const { result } = renderHook(() => useChat(onCompleted, title => titles.push(title.title)))
     await act(async () => { await result.current.select('123') })
+    assert.equal(result.current.conversation?.title, '新对话')
+    assert.equal(titleRequests, 0)
+    await act(async () => { await result.current.generateTitle() })
     await waitFor(() => assert.equal(result.current.conversation?.title, '自动标题'))
     assert.equal(titleRequests, 1)
     assert.deepEqual(titles, ['自动标题'])
     // 已有标题的会话不重复请求生成。
     await act(async () => { await result.current.select('456') })
+    await act(async () => { await result.current.generateTitle() })
     assert.equal(result.current.conversation?.title, '已有标题')
     assert.equal(titleRequests, 1)
   })
 
-  it('keeps the default title without an error when generation is unavailable', async () => {
+  it('explicit unavailable generation reports failure without changing title or session error', async () => {
     globalThis.fetch = (async url => {
       const path = new URL(String(url), 'http://localhost')
       if (path.pathname.endsWith('/title/wait')) return Response.json({ code: 102007, message: '任务模型未配置' })
@@ -640,12 +815,12 @@ describe('conversation defaults on open', () => {
     }) as typeof fetch
     const { result } = renderHook(() => useChat(onCompleted, onTitle))
     await act(async () => { await result.current.select('123') })
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+    await act(async () => { await assert.rejects(result.current.generateTitle(), /任务模型未配置/) })
     assert.equal(result.current.error, '')
     assert.equal(result.current.conversation?.title, '新对话')
   })
 
-  it('retries default title generation when reopening a cached conversation', async () => {
+  it('cached navigation does not retry titles; explicit retry remains available', async () => {
     let titleRequests = 0
     globalThis.fetch = (async url => {
       const path = new URL(String(url), 'http://localhost')
@@ -658,15 +833,19 @@ describe('conversation defaults on open', () => {
       return response({ ...detail, id, title: id === '456' ? '已有标题' : '新对话' })
     }) as typeof fetch
     const { result } = renderHook(() => useChat(onCompleted, onTitle))
-    // 首次打开生成失败：保留“新对话”。
+    // 首次明确补生成未取得标题：保留默认文本。
     await act(async () => { await result.current.select('123') })
+    assert.equal(titleRequests, 0)
+    await act(async () => { await result.current.generateTitle() })
     await waitFor(() => assert.equal(titleRequests, 1))
     assert.equal(result.current.conversation?.title, '新对话')
     await act(async () => { await result.current.select('456') })
     assert.equal(result.current.conversation?.title, '已有标题')
     assert.equal(titleRequests, 1)
-    // 会话仍在缓存中：重新打开时仍要补一次生成。
+    // 会话仍在缓存中：重新打开只展示，明确重试才生成。
     await act(async () => { await result.current.select('123') })
+    assert.equal(titleRequests, 1)
+    await act(async () => { await result.current.generateTitle() })
     await waitFor(() => assert.equal(titleRequests, 2))
     await waitFor(() => assert.equal(result.current.conversation?.title, '自动标题'))
     // 标题已生成，再切换到其它会话又切回来不再请求。
@@ -674,5 +853,211 @@ describe('conversation defaults on open', () => {
     await act(async () => { await result.current.select('123') })
     await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
     assert.equal(titleRequests, 2)
+  })
+})
+
+it('reconciles failed preparation audit from the latest history page without losing the view', async () => {
+  setConfirmRunningTurnDelay(10)
+  try {
+    const audit = { version: 1, summary_calls: 2, reported_calls: 1, unreported_calls: 1,
+      usage: { input_tokens: 10, output_tokens: 20, total_tokens: 42, cache_hit_tokens: 5, cache_creation_tokens: 7, reasoning_tokens: 3 } }
+    const saved = { ...turn, turn_index: 10, status: 'completed' }
+    const failed = { ...turn, turn_index: 11, user_content: 'inspect missing', status: 'failed', preparation_usage: audit }
+    let ended = false
+    const pages: number[] = []
+    globalThis.fetch = (async url => {
+      const parsed = new URL(String(url), 'http://localhost')
+      if (parsed.pathname.endsWith('/sse')) {
+        ended = true
+        const start = { code: 100000, data: { chat: { id: '123', flag: 'start' }, usage: { total_tokens: 0 } } }
+        const error = { code: 102017, message: 'reference unavailable', data: { chat: { id: '123', flag: 'error' } } }
+        return new Response(`data: ${JSON.stringify(start)}\n\ndata: ${JSON.stringify(error)}\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+      }
+      if (parsed.pathname.endsWith('/turns')) {
+        const page = Number(parsed.searchParams.get('page'))
+        pages.push(page)
+        return response({ items: page === 1 ? [] : ended ? [saved, failed] : [saved], page: 3, total: ended ? 11 : 10, total_pages: 3, page_size: 5 })
+      }
+      return response({ ...detail, title: '已有标题', turn_count: 10 })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    await act(async () => { await result.current.send('inspect missing') })
+    const key = result.current.viewKey
+    act(() => result.current.setDraft('keep unsent draft'))
+    await waitFor(() => assert.equal(result.current.turns.at(-1)?.preparation_usage?.unreported_calls, 1))
+    assert.equal(pages.at(-1), 1000000)
+    assert.equal(result.current.viewKey, key)
+    assert.equal(result.current.draft, 'keep unsent draft')
+    assert.equal(result.current.turns.at(-1)?.status, 'failed')
+  } finally { setConfirmRunningTurnDelay(3000) }
+})
+
+describe('reference intent recovery', () => {
+  const requested = { preparation_state: 'requested', sources: [{ type: 'directory', path: 'pkg' }] }
+  const failed = { ...turn, id: 'turn-1', status: 'failed', reference_summary: requested }
+  const refs: Reference[] = [{ type: 'directory', path: 'pkg' }]
+  const page = () => response({ items: [failed], page: 1, total_pages: 1 })
+  const failure = () => new Response(`data: ${JSON.stringify({ code: 102017, message: 'reference unavailable', data: { chat: { id: '123', flag: 'error' }, reference_summary: requested } })}\n\n`)
+
+  it('restores history choices only after confirming project ownership without sending', async () => {
+    let calls = 0
+    globalThis.fetch = (async url => {
+      calls++
+      const path = String(url)
+      if (path.endsWith('/approvals')) return response([])
+      if (path.includes('/turns')) return page()
+      assert.ok(!path.endsWith('/sse'))
+      return response({ ...detail, project_id: 'project-1' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => result.current.setDraft('keep my question'))
+    const before = calls
+    await act(async () => { assert.equal(await result.current.restoreReferences(result.current.turns[0]), 1) })
+    assert.equal(calls, before + 1)
+    assert.deepEqual(result.current.references, refs)
+    assert.equal(result.current.draft, 'keep my question')
+  })
+
+  it('rejects restoring choices after a project has been unlinked', async () => {
+    let unlinked = false
+    globalThis.fetch = (async url => String(url).includes('/turns') ? page() : String(url).endsWith('/approvals') ? response([]) : response({ ...detail, project_id: unlinked ? undefined : 'project-1' })) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    unlinked = true
+    await act(async () => { assert.equal(await result.current.restoreReferences(result.current.turns[0]), 0) })
+    assert.deepEqual(result.current.references, [])
+    assert.equal(result.current.projectId, undefined)
+    assert.match(result.current.error, /解除项目归属/)
+  })
+
+  it('does not replace newly edited choices with a late ownership response', async () => {
+    let release: ((value: Response) => void) | undefined
+    let deferred = false
+    globalThis.fetch = (async url => {
+      if (String(url).includes('/turns')) return page()
+      if (String(url).endsWith('/approvals')) return response([])
+      if (deferred) return new Promise<Response>(resolve => { release = resolve })
+      return response({ ...detail, project_id: 'project-1' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    deferred = true
+    let restoring!: Promise<number>
+    act(() => { restoring = result.current.restoreReferences(result.current.turns[0]) })
+    await waitFor(() => assert.ok(release))
+    const newer: Reference[] = [{ type: 'file', path: 'new.go' }]
+    act(() => { result.current.setDraft('new question'); result.current.setReferences(newer) })
+    await act(async () => { release!(response({ ...detail, project_id: 'project-1' })); assert.equal(await restoring, 0) })
+    assert.deepEqual(result.current.references, newer)
+    assert.equal(result.current.draft, 'new question')
+    assert.equal(result.current.loading, false)
+  })
+
+  it('does not apply a late history recovery after navigating to another session', async () => {
+    let release!: (value: Response) => void
+    let deferred = false
+    globalThis.fetch = (async url => {
+      const path = String(url)
+      if (path.includes('/turns')) return page()
+      if (path.endsWith('/approvals')) return response([])
+      if (deferred && path.endsWith('/123')) return new Promise<Response>(resolve => { release = resolve })
+      return response({ ...detail, id: path.endsWith('/456') ? '456' : '123', project_id: 'project-1' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    deferred = true
+    let restoring!: Promise<number>
+    act(() => { restoring = result.current.restoreReferences(result.current.turns[0]) })
+    await waitFor(() => assert.ok(release))
+    await act(async () => { await result.current.select('456') })
+    await act(async () => { release(response({ ...detail, project_id: 'project-1' })); assert.equal(await restoring, 0) })
+    assert.equal(result.current.id, '456')
+    assert.deepEqual(result.current.references, [])
+    assert.equal(result.current.loading, false)
+  })
+
+  it('keeps a validated error audit and auto-restores unchanged choices', async () => {
+    globalThis.fetch = (async url => String(url).endsWith('/sse') ? failure() : String(url).includes('/turns') ? page() : String(url).endsWith('/approvals') ? response([]) : response({ ...detail, project_id: 'project-1' })) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => result.current.setReferences(refs))
+    await act(async () => { await result.current.send('inspect') })
+    assert.deepEqual(result.current.references, refs)
+    assert.equal(result.current.turns.at(-1)?.reference_summary?.preparation_state, 'requested')
+    assert.equal(result.current.turns.at(-1)?.status, 'error')
+    assert.equal(result.current.streaming, false)
+  })
+
+  it('does not auto-restore after edits during a failed generation', async () => {
+    let release!: (value: Response) => void
+    globalThis.fetch = (async url => String(url).endsWith('/sse') ? new Promise<Response>(resolve => { release = resolve }) : String(url).includes('/turns') ? page() : String(url).endsWith('/approvals') ? response([]) : response({ ...detail, project_id: 'project-1' })) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => result.current.setReferences(refs))
+    let sending!: Promise<void>
+    act(() => { sending = result.current.send('inspect') })
+    await waitFor(() => assert.ok(release))
+    const newer: Reference[] = [{ type: 'file', path: 'new.go' }]
+    act(() => { result.current.setDraft('new question'); result.current.setReferences(newer) })
+    await act(async () => { release(failure()); await sending })
+    assert.deepEqual(result.current.references, newer)
+    assert.equal(result.current.draft, 'new question')
+    assert.equal(result.current.turns.at(-1)?.reference_summary?.sources[0].path, 'pkg')
+  })
+
+  it('rejects a recovery response with another conversation identity', async () => {
+    let wrong = false
+    globalThis.fetch = (async url => String(url).includes('/turns') ? page() : String(url).endsWith('/approvals') ? response([]) : response({ ...detail, id: wrong ? '456' : '123', project_id: 'project-1' })) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    wrong = true
+    await act(async () => { assert.equal(await result.current.restoreReferences(result.current.turns[0]), 0) })
+    assert.deepEqual(result.current.references, [])
+    assert.equal(result.current.id, '123')
+    assert.match(result.current.error, /身份不匹配/)
+  })
+
+  it('does not auto-restore when the authoritative detail has no project', async () => {
+    let ended = false
+    globalThis.fetch = (async url => {
+      if (String(url).endsWith('/sse')) { ended = true; return failure() }
+      if (String(url).includes('/turns')) return page()
+      if (String(url).endsWith('/approvals')) return response([])
+      return response({ ...detail, project_id: ended ? undefined : 'project-1' })
+    }) as typeof fetch
+    const { result } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => result.current.setReferences(refs))
+    await act(async () => { await result.current.send('inspect') })
+    assert.deepEqual(result.current.references, [])
+    assert.equal(result.current.projectId, undefined)
+    assert.equal(result.current.turns.at(-1)?.reference_summary?.preparation_state, 'requested')
+  })
+
+  it('does not start an ownership request after unmount cancels a stream', async () => {
+    let requests = 0
+    let started = false
+    globalThis.fetch = (async (url, init) => {
+      if (String(url).endsWith('/sse')) {
+        started = true
+        return new Response(new ReadableStream({ start(controller) { init!.signal!.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError'))) } }))
+      }
+      requests++
+      if (String(url).includes('/turns')) return page()
+      if (String(url).endsWith('/approvals')) return response([])
+      return response({ ...detail, project_id: 'project-1' })
+    }) as typeof fetch
+    const { result, unmount } = renderHook(() => useChat(onCompleted, onTitle))
+    await act(async () => { await result.current.select('123') })
+    act(() => result.current.setReferences(refs))
+    let sending!: Promise<void>
+    act(() => { sending = result.current.send('inspect') })
+    await waitFor(() => assert.ok(started))
+    const before = requests
+    unmount()
+    await sending
+    assert.equal(requests, before)
   })
 })

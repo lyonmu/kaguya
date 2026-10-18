@@ -36,4 +36,6 @@ export interface ProjectFilesPage {
   items?: ReferenceCandidate[]
   truncated: boolean
   next_cursor?: string
+  scan_incomplete?: boolean
+  cursor_reset?: boolean
 }

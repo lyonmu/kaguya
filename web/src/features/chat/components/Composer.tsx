@@ -36,13 +36,18 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
   const runtime = useAui()
   useEffect(() => { runtime.composer.setText(value) }, [runtime, value])
   const input = useRef<HTMLTextAreaElement>(null)
+  const mentionPopover = useRef<HTMLDivElement>(null)
+  const retainsMentionFocus = (target: EventTarget | null) => target instanceof Node && (target === input.current || mentionPopover.current?.contains(target))
   const [caret, setCaret] = useState(0)
   const [dismissed, setDismissed] = useState(false)
   const [selected, setSelected] = useState(0)
   const mention = projectId && !dismissed && !streaming && !disabled ? activeMention(value, caret) : undefined
   const query = mention?.query
   useEffect(() => { setDismissed(false); setCaret(0) }, [projectId, conversationId])
-  const { items: candidates, loading: filesLoading, error: filesError, truncated } = useReferences(projectId, query, !!mention)
+  const { items: candidates, loading: filesLoading, loadingMore, error: filesError, truncated, scanIncomplete, nextCursor, loadMore } = useReferences(projectId, query, !!mention)
+  useEffect(() => { setSelected(0) }, [query, projectId])
+  const choices = candidates.length + (nextCursor ? 1 : 0)
+  const selectedIndex = Math.min(selected, Math.max(0, choices - 1))
   const chooseReference = (candidate: { type: 'file' | 'directory'; path: string }) => {
     if (!mention) return
     if (!references.some(item => item.type === candidate.type && item.path === candidate.path)) {
@@ -72,19 +77,22 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
             {reference.type === 'directory' ? '目录 · ' : ''}{reference.path}
           </Tag>)}
         </div>}
-        {mention && <div className="chat-mention-popover">
-          <div className="chat-mention-heading"><span>引用项目文件或目录</span><span>↑↓ 选择 · Enter 插入 · Esc 关闭</span></div>
-          {filesLoading ? <div className="chat-mention-empty" role="status">正在搜索文件…</div> : filesError ? <div className="chat-mention-empty" role="alert">{filesError}</div> : !candidates.length ? <div className="chat-mention-empty" role="status">没有匹配文件，试试文件名或相对路径</div> : <div role="listbox" id="project-file-mentions" aria-label="项目文件">
-            {candidates.map((candidate, index) => <button type="button" role="option" aria-selected={selected === index} id={`file-mention-${index}`} tabIndex={-1} key={`${candidate.type}:${candidate.path}`} onMouseDown={event => event.preventDefault()} onClick={() => chooseReference(candidate)} className={selected === index ? 'selected' : ''}>{candidate.type === 'directory' ? <FolderOpenOutlined /> : <FileTextOutlined />}<span>{candidate.path}</span></button>)}
+        {mention && <div className="chat-mention-popover" ref={mentionPopover}>
+          <div className="chat-mention-heading"><span>引用项目文件或目录</span><span>↑↓ 选择 · Enter 插入或加载 · Esc 关闭</span></div>
+          {filesLoading ? <div className="chat-mention-empty" role="status">正在搜索文件…</div> : !candidates.length ? !filesError && <div className="chat-mention-empty" role="status">没有匹配文件，试试文件名或相对路径</div> : <div role="listbox" id="project-file-mentions" aria-label="项目文件">
+            {candidates.map((candidate, index) => <button type="button" role="option" aria-selected={selectedIndex === index} id={`file-mention-${index}`} tabIndex={-1} key={`${candidate.type}:${candidate.path}`} onMouseDown={event => event.preventDefault()} onClick={() => chooseReference(candidate)} className={selectedIndex === index ? 'selected' : ''}>{candidate.type === 'directory' ? <FolderOpenOutlined /> : <FileTextOutlined />}<span>{candidate.path === '.' && candidate.type === 'directory' ? '项目根目录' : candidate.path}</span></button>)}
           </div>}
-          {truncated && !filesLoading && <div className="chat-mention-footer">结果已限制，请输入更具体的路径</div>}
+          {filesError && <div className="chat-mention-empty" role="alert">{filesError}</div>}
+          {nextCursor && !filesLoading && <Button id="mention-load-more" type="text" size="small" loading={loadingMore} disabled={loadingMore} className={selectedIndex === candidates.length ? 'selected' : ''} onMouseDown={event => event.preventDefault()} onClick={loadMore} onBlur={event => { if (!retainsMentionFocus(event.relatedTarget)) setDismissed(true) }}>加载更多</Button>}
+          {scanIncomplete && !filesLoading && <div className="chat-mention-footer">扫描未完成，请输入更具体的路径</div>}
+          {truncated && !scanIncomplete && !nextCursor && !filesLoading && <div className="chat-mention-footer">结果已限制，请输入更具体的路径</div>}
         </div>}
         <div className="chat-composer-input-area">
           <ComposerPrimitive.Input
             ref={input}
             aria-controls={mention ? 'project-file-mentions' : undefined}
             aria-expanded={!!mention}
-            aria-activedescendant={mention && candidates.length ? `file-mention-${selected}` : undefined}
+            aria-activedescendant={mention && choices ? selectedIndex === candidates.length ? 'mention-load-more' : `file-mention-${selectedIndex}` : undefined}
             aria-label="对话消息"
             className="chat-composer-input"
             placeholder={projectId ? "描述任务，输入 @ 引用项目文件或目录…" : "输入问题，与 Kaguya 对话…"}
@@ -98,7 +106,7 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
               setDismissed(false)
             }}
             onSelect={event => setCaret(event.currentTarget.selectionStart)}
-            onBlur={() => setDismissed(true)}
+            onBlur={event => { if (!retainsMentionFocus(event.relatedTarget)) setDismissed(true) }}
             minRows={2}
             maxRows={7}
             disabled={disabled}
@@ -108,14 +116,14 @@ export function Composer({ projectId, conversationId, turnCount, modelId, onMode
               if (event.nativeEvent.isComposing) return
               if (mention) {
                 if (event.key === 'Escape') { event.preventDefault(); setDismissed(true); return }
-                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && candidates.length) {
+                if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && choices) {
                   event.preventDefault()
-                  const next = (selected + (event.key === 'ArrowDown' ? 1 : -1) + candidates.length) % candidates.length
+                  const next = (selectedIndex + (event.key === 'ArrowDown' ? 1 : -1) + choices) % choices
                   setSelected(next)
-                  document.getElementById(`file-mention-${next}`)?.scrollIntoView({ block: 'nearest' })
+                  document.getElementById(next === candidates.length ? 'mention-load-more' : `file-mention-${next}`)?.scrollIntoView({ block: 'nearest' })
                   return
                 }
-                if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (candidates[selected]) chooseReference(candidates[selected]); return }
+                if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); if (selectedIndex === candidates.length && nextCursor) loadMore(); else if (candidates[selectedIndex]) chooseReference(candidates[selectedIndex]); return }
               }
               if (disabled || streaming) return
               if (event.key === 'Enter'  && !event.shiftKey && !event.nativeEvent.isComposing) {

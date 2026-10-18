@@ -8,9 +8,11 @@ import type { SystemInfoPayload } from '../../features/system-info/types'
 
 export function SystemInfoPage() {
   const [form] = Form.useForm<SystemInfoPayload>()
-  const { info, loading, saving, syncing, error, reload, save, syncNow } = useSystemInfo(form)
+  const { info, loading, saving, syncing, error, instructionStatusError, reload, save, syncNow } = useSystemInfo(form)
   const { models } = useModelLabels()
   const formatTime = (value?: string) => value ? new Date(value).toLocaleString() : '尚未同步'
+  const instructionError = info?.instruction_status?.last_error
+  const instructionErrorText = ({ read_failed: '无法读取指令文件', source_unstable: '文件正在变化，等待稳定版本', source_missing: '指令文件暂时不存在', watch_failed: '无法监听指令目录' } as Record<string, string>)[instructionError ?? ''] ?? '加载失败'
   return <div className="mx-auto w-full max-w-[1180px] px-6 py-5 max-[620px]:px-3.5">
     <div className="mb-4 flex items-center justify-between gap-3">
       <h2 className="m-0 text-[22px] font-medium text-k-text">系统配置</h2>
@@ -35,7 +37,8 @@ export function SystemInfoPage() {
           <Form.Item className="mb-3!" label="会话压缩比例（%）" name="context_compaction_percent" tooltip="达到阈值后压缩早期内容，可设 10–95%。" rules={[{ required: true }]}><InputNumber className="w-full" aria-label="会话压缩比例" min={10} max={95} precision={0} /></Form.Item>
         </div>
         <Form.Item className="mb-3!" label="全局 AGENTS.md 路径" name="global_agents_paths" tooltip="每轮对话使用当前已发布版本，文件变更从下一轮生效；项目 AGENTS.md 在会话首个成功轮次冻结。路径顺序即读取顺序。"><Select mode="tags" placeholder="输入绝对路径或 ~/ 路径后按回车，可添加多个" /></Form.Item>
-        {info?.instruction_status && <div className="mb-3 text-xs text-k-text-muted">{info.instruction_status.last_error ? `全局指令监听异常：${info.instruction_status.last_error}（继续使用版本 v${info.instruction_status.version}）` : `全局指令已发布版本 v${info.instruction_status.version}${info.instruction_status.hash ? `（${info.instruction_status.hash.slice(0, 8)}）` : ''}；文件变更自动生效`}</div>}
+        {instructionStatusError && <div className="mb-3 text-xs text-k-text-muted">全局指令发布状态暂时无法确认，请重新加载；下方保留最近确认的状态。</div>}
+        {info?.instruction_status && <div className="mb-3 text-xs text-k-text-muted">{info.instruction_status.last_error ? `全局指令加载异常：${instructionErrorText}（继续使用版本 v${info.instruction_status.version}）` : info.instruction_status.generation !== info.instruction_status.loaded_generation ? `全局指令配置已保存，正在加载（继续使用版本 v${info.instruction_status.version}）` : `全局指令已发布版本 v${info.instruction_status.version}${info.instruction_status.hash ? `（${info.instruction_status.hash.slice(0, 8)}）` : ''}；文件变更自动生效`}</div>}
         <div className="mb-3 rounded-lg border border-k-border-soft bg-k-canvas p-3">
           <Form.Item className="mb-3!" label="提供商目录同步地址" name="provider_sync_url" rules={[{ required: true, whitespace: true, message: '请输入同步地址' }, { type: 'url', message: '请输入有效的 URL' }, { pattern: /^https?:\/\//, message: '仅支持 HTTP(S) URL' }]} tooltip="提供商目录（models.dev api.json），只用于列出可选提供商；修改后请先保存配置。">
             <Input aria-label="提供商目录同步地址" maxLength={2048} placeholder="https://models.dev/api.json" />
@@ -59,7 +62,7 @@ export function SystemInfoPage() {
         <Form.Item className="mb-3!" label="附加系统提示词" name="system_prompt" tooltip="追加到基础提示词之后；留空则只使用基础提示词。">
           <Input.TextArea aria-label="附加系统提示词" rows={4} maxLength={20000} showCount />
         </Form.Item>
-        <Space><Tooltip title="保存后新发起的聊天和后台任务立即生效，无需重启。"><Button htmlType="submit" type="primary" icon={<SaveOutlined />} loading={saving}>保存配置</Button></Tooltip></Space>
+        <Space><Tooltip title="配置保存无需重启；全局指令完成后台加载后，从下一轮对话生效。"><Button htmlType="submit" type="primary" icon={<SaveOutlined />} loading={saving}>保存配置</Button></Tooltip></Space>
       </Form>
     </Card>}
   </div>

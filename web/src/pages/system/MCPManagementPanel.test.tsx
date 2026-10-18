@@ -218,3 +218,23 @@ it('shows circuit breaker state and reconnects without disabling other services'
   await waitFor(() => assert.equal(reconnects, 1))
   await view.findByText('运行中')
 })
+
+it('separates a healthy connection from a latched storage failure and offers explicit reconnect', async () => {
+  let reconnects = 0
+  let current: MCPServer = { ...server, enabled: true, phase: 'storage_error', reconnect_cycle: 7, status: { state: 'running', tools: ['echo'] } }
+  globalThis.fetch = (async (url, init) => {
+    if (String(url).endsWith('/reconnect') && init?.method === 'POST') {
+      reconnects += 1
+      current = { ...current, phase: 'running', reconnect_cycle: 8 }
+      return response(current)
+    }
+    return response({ items: [current], total: 1, page: 1, page_size: 10 })
+  }) as typeof fetch
+  const view = render(<App><MCPManagementPanel /></App>)
+  await view.findByText('运行中（恢复策略保存失败）')
+  assert.ok(view.getByText('自动重连已停止，可手动重新连接'))
+  assert.ok(view.getByRole('switch', { name: '启用 示例服务' }).getAttribute('aria-checked') === 'true')
+  fireEvent.click(view.getByRole('button', { name: '重新连接' }))
+  await view.findByText('运行中')
+  assert.equal(reconnects, 1)
+})
