@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { Alert, Button, Tag, Tooltip } from 'antd'
-import { CheckOutlined, CloseOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { Alert, Button, Tag } from 'antd'
+import { CheckOutlined, CloseOutlined, DownOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import type { Approval } from '../types'
 
 const effectLabel = (effect: string) => {
-  if (effect === 'read_only') return { text: '只读', color: 'green' }
-  if (effect === 'mutating') return { text: '写入', color: 'orange' }
-  return { text: '未知副作用', color: 'red' }
+  if (effect === 'read_only') return { text: '只读', tone: 'success' }
+  if (effect === 'mutating') return { text: '写入', tone: 'warning' }
+  return { text: '未知副作用', tone: 'danger' }
 }
 
 const modeLabel = (mode: string) => {
@@ -18,7 +18,7 @@ const modeLabel = (mode: string) => {
 
 const statusLabel = (approval: Approval) => {
   switch (approval.status) {
-    case 'pending': return '等待裁决'
+    case 'pending': return '等待批准'
     case 'approved': return '已批准'
     case 'consumed':
       switch (approval.execution_state) {
@@ -60,24 +60,44 @@ export function ApprovalCard({ approval, onDecide }: Props) {
       setBusy(false)
     }
   }
-  return (
-    <section className="chat-approval" aria-label={`工具审批 ${approval.tool_name || 'MCP 工具'}`}>
-      <div className="chat-approval-head">
-        <SafetyCertificateOutlined />
+  let input = approval.input || ''
+  try { input = JSON.stringify(JSON.parse(input), null, 2) } catch { /* 保留不完整或非 JSON 参数原文。 */ }
+  const metadata = <div className="chat-approval-meta">
+    <Tag className={`lunar-tag lunar-tag-${effect.tone}`}>{effect.text}</Tag>
+    <span>{modeLabel(approval.mode)}</span>
+  </div>
+  const parameters = input && <div className="chat-approval-parameters">
+    <span className="chat-approval-label">调用参数</span>
+    <pre className="chat-approval-input">{input}</pre>
+  </div>
+  if (!pending) return (
+    <details className="chat-approval chat-approval-record">
+      <summary>
+        <SafetyCertificateOutlined className="chat-approval-icon" />
         <strong>{approval.tool_name || 'MCP 工具'}</strong>
-        <Tag color={effect.color}>{effect.text}</Tag>
-        <Tag>{modeLabel(approval.mode)}</Tag>
-        <span className={`chat-approval-status is-${approval.status}`}>{statusLabel(approval)}</span>
+        <span className="chat-approval-status">{statusLabel(approval)}</span>
+        <DownOutlined className="chat-approval-chevron" />
+      </summary>
+      <div className="chat-approval-record-body">{metadata}{parameters}</div>
+    </details>
+  )
+  return (
+    <section className="chat-approval is-pending" aria-label={`工具审批 ${approval.tool_name || 'MCP 工具'}`}>
+      <div className="chat-approval-head">
+        <span className="chat-approval-icon"><SafetyCertificateOutlined /></span>
+        <div className="chat-approval-heading"><strong>工具调用需要批准</strong><span>{approval.tool_name || 'MCP 工具'}</span></div>
+        <span className="chat-approval-status" role="status">{statusLabel(approval)}</span>
       </div>
-      {pending && <p className="chat-approval-hint">批准只对这一次调用生效；未批准不会执行该工具。</p>}
-      {approval.input && <pre className="chat-approval-input">{approval.input}</pre>}
-      {error && <Alert type="error" showIcon title={error} />}
-      {pending && onDecide && (
+      <div className="chat-approval-body">
+        {metadata}
+        <p className="chat-approval-hint">批准只对这一次调用生效；未批准不会执行该工具。</p>
+        {parameters}
+        {error && <Alert type="error" showIcon title={error} />}
+      </div>
+      {onDecide && (
         <div className="chat-approval-actions">
-          <Tooltip title="仅批准本次调用">
-            <Button type="primary" size="small" icon={<CheckOutlined />} loading={busy} onClick={() => void decide('approve')}>批准一次</Button>
-          </Tooltip>
-          <Button size="small" danger icon={<CloseOutlined />} disabled={busy} onClick={() => void decide('reject')}>拒绝</Button>
+          <Button icon={<CloseOutlined />} disabled={busy} onClick={() => void decide('reject')}>拒绝</Button>
+          <Button type="primary" icon={<CheckOutlined />} loading={busy} onClick={() => void decide('approve')}>批准一次</Button>
         </div>
       )}
     </section>

@@ -32,6 +32,7 @@ export function ChatPage() {
   const refreshProjects = () => setProjectVersion(value => value + 1)
   const chat = useWorkspaceChat(async () => { await sessions.refreshQuietly(); refreshProjects() }, title => { sessions.updateTitle(title); refreshProjects() })
   const { draft, references, modelId, setModelId } = chat
+  const pendingApprovals = chat.approvals.filter(approval => approval.status === 'pending')
   const { saving, update, remove, upgradeInstructions, generateTitle } = useConversationActions({ chat, sessions, onProjectsChanged: refreshProjects })
   const changePermission = (mode: 'full_approval' | 'auto_approval' | 'full_access') => {
     if (chat.conversation) { void update({ permission_mode: mode }); return }
@@ -138,9 +139,9 @@ export function ChatPage() {
         action={<Button size="small" disabled={chat.streaming || saving} onClick={() => void upgradeInstructions()}>升级指令</Button>}
       />}
       <AssistantThread key={chat.sessionKey} turns={chat.turns} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving} onSend={send} onStop={chat.stop}>
-      <MessageList activeApprovalIds={chat.approvals.map(approval => approval.approval_id)} conversationId={chat.id} canRestoreReferences={!!(chat.conversation ? chat.conversation.project_id : chat.projectId)} onRestoreReferences={async turn => { const count = await chat.restoreReferences(turn); if (count) void message.success(`已恢复 ${count} 项引用选择`) }} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
-      {chat.approvals.length > 0 && <div className="chat-approvals" aria-label="工具审批">
-        {chat.approvals.map(approval => <ApprovalCard key={approval.approval_id} approval={approval} onDecide={chat.decideApproval} />)}
+      <MessageList liveApprovals={chat.approvals} activeApprovalIds={pendingApprovals.map(approval => approval.approval_id)} conversationId={chat.id} canRestoreReferences={!!(chat.conversation ? chat.conversation.project_id : chat.projectId)} onRestoreReferences={async turn => { const count = await chat.restoreReferences(turn); if (count) void message.success(`已恢复 ${count} 项引用选择`) }} onContinue={() => void chat.send("继续上一轮尚未完成的任务，从已保存的工具结果接着执行。", modelId, chat.conversation?.project_id ?? project?.id)} key={chat.viewKey} turns={chat.turns} loading={chat.loading} streaming={chat.streaming} page={chat.page} totalPages={chat.totalPages} onPageChange={chat.goToPage} initialEnd={chat.initialEnd} />
+      {pendingApprovals.length > 0 && <div className="chat-approvals" aria-label="工具审批">
+        {pendingApprovals.map(approval => <ApprovalCard key={approval.approval_id} approval={approval} onDecide={chat.decideApproval} />)}
       </div>}
       <Composer projectId={chat.conversation ? chat.conversation.project_id ?? undefined : chat.projectId ?? (view === "项目" ? project?.id : undefined)} conversationId={chat.conversation?.id} turnCount={chat.conversation?.turn_count} modelId={modelId} onModelChange={setModelId} value={draft} onChange={setDraft} references={references} onReferencesChange={setReferences} permissionMode={chat.permissionMode} onPermissionChange={changePermission} streaming={chat.streaming} disabled={!showConversations || chat.loading || saving || (!!chat.id && !chat.conversation && !chat.turns.length)} />
       </AssistantThread>

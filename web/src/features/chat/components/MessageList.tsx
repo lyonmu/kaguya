@@ -4,11 +4,12 @@ import { MessagePrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/re
 import { Markdown, CopyButton } from "./Markdown";
 import { ActivityBlock } from "./ActivityBlock";
 import { isCanceledStatus, isCompleteStatus, isFailedStatus, isInterruptedStatus, isRunningStatus } from "../status";
-import type { Block, Turn } from "../types";
+import type { Approval, Block, Turn } from "../types";
 import { userAvatar } from "../../../assets/avatars";
 import { KaguyaAvatar } from "../../../components/KaguyaAvatar";
 import { ApprovalCard } from "./ApprovalCard";
 import { ReferenceDetails } from "./ReferenceDetails";
+import { upsertApproval } from "../session";
 
 export function ContentBlock({ block, streaming = false, conversationId, turnIndex }: { block: Block; streaming?: boolean; conversationId?: string; turnIndex?: number }) {
  return block.type === 'text' ? <Markdown text={block.text ?? ''} streaming={streaming && block.phase !== 'block_end'} /> : <ActivityBlock block={block} streaming={streaming} conversationId={conversationId} turnIndex={turnIndex} />
@@ -17,6 +18,7 @@ export function ContentBlock({ block, streaming = false, conversationId, turnInd
 interface Props {
   conversationId?: string;
   activeApprovalIds?: string[];
+  liveApprovals?: Approval[];
   turns: Turn[];
   loading: boolean;
   streaming: boolean;
@@ -32,6 +34,7 @@ interface Props {
 export function MessageList({
   conversationId,
   activeApprovalIds = [],
+  liveApprovals = [],
   turns,
   loading,
   streaming,
@@ -81,7 +84,7 @@ export function MessageList({
 
         </div>
       )}
-      <ContinueContext.Provider value={{ onContinue: page === totalPages ? onContinue : undefined, streaming, loading, conversationId, activeApprovalIds, onRestoreReferences, canRestoreReferences }}>
+      <ContinueContext.Provider value={{ onContinue: page === totalPages ? onContinue : undefined, streaming, loading, conversationId, activeApprovalIds, liveApprovals: page === totalPages ? liveApprovals : [], onRestoreReferences, canRestoreReferences }}>
         <ThreadPrimitive.Viewport ref={viewport} key={`${page}:${initialEnd}`} className="chat-messages" autoScroll={initialEnd} tabIndex={0}
           onWheel={event => { if (event.deltaY) boundary(event.deltaY < 0 ? -1 : 1) }}
           onTouchStart={event => { touchY.current = event.touches[0].clientY }}
@@ -117,12 +120,15 @@ export function MessageList({
   );
 }
 
-const ContinueContext = createContext<{ onContinue?: () => void; streaming: boolean; loading: boolean; conversationId?: string; activeApprovalIds: string[]; onRestoreReferences?: (turn: Turn) => Promise<void>; canRestoreReferences: boolean }>({ streaming: false, loading: false, activeApprovalIds: [], canRestoreReferences: false })
+const ContinueContext = createContext<{ onContinue?: () => void; streaming: boolean; loading: boolean; conversationId?: string; activeApprovalIds: string[]; liveApprovals: Approval[]; onRestoreReferences?: (turn: Turn) => Promise<void>; canRestoreReferences: boolean }>({ streaming: false, loading: false, activeApprovalIds: [], liveApprovals: [], canRestoreReferences: false })
 function RuntimeMessage() {
   const turn = useAuiState(state => state.message.metadata.custom.turn) as Turn
   const role = useAuiState(state => state.message.role)
   const isLast = useAuiState(state => state.message.isLast)
   const context = useContext(ContinueContext)
+  // 本轮 SSE 状态覆盖历史快照；仅最新页的最后一轮接收，避免出现在旧轮次。
+  let approvals = new Map(turn.approvals?.map(approval => [approval.approval_id, approval]))
+  if (isLast) for (const approval of context.liveApprovals) approvals = upsertApproval(approvals, approval)
   const onContinue = isLast ? context.onContinue : undefined
   const streaming = context.streaming
   const running = isRunningStatus(turn.status)
@@ -156,7 +162,7 @@ function RuntimeMessage() {
                 {turn.blocks.map((block, index) => (
                   <ContentBlock key={block.sequence ?? index} block={block} streaming={running} conversationId={context.conversationId} turnIndex={turn.turn_index} />
                 ))}
-                {turn.approvals?.filter(approval => !context.activeApprovalIds.includes(approval.approval_id)).map(approval => (
+                {[...approvals.values()].filter(approval => !context.activeApprovalIds.includes(approval.approval_id)).map(approval => (
                   <ApprovalCard key={approval.approval_id} approval={approval} />
                 ))}
                 {running && (

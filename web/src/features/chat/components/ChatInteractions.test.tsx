@@ -416,3 +416,34 @@ it('distinguishes body truncation from incomplete scanning and unknown model cap
   view.rerender(<ReferenceDetails summary={legacy} />)
   assert.ok(view.getByText(/旧记录，解析阶段未知/))
 })
+
+
+it('keeps exact untrusted approval parameters readable and preserves retry after a failed decision', async () => {
+  const { ApprovalCard } = await import('./ApprovalCard')
+  const input = JSON.stringify({ command: 'printf "<img src=x onerror=alert(1)>"', timeout: 30 })
+  let calls = 0
+  const view = render(<ApprovalCard approval={{ approval_id: 'a1', tool_call_id: 'c1', tool_name: 'bash', effect: 'unknown', mode: 'full_approval', status: 'pending', input }} onDecide={async () => { calls++; if (calls === 1) throw new Error('审批请求失败') }} />)
+  assert.equal(view.container.querySelector('pre')?.textContent, JSON.stringify(JSON.parse(input), null, 2))
+  assert.equal(view.container.querySelector('img'), null)
+  fireEvent.click(view.getByRole('button', { name: /批准一次/ }))
+  await waitFor(() => assert.ok(view.getByText('审批请求失败')))
+  fireEvent.click(view.getByRole('button', { name: /拒绝/ }))
+  await waitFor(() => assert.equal(calls, 2))
+})
+
+it('moves resolved live approvals into the latest message once and keeps historical results authoritative', () => {
+  const approval = { approval_id: 'audit-live', tool_call_id: 'call', tool_name: 'bash', effect: 'unknown', mode: 'full_approval', status: 'pending' }
+  const turn = { turn_index: 2, user_content: 'inspect', model_id: 'm', model_name: 'model', api_protocol: 'openai', started_at: new Date().toISOString(), blocks: [], duration_ms: 1, tool_calls: 1, status: 'completed' as const, approvals: [approval] }
+  const props = { turns: [turn], loading: false, streaming: false, page: 1, totalPages: 1, initialEnd: true, onPageChange: async () => {} }
+  const view = render(<MessageList {...props} liveApprovals={[approval]} activeApprovalIds={['audit-live']} />)
+  assert.equal(view.queryByText('等待批准'), null)
+  const resolved = { ...approval, status: 'consumed', execution_state: 'succeeded' as const }
+  view.rerender(<MessageList {...props} liveApprovals={[resolved]} />)
+  assert.equal(view.getAllByText('工具返回成功').length, 1)
+  assert.equal(view.container.querySelector('details.chat-approval-record')?.hasAttribute('open'), false)
+  assert.equal(view.queryByRole('button', { name: /批准一次/ }), null)
+  view.rerender(<MessageList {...props} turns={[{ ...turn, approvals: [resolved] }]} liveApprovals={[approval]} />)
+  assert.ok(view.getByText('工具返回成功'))
+  view.rerender(<MessageList {...props} page={1} totalPages={2} turns={[{ ...turn, approvals: [] }]} liveApprovals={[resolved]} />)
+  assert.equal(view.queryByText('工具返回成功'), null)
+})

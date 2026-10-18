@@ -311,14 +311,43 @@
 }
 
 /* 工具审批卡片：展示工具、副作用与最终参数，一次裁决只授权当前调用。 */
-.chat-approvals { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 8px; }
-.chat-approval { border: 1px solid var(--kaguya-border, #333); border-radius: 10px; padding: 10px 12px; background: var(--kaguya-surface, rgba(255, 255, 255, 0.03)); }
-.chat-approval-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.chat-approval-head strong { font-size: 13px; }
-.chat-approval-status { margin-left: auto; font-size: 12px; opacity: 0.8; }
-.chat-approval-hint { margin: 6px 0; font-size: 12px; opacity: 0.75; }
-.chat-approval-input { margin: 6px 0; padding: 8px; max-height: 180px; overflow: auto; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; background: rgba(0, 0, 0, 0.25); border-radius: 6px; }
-.chat-approval-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.chat-approvals { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 980px; max-height: 45vh; overflow-y: auto; overscroll-behavior: contain; margin-inline: auto; padding: 4px 20px 2px; }
+.chat-approval { min-width: 0; border: 1px solid var(--k-border); border-radius: var(--k-radius-md); background: var(--k-surface); color: var(--k-text); font-size: 12px; }
+.chat-approval.is-pending { flex-shrink: 0; overflow: hidden; box-shadow: var(--k-shadow); border-color: color-mix(in srgb, var(--k-primary) 35%, var(--k-border)); }
+.chat-approval-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
+.chat-approval-icon { flex-shrink: 0; color: var(--k-primary); }
+.chat-approval-head > .chat-approval-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--k-selected); font-size: 16px; }
+.chat-approval-heading { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.chat-approval-heading strong { font-size: 13px; font-weight: 600; }
+.chat-approval-heading > span { color: var(--k-text-muted); font: 12px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.chat-approval-status { margin-left: auto; color: var(--k-text-muted); font-size: 12px; overflow-wrap: anywhere; }
+.chat-approval-head .chat-approval-status { flex-shrink: 0; color: var(--k-primary); }
+.chat-approval-body { padding: 0 16px 12px; max-height: min(290px, 25vh); overflow: auto; overscroll-behavior: contain; }
+.chat-approval-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--k-text-muted); }
+.chat-approval-meta .ant-tag { margin: 0; font-size: 11px; line-height: 20px; border-radius: 6px; }
+.chat-approval-hint { margin: 8px 0 12px; color: var(--k-text-muted); font-size: 12px; line-height: 1.6; }
+.chat-approval-label { display: block; margin-bottom: 6px; color: var(--k-text-muted); font-size: 11px; }
+.chat-approval-input { margin: 0; padding: 10px 12px; max-height: min(180px, 20vh); overflow: auto; overscroll-behavior: contain; font: 12px/1.65 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--k-text); background: var(--k-canvas); border: 1px solid var(--k-border-soft); border-radius: 8px; }
+.chat-approval-body .ant-alert { margin-top: 10px; }
+.chat-approval-actions { display: flex; gap: 8px; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--k-border-soft); background: var(--k-surface); }
+.chat-approval-actions .ant-btn { min-height: 34px; border-radius: 8px; font-size: 12px; }
+.chat-approval-record { margin: 10px 0; background: transparent; }
+.chat-approval-record > summary { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.chat-approval-record > summary::-webkit-details-marker { display: none; }
+.chat-approval-record > summary:hover { background: var(--k-hover); border-radius: inherit; }
+.chat-approval-record > summary:focus-visible { outline: 2px solid var(--k-primary); outline-offset: 2px; border-radius: inherit; }
+.chat-approval-record > summary strong { min-width: 0; overflow-wrap: anywhere; font: 12px/1.5 var(--font-mono); }
+.chat-approval-chevron { flex-shrink: 0; color: var(--k-text-subtle); font-size: 9px; transition: transform .15s; }
+.chat-approval-record[open] .chat-approval-chevron { transform: rotate(180deg); }
+.chat-approval-record-body { display: grid; gap: 10px; padding: 0 12px 12px; }
+@media (max-width: 760px) {
+  .chat-approvals { padding-inline: 10px; }
+  .chat-approval-head { padding: 12px; }
+  .chat-approval-body { padding: 0 12px 12px; }
+  .chat-approval-actions { padding: 10px 12px; }
+  .chat-approval-record > summary { flex-wrap: wrap; }
+  .chat-approval-record .chat-approval-status { flex: 1; }
+}
 .chat-reference-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 8px 0; }
 .chat-reference-details { margin: 10px 0; padding: 8px 12px; border: 1px solid var(--kaguya-border, #333); border-radius: 8px; font-size: 12px; overflow-wrap: anywhere; max-height: 360px; overflow: auto; }
 .chat-reference-details summary { cursor: pointer; }
