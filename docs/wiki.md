@@ -82,7 +82,7 @@ Deleting a conversation asks for confirmation and cannot be undone; titles are l
 
 | Element | Description |
 | --- | --- |
-| Input | Ordinary conversations prompt “输入问题，与 Kaguya 对话…”; project conversations prompt “描述任务，输入 @ 引用项目文件…”; auto-sizes between 2 and 7 rows |
+| Input | Ordinary conversations prompt “输入问题，与 Kaguya 对话…”; project conversations prompt “描述任务，输入 @ 引用项目文件或目录…”; auto-sizes between 2 and 7 rows |
 | Permission mode | Per-conversation tool policy: full approval / auto approval / full access. Existing conversations save changes with PUT (busy while running, effective next turn); new conversations send it with the request |
 | Context ring | Context occupancy from the latest model call; hovering shows the model, window, and used/remaining tokens; before the first turn it says “首轮对话结束后显示上下文占用” |
 | Model picker | Cascading “provider → model” selection; collapsed it shows only the model name; without a choice the system default chat model is used |
@@ -90,27 +90,34 @@ Deleting a conversation asks for confirmation and cannot be undone; titles are l
 
 ### 2.5 @ file and directory references (project conversations)
 
-Typing `@` opens project candidate search: files and directories are listed together; ↑/↓ selects, Enter inserts, Esc dismisses; when results are capped it says “结果已限制，请输入更具体的路径”. Inserted references look like `@src/main.go` or `@src` in the input; deleting that text removes the reference, and selected references are shown as removable chips above the input.
+Typing `@` opens project candidate search: files and directories are listed together; an empty query or `.` also offers “项目根目录” with the path `.`. Each page displays up to 50 candidates. ↑/↓ selects a candidate or “加载更多”; Enter inserts or loads the next page, and Esc dismisses. When scanning is incomplete it says “扫描未完成，请输入更具体的路径”; a partial final page has no further cursor. Project, query, root identity, or observed candidate changes reset stale pagination to the first page. Search reads metadata with a 64 KiB budget and a cooperative 2-second scan deadline; it does not guarantee a filesystem snapshot during concurrent changes. Inserted references look like `@src/main.go`, `@src`, or `@.`; deleting that text removes the reference, and selected references are shown as removable chips above the input.
 
-On send, the server resolves references against the database project association: explicit files first, directories expanded recursively in path order; each path is read once. Directory content is injected as a manifest plus real excerpts, labeled as data rather than instructions, with a per-file status:
+On send, the server resolves references against the database project association: explicit files first, then bounded directory candidates in path order. Each actual file body is scanned once; hardlinks, verifiable relative file aliases inside the workspace, and overlapping directories retain their source associations. Directory content is injected as a manifest plus real excerpts, labeled as data rather than instructions, with a per-file status:
 
 | Status | Meaning |
 | --- | --- |
-| `included lines 1-N of M` | First N lines included; when truncated a next offset is given for `read` |
-| `deferred: context budget` | Not included within this turn's reference budget; use `read` on demand |
-| `skipped: binary or invalid UTF-8` | Non-text file, skipped |
-| `skipped: file exceeds the 32MiB safety limit…` | Above the per-file safety limit; the whole file is never held in memory |
+| `included` | `ranges` identifies complete included lines; `hash` describes that excerpt and `next_line` gives the continuation line |
+| `not_included` | No body included; inspect the partial reason and explore with `read` / `find` |
+| `binary` | Binary or invalid UTF-8, skipped without a content hash / range |
+| `too_large` | Above the 32MiB per-file safety cap; not retained as a whole file |
+| `oversized_line` | First line exceeds the line window; no partial line is emitted |
+| `empty` | Zero-byte file, without a content hash / range; empty logical lines in nonempty files can still be included |
+| `read_failed` | Directory child read or binding verification failed; that file is not included |
 
 | Boundary | Value / behavior |
 | --- | --- |
 | legacy `files` field | at most 8 files (old client contract) |
 | typed references | no file-count cap; bounded by total path bytes and the request body |
 | reference content budget | up to 25% of remaining budget when the model window is known; conservative 256 KiB fallback when unknown |
-| directory scanning | 2-second time budget and 2048 candidate metadata entries per request; overflow marks scan incomplete and keeps a continuation |
-| filtering | root and nested `.gitignore` / `.dockerignore` in strict mode; `.git`, `node_modules`, `vendor`, `target`, `dist`, `build`, `__pycache__`, dotfiles, and editor temp files excluded |
+| directory scanning | ignore rules, directory metadata and bodies share a 2-second cooperative budget; directories are read in batches, with a cumulative 64KiB budget for the scan stack and candidate metadata; overflow marks scan incomplete. This is neither a file-count limit nor a hard deadline for kernel I/O |
+| filtering | candidates and references share a strict policy: root `.gitignore` / `.dockerignore` and nested `.gitignore`; `.git` and build/dependency ancestors are forbidden. Automatic search/traversal excludes hidden and temporary entries; explicit hidden files still pass ignore, type and link-target checks |
 | boundaries | `os.Root` confinement; absolute paths, `../` escapes, directory symlinks, and type mismatches rejected; references are not allowed in ordinary conversations |
 
-Only a selection and inclusion-range summary (path, hash, line ranges, omission reasons) is persisted with the turn, never a second copy of the content.
+References are resolved once after necessary history compaction in the first step; later tool steps reuse that turn's frozen excerpts. Before collecting or writing, the formatter accounts for encoded headers, manifest, bodies, warnings and continuation hints. Limited space preserves complete lines and a bounded manifest. Partial reasons distinguish deadline, metadata_budget and context_budget; scan_incomplete only describes incomplete directory metadata enumeration. Continuation is an exploration hint, not a replayable cursor: omitted ranges conservatively cover the selected root, and known omission counts are not directory totals. An unknown model window sets budget_known=false; estimated bytes/tokens are not measured usage.
+
+The reference summary records paths, actual excerpt hashes, ranges, omission states and source associations, never a second copy of content. The running turn first saves requested type/path selections; successful resolution records resolved metadata. It is saved transactionally with a successful turn and returned in done/history; subsequent generation failure also retains safely prepared metadata. Explicit references cannot bypass ignore rules; unreadable strict rules fail resolution. Essential metadata that cannot fit, or confirmed readable text with no complete excerpt that can fit, returns a capacity error while preserving the original question; excess context is never sent. User cancellation remains an error rather than a successful partial result.
+
+Each turn's expandable reference details distinguish requested selections, resolved excerpts, incomplete scanning and an unknown model window. Legacy records without a preparation state remain unknown; their stored hashes and ranges are shown without inventing inclusion proof. Incomplete turns offer an explicit restore action: the client confirms the conversation's current project association and restores only type/path selections, without sending a message, reading files or running tools. Later edits, navigation or unmounting discard stale restore results. The next send still validates references on the server.
 
 ### 2.6 History, paging, and continuation
 
@@ -134,10 +141,12 @@ Every conversation has one persisted permission mode, switchable at the bottom o
 | Mode | Trusted read-only tools (`read` / `grep` / `find` / `ls` / read-only memory) | `edit` / `write` | `bash` / unknown MCP tools |
 | --- | --- | --- | --- |
 | Full approval (`full_approval`) | approval | approval | approval |
-| Auto approval (`auto_approval`) | allowed | approval | approval unless a read-only proof applies |
+| Auto approval (`auto_approval`) | allowed | approval | approval |
 | Full access (`full_access`, compatible default) | allowed | allowed | allowed |
 
-When approval is required, the chat stream sends a `chat.flag=approval` frame and the interface shows an approval card above the composer: tool name, effect (read-only / mutating / unknown), full arguments, and “批准一次 / 拒绝”. One approval authorizes exactly that one call; the parameter hash cannot be replaced after registration. A rejected or expired call is never executed and the model receives a structured error so the turn can continue; waiting expires after 10 minutes. Audit records keep only association IDs, tool identity, the argument hash, and status — never command or argument bodies. Refreshing or disconnecting cancels every pending approval for the turn, and nothing is replayed across restarts.
+When approval is required, the chat stream sends a `chat.flag=approval` frame and the interface shows a card above the composer: tool name, effect (read-only / mutating / unknown), safe display arguments, and “批准一次 / 拒绝”. Known credential fields in MCP arguments are recursively redacted; execution and hashing retain the original arguments. This does not identify every custom secret field. One approval authorizes exactly one call; the argument hash cannot be replaced after registration. A rejected or expired call is never executed, and the model receives a structured error so the turn can continue; waiting expires after 10 minutes. Only a successfully committed consumption transaction permits execution; storage failures or uncertain commits never grant execution.
+
+Authorization and execution results are displayed separately: “已批准” means the decision was saved, and `consumed` means authorization was consumed. Success/failure/cancellation is recorded only after the tool returns. A crash or failed result write leaves “已授权，执行结果未知”; legacy consumed rows without a result timestamp also remain unknown and are never replayed automatically. Failed or canceled execution may have caused side effects. Saved turns retain read-only audit cards. The new approval table stores association IDs, tool identity, the argument hash, expiry, authorization state, and execution result rather than command/argument bodies; existing tool history may still contain original arguments. Refreshing or disconnecting cancels pending approvals for the turn, and nothing is replayed across restarts.
 
 ## 3. Local project workspaces
 
@@ -266,9 +275,10 @@ Behavior:
 
 - New services are disabled by default; enabling connects and discovers tools, and enabled services are restored on restart.
 - An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor with exponential backoff (checked every 2 seconds, delays 1s, 2s, 4s… up to 60s). After five consecutive connection failures the circuit opens and automatic retries stop; the interface shows the open circuit and failure count, and “重新连接” starts a new cycle. Retries stop once the service is disabled or deleted.
-- Editing an enabled service validates the replacement connection first: on success it replaces the old connection, on failure the existing configuration is kept.
+- Editing an enabled service validates the replacement first, then saves its configuration and new cycle together. A failure before commit preserves the old configuration and healthy connection. An uncertain commit stops automatic recovery: refresh and explicitly reconnect; do not assume the write rolled back.
 - Enabled MCP tools are available to ordinary and project conversations from the next request; title tasks use no tools.
 - Disabling or deleting closes the connection and cancels in-flight MCP requests; external side effects already performed are not undone.
+- A recovery-state storage failure stops automatic retries. A healthy connection keeps its running status while the interface separately reports the storage failure. Only a successfully saved manual cycle, re-enable, or configuration replacement clears this process's block. Manual reconnect closes the old connection after saving the new cycle and interrupts its requests; external effects are not undone.
 - Runtime hardening (same-origin HTTP requests, refusing cross-origin redirects and HTTPS downgrade, never logging environment variables or auth headers) is described in [7.5](#75-mcp-runtime).
 
 ### 4.3 Provider catalog
@@ -304,7 +314,7 @@ System configuration is a single form; saved values apply to newly issued reques
 | 全局基础提示词 (base prompt) | built-in Kaguya persona | Base persona for new chats; may be empty; up to 20000 characters |
 | 附加系统提示词 (additional prompt) | empty | Appended after the base prompt; up to 20000 characters |
 
-The project root's `AGENTS.md` is included automatically (filenames are case-insensitive). Global instructions are watched and reloaded dynamically: each turn uses the current published version, file or path changes take effect on the next turn, and a failed reload keeps the last valid version; there is no application-level limit on path count or content size. Project instructions are frozen as a snapshot on the conversation's first successful turn and reused across restarts and compaction. Merged snapshots stored by older versions are never split silently: the interface shows a prompt and can upgrade them explicitly, archiving the old text and freezing the current project instructions.
+The project root's `AGENTS.md` is included automatically (filenames are case-insensitive). Global instructions are watched and reloaded by a single background worker: saving paths accepts the configuration, and the system page separately shows loading, publication, or an error while keeping the last valid version. Each turn takes its text, hash, and version from the same snapshot; file or path changes take effect on the next turn, and a failed reload keeps the last valid version; there is no application-level limit on path count or content size. Project instructions are frozen as a snapshot on the conversation's first successful turn and reused across restarts and compaction. Merged snapshots stored by older versions are never split silently: the interface shows a prompt and can upgrade them explicitly, archiving the old text and freezing the current project instructions.
 
 The interface also offers theme switching and sidebar collapse (see [1. Interface overview](#1-interface-overview)).
 
@@ -333,15 +343,18 @@ Accounting rules: input includes cache writes, output excludes reasoning, and th
 4. User questions from unfinished turns are appended, in turn order, to the next turn; partial assistant output and tool records never enter the context.
 5. The SSE connection is the turn lifecycle: switching conversations does not close it and the turn keeps running; closing the application, refreshing the page, or disconnecting interrupts the current turn.
 
+Chat and title streams validate UTF-8 and limit each unfinished line and event to 64MiB of wire bytes before decoding. Fields, comments, and line endings count toward the event limit; an empty line resets it, so normal heartbeats do not accumulate across the connection. Oversized or malformed input ends the stream. The limit includes more than just data text, so a response exactly at the former text-only boundary may now be rejected. EOF without a terminating blank line does not deliver a partial event; without a valid chat completion event, reload history to confirm the result.
+
 ### 7.2 Title generation
 
-Conversation titles are generated automatically by the background-task model after the first turn; the task is independent of the chat context and chat usage, and title failures never affect the conversation. Jobs enter a persistent FIFO queue and run one at a time, so they are never skipped because the worker is busy; the title write and its conversation revision commit in one transaction, after which a title event is pushed over `GET /v1/events` so the front end can update lists and the active session. The wait endpoint waits up to 30 seconds and otherwise returns the current title plus the job status.
+Conversation titles are automatically queued by the background-task model when the first turn creates a conversation; the task is independent of chat context and usage, and title failures never affect the conversation. Jobs enter a persistent FIFO queue and run one at a time, so they are never skipped because the worker is busy; the title write and its conversation revision commit in one transaction. After commit, `GET /v1/events` pushes titles and job status. The front end merges their independent revisions and fetches snapshots on connection, reconnection, and newly loaded conversations, with at most 200 IDs per batch and four concurrent batches. Opening a conversation and completing a turn do not wait for titles. For a default title, choose “补生成标题” (Generate missing title) under “更多会话操作” (More conversation actions); this explicit action uses the existing endpoint with a wait of up to 30 seconds. Queue, generation, or failure status appears beside default titles. Sync errors are shown separately and neither replace chat errors nor block list pagination.
 
 ### 7.3 Context compaction
 
 - Occupancy comes from the latest model call, never from cumulative consumption.
 - At the threshold, the current chat model (without tools) summarizes earlier content while recent messages and the original history are kept; tool calls and results stay paired.
-- Summary usage counts toward that turn; the summary is saved transactionally with the successful turn and reused on continuation.
+- Summary usage counts toward that turn, including cache writes; the summary is saved transactionally with the successful turn and reused on continuation.
+- If reference preparation or a later summary fragment fails, history separately shows already reported summary usage and the number of calls without reported usage. Failed preparation does not enter the conversation's completed-turn totals or create a successful continuation snapshot.
 - Unknown model windows skip compaction; compaction failures are reported explicitly rather than silently degraded.
 
 ### 7.4 Tool execution and permission boundaries
@@ -349,7 +362,7 @@ Conversation titles are generated automatically by the background-task model aft
 - File tools (`read` / `edit` / `write`) are constrained with `os.Root`, rejecting outside-workspace paths and symlink escapes; reference resolution reuses the same root confinement.
 - `bash` runs with the service process permissions; cancellation stops the process group but does not undo side effects; edits to the same file are serialized. Permission modes are not an OS sandbox: full access keeps host command permissions.
 - In restricted modes every registered tool (built-in, MCP, memory) passes through the same approval decorator; provider-executed tools cannot be approved locally, so restricted modes stop the turn and report unsupported instead.
-- The first shell read-only whitelist contains only argument-less `pwd` and `true` (AST-parsed, with no redirects, pipes, substitutions, functions, variables, env, eval, exec, or subshell); external commands such as `git` require approval as unknown side effects until a controlled execution profile is proven.
+- All Bash calls require approval as unknown side effects in restricted modes, including `pwd` and `true`: inherited host environment, exported functions, and startup scripts mean a command name cannot prove read-only execution. Tool classification uses trusted registration identity; model-provided names and MCP read-only hints never exempt a call from approval.
 - Output truncation: `read` returns at most 2000 lines / 50 KB per call; `grep` returns at most 100 matches (adjustable) or 50 KB with long lines cut to 500 characters; `bash` shows only the last 2000 lines / 50 KB and writes the full output to the conversation temp directory.
 - Logs never contain raw commands or file contents; approval audit records never contain command or argument bodies.
 
@@ -360,6 +373,9 @@ Conversation titles are generated automatically by the background-task model aft
 - Lists and logs never return environment variables or auth headers; the edit dialog shows stored values so they can be changed, and they are never written to logs.
 - New configurations start disabled; editing an enabled service validates the replacement connection first; disabling or deleting closes the connection and cancels requests.
 - An enabled service whose startup restore failed or whose connection dropped is reconnected automatically by a background supervisor: exponential backoff of 1s, 2s, 4s… checked every 2 seconds, capped at 60s. After five consecutive failures the circuit opens and automatic retries stop, and the open circuit survives a restart; “重新连接” starts a new cycle manually. Retries stop once the service is disabled or deleted.
+
+- Connections and HTTP requests belong to this application's root context. A successful connection survives completion of its enable/edit request; application shutdown cancels and closes the transport/session. Initialization is limited to 15 seconds; shutdown includes bounded cancellation and cleanup, without promising hard real-time termination of arbitrary host I/O.
+- Failure counts, backoff, and circuit state are published only after persistence is confirmed. A storage failure preserves the last confirmed values and blocks automatic recovery in this process. A restart reads only the actual saved state and cannot recover every unpersisted attempt; server logs retain safe classifications rather than raw driver errors, URLs, auth headers, or remote errors.
 
 ### 7.6 Model requests
 
@@ -377,6 +393,8 @@ Conversation titles are generated automatically by the background-task model aft
 | Custom database location | `--db.path` / `DB_PATH` |
 | Custom key file | `--db.key-file` / `DB_KEY_FILE`; the specified file must already exist |
 | Independent API key encryption key | `--secret-key` / `KAGUYA_SECRET_KEY`; derived from the database key when unset |
+
+Database lock waits are limited to 1 second. The single application connection serializes local writes; competing writers fail instead of extending the title cleanup budget. Context deadlines are cooperative, and worker completion is awaited before closing the database.
 
 For backups, quit the application, copy the database and any remaining WAL/SHM files, and store the key separately and securely, along with an independent encryption key if configured. Losing the key makes the data unreadable. Never replace the key for an existing database, and never open the same database in Desktop and Web modes simultaneously. File encryption cannot replace host access protection when both the database and key are lost or stolen together.
 

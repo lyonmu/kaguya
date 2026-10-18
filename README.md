@@ -19,13 +19,13 @@ The project targets a cross-platform Desktop application. **The native desktop h
 
 ## Features
 
-- **Conversations**: streaming Markdown answers, Mermaid diagrams, expandable reasoning and tool cards, per-turn tokens / duration / tool-call counts, paginated history, and concurrent sessions that keep running while you switch; titles come from a persistent FIFO queue and are pushed to the interface as events.
-- **Local projects**: work inside a home-directory project with seven built-in tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`), `@` file and directory references with a typed candidate list, and a code browser with file tree and unified / split Git diffs.
-- **Permissions and approvals**: three per-conversation modes (full approval, auto approval, full access), per-call approval cards for `edit` / `write` / `bash` / unknown MCP tools, a 10-minute wait window, structured denials the model can recover from, and an audit trail that stores hashes instead of arguments.
-- **Models and providers**: OpenAI Chat, OpenAI Responses, and Anthropic protocols on a per-model basis, catalog prefill from [models.dev](https://models.dev), request-path overrides, and a mandatory model test before saving.
-- **MCP tools**: `stdio`, `streamable-http`, and `sse` services with dynamic enable / disable, runtime status and failure count, per-service timeouts, automatic reconnection with exponential backoff after a dropped connection, and a circuit breaker after five consecutive failures with manual reconnect.
-- **Instructions**: globally watched `AGENTS.md` files served per turn, project instructions frozen on the first successful turn, and explicit upgrade for merged legacy snapshots.
-- **Context management**: context-occupancy ring, automatic compaction at a configurable threshold, and continuation of unfinished turns.
+- **Conversations**: streaming Markdown answers, Mermaid diagrams, expandable reasoning and tool cards, per-turn tokens / duration / tool-call counts, paginated history, and concurrent sessions that keep running while you switch; titles come from a persistent FIFO queue and merge by revision through events and reconnect snapshots, with an explicit action to generate a missing title.
+- **Local projects**: work inside a home-directory project with seven built-in tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`), `@` file, directory, and project-root references with a paged typed candidate list, reference details showing preparation state and actual excerpt ranges, and a code browser with file tree and unified / split Git diffs. Failed turns can restore reference selections after checking the conversation's current project association; restoring does not send a message.
+- **Permissions and approvals**: three per-conversation modes (full approval, auto approval, full access). All Bash and MCP calls require approval in restricted modes; auto approval exempts only trusted read-only tools. The wait window is 10 minutes, and structured denials let the model continue. Audits retain associations, hashes, and separate execution results rather than arguments; unconfirmed results stay unknown and are never replayed automatically.
+- **Models and providers**: OpenAI Chat, OpenAI Responses, and Anthropic protocols on a per-model basis, catalog prefill from [models.dev](https://models.dev), request-path overrides, a mandatory model test before saving, and refreshed model choices after provider/model changes.
+- **MCP tools**: `stdio`, `streamable-http`, and `sse` services with dynamic enable / disable, runtime status and failure count, per-service timeouts, automatic reconnection with exponential backoff after a dropped connection, and a circuit breaker after five consecutive failures with manual reconnect; recovery-state storage failures stop automatic retries and are shown separately.
+- **Instructions**: globally watched `AGENTS.md` files loaded in the background with a visible publication status and served from one snapshot per turn, project instructions frozen on the first successful turn, and explicit upgrade for merged legacy snapshots.
+- **Context management**: context-occupancy ring, automatic compaction at a configurable threshold, continuation of unfinished turns, and separate preparation-usage audits for failed turns.
 - **Usage analytics**: token totals and peaks, a one-year activity heatmap, and composition by model or provider.
 - **Local-first data**: SQLCipher database, AES-256-GCM encrypted API keys, no listening port in Desktop mode.
 
@@ -86,6 +86,8 @@ The desktop window calls the shared Go services through Wails' native asset chan
 | Overrides | `--db.path` / `DB_PATH`, `--db.key-file` / `DB_KEY_FILE`, `--secret-key` / `KAGUYA_SECRET_KEY` |
 
 Quit the application, then copy the database plus any remaining WAL/SHM files and keep the key separately and securely. Losing the key makes the data unreadable; never open the same database in Desktop and Web modes simultaneously. API keys use AES-256-GCM (`enc:v2:`), and legacy credentials require the offline migration tool in [cmd/migrate-provider-secrets](cmd/migrate-provider-secrets/).
+
+Database lock waits are limited to 1 second; writes within the process use a single connection. A competing writer returns a database error instead of blocking shutdown for 5 seconds. This does not permit multiple application instances to share a database.
 
 ## Development
 
