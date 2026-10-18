@@ -103,5 +103,5 @@ func Tools(reader Reader) []fantasy.AgentTool {
 // contractTool 沿用内置工具的 schema 校验风格：生成参数 schema、
 // 拒绝未知字段并在执行前完成边界校验。
 func contractTool[T any](name, description string, fn func(context.Context, T, fantasy.ToolCall) (fantasy.ToolResponse, error)) fantasy.AgentTool {
-	return toolcontract.WrapGenerated[T](fantasy.NewAgentTool(name, description, fn))
+	return toolcontract.WithIdentity(toolcontract.WrapGenerated[T](fantasy.NewAgentTool(name, description, fn)), "memory:"+name)
 }

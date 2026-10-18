@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"charm.land/fantasy"
@@ -110,7 +111,7 @@ type failingUsageRecorder struct{ err error }
 
 func (r failingUsageRecorder) RecordUsage(context.Context, token.TurnUsage) error { return r.err }
 
-// 记录失败只写结构化 warning，不能把字段参数拼进格式化字符串。
+// 记录失败保留 warning 和固定原因，不能记录可能携带凭据的 sink error。
 func TestRecordUsageFailureIsLogged(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -123,7 +124,7 @@ func TestRecordUsageFailureIsLogged(t *testing.T) {
 	global.Logger = zap.New(core)
 	t.Cleanup(func() { global.Logger = previous })
 
-	wantErr := errors.New("usage sink unavailable")
+	wantErr := errors.New("usage sink unavailable: fake-secret-usage-sink")
 	a, err := New(
 		WithProvider(ProviderConfig{Protocol: consts.ProtocolOpenAIChat, BaseURL: server.URL, RequestPath: "/v1/chat/completions", APIKey: "test", ModelID: "test"}),
 		WithRecorder(failingUsageRecorder{err: wantErr}),
@@ -143,7 +144,10 @@ func TestRecordUsageFailureIsLogged(t *testing.T) {
 	if entry.Level != zap.WarnLevel {
 		t.Fatalf("log level = %s", entry.Level)
 	}
-	if got := fmt.Sprint(entry.ContextMap()["error"]); got != wantErr.Error() {
-		t.Fatalf("logged error = %q, want %q", got, wantErr.Error())
+	if got := entry.ContextMap()["reason"]; got != "usage_persist_failed" {
+		t.Fatalf("logged reason = %v, want usage_persist_failed", got)
+	}
+	if _, ok := entry.ContextMap()["error"]; ok || strings.Contains(fmt.Sprint(logs.All()), "fake-secret-usage-sink") {
+		t.Fatal("usage sink error leaked to application diagnostics")
 	}
 }

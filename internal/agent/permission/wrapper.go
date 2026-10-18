@@ -7,12 +7,10 @@ import (
 	"charm.land/fantasy"
 )
 
-// GatedTool 是一个注册工具及其可信分类。Classify 可选：只对需要按最终参数
-// 动态判定（例如 shell AST）的工具提供，返回空 Identity 时沿用 Class。
+// GatedTool 是一个注册工具及其可信分类；分类来自本机注册点。
 type GatedTool struct {
-	Tool     fantasy.AgentTool
-	Class    Classification
-	Classify func(call fantasy.ToolCall) Classification
+	Tool  fantasy.AgentTool
+	Class Classification
 }
 
 // Wrapper 只装饰带审批语义的受限工具：Info/ProviderOptions/并行元数据全部
@@ -22,25 +20,26 @@ type Wrapper struct {
 	class    Classification
 	mode     Mode
 	approver Approver
-	classify func(call fantasy.ToolCall) Classification
 }
 
-// WrapAll 按当前模式装饰全部工具。mode 为 full_access 且没有动态分类需求时
-// 直接返回原工具，保持既有行为与性能。
+// WrapAll 按当前模式装饰全部工具。full_access 直接返回原工具。
 func WrapAll(mode Mode, approver Approver, tools []GatedTool) []fantasy.AgentTool {
 	wrapped := make([]fantasy.AgentTool, 0, len(tools))
 	for _, item := range tools {
 		if item.Tool == nil {
 			continue
 		}
-		if mode == ModeFullAccess && item.Classify == nil {
+		if mode == ModeFullAccess {
 			wrapped = append(wrapped, item.Tool)
 			continue
 		}
-		wrapped = append(wrapped, &Wrapper{tool: item.Tool, class: item.Class, mode: mode, approver: approver, classify: item.Classify})
+		wrapped = append(wrapped, &Wrapper{tool: item.Tool, class: item.Class, mode: mode, approver: approver})
 	}
 	return wrapped
 }
+
+// PermissionIdentity 保留本轮可信注册身份，供执行配置指纹与审批使用。
+func (w *Wrapper) PermissionIdentity() string { return w.class.Identity }
 
 func (w *Wrapper) Info() fantasy.ToolInfo                   { return w.tool.Info() }
 func (w *Wrapper) ProviderOptions() fantasy.ProviderOptions { return w.tool.ProviderOptions() }
@@ -48,28 +47,21 @@ func (w *Wrapper) SetProviderOptions(opts fantasy.ProviderOptions) {
 	w.tool.SetProviderOptions(opts)
 }
 
-// classification 计算本次调用的可信分类；动态分类返回空 Identity 时回退静态值。
-func (w *Wrapper) classification(call fantasy.ToolCall) Classification {
-	if w.classify == nil {
-		return w.class
-	}
-	refined := w.classify(call)
-	if refined.Identity == "" {
-		refined.Identity = w.class.Identity
-	}
-	if refined.Effect == "" {
-		refined.Effect = w.class.Effect
-	}
-	if !refined.ReadOnlyProven {
-		refined.ReadOnlyProven = w.class.ReadOnlyProven
-	}
-	return refined
-}
+// inputValidator 是消费侧窄接口；实现不得执行工具或取得副作用资源。
+type inputValidator interface{ ValidateInput(fantasy.ToolCall) string }
 
 // Run 按策略放行或等待审批；拒绝、过期、取消都返回结构化错误结果，让模型
 // 看到失败原因并继续，而不是断开整轮。批准后才调用原工具。
 func (w *Wrapper) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-	class := w.classification(call)
+	if err := ctx.Err(); err != nil {
+		return fantasy.ToolResponse{}, err
+	}
+	if validator, ok := w.tool.(inputValidator); ok {
+		if message := validator.ValidateInput(call); message != "" {
+			return fantasy.NewTextErrorResponse(message), nil
+		}
+	}
+	class := w.class
 	if Decide(w.mode, class) == DecisionAllow {
 		return w.tool.Run(ctx, call)
 	}
@@ -90,9 +82,24 @@ func (w *Wrapper) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolR
 		return fantasy.ToolResponse{}, err
 	}
 	if outcome == OutcomeApproved {
-		return w.tool.Run(ctx, call)
+		if err := ctx.Err(); err != nil {
+			w.recordExecution(ctx, req, fantasy.ToolResponse{}, err, false)
+			return fantasy.ToolResponse{}, err
+		}
+		response, err := w.tool.Run(ctx, call)
+		w.recordExecution(ctx, req, response, err, true)
+		return response, err
+	}
+	if err := ctx.Err(); err != nil {
+		return fantasy.ToolResponse{}, err
 	}
 	return deniedResponse(outcome, req.ApprovalID, ""), nil
+}
+
+func (w *Wrapper) recordExecution(ctx context.Context, req *Request, response fantasy.ToolResponse, err error, started bool) {
+	if recorder, ok := w.approver.(ExecutionRecorder); ok {
+		recorder.RecordExecution(ctx, req, response, err, started)
+	}
 }
 
 // deniedResponse 构造被拒绝/过期/取消的工具错误结果，并附带结构化元数据。

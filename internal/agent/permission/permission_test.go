@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"charm.land/fantasy"
+	"github.com/lyonmu/kaguya/internal/agent/toolcontract"
 )
 
 type fakeTool struct {
@@ -49,7 +50,6 @@ func TestDecidePolicyMatrix(t *testing.T) {
 		{ModeAutoApproval, Classification{Effect: EffectReadOnly}, DecisionAllow},
 		{ModeAutoApproval, Classification{Effect: EffectMutating}, DecisionRequireApproval},
 		{ModeAutoApproval, Classification{Effect: EffectUnknown}, DecisionRequireApproval},
-		{ModeAutoApproval, Classification{Effect: EffectUnknown, ReadOnlyProven: true}, DecisionAllow},
 		{ModeFullAccess, Classification{Effect: EffectUnknown}, DecisionAllow},
 		{"invalid", Classification{Effect: EffectReadOnly}, DecisionRequireApproval},
 	}
@@ -60,24 +60,22 @@ func TestDecidePolicyMatrix(t *testing.T) {
 	}
 }
 
-func TestShellClassificationOnlyProvenLiteralCommands(t *testing.T) {
-	allowed := []string{"pwd", "true", "  pwd "}
-	for _, command := range allowed {
-		class := ShellClassification(command)
-		if !class.ReadOnlyProven || class.Effect != EffectReadOnly {
-			t.Errorf("ShellClassification(%q) = %+v, want read-only", command, class)
-		}
-	}
-	denied := []string{
-		"", "pwd -P", "'pwd'", `"pwd"`, "pwd > out", "pwd | cat", "true && rm -rf x",
-		"echo $(pwd)", "X=1 pwd", "pwd; true", "! pwd", "pwd &", "cat README.md",
-		"git status --short", "git diff", "go test ./...", "rm -rf build",
+func TestShellClassificationRequiresApprovalForEveryCommand(t *testing.T) {
+	commands := []string{
+		"pwd", "true", "  pwd ", "", "pwd -P", "'pwd'", `"pwd"`, "pwd > out", "pwd | cat",
+		"true && rm -rf x", "echo $(pwd)", "X=1 pwd", "pwd; true", "! pwd", "pwd &",
+		"cat README.md", "git status --short", "go test ./...", "rm -rf build",
 		"find . -exec ls {} +", "bash -c pwd", "eval pwd", "f() { pwd; }; f",
 	}
-	for _, command := range denied {
+	for _, command := range commands {
 		class := ShellClassification(command)
-		if class.Effect != EffectUnknown || class.ReadOnlyProven {
-			t.Errorf("ShellClassification(%q) = %+v, want unknown approval", command, class)
+		if class.Identity != "builtin:bash" || class.Effect != EffectUnknown {
+			t.Errorf("ShellClassification(%q) = %+v, want unknown", command, class)
+		}
+		for _, mode := range []Mode{ModeAutoApproval, ModeFullApproval} {
+			if Decide(mode, class) != DecisionRequireApproval {
+				t.Errorf("command %q bypasses %s", command, mode)
+			}
 		}
 	}
 }
@@ -121,19 +119,15 @@ func TestWrapperRejectedDoesNotRunAndCarriesMetadata(t *testing.T) {
 	}
 }
 
-func TestWrapperDynamicClassificationAllowsProvenReadOnly(t *testing.T) {
+func TestWrapperAutoApprovalBashDoesNotRunWithoutApproval(t *testing.T) {
 	tool := &fakeTool{name: "bash"}
 	approver := &fakeApprover{outcome: OutcomeRejected}
 	wrapper := &Wrapper{
-		tool: tool, class: Classification{Identity: "builtin:bash", Effect: EffectUnknown},
-		mode: ModeAutoApproval, approver: approver, classify: func(call fantasy.ToolCall) Classification { return ShellClassification(call.Input) },
+		tool: tool, class: ShellClassification("pwd"), mode: ModeAutoApproval, approver: approver,
 	}
-	response, err := wrapper.Run(context.Background(), fantasy.ToolCall{ID: "call-3", Input: "pwd"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if approver.calls != 0 || tool.runs != 1 || response.IsError {
-		t.Fatalf("proven read-only must bypass approval: calls=%d runs=%d response=%+v", approver.calls, tool.runs, response)
+	response, err := wrapper.Run(context.Background(), fantasy.ToolCall{ID: "call-3", Input: `{"command":"pwd"}`})
+	if err != nil || approver.calls != 1 || tool.runs != 0 || !response.IsError {
+		t.Fatalf("bash must wait for approval: calls=%d runs=%d response=%+v err=%v", approver.calls, tool.runs, response, err)
 	}
 }
 
@@ -169,4 +163,57 @@ type errorApprover struct{}
 
 func (errorApprover) Await(context.Context, *Request) (Outcome, error) {
 	return "", errors.New("db down")
+}
+
+func TestWrapperInvalidSchemaDoesNotRegisterApproval(t *testing.T) {
+	for _, input := range []string{`[]`, `null`, `{"path":`, `{}`, `{"path":"file","extra":true}`} {
+		t.Run(input, func(t *testing.T) {
+			original := &fakeTool{name: "write"}
+			tool := toolcontract.WrapGenerated[struct {
+				Path string `json:"path"`
+			}](original)
+			approver := &fakeApprover{outcome: OutcomeApproved}
+			wrapper := &Wrapper{tool: tool, class: Classification{Effect: EffectMutating}, mode: ModeFullApproval, approver: approver}
+			response, err := wrapper.Run(context.Background(), fantasy.ToolCall{Input: input})
+			if err != nil || !response.IsError || original.runs != 0 || approver.calls != 0 {
+				t.Fatalf("invalid schema reached approval/execution: response=%+v err=%v runs=%d approvals=%d", response, err, original.runs, approver.calls)
+			}
+		})
+	}
+}
+
+type callbackApprover func(context.Context, *Request) (Outcome, error)
+
+func (a callbackApprover) Await(ctx context.Context, req *Request) (Outcome, error) {
+	return a(ctx, req)
+}
+
+func TestWrapperCancellationBeforeAndAfterApprovalDoesNotRun(t *testing.T) {
+	for _, alreadyCanceled := range []bool{true, false} {
+		ctx, cancel := context.WithCancel(context.Background())
+		tool := &fakeTool{name: "write"}
+		approvals := 0
+		approver := callbackApprover(func(context.Context, *Request) (Outcome, error) {
+			approvals++
+			cancel()
+			return OutcomeApproved, nil
+		})
+		if alreadyCanceled {
+			cancel()
+		}
+		wrapper := &Wrapper{tool: tool, class: Classification{Effect: EffectMutating}, mode: ModeFullApproval, approver: approver}
+		_, err := wrapper.Run(ctx, fantasy.ToolCall{Input: `{}`})
+		cancel()
+		if !errors.Is(err, context.Canceled) || tool.runs != 0 || (alreadyCanceled && approvals != 0) {
+			t.Fatalf("canceled call ran: err=%v runs=%d approvals=%d", err, tool.runs, approvals)
+		}
+	}
+}
+
+func TestWrapAllFullAccessPreservesOriginalTool(t *testing.T) {
+	tool := &fakeTool{name: "bash"}
+	wrapped := WrapAll(ModeFullAccess, nil, []GatedTool{{Tool: tool, Class: ShellClassification("pwd")}})
+	if len(wrapped) != 1 || wrapped[0] != tool {
+		t.Fatal("full_access must retain original tool")
+	}
 }

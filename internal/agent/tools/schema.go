@@ -52,5 +52,5 @@ func withInputContract(base fantasy.AgentTool, generated schema.Schema) fantasy.
 	if err != nil {
 		panic(fmt.Sprintf("encode built-in tool schema: %v", err))
 	}
-	return toolcontract.WrapRaw(base, raw)
+	return toolcontract.WithIdentity(toolcontract.WrapRaw(base, raw), "builtin:"+base.Info().Name)
 }

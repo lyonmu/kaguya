@@ -1,6 +1,8 @@
 package workspace
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +21,23 @@ func newTestIgnoreMatcher(t *testing.T, lines ...string) *IgnoreMatcher {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { root.Close() })
-	return NewLenientIgnoreMatcher(root)
+	return NewLenientIgnoreMatcher(context.Background(), root)
+}
+
+func TestIgnoreMatcherPreservesCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	root := newRoot(t, t.TempDir())
+	matcher, err := NewIgnoreMatcher(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	if _, err := matcher.Match("sub/file", false); !errors.Is(err, context.Canceled) {
+		t.Fatalf("nested match lost cancellation: %v", err)
+	}
+	if _, err := NewIgnoreMatcher(ctx, root); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ignore loader lost cancellation: %v", err)
+	}
 }
 
 func TestIgnoreRuleMatching(t *testing.T) {
@@ -77,7 +95,7 @@ func TestIgnoreRuleNestedBase(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	matcher := NewLenientIgnoreMatcher(root)
+	matcher := NewLenientIgnoreMatcher(context.Background(), root)
 	if !matcher.Ignored("web/dist", true) {
 		t.Fatal("web/dist should be ignored")
 	}
@@ -107,7 +125,7 @@ func TestStrictIgnoreMatcherReportsUnreadableNestedRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	matcher, err := NewIgnoreMatcher(root)
+	matcher, err := NewIgnoreMatcher(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +133,7 @@ func TestStrictIgnoreMatcherReportsUnreadableNestedRules(t *testing.T) {
 		t.Fatal("strict matcher silently ignored an unreadable ignore file")
 	}
 	// 宽松模式保持 UI 文件树的默认语义：读不到就按空规则。
-	if NewLenientIgnoreMatcher(root).Ignored("web/main.go", false) {
+	if NewLenientIgnoreMatcher(context.Background(), root).Ignored("web/main.go", false) {
 		t.Fatal("lenient matcher must not fail closed")
 	}
 }

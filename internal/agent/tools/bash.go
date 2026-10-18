@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"math"
 	"os"
 	"os/exec"
@@ -42,31 +41,35 @@ type outputAccumulator struct {
 	path                      string
 	quotaHit                  bool
 	onQuota                   func() // 达到磁盘配额时终止命令
+	onError                   func() // 捕获失败时同样终止命令，不能等后续sleep/副作用
 	err                       error
+	quota                     *conversationOutputQuota
+	closed                    bool
 }
 
-// conversationQuotaHit 报告会话输出目录是否已达到磁盘上限。
-// 只统计本应用创建的文件，不跟随符号链接。
-func (o *outputAccumulator) conversationQuotaHit() bool {
-	dir := filepath.Dir(filepath.Join(o.s.tempBase, o.path))
-	var total int64
-	_ = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
+func (o *outputAccumulator) hitQuota() {
+	if !o.quotaHit {
+		o.quotaHit = true
+		if o.onQuota != nil {
+			o.onQuota()
 		}
-		info, err := entry.Info()
-		if err != nil || !info.Mode().IsRegular() {
-			return nil
-		}
-		total += info.Size()
-		return nil
-	})
-	return total >= maxConversationOutputBytes
+	}
+}
+
+func (o *outputAccumulator) fail(err error) (int, error) {
+	o.err = err
+	if o.onError != nil {
+		o.onError()
+	}
+	return 0, err
 }
 
 func (o *outputAccumulator) Write(p []byte) (int, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if o.closed {
+		return 0, os.ErrClosed
+	}
 	if o.err != nil {
 		return 0, o.err
 	}
@@ -80,61 +83,57 @@ func (o *outputAccumulator) Write(p []byte) (int, error) {
 	if !o.lastNewline && o.totalBytes > 0 {
 		lines++
 	}
-	if o.file == nil && (o.totalBytes > MaxBytes || lines > MaxLines) {
+	// 已达到配额的管道仍可能交付缓冲块；只保留tail，不再落盘/生成ID。
+	if !o.quotaHit && o.file == nil && (o.totalBytes > MaxBytes || lines > MaxLines) {
 		if err := o.s.tempRoot.MkdirAll(filepath.Dir(filepath.Join(o.s.conversationOutputDir(), "x")), 0700); err != nil {
-			o.err = err
-			return 0, err
+			return o.fail(err)
 		}
 		if global.Id == nil {
-			o.err = errors.New("global ID generator is not initialized")
-			return 0, o.err
+			return o.fail(errors.New("global ID generator is not initialized"))
 		}
 		id, err := global.Id.GenID()
 		if err != nil {
-			o.err = fmt.Errorf("generate command output ID: %w", err)
-			return 0, o.err
+			return o.fail(fmt.Errorf("generate command output ID: %w", err))
 		}
-		o.path = filepath.Join(o.s.conversationOutputDir(), fmt.Sprintf("bash-%d.log", id))
-		if o.conversationQuotaHit() {
-			// 不静默丢弃，也不新建超限文件；已累计的内存 tail 仍可返回。
-			o.quotaHit = true
-			o.path = ""
-			if o.onQuota != nil {
-				o.onQuota()
-			}
-			return len(p), nil
-		}
-		f, err := o.s.tempRoot.OpenFile(o.path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		quota, err := o.s.acquireOutputQuota()
 		if err != nil {
-			o.err = err
-			return 0, err
+			return o.fail(err)
 		}
-		o.file = f
-		if _, err = f.Write(o.tail); err != nil {
-			o.err = err
-			return 0, err
+		o.quota = quota
+		quota.mu.Lock()
+		err = quota.initializeLocked()
+		alreadyFull := err == nil && quota.used >= maxConversationOutputBytes
+		if err == nil && !alreadyFull {
+			name := fmt.Sprintf("bash-%d.log", id)
+			o.file, err = quota.root.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+			if err == nil {
+				o.path = filepath.Join(o.s.conversationOutputDir(), name)
+				n, writeErr := quota.writeLocked(o.file, o.tail, min(o.s.commandOutputLimit, maxCommandOutputBytes))
+				o.fileBytes += int64(n)
+				err = writeErr
+			}
 		}
-		o.fileBytes = int64(len(o.tail))
+		quota.mu.Unlock()
+		if alreadyFull {
+			o.hitQuota()
+		}
+		if err != nil {
+			return o.fail(err)
+		}
 	}
-	if o.file != nil {
-		// 单文件配额：写满后停止落盘并终止命令，tail 与原因如实返回。
+	if !o.quotaHit && o.file != nil {
+		// 单命令和目录的剩余额度在同一临界区裁切；不能只在建文件前查总量。
 		limit := min(o.s.commandOutputLimit, maxCommandOutputBytes)
-		if remain := limit - o.fileBytes; remain > 0 {
-			chunk := p
-			if int64(len(chunk)) > remain {
-				chunk = chunk[:remain]
-			}
-			if _, err := o.file.Write(chunk); err != nil {
-				o.err = err
-				return 0, err
-			}
-			o.fileBytes += int64(len(chunk))
+		o.quota.mu.Lock()
+		n, err := o.quota.writeLocked(o.file, p, limit-o.fileBytes)
+		o.fileBytes += int64(n)
+		full := o.fileBytes >= limit || o.quota.used >= maxConversationOutputBytes
+		o.quota.mu.Unlock()
+		if err != nil {
+			return o.fail(err)
 		}
-		if o.fileBytes >= limit {
-			o.quotaHit = true
-			if o.onQuota != nil {
-				o.onQuota()
-			}
+		if full {
+			o.hitQuota()
 		}
 	}
 	o.tail = append(o.tail, p...)
@@ -147,9 +146,14 @@ func (o *outputAccumulator) Write(p []byte) (int, error) {
 func (o *outputAccumulator) finish() (fantasy.ToolResponse, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.file != nil {
-		if err := o.file.Close(); err != nil && o.err == nil {
-			o.err = err
+	if !o.closed {
+		o.closed = true
+		if o.file != nil {
+			o.err = errors.Join(o.err, o.file.Close())
+		}
+		if o.quota != nil {
+			o.err = errors.Join(o.err, o.quota.release())
+			o.quota = nil
 		}
 	}
 	if o.err != nil {
@@ -206,7 +210,7 @@ func (s *Set) bash(ctx context.Context, in BashInput) (fantasy.ToolResponse, err
 	cmd := exec.CommandContext(runCtx, "bash", "-c", in.Command)
 	cmd.Dir = s.cwd
 	cmd.Env = append(os.Environ(), "KAGUYA_WORKSPACE="+s.cwd)
-	output := &outputAccumulator{s: s, onQuota: cancel}
+	output := &outputAccumulator{s: s, onQuota: cancel, onError: cancel}
 	cmd.Stdout = output
 	cmd.Stderr = output
 	configureProcess(cmd)

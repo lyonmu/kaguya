@@ -126,7 +126,7 @@ func (s *Set) read(ctx context.Context, in ReadInput) (fantasy.ToolResponse, err
 	if in.Limit != nil {
 		limit = *in.Limit
 	}
-	window, err := workspace.ReadTextWindow(ctx, root, path, start, limit, maxBytes, MaxBytes)
+	window, err := workspace.ReadTextWindow(ctx, root, path, start, limit, maxBytes, MaxBytes, MaxBytes)
 	if err != nil {
 		return fantasy.ToolResponse{}, err
 	}
@@ -143,10 +143,14 @@ func (s *Set) read(ctx context.Context, in ReadInput) (fantasy.ToolResponse, err
 		return fantasy.WithResponseMetadata(fantasy.NewTextResponse(fmt.Sprintf("[Line %d exceeds the 50KB limit. Use bash to inspect a bounded byte range.]", start+1)), map[string]any{"truncation": Truncation{FirstLineExceedsLimit: true}}), nil
 	}
 	r := truncate(string(window.Content), MaxLines, false)
-	// 空文件等场景窗口内容为空但确实存在一行，保持与旧行为一致不提示续读。
-	if r.OutputLines == 0 && len(window.Content) == 0 {
-		r.OutputLines = 1
+	if !r.Truncated {
+		// 空行也占一个行号，不能用字符串末尾是否有换行推断 continuation。
+		r.OutputLines = window.OutputLines
 	}
+	if window.Truncated {
+		r.Truncated, r.TruncatedBy = true, "bytes"
+	}
+	r.TotalLines = window.Lines
 	output := r.Content
 	end := start + r.OutputLines
 	if end > window.Lines {

@@ -1,7 +1,6 @@
 package workspace
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -87,43 +86,107 @@ func ReadAll(ctx context.Context, root *os.Root, name string, maxBytes int64) ([
 // 不缓存整文件，既保留“总行数、末尾截断、UTF-8 合法性”语义，又避免大文件全量驻留。
 type TextWindow struct {
 	Content []byte
-	Lines   int  // strings.Split(content, "\n") 的行数语义：空文件为 1，末尾换行后是空行。
+	Lines   int  // 空文件为 1；末尾换行是行终止符，不额外产生一行。
 	Binary  bool // 出现 NUL 字节或非法 UTF-8。
 	Grown   bool // 扫描中文件超过安全上限。
 
 	// OversizedLine 记录首行超过单行输出上限；调用方据此返回可操作的提示。
 	OversizedLine bool
 	FirstLine     bool
+	OutputLines   int  // 连续装入的逻辑行数，含空行，不能从 Content 长度推断。
+	Truncated     bool // 请求的行窗口被总字节/单行边界截断。
+	NextLine      int  // 第一行尚未装入的行号（从 1 起）；0 表示没有后续行。
 }
 
 // ReadTextWindow 流式读取文本文件，只缓存 offset/limit 对应的行窗口。
 // 以 chunk 为单位验证 UTF-8 与 NUL，跨 chunk 的不完整编码保留到下一次验证。
-// lineLimit 限制单行进入窗口的字节数，超过则不返回内容只标记 OversizedLine。
-func ReadTextWindow(ctx context.Context, root *os.Root, name string, offset, limit int, maxBytes, lineLimit int64) (TextWindow, error) {
+// lineLimit 与 outputLimit 分别限制单行和整个输出；超长行不缓存整行。
+// 窗口只返回连续的完整行，截断后继续有界扫描以统计行数及验证 UTF-8。
+func ReadTextWindow(ctx context.Context, root *os.Root, name string, offset, limit int, maxBytes, lineLimit, outputLimit int64) (TextWindow, error) {
 	result := TextWindow{Lines: 1}
-	file, info, err := OpenRegular(root, name)
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if offset < 0 || limit < 1 || maxBytes < 1 || lineLimit < 0 || outputLimit < 0 {
+		return result, errors.New("invalid text window limits")
+	}
+	file, _, err := OpenRegular(root, name)
 	if err != nil {
 		return result, err
 	}
 	defer file.Close()
+	return ReadTextWindowFile(ctx, file, offset, limit, maxBytes, lineLimit, outputLimit)
+}
+
+// ReadTextWindowFile 从调用方持有的普通文件句柄读取，调用方负责关闭。
+// 引用解析用该入口把读前/读后身份校验与正文读取绑定到同一实际文件。
+// 每次从文件开头扫描；只缓存指定窗口，不改变现有总行数和文本验证语义。
+func ReadTextWindowFile(ctx context.Context, file *os.File, offset, limit int, maxBytes, lineLimit, outputLimit int64) (TextWindow, error) {
+	result := TextWindow{Lines: 1}
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
+	if file == nil || offset < 0 || limit < 1 || maxBytes < 1 || lineLimit < 0 || outputLimit < 0 {
+		return result, errors.New("invalid text window limits")
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return result, err
+	}
+	if !info.Mode().IsRegular() {
+		return result, errors.New("path must be a regular file")
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return result, err
+	}
 	if info.Size() > maxBytes {
 		result.Grown = true
 		return result, nil
 	}
-	reader := bufio.NewReaderSize(file, 64*1024)
 	var (
-		window  bytes.Buffer
-		pending bytes.Buffer
-		line    int
-		carry   []byte
-		scanned int64
+		window    bytes.Buffer
+		pending   bytes.Buffer
+		line      int
+		carry     []byte
+		scanned   int64
+		lineBytes int64
+		blocked   bool
 	)
+	// separator 也计入输出预算；空行占一个逻辑行，但不靠 window.Len 判断。
+	lineCapacity := func() int64 {
+		remaining := outputLimit - int64(window.Len())
+		if result.OutputLines > 0 {
+			remaining--
+		}
+		return min(lineLimit, max(0, remaining))
+	}
+	capture := func() {
+		if line < offset || line-offset >= limit || blocked {
+			return
+		}
+		separator := int64(0)
+		if result.OutputLines > 0 {
+			separator = 1
+		}
+		if lineBytes > lineLimit || int64(window.Len())+separator+lineBytes > outputLimit {
+			blocked, result.Truncated = true, true
+			if line == offset && lineBytes > lineLimit {
+				result.OversizedLine, result.FirstLine = true, true
+			}
+			return
+		}
+		if separator != 0 {
+			window.WriteByte('\n')
+		}
+		window.Write(pending.Bytes())
+		result.OutputLines++
+	}
 	chunk := make([]byte, 64*1024)
 	for {
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
-		n, readErr := reader.Read(chunk)
+		n, readErr := file.Read(chunk)
 		if n > 0 {
 			scanned += int64(n)
 			if scanned > maxBytes {
@@ -139,6 +202,7 @@ func ReadTextWindow(ctx context.Context, root *os.Root, name string, offset, lim
 			complete, rest, invalid := scanUTF8(data)
 			if invalid {
 				result.Binary = true
+				return result, nil
 			}
 			data = complete
 			carry = nil
@@ -147,17 +211,27 @@ func ReadTextWindow(ctx context.Context, root *os.Root, name string, offset, lim
 			}
 			if bytes.IndexByte(data, 0) >= 0 {
 				result.Binary = true
+				return result, nil
 			}
-			for _, b := range data {
-				if b != '\n' {
-					pending.WriteByte(b)
-					continue
+			for len(data) > 0 {
+				end := bytes.IndexByte(data, '\n')
+				part := data
+				if end >= 0 {
+					part = data[:end]
 				}
-				if oversized := captureLine(&window, pending.Bytes(), line, offset, limit, lineLimit); oversized && line == offset {
-					result.OversizedLine, result.FirstLine = true, true
+				lineBytes += int64(len(part))
+				if line >= offset && line-offset < limit && !blocked {
+					keep := min(int64(len(part)), max(0, lineCapacity()-int64(pending.Len())))
+					pending.Write(part[:int(keep)])
 				}
+				if end < 0 {
+					break
+				}
+				capture()
 				line++
+				lineBytes = 0
 				pending.Reset()
+				data = data[end+1:]
 			}
 		}
 		if readErr != nil {
@@ -168,12 +242,11 @@ func ReadTextWindow(ctx context.Context, root *os.Root, name string, offset, lim
 		}
 	}
 	// 扫描结束时处理最后一行：没有末尾换行的内容也算一行；空文件记为 1 行。
-	if pending.Len() > 0 {
-		if oversized := captureLine(&window, pending.Bytes(), line, offset, limit, lineLimit); oversized && line == offset {
-			result.OversizedLine, result.FirstLine = true, true
-		}
+	if lineBytes > 0 {
+		capture()
 		line++
 	} else if scanned == 0 {
+		capture()
 		line = 1
 	} else if line == 0 {
 		line = 1
@@ -183,6 +256,9 @@ func ReadTextWindow(ctx context.Context, root *os.Root, name string, offset, lim
 	}
 	result.Lines = line
 	result.Content = window.Bytes()
+	if offset+result.OutputLines < result.Lines {
+		result.NextLine = offset + result.OutputLines + 1
+	}
 	return result, nil
 }
 
@@ -239,20 +315,4 @@ func runePrefix(data []byte) (valid bool, size int) {
 		return false, 0
 	}
 	return true, need
-}
-
-// captureLine 按行号把行内容写入窗口；超长行只标记不返回，避免单行占满内存。
-// 返回 true 表示该行超过单行输出上限而被跳过。
-func captureLine(window *bytes.Buffer, content []byte, line, offset, limit int, lineLimit int64) bool {
-	if line < offset || line >= offset+limit {
-		return false
-	}
-	if int64(len(content)) > lineLimit {
-		return true
-	}
-	if window.Len() > 0 {
-		window.WriteByte('\n')
-	}
-	window.Write(content)
-	return false
 }

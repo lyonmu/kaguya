@@ -159,8 +159,8 @@ func (s *Set) resolve(path string) (string, error) {
 	return path, nil
 }
 
-// All tools execute sequentially inside fantasy. Locks additionally protect concurrent
-// conversations editing the same path. Context cancellation never releases a lock
+// Locks protect concurrent tool calls and conversations editing the same path.
+// Context cancellation never releases a lock
 // while a filesystem write is still in progress.
 var mutations = struct {
 	sync.Mutex
@@ -229,7 +229,9 @@ func tool[T any](s *Set, name, description string, fn func(context.Context, T) (
 			return result, ctx.Err()
 		}
 		if err != nil {
-			s.logger.Warn("tool failed", zap.String("tool", name), zap.String("call_id", call.ID), zap.Error(err))
+			// File/process errors can contain raw input paths or commands. Keep
+			// actionable details in the tool result, never application logs.
+			s.logger.Warn("tool failed", zap.String("tool", name), zap.String("call_id", call.ID), zap.String("reason", "execution_failed"))
 			if ctx.Err() != nil {
 				return result, ctx.Err()
 			}

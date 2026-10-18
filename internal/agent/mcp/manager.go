@@ -51,6 +51,7 @@ type Connection struct {
 	cancel          context.CancelFunc
 	transportCancel context.CancelFunc
 	closeOnce       sync.Once
+	stopRoot        func() bool
 	mu              sync.Mutex
 	closing         bool
 	active          sync.WaitGroup
@@ -71,13 +72,27 @@ type preparedTool struct {
 	validator  *jsonschema.Schema
 }
 
-// Prepare 先完成连接和工具发现，只有数据库保存成功后才发布连接。
+// Prepare 是旧调用方的兼容入口；生产连接必须显式提供运行时生命周期。
 func Prepare(ctx context.Context, config Config) (*Connection, error) {
+	return PrepareWithLifetime(ctx, context.Background(), config)
+}
+
+// PrepareWithLifetime 的初始化受请求与最多 15 秒预算控制；连接成功后只受
+// lifetimeCtx 控制，不能因 HTTP 请求返回而取消 stdio、SSE 或工具调用。
+func PrepareWithLifetime(ctx, lifetimeCtx context.Context, config Config) (*Connection, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, newError("MCP 请求已取消", "connect", err)
+	}
+	if err := lifetimeCtx.Err(); err != nil {
+		return nil, newError("MCP 应用正在关闭", "connect", err)
+	}
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-	life, cancel := context.WithCancel(context.Background())
-	runCtx, cancelRun := context.WithCancel(life)
+	// root 立即停止工具调用；底层传输由 Close 在调用发送取消通知后关闭。
+	// 直接让 transport 继承 root 会抢先切断 notifications/cancelled。
+	life, cancel := context.WithCancel(context.WithoutCancel(lifetimeCtx))
+	runCtx, cancelRun := context.WithCancel(lifetimeCtx)
 	connection := &Connection{ctx: runCtx, cancel: cancelRun, transportCancel: cancel, timeout: config.Timeout(), generation: connectionSeq.Add(1)}
 	var transport sdk.Transport
 	switch config.Transport {
@@ -98,7 +113,7 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 		transport = &sdk.CommandTransport{Command: cmd, TerminateDuration: time.Second}
 	default:
 		endpoint, _ := url.Parse(config.URL) // Config.Validate has checked the URL.
-		client := &http.Client{Transport: headerTransport{headers: config.Headers, origin: endpoint}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		client := &http.Client{Transport: headerTransport{headers: config.Headers, origin: endpoint, lifetime: life}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 		if config.Transport == "sse" {
 			transport = &sdk.SSEClientTransport{Endpoint: config.URL, HTTPClient: client}
 		} else {
@@ -107,6 +122,11 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 	}
 	connectCtx, stop := context.WithTimeout(ctx, min(config.Timeout(), 15*time.Second))
 	defer stop()
+	stopLifetime := context.AfterFunc(life, stop)
+	defer stopLifetime()
+	// 初始化阶段仍须响应 root；成功后由下面注册的 Close 接管清理顺序。
+	stopRootConnect := context.AfterFunc(lifetimeCtx, stop)
+	defer stopRootConnect()
 	// SSE 的底层 GET 必须绑定连接生命周期，初始化超时只负责失败时取消它。
 	stopConnect := context.AfterFunc(connectCtx, cancel)
 	defer stopConnect()
@@ -115,17 +135,19 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 	var err error
 	connection.session, err = client.Connect(connectCtx, persistentTransport{Transport: transport, ctx: life}, nil)
 	if err != nil {
+		cause := errors.Join(err, connectCtx.Err(), ctx.Err(), lifetimeCtx.Err())
 		cancel()
 		// 可执行文件缺失是最常见的 GUI 启动问题；给出可操作提示，其余错误保持通用。
 		if errors.Is(err, exec.ErrNotFound) {
-			return nil, newError(fmt.Sprintf("找不到 MCP 可执行文件 %q，请检查 PATH 或改用绝对路径", config.Command), "connect", err)
+			return nil, newError(fmt.Sprintf("找不到 MCP 可执行文件 %q，请检查 PATH 或改用绝对路径", config.Command), "connect", cause)
 		}
-		return nil, newError("MCP 连接失败，请检查服务地址、命令及认证配置", "connect", err)
+		return nil, newError("MCP 连接失败，请检查服务地址、命令及认证配置", "connect", cause)
 	}
 	for tool, err := range connection.session.Tools(connectCtx, nil) {
 		if err != nil {
+			cause := errors.Join(err, connectCtx.Err(), ctx.Err(), lifetimeCtx.Err())
 			connection.Close()
-			return nil, newError("MCP 工具发现失败", "discover", err)
+			return nil, newError("MCP 工具发现失败", "discover", cause)
 		}
 		if len(connection.tools) >= 256 {
 			connection.Close()
@@ -145,18 +167,30 @@ func Prepare(ctx context.Context, config Config) (*Connection, error) {
 				zap.Int("tool_index", len(connection.tools)-1))
 		}
 	}
-	if !stopConnect() || connectCtx.Err() != nil {
+	if !stopConnect() || connectCtx.Err() != nil || life.Err() != nil {
+		cause := errors.Join(connectCtx.Err(), life.Err())
 		connection.Close()
-		return nil, newError("MCP 连接超时或请求已取消", "connect", connectCtx.Err())
+		return nil, newError("MCP 连接超时或请求已取消", "connect", cause)
 	}
-	go func() { _ = connection.session.Wait(); connection.cancel(); connection.transportCancel() }()
+	// 部分 SDK transport 在取消底层 ctx 后不会自行终结 session.Wait；
+	// root 仍须显式关闭 session。注册与 Close 读取同受 mu 保护。
+	connection.mu.Lock()
+	connection.stopRoot = context.AfterFunc(lifetimeCtx, connection.Close)
+	connection.mu.Unlock()
+	go func() { _ = connection.session.Wait(); connection.Close() }()
 	return connection, nil
 }
+
+// Err 返回连接生命周期的取消状态，供发布前重新验证。
+func (c *Connection) Err() error { return c.ctx.Err() }
 
 func (c *Connection) Close() {
 	c.closeOnce.Do(func() {
 		c.mu.Lock()
 		c.closing = true
+		if c.stopRoot != nil {
+			c.stopRoot()
+		}
 		c.cancel()
 		c.mu.Unlock()
 		// 先让调用发送 MCP cancelled 通知，再关闭会话，避免通知被关闭竞态丢弃。
@@ -166,10 +200,14 @@ func (c *Connection) Close() {
 		case <-drained:
 		case <-time.After(2 * time.Second):
 		}
-		c.transportCancel()
 		if c.session != nil {
+			// 传输仍可用时让 SDK 完成 DELETE 等会话清理；无响应时仍有界
+			// 取消底层请求，不能让优雅关闭越过应用生命周期。
+			forceClose := time.AfterFunc(2*time.Second, c.transportCancel)
 			_ = c.session.Close()
+			forceClose.Stop()
 		}
+		c.transportCancel()
 	})
 }
 
@@ -255,12 +293,20 @@ type persistentTransport struct {
 }
 
 func (t persistentTransport) Connect(context.Context) (sdk.Connection, error) {
-	return t.Transport.Connect(t.ctx)
+	connection, err := t.Transport.Connect(t.ctx)
+	if err != nil {
+		return nil, err
+	}
+	// SDK 初始化失败可能没有返回 session；直接绑定实际 transport，保证
+	// 所有失败路径也释放其 detached context，不包裹/隐藏 SDK 私有接口。
+	context.AfterFunc(t.ctx, func() { _ = connection.Close() })
+	return connection, nil
 }
 
 type headerTransport struct {
-	headers map[string]string
-	origin  *url.URL
+	headers  map[string]string
+	origin   *url.URL
+	lifetime context.Context
 }
 
 func (t headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -270,17 +316,60 @@ func (t headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("MCP request endpoint must match the configured origin")
 	}
 	ctx := req.Context()
-	// 关闭会话的 DELETE 使用独立上限，避免故障远端阻塞动态停用。
+	var cancel context.CancelFunc
+	var stop func() bool
+	// SDK 的 detached HTTP 请求也必须受连接 root 控制；否则初始化取消通知
+	// 及后台 GET 可越过本实例生命周期。DELETE 保留既有 2 秒优雅清理预算。
 	if req.Method == http.MethodDelete {
-		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, 2*time.Second)
-		defer cancel()
+	} else if t.lifetime != nil {
+		ctx, cancel = context.WithCancel(ctx)
+		stop = context.AfterFunc(t.lifetime, cancel)
+		if t.lifetime.Err() != nil {
+			cancel()
+		}
+	}
+	cleanup := func() {
+		if stop != nil {
+			stop()
+		}
+		if cancel != nil {
+			cancel()
+		}
 	}
 	copy := req.Clone(ctx)
 	for k, v := range t.headers {
 		copy.Header.Set(k, v)
 	}
-	return http.DefaultTransport.RoundTrip(copy)
+	resp, err := http.DefaultTransport.RoundTrip(copy)
+	if err != nil {
+		cleanup()
+		return nil, err
+	}
+	if cancel != nil {
+		resp.Body = &mcpHTTPBody{ReadCloser: resp.Body, cleanup: cleanup}
+	}
+	return resp, nil
+}
+
+// 请求所有权保持到 body 关闭或 EOF，不能在 RoundTrip 返回头时取消 SSE body。
+type mcpHTTPBody struct {
+	io.ReadCloser
+	once    sync.Once
+	cleanup func()
+}
+
+func (b *mcpHTTPBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if err != nil {
+		b.once.Do(b.cleanup)
+	}
+	return n, err
+}
+func (b *mcpHTTPBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.once.Do(b.cleanup)
+	return err
 }
 
 func toolInfo(id string, tool *sdk.Tool) (fantasy.ToolInfo, error) {
@@ -395,6 +484,15 @@ func (t *agentTool) SetProviderOptions(options fantasy.ProviderOptions) { t.opti
 // 远端只读 hint 不单独免审批。
 func (t *agentTool) PermissionIdentity() string { return t.identity }
 
+// ValidateInput 只复用发现时编译的 schema，不登记 active call 或访问远端连接。
+func (t *agentTool) ValidateInput(call fantasy.ToolCall) string {
+	var args map[string]any
+	if err := json.Unmarshal([]byte(call.Input), &args); err != nil || args == nil {
+		return "MCP 工具参数必须为 JSON 对象"
+	}
+	return t.validateInput(args)
+}
+
 // validateInput 按远端声明的 schema 本地校验参数，返回用户可读的工具错误。
 func (t *agentTool) validateInput(args map[string]any) string {
 	if t.validator == nil {
@@ -413,6 +511,9 @@ func (t *agentTool) validateInput(args map[string]any) string {
 }
 
 func (t *agentTool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return fantasy.ToolResponse{}, err
+	}
 	c := t.connection
 	c.mu.Lock()
 	if c.closing || c.ctx.Err() != nil {

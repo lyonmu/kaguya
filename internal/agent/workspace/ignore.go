@@ -2,6 +2,8 @@ package workspace
 
 import (
 	"bufio"
+	"context"
+	"io"
 	"os"
 	"path"
 	"regexp"
@@ -17,6 +19,7 @@ import (
 type IgnoreMatcher struct {
 	root   *os.Root
 	strict bool
+	ctx    context.Context
 
 	mu     sync.Mutex
 	rules  []ignoreRule            // 根 .gitignore 与 .dockerignore，按文件顺序
@@ -31,10 +34,10 @@ type ignoreRule struct {
 
 // NewIgnoreMatcher 读取项目根的忽略文件；读取失败立即返回错误。
 // 用于必须完整解释忽略规则的引用解析等场景。
-func NewIgnoreMatcher(root *os.Root) (*IgnoreMatcher, error) {
-	matcher := &IgnoreMatcher{root: root, strict: true, nested: map[string][]ignoreRule{}}
+func NewIgnoreMatcher(ctx context.Context, root *os.Root) (*IgnoreMatcher, error) {
+	matcher := &IgnoreMatcher{root: root, ctx: ctx, strict: true, nested: map[string][]ignoreRule{}}
 	for _, name := range []string{".gitignore", ".dockerignore"} {
-		rules, err := readIgnoreFile(root, name, "")
+		rules, err := readIgnoreFile(ctx, root, name, "")
 		if err != nil {
 			return nil, err
 		}
@@ -45,10 +48,10 @@ func NewIgnoreMatcher(root *os.Root) (*IgnoreMatcher, error) {
 
 // NewLenientIgnoreMatcher 复用同一匹配语义，但忽略文件不可读时按空规则处理，
 // 保持现有 UI 文件树的默认行为。
-func NewLenientIgnoreMatcher(root *os.Root) *IgnoreMatcher {
-	matcher := &IgnoreMatcher{root: root, nested: map[string][]ignoreRule{}}
+func NewLenientIgnoreMatcher(ctx context.Context, root *os.Root) *IgnoreMatcher {
+	matcher := &IgnoreMatcher{root: root, ctx: ctx, nested: map[string][]ignoreRule{}}
 	for _, name := range []string{".gitignore", ".dockerignore"} {
-		rules, _ := readIgnoreFile(root, name, "")
+		rules, _ := readIgnoreFile(ctx, root, name, "")
 		matcher.rules = append(matcher.rules, rules...)
 	}
 	return matcher
@@ -68,19 +71,31 @@ func (m *IgnoreMatcher) Match(rel string, isDir bool) (bool, error) {
 	if m == nil {
 		return false, nil
 	}
+	if err := m.ctx.Err(); err != nil {
+		return false, err
+	}
 	ignored := false
-	apply := func(rules []ignoreRule) {
+	apply := func(rules []ignoreRule) error {
 		for _, rule := range rules {
+			if err := m.ctx.Err(); err != nil {
+				return err
+			}
 			if rule.match(rel, isDir) {
 				ignored = !rule.negate
 			}
 		}
+		return nil
 	}
-	apply(m.rules)
+	if err := apply(m.rules); err != nil {
+		return false, err
+	}
 	// 越深的 .gitignore 规则越晚应用，优先级越高。
 	prefix := ""
 	parts := strings.Split(rel, "/")
 	for _, part := range parts[:len(parts)-1] {
+		if err := m.ctx.Err(); err != nil {
+			return false, err
+		}
 		if prefix == "" {
 			prefix = part
 		} else {
@@ -90,28 +105,39 @@ func (m *IgnoreMatcher) Match(rel string, isDir bool) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		apply(rules)
+		if err := apply(rules); err != nil {
+			return false, err
+		}
 	}
 	return ignored, nil
 }
 
 func (m *IgnoreMatcher) rulesFor(dir string) ([]ignoreRule, error) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if rules, ok := m.nested[dir]; ok {
+		m.mu.Unlock()
 		return rules, nil
 	}
-	rules, err := readIgnoreFile(m.root, path.Join(dir, ".gitignore"), dir)
-	if err != nil && m.strict {
+	m.mu.Unlock()
+	rules, err := readIgnoreFile(m.ctx, m.root, path.Join(dir, ".gitignore"), dir)
+	if err != nil && (m.strict || m.ctx.Err() != nil) {
 		return nil, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if previous, ok := m.nested[dir]; ok {
+		return previous, nil
 	}
 	m.nested[dir] = rules
 	return rules, nil
 }
 
 // readIgnoreFile 读取并编译忽略文件；文件不存在返回空规则，其它错误原样返回。
-func readIgnoreFile(root *os.Root, name, base string) ([]ignoreRule, error) {
-	file, err := root.Open(name)
+func readIgnoreFile(ctx context.Context, root *os.Root, name, base string) ([]ignoreRule, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	file, _, err := OpenRegular(root, name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -120,9 +146,12 @@ func readIgnoreFile(root *os.Root, name, base string) ([]ignoreRule, error) {
 	}
 	defer file.Close()
 	var rules []ignoreRule
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(ignoreReader{ctx: ctx, Reader: file})
 	scanner.Buffer(make([]byte, 0, 64<<10), 1<<20)
 	for scanner.Scan() {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if rule, ok := parseIgnoreRule(scanner.Text(), base); ok {
 			rules = append(rules, rule)
 		}
@@ -131,6 +160,19 @@ func readIgnoreFile(root *os.Root, name, base string) ([]ignoreRule, error) {
 		return nil, err
 	}
 	return rules, nil
+}
+
+// ignoreReader 在每次有界读取前检查取消；普通文件 open/stat 在 OpenRegular 处理。
+type ignoreReader struct {
+	ctx context.Context
+	io.Reader
+}
+
+func (r ignoreReader) Read(buf []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.Reader.Read(buf)
 }
 
 // parseIgnoreRule 编译单行规则；base 是该忽略文件所在目录的工作区相对路径。

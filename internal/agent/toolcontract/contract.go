@@ -21,7 +21,22 @@ type Tool struct {
 	fantasy.AgentTool
 	definition []byte
 	validator  *jsonschema.Schema
+	identity   string
 }
+
+// WithIdentity 由本机工具工厂在注册时绑定身份，不从 Info().Name 推断权限。
+// 返回独立装饰器，保持 schema 和 provider options 的既有委托方式。
+func WithIdentity(base fantasy.AgentTool, identity string) fantasy.AgentTool {
+	tool, ok := base.(*Tool)
+	if !ok || identity == "" {
+		panic("tool identity requires a schema contract and a nonempty identity")
+	}
+	copy := *tool
+	copy.identity = identity
+	return &copy
+}
+
+func (t *Tool) PermissionIdentity() string { return t.identity }
 
 // Wrap 编译调用方提供的完整 JSON schema 定义；additionalProperties 统一关闭。
 func Wrap(base fantasy.AgentTool, definition map[string]any) fantasy.AgentTool {
@@ -64,13 +79,11 @@ func (t *Tool) Info() fantasy.ToolInfo {
 	return info
 }
 
-func (t *Tool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
-	if err := ctx.Err(); err != nil {
-		return fantasy.ToolResponse{}, err
-	}
+// ValidateInput 只校验参数形状，不执行工具或访问工作区，供审批前使用。
+func (t *Tool) ValidateInput(call fantasy.ToolCall) string {
 	var input any
 	if err := json.Unmarshal([]byte(call.Input), &input); err != nil {
-		return fantasy.NewTextErrorResponse("invalid parameters: expected one valid JSON object using this tool's declared fields; do not send Markdown, a JSON string, or shell arguments"), nil
+		return "invalid parameters: expected one valid JSON object using this tool's declared fields; do not send Markdown, a JSON string, or shell arguments"
 	}
 	result := t.validator.Validate(input)
 	if !result.IsValid() {
@@ -79,7 +92,17 @@ func (t *Tool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResp
 			details = append(details, path+": "+message)
 		}
 		sort.Strings(details)
-		return fantasy.NewTextErrorResponse("invalid parameters for " + t.AgentTool.Info().Name + ": " + strings.Join(details, "; ") + ". Correct these fields using the tool schema before retrying; no action was executed."), nil
+		return "invalid parameters for " + t.AgentTool.Info().Name + ": " + strings.Join(details, "; ") + ". Correct these fields using the tool schema before retrying; no action was executed."
+	}
+	return ""
+}
+
+func (t *Tool) Run(ctx context.Context, call fantasy.ToolCall) (fantasy.ToolResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return fantasy.ToolResponse{}, err
+	}
+	if message := t.ValidateInput(call); message != "" {
+		return fantasy.NewTextErrorResponse(message), nil
 	}
 	// Preserve the upstream call ID; it correlates tool results with model calls.
 	return t.AgentTool.Run(ctx, call)

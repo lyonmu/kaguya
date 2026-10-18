@@ -26,9 +26,6 @@ type Classification struct {
 	Identity string
 	// Effect 是副作用分类；unknown 始终按最保守策略处理。
 	Effect Effect
-	// ReadOnlyProven 只对已验证的只读执行 profile 为 true（例如 shell AST
-	// 证明的只读命令）。它只能在 auto_approval 下放行，不能覆盖 mutating。
-	ReadOnlyProven bool
 }
 
 // Decide 按会话模式与可信分类计算裁决。未知模式不 fallback 到 full_access，
@@ -38,7 +35,7 @@ func Decide(mode Mode, class Classification) Decision {
 	case ModeFullAccess:
 		return DecisionAllow
 	case ModeAutoApproval:
-		if class.Effect == EffectReadOnly || class.ReadOnlyProven {
+		if class.Effect == EffectReadOnly {
 			return DecisionAllow
 		}
 	}
@@ -75,6 +72,12 @@ const (
 // 实现必须尊重 ctx 取消，并在所有出口释放等待资源、注销待裁决记录。
 type Approver interface {
 	Await(ctx context.Context, req *Request) (Outcome, error)
+}
+
+// ExecutionRecorder 是审批执行结果的可选记录接口。记录失败不能重放工具调用。
+// started 区分执行入口前取消与执行中取消，后者可能已有副作用。
+type ExecutionRecorder interface {
+	RecordExecution(ctx context.Context, req *Request, response fantasy.ToolResponse, err error, started bool)
 }
 
 // HashInput 返回最终工具参数的稳定 sha256 摘要。

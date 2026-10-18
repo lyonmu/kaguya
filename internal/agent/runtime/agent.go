@@ -377,6 +377,7 @@ func (a *Agent) record(
 	}
 
 	if err := a.recorder.RecordUsage(ctx, turn); err != nil {
-		global.Logger.Warn("record agent usage failed", zap.Error(err))
+		// Recorder/driver failures may echo sensitive storage arguments.
+		global.Logger.Warn("record agent usage failed", zap.String("reason", "usage_persist_failed"))
 	}
 }
