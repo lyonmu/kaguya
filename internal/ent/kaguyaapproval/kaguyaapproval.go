@@ -43,10 +43,18 @@ const (
 	FieldDecision = "decision"
 	// FieldRequestedAt holds the string denoting the requested_at field in the database.
 	FieldRequestedAt = "requested_at"
+	// FieldExpiresAt holds the string denoting the expires_at field in the database.
+	FieldExpiresAt = "expires_at"
 	// FieldResolvedAt holds the string denoting the resolved_at field in the database.
 	FieldResolvedAt = "resolved_at"
 	// FieldConsumedAt holds the string denoting the consumed_at field in the database.
 	FieldConsumedAt = "consumed_at"
+	// FieldExecutionState holds the string denoting the execution_state field in the database.
+	FieldExecutionState = "execution_state"
+	// FieldExecutionFinishedAt holds the string denoting the execution_finished_at field in the database.
+	FieldExecutionFinishedAt = "execution_finished_at"
+	// FieldExecutionReasonCode holds the string denoting the execution_reason_code field in the database.
+	FieldExecutionReasonCode = "execution_reason_code"
 	// FieldReasonCode holds the string denoting the reason_code field in the database.
 	FieldReasonCode = "reason_code"
 	// Table holds the table name of the kaguyaapproval in the database.
@@ -70,8 +78,12 @@ var Columns = []string{
 	FieldStatus,
 	FieldDecision,
 	FieldRequestedAt,
+	FieldExpiresAt,
 	FieldResolvedAt,
 	FieldConsumedAt,
+	FieldExecutionState,
+	FieldExecutionFinishedAt,
+	FieldExecutionReasonCode,
 	FieldReasonCode,
 }
 
@@ -112,6 +124,8 @@ var (
 	ToolIdentityValidator func(string) error
 	// DefaultDecision holds the default value on creation for the "decision" field.
 	DefaultDecision string
+	// DefaultExecutionReasonCode holds the default value on creation for the "execution_reason_code" field.
+	DefaultExecutionReasonCode string
 	// DefaultReasonCode holds the default value on creation for the "reason_code" field.
 	DefaultReasonCode string
 	// DefaultID holds the default value on creation for the "id" field.
@@ -204,6 +218,35 @@ func StatusValidator(s Status) error {
 	}
 }
 
+// ExecutionState defines the type for the "execution_state" enum field.
+type ExecutionState string
+
+// ExecutionStateNotStarted is the default value of the ExecutionState enum.
+const DefaultExecutionState = ExecutionStateNotStarted
+
+// ExecutionState values.
+const (
+	ExecutionStateNotStarted ExecutionState = "not_started"
+	ExecutionStateUnknown    ExecutionState = "unknown"
+	ExecutionStateSucceeded  ExecutionState = "succeeded"
+	ExecutionStateFailed     ExecutionState = "failed"
+	ExecutionStateCanceled   ExecutionState = "canceled"
+)
+
+func (es ExecutionState) String() string {
+	return string(es)
+}
+
+// ExecutionStateValidator is a validator for the "execution_state" field enum values. It is called by the builders before save.
+func ExecutionStateValidator(es ExecutionState) error {
+	switch es {
+	case ExecutionStateNotStarted, ExecutionStateUnknown, ExecutionStateSucceeded, ExecutionStateFailed, ExecutionStateCanceled:
+		return nil
+	default:
+		return fmt.Errorf("kaguyaapproval: invalid enum value for execution_state field: %q", es)
+	}
+}
+
 // OrderOption defines the ordering options for the KaguyaApproval queries.
 type OrderOption func(*sql.Selector)
 
@@ -282,6 +325,11 @@ func ByRequestedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequestedAt, opts...).ToFunc()
 }
 
+// ByExpiresAt orders the results by the expires_at field.
+func ByExpiresAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExpiresAt, opts...).ToFunc()
+}
+
 // ByResolvedAt orders the results by the resolved_at field.
 func ByResolvedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResolvedAt, opts...).ToFunc()
@@ -290,6 +338,21 @@ func ByResolvedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByConsumedAt orders the results by the consumed_at field.
 func ByConsumedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldConsumedAt, opts...).ToFunc()
+}
+
+// ByExecutionState orders the results by the execution_state field.
+func ByExecutionState(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExecutionState, opts...).ToFunc()
+}
+
+// ByExecutionFinishedAt orders the results by the execution_finished_at field.
+func ByExecutionFinishedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExecutionFinishedAt, opts...).ToFunc()
+}
+
+// ByExecutionReasonCode orders the results by the execution_reason_code field.
+func ByExecutionReasonCode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldExecutionReasonCode, opts...).ToFunc()
 }
 
 // ByReasonCode orders the results by the reason_code field.

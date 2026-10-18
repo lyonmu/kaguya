@@ -2,26 +2,37 @@ package project
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io/fs"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/lyonmu/kaguya/internal/agent/workspace"
 	dtoproject "github.com/lyonmu/kaguya/internal/dto/project"
 )
 
-// fileSearchPageSize 是候选展示分页大小；它不是引用可解析文件数量的上限。
+// 候选分页不是可解析文件数量上限；不建立跨请求索引。
 const fileSearchPageSize = 50
+const fileSearchMetadataBytes = 64 << 10
+const fileSearchCursorVersion = 1
+const fileSearchOrderVersion = 1
 
-// fileSearchCursor 是绑定 query/include_directories 的分页游标；不匹配的旧游标
-// 直接忽略并从第一页开始，避免把旧筛选的偏移应用到新查询。
 type fileSearchCursor struct {
+	Version     int    `json:"v"`
+	ProjectID   string `json:"p"`
 	Query       string `json:"q"`
 	Directories bool   `json:"d"`
+	Root        string `json:"r"`
+	Order       int    `json:"s"`
+	Digest      string `json:"h"`
 	Offset      int    `json:"o"`
 }
 
@@ -34,127 +45,202 @@ func encodeFileSearchCursor(cursor fileSearchCursor) string {
 }
 
 func decodeFileSearchCursor(raw string) (fileSearchCursor, bool) {
-	if raw == "" {
+	if raw == "" || len(raw) > 4096 {
 		return fileSearchCursor{}, false
 	}
 	data, err := base64.RawURLEncoding.DecodeString(raw)
 	if err != nil {
 		return fileSearchCursor{}, false
 	}
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.DisallowUnknownFields()
 	var cursor fileSearchCursor
-	if err := json.Unmarshal(data, &cursor); err != nil || cursor.Offset < 0 {
+	if err := decoder.Decode(&cursor); err != nil || cursor.Offset < 0 || cursor.Version != fileSearchCursorVersion || cursor.Order != fileSearchOrderVersion {
+		return fileSearchCursor{}, false
+	}
+	if decoder.Decode(new(any)) != io.EOF {
 		return fileSearchCursor{}, false
 	}
 	return cursor, true
 }
 
-// Files 保持旧契约：只返回普通文件候选，不分页；内部复用 FilesPage。
+// Files保持旧files字符串协议，内部仍返回第一展示页。
 func (s *ProjectSvc) Files(ctx context.Context, id, query string) (*FileSearchResp, error) {
 	return s.FilesPage(ctx, &dtoproject.FilesReq{ID: id, Query: query})
 }
 
-// FilesPage 搜索工作区候选：文件始终返回在 files；include_directories=true 时
-// items 追加目录候选。新客户端使用 items/next_cursor，旧客户端行为不变。
+type fileCandidate struct {
+	dtoproject.ReferenceCandidate
+	Size     int64  `json:"size"`
+	Mode     uint32 `json:"mode"`
+	Modified int64  `json:"modified"`
+	Pivot    bool   `json:"pivot"`
+}
+
+// root指纹只向客户端返回SHA-256；atime不参与，避免读取本身让游标失效。
+// 从已验证的真实根目录句柄取得平台身份，不用路径或mtime冒充file ID。
+func fileSearchRootDigest(workspacePath string, file *os.File, info os.FileInfo) (string, error) {
+	identity, err := fileSearchIdentity(file, info)
+	if err != nil {
+		return "", err
+	}
+	data, err := json.Marshal(struct {
+		Path     string           `json:"path"`
+		Identity fileSearchRootID `json:"identity"`
+		Mode     uint32           `json:"mode"`
+		Size     int64            `json:"size"`
+		Modified int64            `json:"modified"`
+	}{workspacePath, identity, uint32(info.Mode()), info.Size(), info.ModTime().UnixNano()})
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// FilesPage每次确认DB归属并在os.Root中重新扫描；cursor不授予访问权限。
 func (s *ProjectSvc) FilesPage(ctx context.Context, req *dtoproject.FilesReq) (*FileSearchResp, error) {
-	if req == nil || len(req.Query) > 512 || strings.ContainsRune(req.Query, 0) {
+	if req == nil || len(req.Query) > 512 || strings.ContainsRune(req.Query, 0) || len(req.Cursor) > 4096 {
 		return nil, ErrInvalid
 	}
-	path, err := s.Workspace(ctx, req.ID)
+	workspacePath, err := s.Workspace(ctx, req.ID)
 	if err != nil {
 		return nil, err
 	}
-	root, err := os.OpenRoot(path)
+	root, err := os.OpenRoot(workspacePath)
 	if err != nil {
 		return nil, err
 	}
 	defer root.Close()
-
-	offset := 0
-	if cursor, ok := decodeFileSearchCursor(req.Cursor); ok && cursor.Query == req.Query && cursor.Directories == req.IncludeDirectories {
-		offset = cursor.Offset
+	scanCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	matcher, err := workspace.NewIgnoreMatcher(scanCtx, root)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, workspace.ErrReferenceIgnore
 	}
-
-	query := strings.ToLower(filepath.ToSlash(req.Query))
-	type candidate struct {
-		kind  string
-		path  string
-		base  string
-		pivot bool // basename 以 query 开头，排序优先
-	}
-	var candidates []candidate
-	walkTruncated := false
-	visited := 0
-	stop := errors.New("file search limit")
-	err = fs.WalkDir(root.FS(), ".", func(name string, d fs.DirEntry, walkErr error) error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if walkErr != nil {
-			return walkErr
-		}
-		// Dot-prefixed entries are hidden from the mention picker at every depth.
-		if name != "." && strings.HasPrefix(d.Name(), ".") {
-			if d.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		visited++
-		if visited > 20000 {
-			walkTruncated = true
-			return stop
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case "node_modules", "vendor", "target", "dist", "__pycache__":
-				return fs.SkipDir
-			}
-			if req.IncludeDirectories && name != "." && strings.Contains(strings.ToLower(filepath.ToSlash(name)), query) {
-				candidates = append(candidates, candidate{kind: "directory", path: filepath.ToSlash(name), base: strings.ToLower(d.Name()), pivot: strings.HasPrefix(strings.ToLower(d.Name()), query)})
-			}
-			return nil
-		}
-		if !d.Type().IsRegular() || !strings.Contains(strings.ToLower(filepath.ToSlash(name)), query) {
-			return nil
-		}
-		candidates = append(candidates, candidate{kind: "file", path: filepath.ToSlash(name), base: strings.ToLower(d.Name()), pivot: strings.HasPrefix(strings.ToLower(d.Name()), query)})
-		return nil
-	})
-	if err != nil && !errors.Is(err, stop) {
+	filter := workspace.NewReferenceFilter(scanCtx, root, matcher)
+	rootFile, proof, err := filter.OpenDirectory(".", true)
+	if err != nil {
 		return nil, err
 	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].pivot != candidates[j].pivot {
-			return candidates[i].pivot
+	rootDigest, err := fileSearchRootDigest(workspacePath, rootFile, proof.Info)
+	rootFile.Close()
+	if err != nil {
+		return nil, err
+	}
+	query := strings.ToLower(filepath.ToSlash(req.Query))
+	budget := &workspace.ReferenceMetadataBudget{Limit: fileSearchMetadataBytes}
+	// 固定扫描状态、digest/cursor元信息也占用共享预算。
+	// LastPath允许4096字节并可能需要JSON转义；cursor/扫描状态也计费。
+	if !budget.Take(512 + 6*4096 + int64(len(strconv.Quote(req.Query)))) {
+		return nil, workspace.ErrReferenceMetadataBudget
+	}
+	candidates := make([]fileCandidate, 0)
+	directoryDigest := sha256.New()
+	directoryEncoder := json.NewEncoder(directoryDigest)
+	add := func(kind, name string, info os.FileInfo) error {
+		// 观察到的目录变更元信息流式进入digest，不保存全部目录集合。
+		if kind == "directory" {
+			if err := directoryEncoder.Encode(struct {
+				Path     string
+				Size     int64
+				Mode     uint32
+				Modified int64
+			}{name, info.Size(), uint32(info.Mode()), info.ModTime().UnixNano()}); err != nil {
+				return err
+			}
 		}
-		return candidates[i].path < candidates[j].path
+		if kind == "directory" && !req.IncludeDirectories || !strings.Contains(strings.ToLower(filepath.ToSlash(name)), query) {
+			return nil
+		}
+		base := filepath.Base(name)
+		item := fileCandidate{ReferenceCandidate: dtoproject.ReferenceCandidate{Type: kind, Path: filepath.ToSlash(name), Name: base}, Size: info.Size(), Mode: uint32(info.Mode()), Modified: info.ModTime().UnixNano(), Pivot: strings.HasPrefix(strings.ToLower(base), query)}
+		data, err := json.Marshal(item)
+		if err != nil {
+			return err
+		}
+		if !budget.Take(int64(len(data) + 32)) {
+			return workspace.ErrReferenceMetadataBudget
+		}
+		candidates = append(candidates, item)
+		return nil
+	}
+	if err := add("directory", ".", proof.Info); err != nil {
+		return nil, err
+	}
+	scan, err := filter.WalkReferences(".", budget, add)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		return nil, err
+	}
+	incomplete := scan.Incomplete || len(scan.Warnings) > 0 || err != nil
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].Pivot != candidates[j].Pivot {
+			return candidates[i].Pivot
+		}
+		return candidates[i].Path < candidates[j].Path
 	})
-	if offset > len(candidates) {
-		offset = len(candidates)
+	digest := sha256.New()
+	encoder := json.NewEncoder(digest)
+	// 每个bounded候选编码到hash，不再分配整个集合的JSON副本。
+	for _, item := range candidates {
+		if err := encoder.Encode(item); err != nil {
+			return nil, err
+		}
+	}
+	if err := encoder.Encode(struct {
+		Directories string
+		Incomplete  bool
+		Reason      string
+		LastPath    string
+		Warnings    []string
+	}{hex.EncodeToString(directoryDigest.Sum(nil)), incomplete, scan.Reason, scan.LastPath, scan.Warnings}); err != nil {
+		return nil, err
+	}
+	expected := fileSearchCursor{Version: fileSearchCursorVersion, ProjectID: req.ID, Query: req.Query, Directories: req.IncludeDirectories, Root: rootDigest, Order: fileSearchOrderVersion, Digest: hex.EncodeToString(digest.Sum(nil))}
+	// 极端转义query也必须遵守HTTP cursor长度合同，不能生成不可回传的游标。
+	cursorForSize := expected
+	cursorForSize.Offset = int(^uint(0) >> 1)
+	if len(encodeFileSearchCursor(cursorForSize)) > 4096 {
+		return nil, ErrInvalid
+	}
+	offset := 0
+	reset := false
+	if req.Cursor != "" {
+		cursor, ok := decodeFileSearchCursor(req.Cursor)
+		if ok && cursor.ProjectID == expected.ProjectID && cursor.Query == expected.Query && cursor.Directories == expected.Directories && cursor.Root == expected.Root && cursor.Digest == expected.Digest && cursor.Offset <= len(candidates) {
+			offset = cursor.Offset
+		} else {
+			reset = true
+		}
 	}
 	end := min(offset+fileSearchPageSize, len(candidates))
-	result := &FileSearchResp{Files: []string{}, Items: []dtoproject.ReferenceCandidate{}}
+	result := &FileSearchResp{Files: []string{}, Items: []dtoproject.ReferenceCandidate{}, ScanIncomplete: incomplete, CursorReset: reset}
 	for _, item := range candidates[offset:end] {
-		result.Items = append(result.Items, dtoproject.ReferenceCandidate{Type: item.kind, Path: item.path, Name: filepath.Base(item.path)})
-		if item.kind == "file" {
-			result.Files = append(result.Files, item.path)
+		result.Items = append(result.Items, item.ReferenceCandidate)
+		if item.Type == "file" {
+			result.Files = append(result.Files, item.Path)
 		}
 	}
-	result.Truncated = walkTruncated || end < len(candidates)
-	if result.Truncated && end > 0 {
-		result.NextCursor = encodeFileSearchCursor(fileSearchCursor{Query: req.Query, Directories: req.IncludeDirectories, Offset: end})
-	}
-	if result.NextCursor == "" {
-		result.NextCursor = ""
+	result.Truncated = incomplete || end < len(candidates)
+	// partial终页必须终止，不能以truncated生成不前进的cursor。
+	if end < len(candidates) {
+		expected.Offset = end
+		result.NextCursor = encodeFileSearchCursor(expected)
 	}
 	return result, nil
 }
 
-// FileSearchResp 是新旧客户端共享的候选响应；files 保持旧字符串协议，
-// items 提供类型化候选，next_cursor 绑定 query 与 include_directories。
 type FileSearchResp struct {
-	Files      []string                        `json:"files"`
-	Items      []dtoproject.ReferenceCandidate `json:"items"`
-	Truncated  bool                            `json:"truncated"`
-	NextCursor string                          `json:"next_cursor,omitempty"`
+	Files          []string                        `json:"files"`
+	Items          []dtoproject.ReferenceCandidate `json:"items"`
+	Truncated      bool                            `json:"truncated"`
+	NextCursor     string                          `json:"next_cursor,omitempty"`
+	ScanIncomplete bool                            `json:"scan_incomplete"`
+	CursorReset    bool                            `json:"cursor_reset,omitempty"`
 }

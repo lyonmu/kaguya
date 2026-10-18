@@ -1,8 +1,10 @@
 package chat
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -48,6 +50,25 @@ func TestMapFrameSuccessKeepsData(t *testing.T) {
 	}
 	if resp.Data != frame {
 		t.Fatalf("success frame data changed: %+v", resp.Data)
+	}
+}
+
+func TestMapFrameErrorKeepsSafeReferenceAudit(t *testing.T) {
+	summary := &dtochat.TurnReferenceSummary{Sources: []dtochat.TurnReferenceSource{{Type: "file", Path: "note.txt"}}}
+	resp, isErr := mapFrame(&dtochat.ChatResp{
+		Err: errors.New("private-error-marker"), Chat: dtochat.Chat{ID: "conversation", Flag: dtochat.ChatFlagDelta}, ReferenceSummary: summary,
+		Approval: &dtochat.Approval{Input: "private-error-marker"},
+	})
+	data, ok := resp.Data.(dtochat.ChatResp)
+	if !isErr || !ok || data.Chat.ID != "conversation" || data.Chat.Flag != dtochat.ChatFlagError || data.ReferenceSummary != summary || data.Err != nil || data.Approval != nil {
+		t.Fatalf("data=%+v", resp.Data)
+	}
+	encoded, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "private-error-marker") || !strings.Contains(string(encoded), "reference_summary") {
+		t.Fatalf("unsafe/missing audit: %s", encoded)
 	}
 }
 

@@ -12,8 +12,92 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lyonmu/kaguya/internal/agent/workspace"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 )
+
+func TestReferenceIdentityCacheReadsBodyOnceAndKeepsSources(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "sub"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sub", "file.txt"), []byte("identity-marker"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(dir, "sub", "file.txt"), filepath.Join(dir, "sub", "hard.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("sub/file.txt", filepath.Join(dir, "alias.txt")); err != nil {
+		t.Fatal(err)
+	}
+	root, err := workspace.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	matcher, err := workspace.NewIgnoreMatcher(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := &referenceReader{filter: workspace.NewReferenceFilter(ctx, root, matcher), ctx: ctx, scanCtx: ctx, budget: 64 << 10, metadata: workspace.ReferenceMetadataBudget{Limit: referenceMetadataBytes}}
+	reads := 0
+	reader.readWindow = func(ctx context.Context, file *os.File) (workspace.TextWindow, error) {
+		reads++
+		return workspace.ReadTextWindowFile(ctx, file, 0, referenceLineLimit, referenceMaxFileBytes, referenceLineByteLimit, referenceLineByteLimit)
+	}
+	for _, ref := range []dtochat.Reference{{Type: "file", Path: "alias.txt"}, {Type: "file", Path: "sub/hard.txt"}, {Type: "directory", Path: "sub"}} {
+		if err := reader.addSource(ref); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resolution, err := reader.format()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reads != 1 || strings.Count(resolution.prompt, "identity-marker") != 1 {
+		t.Fatalf("reads=%d prompt=%s", reads, resolution.prompt)
+	}
+	for _, source := range resolution.summary.Sources {
+		if !source.Included || source.Hash == "" || len(source.Files) == 0 {
+			t.Fatalf("source=%+v", source)
+		}
+		for _, file := range source.Files {
+			if !file.Included || len(file.Hash) != 64 || file.ResolvedPath == "" || len(file.Ranges) != 1 || file.Ranges[0].Start != 1 || file.Ranges[0].End != 1 {
+				t.Fatalf("file=%+v", file)
+			}
+		}
+	}
+}
+
+func TestReferenceSerializationNeverReturnsOverBudget(t *testing.T) {
+	ctx, projectID, dir := seedReferenceProject(t)
+	for i := 0; i < 100; i++ {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("small-%03d.txt", i)), []byte("x"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resolution, err := resolveReferenceContext(ctx, projectID, []dtochat.Reference{{Type: "directory", Path: "."}}, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resolution.prompt) > 1024 {
+		t.Fatalf("inline bytes=%d", len(resolution.prompt))
+	}
+	if !resolution.summary.ScanIncomplete || resolution.summary.PartialReason != "context_budget" || len(resolution.summary.Continuation) != 1 {
+		t.Fatalf("missing partial metadata: %+v", resolution.summary)
+	}
+	if !resolution.summary.Sources[0].Included || len(resolution.summary.Sources[0].Files) == 0 {
+		t.Fatalf("no actual content: %+v", resolution.summary)
+	}
+	if resolution.summary.InlineBytes != int64(len(resolution.prompt)) || resolution.summary.EstimatedTokens != resolution.summary.InlineBytes {
+		t.Fatalf("byte accounting: %+v", resolution.summary)
+	}
+	c := resolution.summary.Continuation[0]
+	if c.Root != "." || c.LastPath == "" || c.KnownOmittedFiles != 1 || len(c.UnscannedSubtrees) != 1 || c.UnscannedSubtrees[0] != "." {
+		t.Fatalf("continuation: %+v", c)
+	}
+}
 
 // seedReferenceProject 创建项目记录与真实目录，返回同一测试数据库的上下文。
 func seedReferenceProject(t *testing.T) (context.Context, string, string) {
@@ -46,6 +130,34 @@ func TestResolveReferenceExplicitFile(t *testing.T) {
 	}
 	if len(resolution.summary.Sources) != 1 || resolution.summary.Sources[0].Type != "file" {
 		t.Fatalf("summary = %+v", resolution.summary)
+	}
+}
+
+func TestExplicitReferencesCannotBypassFilter(t *testing.T) {
+	ctx, projectID, dir := seedReferenceProject(t)
+	for name, body := range map[string]string{
+		".gitignore": "private.txt\nignored/\n", "private.txt": "private-marker",
+		"ignored/secret.txt": "private-marker", ".git/config": "private-marker", "dist/output.txt": "generated-marker",
+	} {
+		p := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Symlink("private.txt", filepath.Join(dir, "alias.txt")); err != nil {
+		t.Fatal(err)
+	}
+	for _, ref := range []dtochat.Reference{
+		{Type: "file", Path: "private.txt"}, {Type: "file", Path: "ignored/secret.txt"},
+		{Type: "file", Path: "alias.txt"}, {Type: "file", Path: ".git/config"},
+		{Type: "directory", Path: "ignored"}, {Type: "directory", Path: "dist"},
+	} {
+		if _, err := resolveReferenceContext(ctx, projectID, []dtochat.Reference{ref}, 64<<10); !errors.Is(err, ErrReferenceInvalid) {
+			t.Errorf("%+v: %v", ref, err)
+		}
 	}
 }
 
@@ -161,6 +273,7 @@ func TestChatDirectoryReferenceReachesModelWithSources(t *testing.T) {
 		References: []dtochat.Reference{{Type: "directory", Path: "pkg"}},
 	})
 	done := false
+	var doneSummary *dtochat.TurnReferenceSummary
 	var conversationID string
 	for frame := range frames {
 		if frame.Err != nil {
@@ -171,6 +284,11 @@ func TestChatDirectoryReferenceReachesModelWithSources(t *testing.T) {
 		}
 		if frame.Chat.Flag == dtochat.ChatFlagDone {
 			done = true
+			doneSummary = frame.ReferenceSummary
+			committed, err := (&AgentSvc{}).ConversationTurns(ctx, frame.Chat.ID, &dtochat.TurnPageReq{Limit: 5})
+			if err != nil || len(committed.Items) != 1 || committed.Items[0].Status != "completed" || committed.Items[0].ReferenceSummary == nil {
+				t.Fatalf("done precedes committed summary: %+v err=%v", committed, err)
+			}
 		}
 	}
 	if !done {
@@ -186,6 +304,20 @@ func TestChatDirectoryReferenceReachesModelWithSources(t *testing.T) {
 	}
 	if len(turns.Items[0].ReferenceSummary.Sources) != 1 || turns.Items[0].ReferenceSummary.Sources[0].Path != "pkg" {
 		t.Fatalf("summary sources = %+v", turns.Items[0].ReferenceSummary)
+	}
+	doneJSON, err := json.Marshal(doneSummary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	historyJSON, err := json.Marshal(turns.Items[0].ReferenceSummary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doneSummary == nil || string(doneJSON) != string(historyJSON) {
+		t.Fatalf("done/history differ: done=%s history=%s", doneJSON, historyJSON)
+	}
+	if doneSummary.PreparationState != "resolved" {
+		t.Fatalf("done summary state = %q", doneSummary.PreparationState)
 	}
 }
 
@@ -219,6 +351,12 @@ func TestChatOrdinaryConversationRejectsReferences(t *testing.T) {
 	}
 	if got == nil || !errors.Is(got, ErrReferenceInvalid) {
 		t.Fatalf("ordinary conversation reference error = %v", got)
+	}
+	if count, err := client.KaguyaConversation.Query().Count(ctx); err != nil || count != 0 {
+		t.Fatalf("invalid references created conversation: count=%d err=%v", count, err)
+	}
+	if count, err := client.KaguyaTitleJob.Query().Count(ctx); err != nil || count != 0 {
+		t.Fatalf("invalid references created title job: count=%d err=%v", count, err)
 	}
 }
 

@@ -95,6 +95,28 @@ func (b *ChatApiV1Group) ConversationTitleWait(c *gin.Context) {
 	dtocode.SystemSuccess.Success(resp, c)
 }
 
+// ConversationTitleSnapshots
+// @Tags Chat History
+// @Summary 批量读取标题与任务版本快照
+// @Description 只读同步，1–200个ID，去重前限制批次；按请求顺序返回未删除会话，缺失及已删除ID进入missing_ids。无任务时job_status=null、job_revision=0；不创建或生成标题。
+// @Param data body dtochat.TitleSnapshotsReq true "已加载会话ID"
+// @Success 200 {object} dtocode.Response{data=dtochat.TitleSnapshotsResp}
+// @Router /v1/chat/conversation/title-snapshots [post]
+func (b *ChatApiV1Group) ConversationTitleSnapshots(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	var req dtochat.TitleSnapshotsReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		dtocode.RequestParameterError.Failure(c)
+		return
+	}
+	resp, err := agentvc.ConversationTitleSnapshots(c.Request.Context(), &req)
+	if err != nil {
+		conversationFailure(c, err, dtocode.ConversationQueryFailure)
+		return
+	}
+	dtocode.SystemSuccess.Success(resp, c)
+}
+
 // ConversationTitleGenerate
 // @Tags Chat History
 // @Summary 默认标题生成或重试，并等待已保存标题
@@ -123,7 +145,7 @@ func (b *ChatApiV1Group) ConversationTitleGenerate(c *gin.Context) {
 // ConversationTurns
 // @Tags Chat History
 // @Summary 按原始执行顺序读取完整轮次（聊天/Trace/工具详情）
-// @Description 默认每页5轮，上限100轮。page>0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 使用游标：首屏最新 limit 轮，用 next_before 向前加载。compact=true 时仅正文完整返回，工具及思考块只返回元信息，details_deferred=true 的块通过单块详情接口加载。所有结果与 blocks 均正序，不返回模型私有 metadata。
+// @Description 默认每页5轮，上限100轮。page>0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0 使用游标：首屏最新 limit 轮，用 next_before 向前加载。compact=true 时仅正文完整返回，工具及思考块只返回元信息，details_deferred=true 的块通过单块详情接口加载。每轮 approvals 批量返回只读审计元信息，不附加参数正文；consumed 仅表示授权消费，execution_state 独立表示执行结果，旧 consumed 无结果时间按 unknown 返回。所有结果与 blocks 均正序，不返回模型私有 metadata。
 // @Param id path string true "会话雪花 ID"
 // @Param data query dtochat.TurnPageReq true "历史游标"
 // @Success 200 {object} dtocode.Response{data=dtochat.TurnListResp}

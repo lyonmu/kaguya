@@ -85,7 +85,7 @@ func TestSQLiteDSN(t *testing.T) {
 			t.Fatalf("unexpected DSN: %s", dsn)
 		}
 		query := u.Query()
-		if query.Get("_busy_timeout") != "5000" || query.Get("_journal_mode") != "WAL" || query.Get("_foreign_keys") != "on" || query.Get("_synchronous") != "FULL" {
+		if query.Get("_busy_timeout") != "1000" || query.Get("_journal_mode") != "WAL" || query.Get("_foreign_keys") != "on" || query.Get("_synchronous") != "FULL" {
 			t.Fatal("unexpected connection settings")
 		}
 		if query.Get("key") != "x'"+strings.Repeat("ab", 32)+"'" {

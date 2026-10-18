@@ -192,6 +192,26 @@ func (_c *KaguyaChatTurnCreate) SetReasoningTokens(v int64) *KaguyaChatTurnCreat
 	return _c
 }
 
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (_c *KaguyaChatTurnCreate) SetCacheCreationTokens(v int64) *KaguyaChatTurnCreate {
+	_c.mutation.SetCacheCreationTokens(v)
+	return _c
+}
+
+// SetNillableCacheCreationTokens sets the "cache_creation_tokens" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableCacheCreationTokens(v *int64) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetCacheCreationTokens(*v)
+	}
+	return _c
+}
+
+// SetPreparationUsage sets the "preparation_usage" field.
+func (_c *KaguyaChatTurnCreate) SetPreparationUsage(v *chat.TurnPreparationUsage) *KaguyaChatTurnCreate {
+	_c.mutation.SetPreparationUsage(v)
+	return _c
+}
+
 // SetContextTokens sets the "context_tokens" field.
 func (_c *KaguyaChatTurnCreate) SetContextTokens(v int64) *KaguyaChatTurnCreate {
 	_c.mutation.SetContextTokens(v)
@@ -216,6 +236,34 @@ func (_c *KaguyaChatTurnCreate) SetContextWindow(v int) *KaguyaChatTurnCreate {
 func (_c *KaguyaChatTurnCreate) SetNillableContextWindow(v *int) *KaguyaChatTurnCreate {
 	if v != nil {
 		_c.SetContextWindow(*v)
+	}
+	return _c
+}
+
+// SetContextFingerprintVersion sets the "context_fingerprint_version" field.
+func (_c *KaguyaChatTurnCreate) SetContextFingerprintVersion(v int) *KaguyaChatTurnCreate {
+	_c.mutation.SetContextFingerprintVersion(v)
+	return _c
+}
+
+// SetNillableContextFingerprintVersion sets the "context_fingerprint_version" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableContextFingerprintVersion(v *int) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetContextFingerprintVersion(*v)
+	}
+	return _c
+}
+
+// SetContextFingerprint sets the "context_fingerprint" field.
+func (_c *KaguyaChatTurnCreate) SetContextFingerprint(v string) *KaguyaChatTurnCreate {
+	_c.mutation.SetContextFingerprint(v)
+	return _c
+}
+
+// SetNillableContextFingerprint sets the "context_fingerprint" field if the given value is not nil.
+func (_c *KaguyaChatTurnCreate) SetNillableContextFingerprint(v *string) *KaguyaChatTurnCreate {
+	if v != nil {
+		_c.SetContextFingerprint(*v)
 	}
 	return _c
 }
@@ -405,9 +453,17 @@ func (_c *KaguyaChatTurnCreate) defaults() error {
 		v := kaguyachatturn.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.CacheCreationTokens(); !ok {
+		v := kaguyachatturn.DefaultCacheCreationTokens
+		_c.mutation.SetCacheCreationTokens(v)
+	}
 	if _, ok := _c.mutation.ContextWindow(); !ok {
 		v := kaguyachatturn.DefaultContextWindow
 		_c.mutation.SetContextWindow(v)
+	}
+	if _, ok := _c.mutation.ContextFingerprintVersion(); !ok {
+		v := kaguyachatturn.DefaultContextFingerprintVersion
+		_c.mutation.SetContextFingerprintVersion(v)
 	}
 	if _, ok := _c.mutation.CompactionCount(); !ok {
 		v := kaguyachatturn.DefaultCompactionCount
@@ -542,6 +598,14 @@ func (_c *KaguyaChatTurnCreate) check() error {
 			return &ValidationError{Name: "reasoning_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.reasoning_tokens": %w`, err)}
 		}
 	}
+	if _, ok := _c.mutation.CacheCreationTokens(); !ok {
+		return &ValidationError{Name: "cache_creation_tokens", err: errors.New(`ent: missing required field "KaguyaChatTurn.cache_creation_tokens"`)}
+	}
+	if v, ok := _c.mutation.CacheCreationTokens(); ok {
+		if err := kaguyachatturn.CacheCreationTokensValidator(v); err != nil {
+			return &ValidationError{Name: "cache_creation_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.cache_creation_tokens": %w`, err)}
+		}
+	}
 	if v, ok := _c.mutation.ContextTokens(); ok {
 		if err := kaguyachatturn.ContextTokensValidator(v); err != nil {
 			return &ValidationError{Name: "context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_tokens": %w`, err)}
@@ -553,6 +617,14 @@ func (_c *KaguyaChatTurnCreate) check() error {
 	if v, ok := _c.mutation.ContextWindow(); ok {
 		if err := kaguyachatturn.ContextWindowValidator(v); err != nil {
 			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ContextFingerprintVersion(); !ok {
+		return &ValidationError{Name: "context_fingerprint_version", err: errors.New(`ent: missing required field "KaguyaChatTurn.context_fingerprint_version"`)}
+	}
+	if v, ok := _c.mutation.ContextFingerprintVersion(); ok {
+		if err := kaguyachatturn.ContextFingerprintVersionValidator(v); err != nil {
+			return &ValidationError{Name: "context_fingerprint_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_fingerprint_version": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.CompactionCount(); !ok {
@@ -707,6 +779,14 @@ func (_c *KaguyaChatTurnCreate) createSpec() (*KaguyaChatTurn, *sqlgraph.CreateS
 		_spec.SetField(kaguyachatturn.FieldReasoningTokens, field.TypeInt64, value)
 		_node.ReasoningTokens = value
 	}
+	if value, ok := _c.mutation.CacheCreationTokens(); ok {
+		_spec.SetField(kaguyachatturn.FieldCacheCreationTokens, field.TypeInt64, value)
+		_node.CacheCreationTokens = value
+	}
+	if value, ok := _c.mutation.PreparationUsage(); ok {
+		_spec.SetField(kaguyachatturn.FieldPreparationUsage, field.TypeJSON, value)
+		_node.PreparationUsage = value
+	}
 	if value, ok := _c.mutation.ContextTokens(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
 		_node.ContextTokens = &value
@@ -714,6 +794,14 @@ func (_c *KaguyaChatTurnCreate) createSpec() (*KaguyaChatTurn, *sqlgraph.CreateS
 	if value, ok := _c.mutation.ContextWindow(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
 		_node.ContextWindow = value
+	}
+	if value, ok := _c.mutation.ContextFingerprintVersion(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextFingerprintVersion, field.TypeInt, value)
+		_node.ContextFingerprintVersion = value
+	}
+	if value, ok := _c.mutation.ContextFingerprint(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextFingerprint, field.TypeString, value)
+		_node.ContextFingerprint = &value
 	}
 	if value, ok := _c.mutation.ContextMessages(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextMessages, field.TypeJSON, value)
@@ -1138,6 +1226,42 @@ func (u *KaguyaChatTurnUpsert) AddReasoningTokens(v int64) *KaguyaChatTurnUpsert
 	return u
 }
 
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (u *KaguyaChatTurnUpsert) SetCacheCreationTokens(v int64) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldCacheCreationTokens, v)
+	return u
+}
+
+// UpdateCacheCreationTokens sets the "cache_creation_tokens" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateCacheCreationTokens() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldCacheCreationTokens)
+	return u
+}
+
+// AddCacheCreationTokens adds v to the "cache_creation_tokens" field.
+func (u *KaguyaChatTurnUpsert) AddCacheCreationTokens(v int64) *KaguyaChatTurnUpsert {
+	u.Add(kaguyachatturn.FieldCacheCreationTokens, v)
+	return u
+}
+
+// SetPreparationUsage sets the "preparation_usage" field.
+func (u *KaguyaChatTurnUpsert) SetPreparationUsage(v *chat.TurnPreparationUsage) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldPreparationUsage, v)
+	return u
+}
+
+// UpdatePreparationUsage sets the "preparation_usage" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdatePreparationUsage() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldPreparationUsage)
+	return u
+}
+
+// ClearPreparationUsage clears the value of the "preparation_usage" field.
+func (u *KaguyaChatTurnUpsert) ClearPreparationUsage() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldPreparationUsage)
+	return u
+}
+
 // SetContextTokens sets the "context_tokens" field.
 func (u *KaguyaChatTurnUpsert) SetContextTokens(v int64) *KaguyaChatTurnUpsert {
 	u.Set(kaguyachatturn.FieldContextTokens, v)
@@ -1177,6 +1301,42 @@ func (u *KaguyaChatTurnUpsert) UpdateContextWindow() *KaguyaChatTurnUpsert {
 // AddContextWindow adds v to the "context_window" field.
 func (u *KaguyaChatTurnUpsert) AddContextWindow(v int) *KaguyaChatTurnUpsert {
 	u.Add(kaguyachatturn.FieldContextWindow, v)
+	return u
+}
+
+// SetContextFingerprintVersion sets the "context_fingerprint_version" field.
+func (u *KaguyaChatTurnUpsert) SetContextFingerprintVersion(v int) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldContextFingerprintVersion, v)
+	return u
+}
+
+// UpdateContextFingerprintVersion sets the "context_fingerprint_version" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateContextFingerprintVersion() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldContextFingerprintVersion)
+	return u
+}
+
+// AddContextFingerprintVersion adds v to the "context_fingerprint_version" field.
+func (u *KaguyaChatTurnUpsert) AddContextFingerprintVersion(v int) *KaguyaChatTurnUpsert {
+	u.Add(kaguyachatturn.FieldContextFingerprintVersion, v)
+	return u
+}
+
+// SetContextFingerprint sets the "context_fingerprint" field.
+func (u *KaguyaChatTurnUpsert) SetContextFingerprint(v string) *KaguyaChatTurnUpsert {
+	u.Set(kaguyachatturn.FieldContextFingerprint, v)
+	return u
+}
+
+// UpdateContextFingerprint sets the "context_fingerprint" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsert) UpdateContextFingerprint() *KaguyaChatTurnUpsert {
+	u.SetExcluded(kaguyachatturn.FieldContextFingerprint)
+	return u
+}
+
+// ClearContextFingerprint clears the value of the "context_fingerprint" field.
+func (u *KaguyaChatTurnUpsert) ClearContextFingerprint() *KaguyaChatTurnUpsert {
+	u.SetNull(kaguyachatturn.FieldContextFingerprint)
 	return u
 }
 
@@ -1726,6 +1886,48 @@ func (u *KaguyaChatTurnUpsertOne) UpdateReasoningTokens() *KaguyaChatTurnUpsertO
 	})
 }
 
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (u *KaguyaChatTurnUpsertOne) SetCacheCreationTokens(v int64) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetCacheCreationTokens(v)
+	})
+}
+
+// AddCacheCreationTokens adds v to the "cache_creation_tokens" field.
+func (u *KaguyaChatTurnUpsertOne) AddCacheCreationTokens(v int64) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddCacheCreationTokens(v)
+	})
+}
+
+// UpdateCacheCreationTokens sets the "cache_creation_tokens" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateCacheCreationTokens() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateCacheCreationTokens()
+	})
+}
+
+// SetPreparationUsage sets the "preparation_usage" field.
+func (u *KaguyaChatTurnUpsertOne) SetPreparationUsage(v *chat.TurnPreparationUsage) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetPreparationUsage(v)
+	})
+}
+
+// UpdatePreparationUsage sets the "preparation_usage" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdatePreparationUsage() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdatePreparationUsage()
+	})
+}
+
+// ClearPreparationUsage clears the value of the "preparation_usage" field.
+func (u *KaguyaChatTurnUpsertOne) ClearPreparationUsage() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearPreparationUsage()
+	})
+}
+
 // SetContextTokens sets the "context_tokens" field.
 func (u *KaguyaChatTurnUpsertOne) SetContextTokens(v int64) *KaguyaChatTurnUpsertOne {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
@@ -1772,6 +1974,48 @@ func (u *KaguyaChatTurnUpsertOne) AddContextWindow(v int) *KaguyaChatTurnUpsertO
 func (u *KaguyaChatTurnUpsertOne) UpdateContextWindow() *KaguyaChatTurnUpsertOne {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateContextWindow()
+	})
+}
+
+// SetContextFingerprintVersion sets the "context_fingerprint_version" field.
+func (u *KaguyaChatTurnUpsertOne) SetContextFingerprintVersion(v int) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextFingerprintVersion(v)
+	})
+}
+
+// AddContextFingerprintVersion adds v to the "context_fingerprint_version" field.
+func (u *KaguyaChatTurnUpsertOne) AddContextFingerprintVersion(v int) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddContextFingerprintVersion(v)
+	})
+}
+
+// UpdateContextFingerprintVersion sets the "context_fingerprint_version" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateContextFingerprintVersion() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextFingerprintVersion()
+	})
+}
+
+// SetContextFingerprint sets the "context_fingerprint" field.
+func (u *KaguyaChatTurnUpsertOne) SetContextFingerprint(v string) *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextFingerprint(v)
+	})
+}
+
+// UpdateContextFingerprint sets the "context_fingerprint" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertOne) UpdateContextFingerprint() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextFingerprint()
+	})
+}
+
+// ClearContextFingerprint clears the value of the "context_fingerprint" field.
+func (u *KaguyaChatTurnUpsertOne) ClearContextFingerprint() *KaguyaChatTurnUpsertOne {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearContextFingerprint()
 	})
 }
 
@@ -2511,6 +2755,48 @@ func (u *KaguyaChatTurnUpsertBulk) UpdateReasoningTokens() *KaguyaChatTurnUpsert
 	})
 }
 
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (u *KaguyaChatTurnUpsertBulk) SetCacheCreationTokens(v int64) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetCacheCreationTokens(v)
+	})
+}
+
+// AddCacheCreationTokens adds v to the "cache_creation_tokens" field.
+func (u *KaguyaChatTurnUpsertBulk) AddCacheCreationTokens(v int64) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddCacheCreationTokens(v)
+	})
+}
+
+// UpdateCacheCreationTokens sets the "cache_creation_tokens" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateCacheCreationTokens() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateCacheCreationTokens()
+	})
+}
+
+// SetPreparationUsage sets the "preparation_usage" field.
+func (u *KaguyaChatTurnUpsertBulk) SetPreparationUsage(v *chat.TurnPreparationUsage) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetPreparationUsage(v)
+	})
+}
+
+// UpdatePreparationUsage sets the "preparation_usage" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdatePreparationUsage() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdatePreparationUsage()
+	})
+}
+
+// ClearPreparationUsage clears the value of the "preparation_usage" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearPreparationUsage() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearPreparationUsage()
+	})
+}
+
 // SetContextTokens sets the "context_tokens" field.
 func (u *KaguyaChatTurnUpsertBulk) SetContextTokens(v int64) *KaguyaChatTurnUpsertBulk {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
@@ -2557,6 +2843,48 @@ func (u *KaguyaChatTurnUpsertBulk) AddContextWindow(v int) *KaguyaChatTurnUpsert
 func (u *KaguyaChatTurnUpsertBulk) UpdateContextWindow() *KaguyaChatTurnUpsertBulk {
 	return u.Update(func(s *KaguyaChatTurnUpsert) {
 		s.UpdateContextWindow()
+	})
+}
+
+// SetContextFingerprintVersion sets the "context_fingerprint_version" field.
+func (u *KaguyaChatTurnUpsertBulk) SetContextFingerprintVersion(v int) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextFingerprintVersion(v)
+	})
+}
+
+// AddContextFingerprintVersion adds v to the "context_fingerprint_version" field.
+func (u *KaguyaChatTurnUpsertBulk) AddContextFingerprintVersion(v int) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.AddContextFingerprintVersion(v)
+	})
+}
+
+// UpdateContextFingerprintVersion sets the "context_fingerprint_version" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateContextFingerprintVersion() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextFingerprintVersion()
+	})
+}
+
+// SetContextFingerprint sets the "context_fingerprint" field.
+func (u *KaguyaChatTurnUpsertBulk) SetContextFingerprint(v string) *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.SetContextFingerprint(v)
+	})
+}
+
+// UpdateContextFingerprint sets the "context_fingerprint" field to the value that was provided on create.
+func (u *KaguyaChatTurnUpsertBulk) UpdateContextFingerprint() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.UpdateContextFingerprint()
+	})
+}
+
+// ClearContextFingerprint clears the value of the "context_fingerprint" field.
+func (u *KaguyaChatTurnUpsertBulk) ClearContextFingerprint() *KaguyaChatTurnUpsertBulk {
+	return u.Update(func(s *KaguyaChatTurnUpsert) {
+		s.ClearContextFingerprint()
 	})
 }
 

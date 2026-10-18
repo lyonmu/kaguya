@@ -103,7 +103,7 @@ func TestInitSQLiteWALAndPersistence(t *testing.T) {
 		if err := c.QueryRowContext(ctx, "PRAGMA cipher_version").Scan(&version); err != nil || !strings.HasPrefix(version, "4.") {
 			t.Fatalf("SQLCipher 4 is required, got %q, err = %v", version, err)
 		}
-		for pragma, want := range map[string]int{"busy_timeout": 5000, "foreign_keys": 1, "synchronous": 2} {
+		for pragma, want := range map[string]int{"busy_timeout": 1000, "foreign_keys": 1, "synchronous": 2} {
 			var got int
 			if err := c.QueryRowContext(ctx, "PRAGMA "+pragma).Scan(&got); err != nil || got != want {
 				t.Fatalf("%s = %d, want %d, err = %v", pragma, got, want, err)

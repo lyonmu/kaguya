@@ -1,10 +1,38 @@
 basePath: /kaguya/api
 definitions:
+  agent.NormalizedUsage:
+    properties:
+      cache_creation_tokens:
+        description: 缓存写入的 token 数量
+        type: integer
+      cache_hit_tokens:
+        description: 缓存命中的 token 数量（来自 CacheRead）
+        type: integer
+      input_tokens:
+        description: 输入 token 数量（不含缓存读写）
+        type: integer
+      output_tokens:
+        description: 输出 token 数量
+        type: integer
+      reasoning_tokens:
+        description: 思考 token 数量（包含在输出中，不重复计入总量）
+        type: integer
+      total_tokens:
+        description: 总 token 数量
+        type: integer
+    type: object
   chat.Approval:
     properties:
       approval_id:
         type: string
       effect:
+        type: string
+      execution_finished_at:
+        type: integer
+      execution_reason_code:
+        type: string
+      execution_state:
+        description: not_started/unknown/succeeded/failed/canceled
         type: string
       expires_at:
         type: integer
@@ -89,13 +117,13 @@ definitions:
     x-enum-comments:
       ChatFlagApproval: 下行：权限审批状态帧，不结束本轮
       ChatFlagDelta: 下行：增量内容帧
-      ChatFlagDone: 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
+      ChatFlagDone: 下行：唯一的成功结束帧，携带 Usage/引用元信息，不重复正文
       ChatFlagError: 下行：出错或被取消
       ChatFlagStart: 下行：本轮首帧（会话 ID + 模型信息）
     x-enum-descriptions:
     - 下行：本轮首帧（会话 ID + 模型信息）
     - 下行：增量内容帧
-    - 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
+    - 下行：唯一的成功结束帧，携带 Usage/引用元信息，不重复正文
     - 下行：出错或被取消
     - 下行：权限审批状态帧，不结束本轮
     x-enum-varnames:
@@ -166,6 +194,10 @@ definitions:
       model_name:
         description: 模型名称
         type: string
+      reference_summary:
+        allOf:
+        - $ref: '#/definitions/chat.TurnReferenceSummary'
+        description: 已实际准备的引用片段元信息；不含正文
       seq:
         description: 轮内发帧序号，由 TurnEmitter 串行分配
         type: integer
@@ -276,6 +308,9 @@ definitions:
       title:
         description: AI 标题最多20字符；新会话创建后并行生成并异步写入，仍为“新对话”时由前端 POST title/wait 补生成或重试
         type: string
+      title_job_revision:
+        description: 与任务状态一并读取；无任务为0
+        type: integer
       title_job_status:
         description: pending/running/succeeded/failed/canceled；无任务时为空
         type: string
@@ -385,6 +420,11 @@ definitions:
     properties:
       api_protocol:
         type: string
+      approvals:
+        description: 仅安全审计元信息，不含原始参数
+        items:
+          $ref: '#/definitions/chat.Approval'
+        type: array
       blocks:
         items:
           $ref: '#/definitions/chat.StoredBlock'
@@ -406,6 +446,8 @@ definitions:
         type: string
       model_name:
         type: string
+      preparation_usage:
+        $ref: '#/definitions/chat.TurnPreparationUsage'
       provider_name:
         type: string
       reference_summary:
@@ -426,6 +468,41 @@ definitions:
         $ref: '#/definitions/chat.Usage'
       user_content:
         type: string
+    type: object
+  chat.TitleSnapshot:
+    properties:
+      id:
+        type: string
+      job_revision:
+        type: integer
+      job_status:
+        type: string
+      title:
+        type: string
+      title_revision:
+        type: integer
+    type: object
+  chat.TitleSnapshotsReq:
+    properties:
+      ids:
+        items:
+          type: string
+        maxItems: 200
+        minItems: 1
+        type: array
+    required:
+    - ids
+    type: object
+  chat.TitleSnapshotsResp:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/chat.TitleSnapshot'
+        type: array
+      missing_ids:
+        items:
+          type: string
+        type: array
     type: object
   chat.ToolOutput:
     properties:
@@ -474,6 +551,53 @@ definitions:
       total_pages:
         type: integer
     type: object
+  chat.TurnPreparationUsage:
+    properties:
+      reported_calls:
+        type: integer
+      summary_calls:
+        type: integer
+      unreported_calls:
+        type: integer
+      usage:
+        $ref: '#/definitions/agent.NormalizedUsage'
+      version:
+        type: integer
+    type: object
+  chat.TurnReferenceContinuation:
+    properties:
+      known_omitted_files:
+        type: integer
+      last_stable_path:
+        type: string
+      reason:
+        type: string
+      root:
+        type: string
+      unscanned_subtrees:
+        items:
+          type: string
+        type: array
+    type: object
+  chat.TurnReferenceFile:
+    properties:
+      hash:
+        type: string
+      included:
+        type: boolean
+      next_line:
+        type: integer
+      path:
+        type: string
+      ranges:
+        items:
+          $ref: '#/definitions/chat.TurnReferenceRange'
+        type: array
+      resolved_path:
+        type: string
+      status:
+        type: string
+    type: object
   chat.TurnReferenceRange:
     properties:
       end:
@@ -483,6 +607,10 @@ definitions:
     type: object
   chat.TurnReferenceSource:
     properties:
+      files:
+        items:
+          $ref: '#/definitions/chat.TurnReferenceFile'
+        type: array
       hash:
         type: string
       included:
@@ -503,8 +631,23 @@ definitions:
     type: object
   chat.TurnReferenceSummary:
     properties:
+      budget_known:
+        type: boolean
+      continuation:
+        items:
+          $ref: '#/definitions/chat.TurnReferenceContinuation'
+        type: array
       estimated_tokens:
         type: integer
+      inline_bytes:
+        type: integer
+      partial_reason:
+        type: string
+      preparation_state:
+        enum:
+        - requested
+        - resolved
+        type: string
       scan_incomplete:
         type: boolean
       sources:
@@ -1310,6 +1453,8 @@ definitions:
     type: object
   project.FileSearchResp:
     properties:
+      cursor_reset:
+        type: boolean
       files:
         items:
           type: string
@@ -1320,6 +1465,8 @@ definitions:
         type: array
       next_cursor:
         type: string
+      scan_incomplete:
+        type: boolean
       truncated:
         type: boolean
     type: object
@@ -1461,6 +1608,8 @@ definitions:
         type: string
       loaded_at:
         type: string
+      loaded_generation:
+        type: integer
       version:
         type: integer
     type: object
@@ -1634,7 +1783,7 @@ definitions:
         type: string
       phase:
         description: |-
-          Phase 是细粒度状态：stopped/connecting/running/backoff/circuit_open；
+          Phase 是细粒度状态：stopped/connecting/running/backoff/circuit_open/storage_error；
           旧 state 字段保持 running/stopped/error 兼容。
         type: string
       reconnect_cycle:
@@ -2172,7 +2321,8 @@ paths:
       - Chat History
   /v1/chat/conversation/{id}/approvals:
     get:
-      description: 仅作页面刷新后的状态补齐；不恢复已终结轮次，也不能跨进程复活审批。
+      description: 仅返回当前运行轮次仍有活执行入口、绑定匹配且未过期的待审批调用，包含安全展示参数与服务端 expires_at。仅补齐状态，不恢复已终结轮次、孤立审计行或跨进程审批。历史授权/执行结果由
+        turns.approvals 返回。
       parameters:
       - description: 会话雪花 ID
         in: path
@@ -2196,7 +2346,7 @@ paths:
       - Chat
   /v1/chat/conversation/{id}/approvals/{approval_id}:
     post:
-      description: 仅对当前运行轮次中仍等待裁决的审批有效；相同裁决重复请求幂等返回，冲突裁决返回 102013。批准只授权一次调用，参数哈希在登记后不可替换；过期、取消或已执行的审批不能再裁决。
+      description: 只有当前运行轮次中绑定匹配且未过期的待审批调用能产生新裁决；相同裁决重发只返回持久状态，不再次授权，冲突裁决返回 102013。批准不代表执行完成；只有消费事务成功提交后才允许本次工具调用，消费失败或提交不确定不执行。过期/取消不能重新批准。
       parameters:
       - description: 会话雪花 ID
         in: path
@@ -2337,7 +2487,8 @@ paths:
     get:
       description: 默认每页5轮，上限100轮。page>0 时按时间正序分页（越界页定位末页），与 before 互斥；返回 total/page/page_size/total_pages。page=0
         使用游标：首屏最新 limit 轮，用 next_before 向前加载。compact=true 时仅正文完整返回，工具及思考块只返回元信息，details_deferred=true
-        的块通过单块详情接口加载。所有结果与 blocks 均正序，不返回模型私有 metadata。
+        的块通过单块详情接口加载。每轮 approvals 批量返回只读审计元信息，不附加参数正文；consumed 仅表示授权消费，execution_state
+        独立表示执行结果，旧 consumed 无结果时间按 unknown 返回。所有结果与 blocks 均正序，不返回模型私有 metadata。
       parameters:
       - description: 会话雪花 ID
         in: path
@@ -2450,6 +2601,29 @@ paths:
                   $ref: '#/definitions/chat.ConversationListResp'
               type: object
       summary: 会话列表（含进行中与空会话）
+      tags:
+      - Chat History
+  /v1/chat/conversation/title-snapshots:
+    post:
+      description: 只读同步，1–200个ID，去重前限制批次；按请求顺序返回未删除会话，缺失及已删除ID进入missing_ids。无任务时job_status=null、job_revision=0；不创建或生成标题。
+      parameters:
+      - description: 已加载会话ID
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/chat.TitleSnapshotsReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/chat.TitleSnapshotsResp'
+              type: object
+      summary: 批量读取标题与任务版本快照
       tags:
       - Chat History
   /v1/chat/sse:
@@ -3259,6 +3433,8 @@ paths:
       - Project
   /v1/system/info:
     get:
+      description: instruction_status 的 generation 表示已接收配置，loaded_generation 表示已发布配置；last_error
+        为脱敏失败原因，不返回指令正文。
       responses:
         "200":
           description: OK
@@ -3273,7 +3449,8 @@ paths:
       tags:
       - System Info
     put:
-      description: 默认模型及任务模型使用本地记录 ID，空字符串取消选择。基础提示词和同步计划保存后对新请求或调度立即生效，不影响正在执行的请求。
+      description: 默认模型及任务模型使用本地记录 ID，空字符串取消选择。基础提示词和同步计划保存后对新请求或调度立即生效，不影响正在执行的请求。全局指令路径在后台加载，保存成功不等于新正文已发布；以
+        instruction_status 为准。
       parameters:
       - description: 系统配置
         in: body
@@ -3296,7 +3473,8 @@ paths:
       - System Info
   /v1/system/info/agents-paths:
     put:
-      description: 路径顺序即读取顺序；空数组表示不读取任何全局指令。保存后由指令 Manager 重建监听并原子发布新版本。
+      description: 路径顺序即读取顺序；空数组表示不读取任何全局指令。保存成功表示配置已提交；单个后台读取线程验证稳定内容后重建监听并原子发布。通过
+        instruction_status 区分加载中、已发布和失败保留旧版本。
       parameters:
       - description: 路径列表
         in: body

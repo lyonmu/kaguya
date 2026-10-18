@@ -170,6 +170,11 @@ func ReasoningTokens(v int64) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldReasoningTokens, v))
 }
 
+// CacheCreationTokens applies equality check predicate on the "cache_creation_tokens" field. It's identical to CacheCreationTokensEQ.
+func CacheCreationTokens(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCacheCreationTokens, v))
+}
+
 // ContextTokens applies equality check predicate on the "context_tokens" field. It's identical to ContextTokensEQ.
 func ContextTokens(v int64) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextTokens, v))
@@ -178,6 +183,16 @@ func ContextTokens(v int64) predicate.KaguyaChatTurn {
 // ContextWindow applies equality check predicate on the "context_window" field. It's identical to ContextWindowEQ.
 func ContextWindow(v int) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextWindow, v))
+}
+
+// ContextFingerprintVersion applies equality check predicate on the "context_fingerprint_version" field. It's identical to ContextFingerprintVersionEQ.
+func ContextFingerprintVersion(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextFingerprintVersion, v))
+}
+
+// ContextFingerprint applies equality check predicate on the "context_fingerprint" field. It's identical to ContextFingerprintEQ.
+func ContextFingerprint(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextFingerprint, v))
 }
 
 // CompactionCount applies equality check predicate on the "compaction_count" field. It's identical to CompactionCountEQ.
@@ -1265,6 +1280,56 @@ func ReasoningTokensLTE(v int64) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldReasoningTokens, v))
 }
 
+// CacheCreationTokensEQ applies the EQ predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensEQ(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldCacheCreationTokens, v))
+}
+
+// CacheCreationTokensNEQ applies the NEQ predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensNEQ(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldCacheCreationTokens, v))
+}
+
+// CacheCreationTokensIn applies the In predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensIn(vs ...int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldCacheCreationTokens, vs...))
+}
+
+// CacheCreationTokensNotIn applies the NotIn predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensNotIn(vs ...int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldCacheCreationTokens, vs...))
+}
+
+// CacheCreationTokensGT applies the GT predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensGT(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldCacheCreationTokens, v))
+}
+
+// CacheCreationTokensGTE applies the GTE predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensGTE(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldCacheCreationTokens, v))
+}
+
+// CacheCreationTokensLT applies the LT predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensLT(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldCacheCreationTokens, v))
+}
+
+// CacheCreationTokensLTE applies the LTE predicate on the "cache_creation_tokens" field.
+func CacheCreationTokensLTE(v int64) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldCacheCreationTokens, v))
+}
+
+// PreparationUsageIsNil applies the IsNil predicate on the "preparation_usage" field.
+func PreparationUsageIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldPreparationUsage))
+}
+
+// PreparationUsageNotNil applies the NotNil predicate on the "preparation_usage" field.
+func PreparationUsageNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldPreparationUsage))
+}
+
 // ContextTokensEQ applies the EQ predicate on the "context_tokens" field.
 func ContextTokensEQ(v int64) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextTokens, v))
@@ -1353,6 +1418,121 @@ func ContextWindowLT(v int) predicate.KaguyaChatTurn {
 // ContextWindowLTE applies the LTE predicate on the "context_window" field.
 func ContextWindowLTE(v int) predicate.KaguyaChatTurn {
 	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldContextWindow, v))
+}
+
+// ContextFingerprintVersionEQ applies the EQ predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionEQ(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextFingerprintVersion, v))
+}
+
+// ContextFingerprintVersionNEQ applies the NEQ predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionNEQ(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldContextFingerprintVersion, v))
+}
+
+// ContextFingerprintVersionIn applies the In predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionIn(vs ...int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldContextFingerprintVersion, vs...))
+}
+
+// ContextFingerprintVersionNotIn applies the NotIn predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionNotIn(vs ...int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldContextFingerprintVersion, vs...))
+}
+
+// ContextFingerprintVersionGT applies the GT predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionGT(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldContextFingerprintVersion, v))
+}
+
+// ContextFingerprintVersionGTE applies the GTE predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionGTE(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldContextFingerprintVersion, v))
+}
+
+// ContextFingerprintVersionLT applies the LT predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionLT(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldContextFingerprintVersion, v))
+}
+
+// ContextFingerprintVersionLTE applies the LTE predicate on the "context_fingerprint_version" field.
+func ContextFingerprintVersionLTE(v int) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldContextFingerprintVersion, v))
+}
+
+// ContextFingerprintEQ applies the EQ predicate on the "context_fingerprint" field.
+func ContextFingerprintEQ(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEQ(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintNEQ applies the NEQ predicate on the "context_fingerprint" field.
+func ContextFingerprintNEQ(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNEQ(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintIn applies the In predicate on the "context_fingerprint" field.
+func ContextFingerprintIn(vs ...string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIn(FieldContextFingerprint, vs...))
+}
+
+// ContextFingerprintNotIn applies the NotIn predicate on the "context_fingerprint" field.
+func ContextFingerprintNotIn(vs ...string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotIn(FieldContextFingerprint, vs...))
+}
+
+// ContextFingerprintGT applies the GT predicate on the "context_fingerprint" field.
+func ContextFingerprintGT(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGT(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintGTE applies the GTE predicate on the "context_fingerprint" field.
+func ContextFingerprintGTE(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldGTE(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintLT applies the LT predicate on the "context_fingerprint" field.
+func ContextFingerprintLT(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLT(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintLTE applies the LTE predicate on the "context_fingerprint" field.
+func ContextFingerprintLTE(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldLTE(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintContains applies the Contains predicate on the "context_fingerprint" field.
+func ContextFingerprintContains(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldContains(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintHasPrefix applies the HasPrefix predicate on the "context_fingerprint" field.
+func ContextFingerprintHasPrefix(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldHasPrefix(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintHasSuffix applies the HasSuffix predicate on the "context_fingerprint" field.
+func ContextFingerprintHasSuffix(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldHasSuffix(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintIsNil applies the IsNil predicate on the "context_fingerprint" field.
+func ContextFingerprintIsNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldIsNull(FieldContextFingerprint))
+}
+
+// ContextFingerprintNotNil applies the NotNil predicate on the "context_fingerprint" field.
+func ContextFingerprintNotNil() predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldNotNull(FieldContextFingerprint))
+}
+
+// ContextFingerprintEqualFold applies the EqualFold predicate on the "context_fingerprint" field.
+func ContextFingerprintEqualFold(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldEqualFold(FieldContextFingerprint, v))
+}
+
+// ContextFingerprintContainsFold applies the ContainsFold predicate on the "context_fingerprint" field.
+func ContextFingerprintContainsFold(v string) predicate.KaguyaChatTurn {
+	return predicate.KaguyaChatTurn(sql.FieldContainsFold(FieldContextFingerprint, v))
 }
 
 // ContextMessagesIsNil applies the IsNil predicate on the "context_messages" field.

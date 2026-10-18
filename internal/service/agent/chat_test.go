@@ -35,8 +35,12 @@ func (g *chatTestID) GenID() (int64, error) { return g.value.Add(1), nil }
 var sqlcipherTests = flag.Bool("sqlcipher", false, "run chat service fixtures with a temporary disk SQLCipher database")
 
 func setupChatTest(t *testing.T) (context.Context, *ent.Client) {
+	return setupChatTestWithTimeout(t, 10*time.Second)
+}
+
+func setupChatTestWithTimeout(t *testing.T, timeout time.Duration) (context.Context, *ent.Client) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 	// 测试库是 shared-cache 的内存 SQLite：表级锁不会等待 busy handler，而是
 	// 直接返回 SQLITE_LOCKED。限制单连接串行写入，避免标题任务与聊天事务

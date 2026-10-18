@@ -26,8 +26,12 @@ var (
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "approved", "rejected", "expired", "canceled", "consumed"}, Default: "pending"},
 		{Name: "decision", Type: field.TypeString, Comment: "approve 或 reject；pending 为空", Default: ""},
 		{Name: "requested_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime, Nullable: true, Comment: "服务端裁决期限；旧空值不恢复授权"},
 		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
 		{Name: "consumed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "execution_state", Type: field.TypeEnum, Comment: "独立于授权状态；consumed 且无结果时间的旧行读取为 unknown", Enums: []string{"not_started", "unknown", "succeeded", "failed", "canceled"}, Default: "not_started"},
+		{Name: "execution_finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "execution_reason_code", Type: field.TypeString, Comment: "执行结果安全原因码，不保存原始错误或参数", Default: ""},
 		{Name: "reason_code", Type: field.TypeString, Comment: "安全原因码，不保存原始错误或参数", Default: ""},
 	}
 	// KaguyaApprovalTable holds the schema information for the "kaguya_approval" table.
@@ -71,6 +75,11 @@ var (
 				Name:    "kaguyaapproval_turn_id_tool_call_id",
 				Unique:  true,
 				Columns: []*schema.Column{KaguyaApprovalColumns[6], KaguyaApprovalColumns[7]},
+			},
+			{
+				Name:    "kaguyaapproval_conversation_id_turn_id",
+				Unique:  false,
+				Columns: []*schema.Column{KaguyaApprovalColumns[5], KaguyaApprovalColumns[6]},
 			},
 		},
 	}
@@ -162,8 +171,12 @@ var (
 		{Name: "total_tokens", Type: field.TypeInt64},
 		{Name: "cached_tokens", Type: field.TypeInt64},
 		{Name: "reasoning_tokens", Type: field.TypeInt64},
+		{Name: "cache_creation_tokens", Type: field.TypeInt64, Comment: "本轮缓存写入 token；旧记录0仅作兼容，不能反推历史真实用量", Default: 0},
+		{Name: "preparation_usage", Type: field.TypeJSON, Nullable: true, Comment: "摘要调用已知与未知用量审计；不重复加入成功轮总量"},
 		{Name: "context_tokens", Type: field.TypeInt64, Nullable: true, Comment: "最后一次模型调用输入（含缓存）及输出，用于估算整段上下文；旧记录未知"},
 		{Name: "context_window", Type: field.TypeInt, Comment: "本轮模型 token_context_window 快照，0 表示未知", Default: 0},
+		{Name: "context_fingerprint_version", Type: field.TypeInt, Comment: "0 表示旧记录无完整指纹，不复用实际上下文基线", Default: 0},
+		{Name: "context_fingerprint", Type: field.TypeString, Nullable: true, Comment: "执行模型、系统指令与工具等非秘密配置的完整上下文指纹"},
 		{Name: "context_messages", Type: field.TypeJSON, Nullable: true, Comment: "发生压缩后的完整续聊快照；原始 messages 始终保留"},
 		{Name: "compaction_count", Type: field.TypeInt, Default: 0},
 		{Name: "memory_refs", Type: field.TypeJSON, Nullable: true, Comment: "本轮自动召回选择的页面版本与检索器版本；不复制正文，失败轮次为空"},
@@ -183,7 +196,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "kaguya_chat_turn_kaguya_conversation_turns",
-				Columns:    []*schema.Column{KaguyaChatTurnColumns[32]},
+				Columns:    []*schema.Column{KaguyaChatTurnColumns[36]},
 				RefColumns: []*schema.Column{KaguyaConversationColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -212,7 +225,7 @@ var (
 			{
 				Name:    "kaguyachatturn_conversation_id_turn_index",
 				Unique:  true,
-				Columns: []*schema.Column{KaguyaChatTurnColumns[32], KaguyaChatTurnColumns[4]},
+				Columns: []*schema.Column{KaguyaChatTurnColumns[36], KaguyaChatTurnColumns[4]},
 			},
 			{
 				Name:    "kaguyachatturn_finished_at",

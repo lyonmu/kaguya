@@ -3,6 +3,7 @@
 package instructions
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -16,7 +17,7 @@ func TestLoadRejectsFIFO(t *testing.T) {
 	if err := syscall.Mkfifo(path, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := Load([]string{path}); err == nil {
+	if _, _, err := Load(context.Background(), []string{path}); err == nil {
 		t.Fatal("FIFO accepted as global instructions")
 	}
 	if _, err := os.Stat(path); err != nil {

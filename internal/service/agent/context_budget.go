@@ -4,7 +4,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"net/url"
 	"sort"
+	"strings"
 
 	"charm.land/fantasy"
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
@@ -51,36 +54,99 @@ func computeContextBudget(input contextBudgetInput) contextBudget {
 // 废弃上一轮 context_tokens 基线并保守重估，不能只比较模型名。
 type contextFingerprint struct {
 	modelKey           string
+	providerKey        string
+	configurationHash  string
+	systemHash         string
+	instructionFormat  string
+	permissionMode     string
 	instructionHash    string
 	instructionVersion int64
 	toolSchemaHash     string
 	memorySelectionKey string
+	baselineUnknown    bool
 }
 
-func (f contextFingerprint) equal(other contextFingerprint) bool { return f == other }
+const contextFingerprintVersion = 2
 
-// toolSchemaFingerprint 对工具名与 schema 做稳定哈希；工具集合或参数结构变化时
-// 旧基线不再可信。排序保证与注册顺序无关。
+// 进程内指令 Version 用于排障，不作为跨重启时钟；只比较实际内容与配置。
+func (f contextFingerprint) equal(other contextFingerprint) bool { return f.digest() == other.digest() }
+
+func (f contextFingerprint) digest() string {
+	// 不序列化 provider/model 整条记录，尤其不能带入 APIKey。
+	data, _ := json.Marshal(struct {
+		Model, Provider, Configuration, System, Instructions, Format, Tools, Memory, Permission string
+		BaselineUnknown                                                                         bool
+	}{f.modelKey, f.providerKey, f.configurationHash, f.systemHash, f.instructionHash, f.instructionFormat, f.toolSchemaHash, f.memorySelectionKey, f.permissionMode, f.baselineUnknown})
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+// toolSchemaFingerprint 保留纯 schema helper；生产入口同时消费可复用标记和错误。
 func toolSchemaFingerprint(tools []fantasy.AgentTool) string {
-	type entry struct {
-		name string
-		info any
+	hash, _, err := effectiveToolsFingerprint(tools)
+	if err != nil {
+		return ""
 	}
-	entries := make([]entry, 0, len(tools))
+	return hash
+}
+
+// effectiveToolsFingerprint 不编码未知 provider options：当前工厂只有 nil/空 options。
+// 不支持的非空 options 保持实际执行语义，只禁止复用实际 token 基线。
+func effectiveToolsFingerprint(tools []fantasy.AgentTool) (string, bool, error) {
+	type entry struct {
+		Identity string
+		Info     fantasy.ToolInfo
+	}
+	entries := make([][]byte, 0, len(tools))
+	seen := make(map[string]bool, len(tools))
+	reusable := true
 	for _, item := range tools {
 		if item == nil {
 			continue
 		}
-		entries = append(entries, entry{name: item.Info().Name, info: item.Info()})
+		info := item.Info()
+		if seen[info.Name] {
+			return "", false, fmt.Errorf("duplicate effective tool name")
+		}
+		seen[info.Name] = true
+		identity := "unknown:" + info.Name
+		if source, ok := item.(toolIdentityProvider); ok && source.PermissionIdentity() != "" {
+			identity = source.PermissionIdentity()
+		}
+		if len(item.ProviderOptions()) != 0 {
+			reusable = false
+		}
+		data, err := json.Marshal(entry{Identity: identity, Info: info})
+		if err != nil {
+			return "", false, fmt.Errorf("cannot fingerprint effective tool schema")
+		}
+		entries = append(entries, data)
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].name < entries[j].name })
+	sort.Slice(entries, func(i, j int) bool { return string(entries[i]) < string(entries[j]) })
 	hasher := sha256.New()
-	encoder := json.NewEncoder(hasher)
-	for _, item := range entries {
-		_ = encoder.Encode(item.name)
-		_ = encoder.Encode(item.info)
+	for _, data := range entries {
+		hasher.Write(data)
+		hasher.Write([]byte{0})
 	}
-	return hex.EncodeToString(hasher.Sum(nil)[:8])
+	return hex.EncodeToString(hasher.Sum(nil)), reusable, nil
+}
+
+// fingerprintURL 只投影 URL 的非秘密请求身份。未知 query 不进入 hash，禁止复用。
+// Parse 错误不携带原始 URL，避免凭据出现在错误链中。
+func fingerprintURL(raw string) (string, bool, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", false, fmt.Errorf("cannot fingerprint request location")
+	}
+	data, _ := json.Marshal(struct{ Scheme, Host, Path string }{
+		strings.ToLower(parsed.Scheme), strings.ToLower(parsed.Host), parsed.EscapedPath(),
+	})
+	return fullTextFingerprint(string(data)), parsed.RawQuery == "" && !parsed.ForceQuery, nil
+}
+
+func fullTextFingerprint(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(sum[:])
 }
 
 // textFingerprint 对系统/指令文本做稳定哈希，用于指令版本变化时失效旧基线。
@@ -99,5 +165,5 @@ func memorySelectionFingerprint(selection *dtomemory.TurnMemorySelection) string
 	if err != nil {
 		return ""
 	}
-	return textFingerprint(string(data))
+	return fullTextFingerprint(string(data))
 }

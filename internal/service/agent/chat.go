@@ -31,7 +31,11 @@ var ErrChatModelNotConfigured = errors.New("chat model is not configured")
 // pushChatError 推送错误帧并结束本轮。
 // convID 为空表示会话尚未建立，此时不下发会话标识；否则前端据其定位失败的会话。
 func pushChatError(emitter *TurnEmitter, convID string, err error) {
-	resp := &dtochat.ChatResp{Err: err}
+	pushChatErrorWithReference(emitter, convID, err, nil)
+}
+
+func pushChatErrorWithReference(emitter *TurnEmitter, convID string, err error, summary *dtochat.TurnReferenceSummary) {
+	resp := &dtochat.ChatResp{Err: err, ReferenceSummary: summary}
 	if convID != "" {
 		resp.Chat = dtochat.Chat{ID: convID, Flag: dtochat.ChatFlagError}
 	}
@@ -56,15 +60,17 @@ func startFrame(exec chatExecution) *dtochat.ChatResp {
 func doneFrame(exec chatExecution, outcome *chatOutcome) *dtochat.ChatResp {
 	model, usage := exec.target.model, outcome.usage
 	return &dtochat.ChatResp{
-		Chat:         dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagDone},
-		FinishReason: outcome.finishReason,
-		APIProtocol:  consts.ProviderProtocol(model.APIProtocol),
+		Chat:             dtochat.Chat{ID: exec.conversationID, Flag: dtochat.ChatFlagDone},
+		ReferenceSummary: outcome.referenceAudit(),
+		FinishReason:     outcome.finishReason,
+		APIProtocol:      consts.ProviderProtocol(model.APIProtocol),
 		Usage: dtochat.Usage{
-			InputTokens:     int(usage.InputTokens),
-			OutputTokens:    int(usage.OutputTokens),
-			TotalTokens:     int(usage.TotalTokens),
-			CachedTokens:    int(usage.CacheHitTokens),
-			ReasoningTokens: int(usage.ReasoningTokens),
+			InputTokens:         int(usage.InputTokens),
+			OutputTokens:        int(usage.OutputTokens),
+			TotalTokens:         int(usage.TotalTokens),
+			CachedTokens:        int(usage.CacheHitTokens),
+			CacheCreationTokens: int(usage.CacheCreationTokens),
+			ReasoningTokens:     int(usage.ReasoningTokens),
 		},
 		Created:   time.Now().Unix(),
 		ModelID:   model.ModelID,
@@ -158,17 +164,6 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		defer closeToolset(toolset)
 	}
 
-	// 首轮在正文开始生成前立即落库，新会话无需等待完成就出现在列表中；
-	// 标题只用用户提问并发生成并异步更新，失败或取消的轮次留下空会话。
-	if row == nil {
-		if err := createConversation(ctx, target, convID, projectID, req.Messages, time.Now(), string(mode)); err != nil {
-			global.Logger.Sugar().Errorf("create conversation failed: id=%s err=%v", convID, err)
-			pushChatError(emitter, convID, err)
-			return
-		}
-		startEarlyTitleTask(convID)
-	}
-
 	// 每轮生成前进行一次本地召回；失败只降级并明确显示，不阻塞聊天。
 	var mem memoryTurn
 	if features.Memory {
@@ -178,6 +173,17 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 	if err != nil {
 		pushChatError(emitter, "", err)
 		return
+	}
+
+	// 首轮在正文开始生成前立即落库，新会话无需等待完成就出现在列表中；
+	// 标题只用用户提问并发生成并异步更新，失败或取消的轮次留下空会话。
+	if row == nil {
+		if err := createConversation(ctx, target, convID, projectID, req.Messages, time.Now(), string(mode)); err != nil {
+			global.Logger.Sugar().Errorf("create conversation failed: id=%s err=%v", convID, err)
+			pushChatError(emitter, convID, err)
+			return
+		}
+		startEarlyTitleTask(convID)
 	}
 
 	// 受限模式先装饰全部工具并组装 Agent，再写入 running 占位行：组装失败
@@ -204,7 +210,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		ProviderID: target.provider.ID, ProviderName: target.provider.ProviderName,
 		ModelID: target.model.ModelID, ModelName: target.model.ModelName, APIProtocol: string(target.model.APIProtocol),
 		GlobalInstructionHash: prompt.globalHash, GlobalInstructionVersion: instructionVersionPointer(prompt.globalVersion),
-		PermissionMode: string(mode),
+		PermissionMode: string(mode), ReferenceSummary: prompt.requestedReferences,
 	})
 	if err != nil {
 		global.Logger.Sugar().Errorf("begin turn failed: id=%s err=%v", convID, err)
@@ -245,7 +251,7 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 			status = kaguyachatturn.StatusInterrupted
 		}
 		flushTurn(recorder)
-		if markErr := markTurnEnd(exec.turnID, status, time.Now()); markErr != nil {
+		if markErr := markTurnEndWithPreparation(exec.turnID, exec.conversationID, status, time.Now(), outcome.preparationAudit(), outcome.referenceAudit()); markErr != nil {
 			global.Logger.Sugar().Errorf("mark turn end failed: turn_id=%s err=%v", exec.turnID, markErr)
 		}
 		fields := []zap.Field{
@@ -261,23 +267,25 @@ func (s *AgentSvc) Chat(ctx context.Context, dataChan chan *dtochat.ChatResp, re
 		case ctx.Err() != nil || errors.Is(err, context.Canceled):
 			global.Logger.Info("chat interrupted by request cancellation", fields...)
 		default:
-			global.Logger.Error("stream chat failed", append(fields, zap.Error(err))...)
+			// Provider errors can echo credentials, prompts and response bodies.
+			// Preserve the cause for the API mapper, not application logs.
+			global.Logger.Error("stream chat failed", append(fields, zap.String("reason", "generation_failed"))...)
 		}
-		pushChatError(emitter, convID, err)
+		pushChatErrorWithReference(emitter, convID, err, outcome.referenceAudit())
 		return
 	}
 	if err := outcome.persist(ctx, exec); err != nil {
 		flushTurn(recorder)
-		if markErr := markTurnEnd(exec.turnID, kaguyachatturn.StatusFailed, time.Now()); markErr != nil {
+		if markErr := markTurnEndWithPreparation(exec.turnID, exec.conversationID, kaguyachatturn.StatusFailed, time.Now(), outcome.preparationAudit(), outcome.referenceAudit()); markErr != nil {
 			global.Logger.Sugar().Errorf("mark turn end failed: turn_id=%s err=%v", exec.turnID, markErr)
 		}
 		global.Logger.Sugar().Errorf("persist completed conversation failed: id=%s err=%v", convID, err)
-		pushChatError(emitter, convID, err)
+		pushChatErrorWithReference(emitter, convID, err, outcome.referenceAudit())
 		return
 	}
 
 	usage := outcome.usage
-	global.Logger.Sugar().Infof("chat usage: conversation_id=%s input_tokens=%d output_tokens=%d total_tokens=%d reasoning_tokens=%d cached_tokens=%d",
-		convID, usage.InputTokens, usage.OutputTokens, usage.TotalTokens, usage.ReasoningTokens, usage.CacheHitTokens)
+	global.Logger.Sugar().Infof("chat usage: conversation_id=%s input_tokens=%d output_tokens=%d total_tokens=%d reasoning_tokens=%d cached_tokens=%d cache_creation_tokens=%d",
+		convID, usage.InputTokens, usage.OutputTokens, usage.TotalTokens, usage.ReasoningTokens, usage.CacheHitTokens, usage.CacheCreationTokens)
 	emitter.Emit(doneFrame(exec, outcome))
 }

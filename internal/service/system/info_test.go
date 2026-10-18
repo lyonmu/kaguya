@@ -1,8 +1,11 @@
 package system
 
 import (
+	"context"
 	"errors"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -187,5 +190,73 @@ func TestAgentSettingsPersistenceAndValidation(t *testing.T) {
 	req.GlobalAgentsPaths = []string{"relative/AGENTS.md"}
 	if _, err = svc.InfoUpdate(ctx, req); !errors.Is(err, ErrInvalidSystemInfo) {
 		t.Fatalf("relative path: %v", err)
+	}
+}
+
+func TestInstructionPathsCommitAndNotificationUseSameOrder(t *testing.T) {
+	ctx := setupSystemServiceTest(t)
+	oldReload := ReloadGlobalInstructions
+	defer func() { ReloadGlobalInstructions = oldReload }()
+	entered, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(release) }) }
+	defer unblock()
+	var notifications []string
+	ReloadGlobalInstructions = func(paths []string) error {
+		if len(paths) != 1 {
+			return errors.New("unexpected fixture paths")
+		}
+		notifications = append(notifications, paths[0])
+		if paths[0] == "/first.md" {
+			close(entered)
+			<-release
+		}
+		return nil
+	}
+	svc := &SystemSvc{}
+	first := make(chan error, 1)
+	go func() { first <- svc.UpdateAgentsPaths(ctx, []string{"/first.md"}) }()
+	select {
+	case <-entered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("first commit did not reach notification")
+	}
+	second := make(chan error, 1)
+	go func() {
+		_, err := svc.InfoUpdate(ctx, &dtosystem.SystemInfoSaveReq{GlobalAgentsPaths: []string{"/second.md"}})
+		second <- err
+	}()
+	// 首次通知尚未结束时，另一个入口不能提交更新或发出较新的通知。
+	select {
+	case err := <-second:
+		t.Fatalf("second update bypassed ordering: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	row, err := db.EntClient.KaguyaSystemInfo.Get(ctx, consts.SystemInfoID)
+	if err != nil || len(row.GlobalAgentsPaths) != 1 || row.GlobalAgentsPaths[0] != "/first.md" {
+		t.Fatalf("commit overtook first notification: %+v %v", row, err)
+	}
+	unblock()
+	if err := <-first; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-second; err != nil {
+		t.Fatal(err)
+	}
+	row, err = db.EntClient.KaguyaSystemInfo.Get(ctx, consts.SystemInfoID)
+	if err != nil || len(row.GlobalAgentsPaths) != 1 || row.GlobalAgentsPaths[0] != "/second.md" {
+		t.Fatalf("latest config=%+v %v", row, err)
+	}
+	if !reflect.DeepEqual(notifications, []string{"/first.md", "/second.md"}) {
+		t.Fatalf("notifications=%v", notifications)
+	}
+	// 提交失败不能通知未保存的配置。
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := svc.UpdateAgentsPaths(cancelCtx, []string{"/unsaved.md"}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled write: %v", err)
+	}
+	if len(notifications) != 2 {
+		t.Fatal("failed save notified manager")
 	}
 }

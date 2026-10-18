@@ -1,6 +1,14 @@
 package agent
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"sync"
+	"sync/atomic"
+
+	"github.com/lyonmu/kaguya/internal/agent/instructions"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,21 +24,21 @@ func TestGlobalInstructions(t *testing.T) {
 	if err := os.WriteFile(path, []byte("use project tests"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	text, err := globalInstructions([]string{"~/missing.md", "~/AGENTS.md", path})
+	text, err := globalInstructions(context.Background(), []string{"~/missing.md", "~/AGENTS.md", path})
 	if err != nil || strings.Count(text, "use project tests") != 1 {
 		t.Fatalf("instructions=%q err=%v", text, err)
 	}
-	if text, err := globalInstructions([]string{}); err != nil || text != "" {
+	if text, err := globalInstructions(context.Background(), []string{}); err != nil || text != "" {
 		t.Fatalf("empty=%q %v", text, err)
 	}
-	if _, err := globalInstructions([]string{home}); err == nil {
+	if _, err := globalInstructions(context.Background(), []string{home}); err == nil {
 		t.Fatal("directory accepted")
 	}
 	// 全局指令不再有内容长度上限：超过旧 256KiB 也必须成功。
 	if err := os.WriteFile(path, []byte(strings.Repeat("x", 256*1024+1)), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if text, err := globalInstructions([]string{path}); err != nil || len(text) <= 256*1024 {
+	if text, err := globalInstructions(context.Background(), []string{path}); err != nil || len(text) <= 256*1024 {
 		t.Fatalf("large global instructions rejected: %d %v", len(text), err)
 	}
 }
@@ -41,7 +49,7 @@ func TestGlobalInstructionsRejectFIFO(t *testing.T) {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
-	go func() { _, err := globalInstructions([]string{path}); done <- err }()
+	go func() { _, err := globalInstructions(context.Background(), []string{path}); done <- err }()
 	select {
 	case err := <-done:
 		if err == nil || !strings.Contains(err.Error(), "regular file") {
@@ -203,5 +211,89 @@ func TestLegacyInstructionsAreNotSilentlySplit(t *testing.T) {
 	upgraded, err := conversationInstructions(ctx, "legacy-project", []string{globalPath}, project)
 	if err != nil || upgraded.legacy || !strings.Contains(upgraded.text, "global-new") || !strings.Contains(upgraded.text, "project-new") {
 		t.Fatalf("upgraded bundle=%+v err=%v", upgraded, err)
+	}
+}
+
+func TestSplitInstructionBundleKeepsTextHashVersionTogether(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instructions.md")
+	if err := os.WriteFile(path, []byte("initial"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := instructions.New(context.Background(), []string{path}, instructions.Options{Debounce: time.Millisecond, Settle: time.Millisecond, Reconcile: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := DefaultGlobalInstructions
+	DefaultGlobalInstructions = manager
+	manager.Start()
+	stop := make(chan struct{})
+	var stopOnce sync.Once
+	stopReaders := func() { stopOnce.Do(func() { close(stop) }) }
+	var readers sync.WaitGroup
+	t.Cleanup(func() {
+		stopReaders()
+		readers.Wait()
+		manager.Close()
+		<-manager.Done()
+		DefaultGlobalInstructions = old
+	})
+	var count atomic.Int64
+	errorsCh := make(chan error, 4)
+	frozen := "\n\nFrozen project fixture"
+	for i := 0; i < 4; i++ {
+		readers.Add(1)
+		go func() {
+			defer readers.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				bundle, err := splitInstructionBundle(context.Background(), []string{path}, "", &frozen)
+				if err != nil {
+					errorsCh <- err
+					return
+				}
+				text := strings.TrimSuffix(bundle.text, frozen)
+				hash := sha256.Sum256([]byte(text))
+				if bundle.globalHash != hex.EncodeToString(hash[:16]) || bundle.globalVersion < 1 || !strings.HasSuffix(bundle.text, frozen) {
+					errorsCh <- fmt.Errorf("instruction text and metadata differ: hash=%s version=%d", bundle.globalHash, bundle.globalVersion)
+					return
+				}
+				count.Add(1)
+			}
+		}()
+	}
+	for i := 1; i <= 20; i++ {
+		candidate := path + ".new"
+		if err := os.WriteFile(candidate, []byte(fmt.Sprintf("instruction version %d", i)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(candidate, path); err != nil {
+			t.Fatal(err)
+		}
+		if err := manager.Reconfigure([]string{path}); err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(3 * time.Second)
+		for manager.Status().LoadedGeneration != int64(i) {
+			if time.Now().After(deadline) {
+				t.Fatal("configuration not published")
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}
+	stopReaders()
+	readers.Wait()
+	close(errorsCh)
+	for err := range errorsCh {
+		t.Error(err)
+	}
+	if count.Load() < 100 {
+		t.Fatalf("insufficient concurrent snapshot reads: %d", count.Load())
+	}
+	if manager.Snapshot().Version != 21 {
+		t.Fatal("published versions were lost")
 	}
 }

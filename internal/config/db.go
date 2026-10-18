@@ -59,7 +59,9 @@ func (c *DatabaseConfig) SQLiteDSN() (string, error) {
 	dsn := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
 	query := url.Values{}
 	query.Set("key", "x'"+key+"'")
-	query.Set("_busy_timeout", "5000")
+	// 进程内写入由单连接池串行化。SQLite busy handler不一定立即响应
+	// sqlite3_interrupt，外部写锁的等待必须小于标题独立收尾的3秒预算。
+	query.Set("_busy_timeout", "1000")
 	query.Set("_journal_mode", "WAL")
 	query.Set("_foreign_keys", "on")
 	query.Set("_synchronous", "FULL")

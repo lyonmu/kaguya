@@ -2,6 +2,8 @@ package system
 
 import (
 	"errors"
+	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
+	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
@@ -17,9 +19,10 @@ func mcpFailure(c *gin.Context, err error) {
 	case errors.Is(err, servicesystem.ErrMCPDuplicate):
 		dtocode.MCPDuplicate.Failure(c)
 	case errors.Is(err, servicesystem.ErrMCPConnect):
-		// 原始错误可能包含连接端点等诊断信息，只进日志，响应使用固定文案。
+		// 错误链可能含端点、命令或远端内容；日志和响应都不输出原文。
 		if global.Logger != nil {
-			global.Logger.Sugar().Warnf("MCP connect failed: %v", err)
+			stage, reason := agentmcp.Diagnostic(err)
+			global.Logger.Warn("MCP connect failed", zap.String("stage", stage), zap.String("reason", reason))
 		}
 		dtocode.MCPConnectFailure.Failure(c)
 	case errors.Is(err, servicesystem.ErrMCPDisabled):
@@ -28,7 +31,7 @@ func mcpFailure(c *gin.Context, err error) {
 		dtocode.MCPReconnectBusy.Failure(c)
 	case errors.Is(err, servicesystem.ErrMCPInvalid):
 		if global.Logger != nil {
-			global.Logger.Sugar().Warnf("MCP configuration invalid: %v", err)
+			global.Logger.Warn("MCP configuration invalid")
 		}
 		dtocode.MCPConfigInvalid.Failure(c)
 	default:

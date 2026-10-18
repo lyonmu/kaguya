@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lyonmu/kaguya/internal/db"
+	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/global"
 )
@@ -85,47 +86,71 @@ func (r *turnRecorder) shouldFlush() bool {
 	return time.Since(r.lastFlush) >= turnFlushMaxIdle
 }
 
-// flush 把自上次刷盘以来变化的块写入数据库。整个过程在一个事务内，读者不会看到半个块；
-// 只有提交成功后才推进内存水位，失败时下一次 flush 会重试同一批块。
+// recorderWrite 只持有本次轨迹快照的值与已序列化输出；准备过程不占DB连接。
+type recorderWrite struct {
+	block  dtochat.StoredBlock
+	output []byte
+	create bool
+}
+
+// flush 把自上次刷盘以来变化的块在一个事务内写入，读者不会看到半个块。
+// 只有提交成功后才推进水位；无变更时不申请DB连接。
 func (r *turnRecorder) flush(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	snapshot := r.trace.snapshot()
-	tx, err := db.EntClient.Tx(ctx)
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	defer tx.Rollback()
-	client := tx.Client()
-	// 待推进水位先放局部变量，commit 成功后才写回 recorder。
+	snapshot := r.trace.snapshot()
+	// 先准备同一快照的变更集，纯内存计算与JSON不占SQLite唯一连接。
+	// 待推进水位仍只放局部变量，commit成功后才写回recorder。
 	flushedRev := make(map[int64]int64, len(snapshot.Blocks))
+	var writes []recorderWrite
 	for _, item := range snapshot.Blocks {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		b := item.Block
 		flushedRev[b.Sequence] = item.Revision
 		if item.Revision == 0 || r.flushedRev[b.Sequence] >= item.Revision {
 			continue
 		}
 		// 未结束的块没有真实结束时间，用开始时间占位；end_order 也必须为正。
-		finishedAt := b.FinishedAt
-		if finishedAt.IsZero() {
-			finishedAt = b.StartedAt
+		if b.FinishedAt.IsZero() {
+			b.FinishedAt = b.StartedAt
 		}
-		endOrder := b.EndOrder
-		if endOrder <= 0 {
-			endOrder = b.StartOrder
+		if b.EndOrder <= 0 {
+			b.EndOrder = b.StartOrder
 		}
 		var output []byte
 		if b.Output != nil {
+			var err error
 			output, err = json.Marshal(b.Output)
 			if err != nil {
 				return err
 			}
 		}
-		if r.flushedRev[b.Sequence] == 0 {
+		writes = append(writes, recorderWrite{block: b, output: output, create: r.flushedRev[b.Sequence] == 0})
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if len(writes) == 0 {
+		return nil
+	}
+	tx, err := db.EntClient.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	client := tx.Client()
+	for _, write := range writes {
+		b, output := write.block, write.output
+		if write.create {
 			create := client.KaguyaChatBlock.Create().SetTurnID(r.turnID).SetSequence(b.Sequence).SetType(kaguyachatblock.Type(b.Type)).
 				SetText(b.Text).SetToolCallID(b.ToolCallID).SetToolName(b.ToolName).SetInput(b.Input).
 				SetProviderExecuted(b.ProviderExecuted).SetIsError(b.IsError).SetErrorMessage(b.ErrorMessage).
-				SetStartedAt(b.StartedAt).SetFinishedAt(finishedAt).SetStartOrder(b.StartOrder).SetEndOrder(endOrder)
+				SetStartedAt(b.StartedAt).SetFinishedAt(b.FinishedAt).SetStartOrder(b.StartOrder).SetEndOrder(b.EndOrder)
 			if output != nil {
 				create.SetOutput(output)
 			}
@@ -137,7 +162,7 @@ func (r *turnRecorder) flush(ctx context.Context) error {
 				Where(kaguyachatblock.TurnIDEQ(r.turnID), kaguyachatblock.SequenceEQ(b.Sequence)).
 				SetText(b.Text).SetToolCallID(b.ToolCallID).SetToolName(b.ToolName).SetInput(b.Input).
 				SetProviderExecuted(b.ProviderExecuted).SetIsError(b.IsError).SetErrorMessage(b.ErrorMessage).
-				SetStartedAt(b.StartedAt).SetFinishedAt(finishedAt).SetStartOrder(b.StartOrder).SetEndOrder(endOrder).
+				SetStartedAt(b.StartedAt).SetFinishedAt(b.FinishedAt).SetStartOrder(b.StartOrder).SetEndOrder(b.EndOrder).
 				ClearOutput()
 			if output != nil {
 				update.SetOutput(output)

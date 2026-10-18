@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,6 +30,9 @@ type Source struct {
 	Path string
 	Text string
 	Hash string
+
+	configured string
+	info       os.FileInfo
 }
 
 // Snapshot 是不可变快照；Version 在同一 Manager 生命周期内单调递增，
@@ -45,29 +47,34 @@ type Snapshot struct {
 
 // Status 是供 SystemInfo 展示的只读状态；不包含正文。
 type Status struct {
-	Version    int64     `json:"version"`
-	Hash       string    `json:"hash,omitempty"`
-	LoadedAt   time.Time `json:"loaded_at,omitempty"`
-	Generation int64     `json:"generation"`
-	LastError  string    `json:"last_error,omitempty"`
+	Version          int64     `json:"version"`
+	Hash             string    `json:"hash,omitempty"`
+	LoadedAt         time.Time `json:"loaded_at,omitempty"`
+	Generation       int64     `json:"generation"`
+	LoadedGeneration int64     `json:"loaded_generation"`
+	LastError        string    `json:"last_error,omitempty"`
 }
 
 // Manager 持有全局路径配置、当前快照与单个 fsnotify watcher。
 type Manager struct {
 	logger *zap.Logger
 
-	mu         sync.Mutex
-	paths      []string
-	generation int64
-	lastError  string
-	watches    map[string]struct{}
-	watcher    *fsnotify.Watcher
+	mu               sync.Mutex
+	paths            []string
+	generation       int64
+	loadedGeneration int64
+	lastError        string
+	watches          map[string]struct{}
+	watcher          *fsnotify.Watcher
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wake   chan struct{}
-	done   chan struct{}
-	closed bool
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wake       chan struct{}
+	done       chan struct{}
+	closed     bool
+	started    bool
+	workers    sync.WaitGroup
+	finishOnce sync.Once
 
 	snapshot atomic.Pointer[Snapshot]
 
@@ -76,8 +83,9 @@ type Manager struct {
 	settle    time.Duration
 	reconcile time.Duration
 
-	reloadMu sync.Mutex
-	pending  bool
+	// 仅用于确定性交错测试；Start 后不再修改。
+	load     func(context.Context, []string) (*Snapshot, map[string]struct{}, error)
+	addWatch func(string) error
 }
 
 // Options 允许测试缩短时间参数。
@@ -116,7 +124,8 @@ func New(ctx context.Context, paths []string, options Options) (*Manager, error)
 		debounce: options.Debounce, settle: options.Settle, reconcile: options.Reconcile,
 		watches: map[string]struct{}{},
 	}
-	snapshot, watches, err := Load(paths)
+	manager.load = Load
+	snapshot, watches, err := manager.load(managerCtx, paths)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -129,6 +138,7 @@ func New(ctx context.Context, paths []string, options Options) (*Manager, error)
 		return nil, fmt.Errorf("create instructions watcher: %w", err)
 	}
 	manager.watcher = watcher
+	manager.addWatch = watcher.Add
 	if err := manager.applyWatches(watches); err != nil {
 		_ = watcher.Close()
 		cancel()
@@ -137,31 +147,48 @@ func New(ctx context.Context, paths []string, options Options) (*Manager, error)
 	return manager, nil
 }
 
-// Start 启动事件循环；结束时 Done 关闭。
+// Start 幂等启动事件循环和唯一读取 worker；Done 等待二者及 watcher 全部退出。
 func (m *Manager) Start() {
-	go m.loop()
-	go m.loadLoop()
-}
-
-// Done 在 watcher 与读取 worker 完全退出后关闭。
-func (m *Manager) Done() <-chan struct{} { return m.done }
-
-// Close 停止监听并等待 worker 退出；重复调用安全。
-func (m *Manager) Close() {
 	m.mu.Lock()
-	if m.closed {
+	if m.started || m.closed {
 		m.mu.Unlock()
 		return
 	}
+	m.started = true
+	m.workers.Add(2)
+	m.mu.Unlock()
+	go func() { defer m.workers.Done(); m.loop() }()
+	go func() { defer m.workers.Done(); m.loadLoop() }()
+	go func() { m.workers.Wait(); m.finish() }()
+}
+
+func (m *Manager) Done() <-chan struct{} { return m.done }
+
+// Close 发出停止信号；调用方通过 Done 等待读取完成。未 Start 也会释放 watcher。
+func (m *Manager) Close() {
+	m.mu.Lock()
 	m.closed = true
+	started := m.started
 	m.mu.Unlock()
 	m.cancel()
+	if !started {
+		m.finish()
+	}
+}
+
+func (m *Manager) finish() {
+	m.finishOnce.Do(func() {
+		_ = m.watcher.Close()
+		close(m.done)
+	})
 }
 
 // Snapshot 返回当前不可变快照；即使全部路径缺失也会返回非 nil。
 func (m *Manager) Snapshot() *Snapshot {
 	if snapshot := m.snapshot.Load(); snapshot != nil {
-		return snapshot
+		copy := *snapshot
+		copy.Sources = append([]Source(nil), snapshot.Sources...)
+		return &copy
 	}
 	return &Snapshot{}
 }
@@ -170,58 +197,49 @@ func (m *Manager) Snapshot() *Snapshot {
 func (m *Manager) Status() Status {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	snapshot := m.Snapshot()
+	snapshot := m.snapshot.Load()
 	return Status{
 		Version: snapshot.Version, Hash: snapshot.Hash, LoadedAt: snapshot.LoadedAt,
-		Generation: m.generation, LastError: m.lastError,
+		Generation: m.generation, LoadedGeneration: m.loadedGeneration, LastError: m.lastError,
 	}
 }
 
-// Reconfigure 在数据库提交路径列表后应用新配置：先完整加载候选并计算 watch 集合，
-// 成功才原子交换文本与 watches；失败保留旧版本并由后台重试。
+// Reconfigure 只接受已提交配置并通知 worker；文件读取与发布均在后台完成。
 func (m *Manager) Reconfigure(paths []string) error {
 	m.mu.Lock()
+	if m.closed || m.ctx.Err() != nil {
+		m.mu.Unlock()
+		return ErrClosed
+	}
 	m.generation++
-	generation := m.generation
+	m.lastError = ""
 	m.paths = append([]string(nil), paths...)
 	m.mu.Unlock()
-
-	snapshot, watches, err := Load(paths)
-	if err != nil {
-		m.setError(err)
-		m.logger.Warn("reload global instructions after configuration failed; keeping previous version",
-			zap.Int64("generation", generation), zap.String("reason", err.Error()))
-		m.scheduleReload()
-		return err
-	}
-	if err := m.applyWatches(watches); err != nil {
-		m.setError(err)
-		m.scheduleReload()
-		return err
-	}
-	m.store(snapshot)
-	m.clearError()
-	// 后台再验证一次稳定性，配置提交本身不等待静默期。
 	m.scheduleReload()
 	return nil
 }
 
+var ErrClosed = errors.New("instruction manager is closed")
+
 // applyWatches 让 watcher 与目标目录集合一致：新增缺失目录，移除不再需要的目录。
 func (m *Manager) applyWatches(target map[string]struct{}) error {
-	m.mu.Lock()
-	current := make(map[string]struct{}, len(m.watches))
-	for dir := range m.watches {
+	// OS 可在目录删除时自行撤销 watch；以真实账本修复遗漏。
+	current := make(map[string]struct{})
+	for _, dir := range m.watcher.WatchList() {
 		current[dir] = struct{}{}
 	}
-	m.mu.Unlock()
 	for dir := range target {
 		if _, ok := current[dir]; ok {
 			continue
 		}
-		if err := m.watcher.Add(dir); err != nil {
+		if err := m.addWatch(dir); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
+			// 已增加的 watch 必须纳入账本；失败时保留全部有效旧 watch。
+			m.mu.Lock()
+			m.watches = current
+			m.mu.Unlock()
 			return fmt.Errorf("watch instructions directory %q: %w", dir, err)
 		}
 		current[dir] = struct{}{}
@@ -230,7 +248,12 @@ func (m *Manager) applyWatches(target map[string]struct{}) error {
 		if _, ok := target[dir]; ok {
 			continue
 		}
-		_ = m.watcher.Remove(dir)
+		if err := m.watcher.Remove(dir); err != nil && !errors.Is(err, fsnotify.ErrNonExistentWatch) {
+			m.mu.Lock()
+			m.watches = current
+			m.mu.Unlock()
+			return err
+		}
 		delete(current, dir)
 	}
 	m.mu.Lock()
@@ -239,18 +262,18 @@ func (m *Manager) applyWatches(target map[string]struct{}) error {
 	return nil
 }
 
-func (m *Manager) setError(err error) {
+// recordError 不公开底层文件错误，也不让旧 generation 覆盖新配置状态。
+func (m *Manager) recordError(generation int64, reason string) {
 	m.mu.Lock()
-	if err != nil {
-		m.lastError = err.Error()
+	current := !m.closed && m.ctx.Err() == nil && generation == m.generation
+	changed := current && m.lastError != reason
+	if current {
+		m.lastError = reason
 	}
 	m.mu.Unlock()
-}
-
-func (m *Manager) clearError() {
-	m.mu.Lock()
-	m.lastError = ""
-	m.mu.Unlock()
+	if changed {
+		m.logger.Warn("reload global instructions failed; keeping previous version", zap.Int64("generation", generation), zap.String("reason", reason))
+	}
 }
 
 // store 只在哈希变化时提升版本；内容相同不增加版本号。
@@ -278,7 +301,7 @@ func (m *Manager) scheduleReload() {
 
 // loop 只消费事件与对账 ticker，不在事件循环内同步读大文件。
 func (m *Manager) loop() {
-	defer close(m.done)
+	defer m.cancel()
 	ticker := time.NewTicker(m.reconcile)
 	defer ticker.Stop()
 	var debounce *time.Timer
@@ -287,7 +310,6 @@ func (m *Manager) loop() {
 		if debounce != nil {
 			debounce.Stop()
 		}
-		_ = m.watcher.Close()
 	}()
 	resetDebounce := func() {
 		if debounce == nil {
@@ -326,7 +348,7 @@ func (m *Manager) loop() {
 			debounceC = nil
 			m.scheduleReload()
 		case <-ticker.C:
-			m.reconcileWatches()
+			m.scheduleReload()
 		}
 	}
 }
@@ -360,17 +382,6 @@ func (m *Manager) relevantEvent(event fsnotify.Event) bool {
 	return false
 }
 
-// reconcileWatches 修复被 OS 丢弃的 watch（目录删除后重建、overflow 等），
-// 只检查配置相关目录，不递归扫描 home。
-func (m *Manager) reconcileWatches() {
-	m.mu.Lock()
-	paths := append([]string(nil), m.paths...)
-	m.mu.Unlock()
-	// 只修复配置相关目录的 watch；内容差异由文件事件或本次重扫处理。
-	_ = m.applyWatches(WatchDirs(paths))
-	m.scheduleReload()
-}
-
 // loadLoop 是唯一的读取 worker：串行执行去抖后的“双重读取 + 哈希验证”。
 func (m *Manager) loadLoop() {
 	for {
@@ -390,69 +401,101 @@ func (m *Manager) loadLoop() {
 }
 
 func (m *Manager) reload() {
-	m.reloadMu.Lock()
-	defer m.reloadMu.Unlock()
 	m.mu.Lock()
 	generation := m.generation
 	paths := append([]string(nil), m.paths...)
 	m.mu.Unlock()
 
-	first, _, err := Load(paths)
+	if err := m.ctx.Err(); err != nil {
+		return
+	}
+	if err := m.applyWatches(WatchDirs(paths)); err != nil {
+		m.recordError(generation, "watch_failed")
+		return
+	}
+	first, _, err := m.load(m.ctx, paths)
 	if err != nil {
-		// remove/rename 原文件时保留上次有效版本；recreate 后恢复。
-		m.setError(err)
-		m.logger.Warn("reload global instructions failed; keeping previous version", zap.String("reason", err.Error()))
+		m.recordError(generation, "read_failed")
 		return
 	}
 	if !sleepContext(m.ctx, m.settle) {
 		return
 	}
-	second, watches, err := Load(paths)
+	second, watches, err := m.load(m.ctx, paths)
 	if err != nil {
-		m.setError(err)
+		m.recordError(generation, "read_failed")
 		return
 	}
-	if first.Hash != second.Hash {
-		// 两次读取不一致：丢弃候选并重新调度。
+	if !sameSources(first, second) {
+		m.recordError(generation, "source_unstable")
 		m.scheduleReload()
 		return
 	}
-	m.mu.Lock()
-	stale := m.generation != generation
-	m.mu.Unlock()
-	if stale {
-		// 落后 generation 的结果不能覆盖新配置。
+	// 保留配置中的源临时消失时继续使用旧版；明确移除路径允许清空或替换。
+	if disappearedSource(m.snapshot.Load(), second, paths) {
+		m.recordError(generation, "source_missing")
 		return
 	}
-	// 运行中此前存在的文件消失按 transient error 处理：保留旧版本等待 recreate，
-	// 而不是立刻清空指令；文件重新出现后下一次 reload 恢复。
-	if missing, ok := disappearedSource(m.Snapshot(), second); ok {
-		m.setError(fmt.Errorf("instructions %q disappeared; keeping previous version", missing))
+	if err := m.ctx.Err(); err != nil {
 		return
 	}
 	if err := m.applyWatches(watches); err != nil {
-		m.setError(err)
+		m.recordError(generation, "watch_failed")
 		return
 	}
-	m.store(second)
-	m.clearError()
+	// generation 判断与整份快照发布在同一个临界区内，不留旧结果覆盖的间隙。
+	m.mu.Lock()
+	if !m.closed && m.ctx.Err() == nil && m.generation == generation {
+		m.store(second)
+		m.loadedGeneration = generation
+		m.lastError = ""
+	} else if !m.closed && m.ctx.Err() == nil {
+		m.scheduleReload()
+	}
+	m.mu.Unlock()
 }
 
-// disappearedSource 报告上一版本存在、新候选缺失且当前确实不存在的文件。
-func disappearedSource(previous, next *Snapshot) (string, bool) {
+func sameSources(first, second *Snapshot) bool {
+	if first.Hash != second.Hash || len(first.Sources) != len(second.Sources) {
+		return false
+	}
+	for i, source := range first.Sources {
+		other := second.Sources[i]
+		if source.Path != other.Path || source.Hash != other.Hash || !sameFileVersion(source.info, other.info) {
+			return false
+		}
+	}
+	return true
+}
+
+func sameFileVersion(first, second os.FileInfo) bool {
+	return first != nil && second != nil && os.SameFile(first, second) && first.Size() == second.Size() && first.ModTime().Equal(second.ModTime()) && first.Mode() == second.Mode()
+}
+
+func disappearedSource(previous, next *Snapshot, paths []string) bool {
+	if previous == nil {
+		return false
+	}
+	configured := make(map[string]struct{}, len(paths))
+	for _, path := range paths {
+		configured[path] = struct{}{}
+	}
 	nextPaths := make(map[string]struct{}, len(next.Sources))
 	for _, source := range next.Sources {
 		nextPaths[source.Path] = struct{}{}
 	}
 	for _, source := range previous.Sources {
-		if _, ok := nextPaths[source.Path]; ok {
+		if _, retained := configured[source.configured]; !retained {
+			continue
+		}
+		if _, present := nextPaths[source.Path]; present {
 			continue
 		}
 		if _, err := os.Stat(source.Path); os.IsNotExist(err) {
-			return source.Path, true
+			return true
 		}
 	}
-	return "", false
+	return false
 }
 
 func sleepContext(ctx context.Context, delay time.Duration) bool {
@@ -468,31 +511,27 @@ func sleepContext(ctx context.Context, delay time.Duration) bool {
 
 // Load 读取配置顺序的全局指令，返回不变快照与需要监听的目录集合。
 // 缺失文件跳过；非普通文件、非法 UTF-8、不可读等返回错误。
-func Load(paths []string) (*Snapshot, map[string]struct{}, error) {
+func Load(ctx context.Context, paths []string) (*Snapshot, map[string]struct{}, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	sources := make([]Source, 0, len(paths))
 	seen := make([]os.FileInfo, 0, len(paths))
 	var text strings.Builder
 	for _, configured := range paths {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
 		path, err := expandHome(configured)
 		if err != nil {
 			return nil, nil, err
 		}
 		candidates := []string{path}
 		if strings.EqualFold(filepath.Base(path), "AGENTS.md") {
-			entries, err := os.ReadDir(filepath.Dir(path))
-			if os.IsNotExist(err) {
-				continue
-			}
+			candidates, err = instructionCandidates(ctx, path)
 			if err != nil {
-				return nil, nil, fmt.Errorf("list global instructions %q: %w", path, err)
+				return nil, nil, err
 			}
-			candidates = nil
-			for _, entry := range entries {
-				if strings.EqualFold(entry.Name(), "AGENTS.md") {
-					candidates = append(candidates, filepath.Join(filepath.Dir(path), entry.Name()))
-				}
-			}
-			sort.Strings(candidates)
 		}
 		for _, candidate := range candidates {
 			file, info, err := openRegular(candidate)
@@ -502,14 +541,6 @@ func Load(paths []string) (*Snapshot, map[string]struct{}, error) {
 			if err != nil {
 				return nil, nil, err
 			}
-			data, readErr := readAll(file)
-			file.Close()
-			if readErr != nil {
-				return nil, nil, fmt.Errorf("read global instructions %q: %w", candidate, readErr)
-			}
-			if !utf8.Valid(data) {
-				return nil, nil, fmt.Errorf("instructions %q must be UTF-8", candidate)
-			}
 			duplicate := false
 			for _, previous := range seen {
 				if os.SameFile(previous, info) {
@@ -518,12 +549,38 @@ func Load(paths []string) (*Snapshot, map[string]struct{}, error) {
 				}
 			}
 			if duplicate {
+				_ = file.Close()
 				continue
+			}
+			data, readErr := readAll(ctx, file)
+			after, statErr := file.Stat()
+			closeErr := file.Close()
+			if readErr != nil {
+				return nil, nil, fmt.Errorf("read global instructions %q: %w", candidate, readErr)
+			}
+			if statErr != nil {
+				return nil, nil, statErr
+			}
+			if closeErr != nil {
+				return nil, nil, closeErr
+			}
+			bound, err := os.Stat(candidate)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !sameFileVersion(info, after) || !sameFileVersion(info, bound) {
+				return nil, nil, fmt.Errorf("instructions %q changed while reading", candidate)
+			}
+			if !utf8.Valid(data) {
+				return nil, nil, fmt.Errorf("instructions %q must be UTF-8", candidate)
+			}
+			if err := ctx.Err(); err != nil {
+				return nil, nil, err
 			}
 			seen = append(seen, info)
 			content := string(data)
 			hash := sha256.Sum256(data)
-			sources = append(sources, Source{Path: candidate, Text: content, Hash: hex.EncodeToString(hash[:8])})
+			sources = append(sources, Source{Path: candidate, Text: content, Hash: hex.EncodeToString(hash[:8]), configured: configured, info: info})
 			if strings.TrimSpace(content) != "" {
 				fmt.Fprintf(&text, "\n\nGlobal instructions from %s:\n%s", candidate, content)
 			}

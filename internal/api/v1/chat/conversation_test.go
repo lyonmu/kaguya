@@ -79,6 +79,7 @@ func TestConversationAPI(t *testing.T) {
 	router.GET("/conversation/:id/context", api.ConversationContext)
 	router.GET("/conversation/:id/title/wait", api.ConversationTitleWait)
 	router.POST("/conversation/:id/title/wait", api.ConversationTitleGenerate)
+	router.POST("/conversation/title-snapshots", api.ConversationTitleSnapshots)
 	router.PUT("/conversation/:id", api.ConversationUpdate)
 	router.DELETE("/conversation/:id", api.ConversationDelete)
 	request := func(method, path, body string, wantCode int) map[string]any {
@@ -103,6 +104,19 @@ func TestConversationAPI(t *testing.T) {
 		return result.Data
 	}
 	ok, bad, missing := dtocode.SystemSuccess.Code, dtocode.RequestParameterError.Code, dtocode.ConversationNotFound.Code
+	snapshots := request("POST", "/conversation/title-snapshots", `{"ids":["123","missing","project-chat","123"]}`, ok)
+	snapshotItems := snapshots["items"].([]any)
+	if len(snapshotItems) != 2 || snapshotItems[0].(map[string]any)["id"] != "123" || snapshotItems[1].(map[string]any)["id"] != "project-chat" || len(snapshots["missing_ids"].([]any)) != 1 {
+		t.Fatalf("snapshot order/dedup: %+v", snapshots)
+	}
+	if item := snapshotItems[0].(map[string]any); item["job_status"] != nil || item["job_revision"] != float64(0) {
+		t.Fatalf("snapshot fabricated job: %+v", item)
+	}
+	for _, body := range []string{`{}`, `{"ids":[]}`, `{"ids":[""]}`, `{"ids":["  "]}`, `{"ids":["` + strings.Repeat("1", 65) + `"]}`, `{"ids":["123",null]}`, `{"ids":[123]}`, `{"ids":["123"]`} {
+		request("POST", "/conversation/title-snapshots", body, bad)
+	}
+	request("POST", "/conversation/title-snapshots", `{"ids":[`+strings.Repeat(`"123",`, 200)+`"123"]}`, bad)
+	request("POST", "/conversation/title-snapshots", `{"ids":[`+strings.Repeat(`"123",`, 199)+`"123"]}`, ok)
 	compact := request("GET", "/conversation/123/turns?compact=true", "", ok)
 	if compact["page_size"] != float64(5) {
 		t.Fatalf("default history size: %+v", compact)
@@ -195,6 +209,10 @@ func TestConversationAPI(t *testing.T) {
 	request("PUT", "/conversation/123", `{"title":"新对话"}`, ok)
 	request("POST", "/conversation/123/title/wait", "", dtocode.TaskModelNotConfigured.Code)
 	request("DELETE", "/conversation/123", "", ok)
+	snapshots = request("POST", "/conversation/title-snapshots", `{"ids":["123"]}`, ok)
+	if len(snapshots["items"].([]any)) != 0 || len(snapshots["missing_ids"].([]any)) != 1 {
+		t.Fatalf("deleted snapshot resurrected: %+v", snapshots)
+	}
 	request("GET", "/conversation/123/context", "", missing)
 	request("POST", "/conversation/123/title/wait", "", missing)
 	request("GET", "/conversation/123/title/wait", "", missing)

@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/lyonmu/kaguya/internal/agent/instructions"
+	"github.com/lyonmu/kaguya/internal/agent/workspace"
 	"github.com/lyonmu/kaguya/internal/db"
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
@@ -47,14 +48,14 @@ func conversationInstructions(ctx context.Context, id string, paths []string, pr
 			switch {
 			case row.AgentInstructions == nil:
 				// 从未冻结：按 split 初始化，本轮成功后写入项目快照。
-				return splitInstructionBundle(paths, projectDir, nil)
+				return splitInstructionBundle(ctx, paths, projectDir, nil)
 			case *row.AgentInstructions == "":
 				// 旧快照明确为空：保持空项目快照，不重新发现项目指令。
 				empty := ""
-				return splitInstructionBundle(paths, "", &empty)
+				return splitInstructionBundle(ctx, paths, "", &empty)
 			case row.ProjectID == nil:
 				// 旧普通会话：忽略合并文本，使用动态全局与空项目快照。
-				return splitInstructionBundle(paths, "", nil)
+				return splitInstructionBundle(ctx, paths, "", nil)
 			default:
 				// 旧项目非空合并快照：保留 opaque 文本，UI 提供显式升级。
 				hash, version := globalInstructionMeta()
@@ -64,32 +65,31 @@ func conversationInstructions(ctx context.Context, id string, paths []string, pr
 				}, nil
 			}
 		}
-		return splitInstructionBundle(paths, projectDir, row.ProjectInstructions)
+		return splitInstructionBundle(ctx, paths, projectDir, row.ProjectInstructions)
 	}
-	return splitInstructionBundle(paths, projectDir, nil)
+	return splitInstructionBundle(ctx, paths, projectDir, nil)
 }
 
 // splitInstructionBundle 组装动态全局与项目指令；frozen 非 nil 表示项目已冻结。
-func splitInstructionBundle(paths []string, projectDir string, frozen *string) (instructionBundle, error) {
-	global, err := globalInstructions(paths)
+func splitInstructionBundle(ctx context.Context, paths []string, projectDir string, frozen *string) (instructionBundle, error) {
+	global, err := globalInstructionSnapshot(ctx, paths)
 	if err != nil {
 		return instructionBundle{}, err
 	}
-	hash, version := globalInstructionMeta()
 	var project string
 	var snapshot *string
 	if frozen != nil {
 		project = *frozen
 	} else {
-		project, err = loadProjectInstructions(projectDir)
+		project, err = loadProjectInstructions(ctx, projectDir)
 		if err != nil {
 			return instructionBundle{}, err
 		}
 		snapshot = &project
 	}
 	return instructionBundle{
-		text: global + project, format: string(kaguyaconversation.InstructionsFormatSplit),
-		projectSnapshot: snapshot, globalHash: hash, globalVersion: version,
+		text: global.Text + project, format: string(kaguyaconversation.InstructionsFormatSplit),
+		projectSnapshot: snapshot, globalHash: global.Hash, globalVersion: global.Version,
 	}, nil
 }
 
@@ -104,55 +104,114 @@ func globalInstructionMeta() (string, int64) {
 
 // Global files are explicitly trusted paths outside the project root.
 // 运行时有 Manager 时使用其当前快照；否则用同一加载器直接读取（无数量/大小上限）。
-func globalInstructions(paths []string) (string, error) {
-	if manager := DefaultGlobalInstructions; manager != nil {
-		return manager.Snapshot().Text, nil
-	}
-	snapshot, _, err := instructions.Load(paths)
+func globalInstructions(ctx context.Context, paths []string) (string, error) {
+	snapshot, err := globalInstructionSnapshot(ctx, paths)
 	if err != nil {
 		return "", err
 	}
 	return snapshot.Text, nil
 }
 
+func globalInstructionSnapshot(ctx context.Context, paths []string) (*instructions.Snapshot, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if manager := DefaultGlobalInstructions; manager != nil {
+		return manager.Snapshot(), nil
+	}
+	snapshot, _, err := instructions.Load(ctx, paths)
+	return snapshot, err
+}
+
 // loadProjectInstructions 读取项目根目录的 AGENTS.md 快照，受 256 KiB 预算与
 // os.Root 边界限制；全局指令不参与该预算。
-func loadProjectInstructions(projectDir string) (string, error) {
+func loadProjectInstructions(ctx context.Context, projectDir string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if projectDir == "" {
 		return "", nil
 	}
-	var out strings.Builder
 	root, err := os.OpenRoot(projectDir)
 	if err != nil {
 		return "", err
 	}
 	defer root.Close()
-	dir, err := root.Open(".")
-	if err != nil {
-		return "", err
-	}
-	entries, err := dir.ReadDir(-1)
-	closeErr := dir.Close()
-	if err != nil {
-		return "", err
-	}
-	if closeErr != nil {
-		return "", closeErr
-	}
 	reader := instructionReader{}
-	for _, name := range instructionNames(entries) {
-		f, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
-		if err != nil {
-			return "", fmt.Errorf("open project instructions %q: %w", name, err)
-		}
-		if err := reader.append(f, "Project", filepath.Join(projectDir, name)); err != nil {
-			return "", err
-		}
+	if err := reader.appendProject(ctx, root, projectDir); err != nil {
+		return "", err
 	}
-	out.WriteString(reader.out.String())
-	return out.String(), nil
+	return reader.out.String(), nil
 }
 
+func (r *instructionReader) appendProject(ctx context.Context, root *os.Root, projectDir string) error {
+	dir, err := root.Open(".")
+	if err != nil {
+		return err
+	}
+	names, err := projectInstructionNames(ctx, dir.ReadDir)
+	closeErr := dir.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	for _, name := range names {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		f, _, err := workspace.OpenRegular(root, name)
+		if err != nil {
+			return fmt.Errorf("open project instructions %q: %w", name, err)
+		}
+		verify := func(before os.FileInfo) error {
+			current, after, err := workspace.OpenRegular(root, name)
+			if err != nil {
+				return err
+			}
+			closeErr := current.Close()
+			if !sameInstructionFile(before, after) {
+				return fmt.Errorf("project instructions %q changed during reading", name)
+			}
+			return closeErr
+		}
+		if err := r.append(ctx, f, "Project", filepath.Join(projectDir, name), verify); err != nil {
+			return err
+		}
+	}
+	return ctx.Err()
+}
+
+// 只保留匹配名称，不保留整个根目录；取消不能返回部分指令。
+func projectInstructionNames(ctx context.Context, readDir func(int) ([]os.DirEntry, error)) ([]string, error) {
+	var names []string
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		entries, err := readDir(128)
+		if cancelErr := ctx.Err(); cancelErr != nil {
+			return nil, cancelErr
+		}
+		for _, entry := range entries {
+			if strings.EqualFold(entry.Name(), "AGENTS.md") {
+				names = append(names, entry.Name())
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// loadInstructions 仅供旧格式兼容测试；生产全局读取走 Manager/Load，
+// 项目读取走请求 ctx 贯通的 loadProjectInstructions。
 func loadInstructions(paths []string, projectDir string) (string, error) {
 	reader := instructionReader{}
 	for _, path := range paths {
@@ -189,7 +248,7 @@ func loadInstructions(paths []string, projectDir string) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("open global instructions %q: %w", candidate, err)
 			}
-			if err := reader.append(f, "Global", candidate); err != nil {
+			if err := reader.append(context.Background(), f, "Global", candidate, nil); err != nil {
 				return "", err
 			}
 		}
@@ -202,27 +261,8 @@ func loadInstructions(paths []string, projectDir string) (string, error) {
 			return "", err
 		}
 		defer root.Close()
-		dir, err := root.Open(".")
-		if err != nil {
+		if err := reader.appendProject(context.Background(), root, projectDir); err != nil {
 			return "", err
-		}
-		entries, err := dir.ReadDir(-1)
-		closeErr := dir.Close()
-		if err != nil {
-			return "", err
-		}
-		if closeErr != nil {
-			return "", closeErr
-		}
-		names := instructionNames(entries)
-		for _, name := range names {
-			f, err := root.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
-			if err != nil {
-				return "", fmt.Errorf("open project instructions %q: %w", name, err)
-			}
-			if err := reader.append(f, "Project", filepath.Join(projectDir, name)); err != nil {
-				return "", err
-			}
 		}
 	}
 	return reader.out.String(), nil
@@ -231,6 +271,8 @@ func loadInstructions(paths []string, projectDir string) (string, error) {
 type instructionReader struct {
 	out  strings.Builder
 	seen []os.FileInfo
+	// 窄测试缝用于确定性验证取消和替换；生产使用有界ctx读取。
+	readData func(context.Context, io.Reader, int) ([]byte, error)
 }
 
 func instructionNames(entries []os.DirEntry) []string {
@@ -244,25 +286,56 @@ func instructionNames(entries []os.DirEntry) []string {
 	return names
 }
 
-func (r *instructionReader) append(f *os.File, scope, path string) (err error) {
+func (r *instructionReader) append(ctx context.Context, f *os.File, scope, path string, verify func(os.FileInfo) error) (err error) {
 	defer func() {
 		if closeErr := f.Close(); err == nil {
 			err = closeErr
 		}
 	}()
 	const maxBytes = 256 * 1024
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() {
 		return fmt.Errorf("instructions %q must be a regular file", path)
 	}
 	for _, previous := range r.seen {
 		if os.SameFile(previous, info) {
+			if !sameInstructionFile(previous, info) {
+				return fmt.Errorf("instructions %q changed during reading", path)
+			}
+			if verify != nil {
+				return verify(info)
+			}
 			return nil
 		}
 	}
 	r.seen = append(r.seen, info)
-	data, err := io.ReadAll(io.LimitReader(f, int64(maxBytes-r.out.Len()+1)))
+	read := r.readData
+	if read == nil {
+		read = readInstructionData
+	}
+	data, err := read(ctx, f, maxBytes-r.out.Len()+1)
 	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	after, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if !sameInstructionFile(info, after) {
+		return fmt.Errorf("instructions %q changed during reading", path)
+	}
+	if verify != nil {
+		if err := verify(info); err != nil {
+			return err
+		}
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if len(data)+r.out.Len() > maxBytes {
@@ -278,4 +351,30 @@ func (r *instructionReader) append(f *os.File, scope, path string) (err error) {
 		}
 	}
 	return nil
+}
+
+func sameInstructionFile(before, after os.FileInfo) bool {
+	return os.SameFile(before, after) && before.Mode() == after.Mode() && before.Size() == after.Size() && before.ModTime() == after.ModTime()
+}
+
+func readInstructionData(ctx context.Context, reader io.Reader, limit int) ([]byte, error) {
+	var data []byte
+	buf := make([]byte, 32*1024)
+	for len(data) < limit {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		n, err := reader.Read(buf[:min(len(buf), limit-len(data))])
+		if cancelErr := ctx.Err(); cancelErr != nil {
+			return nil, cancelErr
+		}
+		data = append(data, buf[:n]...)
+		if err == io.EOF {
+			return data, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return data, ctx.Err()
 }

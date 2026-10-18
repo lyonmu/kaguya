@@ -36,7 +36,9 @@ type TitleQueue struct {
 	done   chan struct{}
 
 	mu       sync.Mutex
+	started  bool
 	stopped  bool
+	doneOnce sync.Once
 	waiters  map[string]map[chan struct{}]struct{}
 	attempts map[string]context.CancelFunc
 	// cancelRequested 记录改名/删除发生在尝试注册之前的取消，避免抢在
@@ -59,6 +61,13 @@ func NewTitleQueue(parent context.Context, client *ent.Client, logger *zap.Logge
 
 // Start 启动唯一 worker；重复调用安全。
 func (q *TitleQueue) Start() {
+	q.mu.Lock()
+	if q.started || q.stopped || q.ctx.Err() != nil {
+		q.mu.Unlock()
+		return
+	}
+	q.started = true
+	q.mu.Unlock()
 	go q.worker()
 }
 
@@ -81,6 +90,9 @@ func (q *TitleQueue) Close() {
 	if q == nil {
 		return
 	}
+	// 入队持有mutex期间也可能等待数据库。先取消lifetime，让绑定的请求
+	// 解除等待并释放mutex，不能先等锁再发出它们退出所需的取消信号。
+	q.cancel()
 	q.mu.Lock()
 	if q.stopped {
 		q.mu.Unlock()
@@ -90,14 +102,21 @@ func (q *TitleQueue) Close() {
 	for _, cancel := range q.attempts {
 		cancel()
 	}
-	q.cancel()
 	for _, waiters := range q.waiters {
 		for waiter := range waiters {
 			close(waiter)
 		}
 	}
 	q.waiters = map[string]map[chan struct{}]struct{}{}
+	started := q.started
 	q.mu.Unlock()
+	if !started {
+		q.finishLifecycle()
+	}
+}
+
+func (q *TitleQueue) finishLifecycle() {
+	q.doneOnce.Do(func() { close(q.done) })
 }
 
 // Cancel 取消指定会话正在执行（或即将开始）的模型调用；用于手动改名或删除。
@@ -120,9 +139,12 @@ func (q *TitleQueue) Enqueue(ctx context.Context, conversationID, question, answ
 	if q == nil {
 		return nil
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	stopRootCancellation := context.AfterFunc(q.ctx, cancel)
+	defer func() { stopRootCancellation(); cancel() }()
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	if q.stopped {
+	if q.stopped || q.ctx.Err() != nil {
 		return ErrServiceStopping
 	}
 	if err := q.enqueueLocked(ctx, conversationID, question, answer); err != nil {
@@ -164,10 +186,20 @@ func (q *TitleQueue) upsertJob(ctx context.Context, conversationID, question, an
 	}
 	defer func() { _ = tx.Rollback() }()
 	client := tx.Client()
+	conversation, err := client.KaguyaConversation.Query().
+		Where(kaguyaconversation.IDEQ(conversationID), kaguyaconversation.DeletedAtIsNil()).
+		Select(kaguyaconversation.FieldTitle).Only(ctx)
+	if ent.IsNotFound(err) || (err == nil && conversation.Title != defaultConversationTitle) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
 	job, err := client.KaguyaTitleJob.Query().Where(kaguyatitlejob.ConversationIDEQ(conversationID)).Only(ctx)
+	var committed *ent.KaguyaTitleJob
 	switch {
 	case ent.IsNotFound(err):
-		_, err = client.KaguyaTitleJob.Create().
+		committed, err = client.KaguyaTitleJob.Create().
 			SetConversationID(conversationID).SetQuestion(question).SetAnswer(answer).SetEnqueueOrder(order).
 			SetStatus(kaguyatitlejob.StatusPending).Save(ctx)
 	case err != nil:
@@ -176,24 +208,46 @@ func (q *TitleQueue) upsertJob(ctx context.Context, conversationID, question, an
 		// 已有在途任务：幂等，不替换来源。
 		return nil
 	default:
-		// 终态任务只有标题仍为默认值时才开启新尝试，避免复活手动标题。
-		conversation, convErr := client.KaguyaConversation.Query().
-			Where(kaguyaconversation.IDEQ(conversationID)).
-			Select(kaguyaconversation.FieldTitle, kaguyaconversation.FieldDeletedAt).Only(ctx)
-		if convErr == nil && (conversation.DeletedAt != nil || conversation.Title != defaultConversationTitle) {
-			return nil
-		}
-		if convErr != nil && !ent.IsNotFound(convErr) {
-			return convErr
-		}
-		_, err = client.KaguyaTitleJob.UpdateOneID(job.ID).
+		changed, updateErr := titleJobCAS(client, job).
 			SetStatus(kaguyatitlejob.StatusPending).SetQuestion(question).SetAnswer(answer).SetEnqueueOrder(order).
 			ClearStartedAt().ClearFinishedAt().SetErrorCode("").Save(ctx)
+		err = updateErr
+		if changed == 1 {
+			committed = transitionedTitleJob(job, kaguyatitlejob.StatusPending)
+		}
 	}
 	if err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	publishTitleJob(committed)
+	return nil
+}
+
+// titleJobCAS 将任务身份、状态与版本绑定到本次读取；幂等及迟到收尾不增版。
+func titleJobCAS(client *ent.Client, job *ent.KaguyaTitleJob) *ent.KaguyaTitleJobUpdate {
+	return client.KaguyaTitleJob.Update().Where(kaguyatitlejob.IDEQ(job.ID),
+		kaguyatitlejob.StatusEQ(job.Status), kaguyatitlejob.RevisionEQ(job.Revision)).AddRevision(1)
+}
+
+func transitionedTitleJob(job *ent.KaguyaTitleJob, status kaguyatitlejob.Status) *ent.KaguyaTitleJob {
+	copy := *job
+	copy.Status, copy.Revision = status, job.Revision+1
+	return &copy
+}
+
+// publishTitleJob 只接受调用方已成功提交的值，不再查询可能已转换的数据库行。
+func publishTitleJob(job *ent.KaguyaTitleJob) {
+	if job == nil {
+		return
+	}
+	revision := job.Revision
+	DefaultTitlePublisher.Publish(dtochat.TitleEvent{
+		Type: dtochat.TitleJobEventUpdated, ConversationID: job.ConversationID,
+		JobStatus: string(job.Status), JobRevision: &revision,
+	})
 }
 
 // Wait 等待指定会话的任务离开 pending/running，或超时/ctx 取消。
@@ -202,6 +256,9 @@ func (q *TitleQueue) Wait(ctx context.Context, conversationID string) error {
 	if q == nil {
 		return nil
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	stopRootCancellation := context.AfterFunc(q.ctx, cancel)
+	defer func() { stopRootCancellation(); cancel() }()
 	status, err := q.jobStatus(ctx, conversationID)
 	if err != nil {
 		if ent.IsNotFound(err) {
@@ -282,14 +339,26 @@ func ReconcileTitleJobs(ctx context.Context) error {
 	if db.EntClient == nil {
 		return nil
 	}
-	_, err := db.EntClient.KaguyaTitleJob.Update().
-		Where(kaguyatitlejob.StatusEQ(kaguyatitlejob.StatusRunning)).
-		SetStatus(kaguyatitlejob.StatusPending).ClearStartedAt().Save(ctx)
-	return err
+	for {
+		jobs, err := db.EntClient.KaguyaTitleJob.Query().Where(kaguyatitlejob.StatusEQ(kaguyatitlejob.StatusRunning)).Limit(128).All(ctx)
+		if err != nil || len(jobs) == 0 {
+			return err
+		}
+		for _, job := range jobs {
+			changed, err := titleJobCAS(db.EntClient, job).SetStatus(kaguyatitlejob.StatusPending).
+				ClearStartedAt().ClearFinishedAt().SetErrorCode("").Save(ctx)
+			if err != nil {
+				return err
+			}
+			if changed == 1 {
+				publishTitleJob(transitionedTitleJob(job, kaguyatitlejob.StatusPending))
+			}
+		}
+	}
 }
 
 func (q *TitleQueue) worker() {
-	defer close(q.done)
+	defer q.finishLifecycle()
 	ticker := time.NewTicker(titleQueueFallbackInterval)
 	defer ticker.Stop()
 	for {
@@ -329,8 +398,7 @@ func (q *TitleQueue) claim() (*ent.KaguyaTitleJob, error) {
 	if err != nil {
 		return nil, err
 	}
-	changed, err := q.client.KaguyaTitleJob.Update().
-		Where(kaguyatitlejob.IDEQ(job.ID), kaguyatitlejob.StatusEQ(kaguyatitlejob.StatusPending)).
+	changed, err := titleJobCAS(q.client, job).
 		SetStatus(kaguyatitlejob.StatusRunning).SetStartedAt(time.Now()).AddAttemptCount(1).
 		Save(q.ctx)
 	if err != nil {
@@ -339,7 +407,10 @@ func (q *TitleQueue) claim() (*ent.KaguyaTitleJob, error) {
 	if changed == 0 {
 		return nil, nil
 	}
-	return q.client.KaguyaTitleJob.Get(q.ctx, job.ID)
+	claimed := transitionedTitleJob(job, kaguyatitlejob.StatusRunning)
+	claimed.AttemptCount++
+	publishTitleJob(claimed)
+	return claimed, nil
 }
 
 // run 执行单个任务：使用 root context 的派生超时（等待时间不计入 30 秒预算），
@@ -387,10 +458,12 @@ func (q *TitleQueue) run(job *ent.KaguyaTitleJob) {
 func (q *TitleQueue) revertToPending(ctx context.Context, job *ent.KaguyaTitleJob) {
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 	defer cancel()
-	if _, err := q.client.KaguyaTitleJob.Update().
-		Where(kaguyatitlejob.IDEQ(job.ID), kaguyatitlejob.StatusEQ(kaguyatitlejob.StatusRunning)).
-		SetStatus(kaguyatitlejob.StatusPending).ClearStartedAt().SetErrorCode("").Save(cleanupCtx); err != nil {
-		q.logger.Sugar().Warnf("restore title job to pending failed: id=%s err=%v", job.ID, err)
+	changed, err := titleJobCAS(q.client, job).SetStatus(kaguyatitlejob.StatusPending).
+		ClearStartedAt().ClearFinishedAt().SetErrorCode("").Save(cleanupCtx)
+	if err != nil {
+		q.logger.Warn("restore title job to pending failed", zap.String("job_id", job.ID), zap.String("reason", "persist_failed"))
+	} else if changed == 1 {
+		publishTitleJob(transitionedTitleJob(job, kaguyatitlejob.StatusPending))
 	}
 }
 
@@ -400,6 +473,10 @@ func (q *TitleQueue) execute(ctx context.Context, job *ent.KaguyaTitleJob) {
 		return
 	}
 	row, err := q.client.KaguyaConversation.Get(ctx, job.ConversationID)
+	if q.ctx.Err() != nil {
+		q.revertToPending(ctx, job)
+		return
+	}
 	if err != nil {
 		q.finish(ctx, job, kaguyatitlejob.StatusCanceled, "conversation_unavailable")
 		return
@@ -410,6 +487,10 @@ func (q *TitleQueue) execute(ctx context.Context, job *ent.KaguyaTitleJob) {
 		return
 	}
 	cfg, err := resolveTitleConfig(ctx, q.client, job.ConversationID)
+	if q.ctx.Err() != nil {
+		q.revertToPending(ctx, job)
+		return
+	}
 	switch {
 	case errors.Is(err, ErrTaskModelNotConfigured):
 		q.finish(ctx, job, kaguyatitlejob.StatusFailed, "task_model_not_configured")
@@ -431,14 +512,18 @@ func (q *TitleQueue) execute(ctx context.Context, job *ent.KaguyaTitleJob) {
 			q.finish(context.WithoutCancel(ctx), job, kaguyatitlejob.StatusFailed, "timeout")
 		default:
 			q.finish(context.WithoutCancel(ctx), job, kaguyatitlejob.StatusFailed, "generation_failed")
-			q.logger.Sugar().Warnf("generate conversation title failed: id=%s err=%v", job.ConversationID, err)
+			q.logger.Warn("generate conversation title failed", zap.String("conversation_id", job.ConversationID), zap.String("reason", "generation_failed"))
 		}
+		return
+	}
+	if q.ctx.Err() != nil {
+		q.revertToPending(ctx, job)
 		return
 	}
 	revision, updated, err := q.commitSuccess(context.WithoutCancel(ctx), job, title)
 	if err != nil {
 		q.finish(context.WithoutCancel(ctx), job, kaguyatitlejob.StatusFailed, "save_failed")
-		q.logger.Sugar().Warnf("save conversation title failed: id=%s err=%v", job.ConversationID, err)
+		q.logger.Warn("save conversation title failed", zap.String("conversation_id", job.ConversationID), zap.String("reason", "persist_failed"))
 		return
 	}
 	if !updated {
@@ -456,6 +541,8 @@ func (q *TitleQueue) execute(ctx context.Context, job *ent.KaguyaTitleJob) {
 
 // commitSuccess 在同一个短事务内条件写入标题并终结任务；不修改最近对话时间/用量。
 func (q *TitleQueue) commitSuccess(ctx context.Context, job *ent.KaguyaTitleJob, title string) (int64, bool, error) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+	defer cancel()
 	tx, err := q.client.Tx(ctx)
 	if err != nil {
 		return 0, false, err
@@ -475,8 +562,13 @@ func (q *TitleQueue) commitSuccess(ctx context.Context, job *ent.KaguyaTitleJob,
 	if row.DeletedAt != nil || row.Title != defaultConversationTitle {
 		return 0, false, nil
 	}
+	changed, err := titleJobCAS(client, job).SetStatus(kaguyatitlejob.StatusSucceeded).
+		SetFinishedAt(time.Now()).SetErrorCode("").Save(ctx)
+	if err != nil || changed != 1 {
+		return 0, false, err
+	}
 	revision := row.TitleRevision + 1
-	changed, err := client.KaguyaConversation.Update().
+	changed, err = client.KaguyaConversation.Update().
 		Where(kaguyaconversation.IDEQ(job.ConversationID), kaguyaconversation.DeletedAtIsNil(),
 			kaguyaconversation.TitleEQ(defaultConversationTitle), kaguyaconversation.TitleRevisionEQ(row.TitleRevision)).
 		SetTitle(title).SetTitleRevision(revision).Save(ctx)
@@ -486,34 +578,41 @@ func (q *TitleQueue) commitSuccess(ctx context.Context, job *ent.KaguyaTitleJob,
 	if changed != 1 {
 		return 0, false, nil
 	}
-	if err := client.KaguyaTitleJob.UpdateOneID(job.ID).
-		SetStatus(kaguyatitlejob.StatusSucceeded).SetFinishedAt(time.Now()).
-		SetErrorCode("").AddRevision(1).Exec(ctx); err != nil {
-		return 0, false, err
-	}
 	if err := tx.Commit(); err != nil {
 		return 0, false, err
 	}
+	publishTitleJob(transitionedTitleJob(job, kaguyatitlejob.StatusSucceeded))
 	return revision, true, nil
 }
 
 // finish 终结任务但保留当前标题；失败不阻塞后续任务。
 func (q *TitleQueue) finish(ctx context.Context, job *ent.KaguyaTitleJob, status kaguyatitlejob.Status, code string) {
-	_, err := q.client.KaguyaTitleJob.Update().
-		Where(kaguyatitlejob.IDEQ(job.ID), kaguyatitlejob.StatusEQ(kaguyatitlejob.StatusRunning)).
-		SetStatus(status).SetFinishedAt(time.Now()).SetErrorCode(code).Save(ctx)
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+	defer cancel()
+	changed, err := titleJobCAS(q.client, job).SetStatus(status).SetFinishedAt(time.Now()).SetErrorCode(code).Save(cleanupCtx)
 	if err != nil {
-		q.logger.Sugar().Warnf("finish title job failed: id=%s err=%v", job.ID, err)
+		q.logger.Warn("finish title job failed", zap.String("job_id", job.ID), zap.String("reason", "persist_failed"))
+	} else if changed == 1 {
+		publishTitleJob(transitionedTitleJob(job, status))
 	}
 }
 
 // CancelJobs 在会话改名/删除的同一事务内取消在途任务，避免被复活或覆盖。
-func CancelJobs(ctx context.Context, client *ent.Client, conversationID, reason string) error {
-	_, err := client.KaguyaTitleJob.Update().
-		Where(kaguyatitlejob.ConversationIDEQ(conversationID),
-			kaguyatitlejob.StatusIn(kaguyatitlejob.StatusPending, kaguyatitlejob.StatusRunning)).
-		SetStatus(kaguyatitlejob.StatusCanceled).SetFinishedAt(time.Now()).SetErrorCode(reason).Save(ctx)
-	return err
+func CancelJobs(ctx context.Context, client *ent.Client, conversationID, reason string) (*ent.KaguyaTitleJob, error) {
+	job, err := client.KaguyaTitleJob.Query().Where(kaguyatitlejob.ConversationIDEQ(conversationID),
+		kaguyatitlejob.StatusIn(kaguyatitlejob.StatusPending, kaguyatitlejob.StatusRunning)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	changed, err := titleJobCAS(client, job).SetStatus(kaguyatitlejob.StatusCanceled).
+		SetFinishedAt(time.Now()).SetErrorCode(reason).Save(ctx)
+	if err != nil || changed != 1 {
+		return nil, err
+	}
+	return transitionedTitleJob(job, kaguyatitlejob.StatusCanceled), nil
 }
 
 // EnqueueConversationTitle 为已有首个成功轮次的会话显式补生成或重试标题。

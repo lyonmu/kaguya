@@ -24,8 +24,12 @@ func (KaguyaApproval) Fields() []ent.Field {
 		field.Enum("status").Values("pending", "approved", "rejected", "expired", "canceled", "consumed").Default("pending"),
 		field.String("decision").Default("").Comment("approve 或 reject；pending 为空"),
 		field.Time("requested_at"),
+		field.Time("expires_at").Optional().Nillable().Comment("服务端裁决期限；旧空值不恢复授权"),
 		field.Time("resolved_at").Optional().Nillable(),
 		field.Time("consumed_at").Optional().Nillable(),
+		field.Enum("execution_state").Values("not_started", "unknown", "succeeded", "failed", "canceled").Default("not_started").Comment("独立于授权状态；consumed 且无结果时间的旧行读取为 unknown"),
+		field.Time("execution_finished_at").Optional().Nillable(),
+		field.String("execution_reason_code").Default("").Comment("执行结果安全原因码，不保存原始错误或参数"),
 		field.String("reason_code").Default("").Comment("安全原因码，不保存原始错误或参数"),
 	}
 }
@@ -37,6 +41,7 @@ func (KaguyaApproval) Indexes() []ent.Index {
 		index.Fields("approval_id").Unique(),
 		index.Fields("turn_id", "status"),
 		index.Fields("turn_id", "tool_call_id").Unique(),
+		index.Fields("conversation_id", "turn_id"),
 	}
 }
 

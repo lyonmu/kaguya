@@ -16,6 +16,7 @@ import (
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyaapproval"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatblock"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyaconversation"
@@ -128,16 +129,22 @@ func createConversation(ctx context.Context, target *chatTarget, id, projectID, 
 	if _, err := create.Save(ctx); err != nil {
 		return err
 	}
-	if _, err := client.KaguyaTitleJob.Create().
+	titleJob, err := client.KaguyaTitleJob.Create().
 		SetConversationID(id).SetQuestion(limitTitleRunes(question, 4000)).
-		SetStatus(kaguyatitlejob.StatusPending).SetEnqueueOrder(order).Save(ctx); err != nil {
+		SetStatus(kaguyatitlejob.StatusPending).SetEnqueueOrder(order).Save(ctx)
+	if err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	publishTitleJob(titleJob)
+	return nil
 }
 
 // turnStart 是创建进行中占位行的输入。
 type turnStart struct {
+	ReferenceSummary                                          *dtochat.TurnReferenceSummary
 	ConversationID                                            string
 	UserContent                                               string
 	ProviderID, ProviderName, ModelID, ModelName, APIProtocol string
@@ -159,7 +166,7 @@ func beginTurn(ctx context.Context, start turnStart) (*ent.KaguyaChatTurn, error
 	} else if !ent.IsNotFound(err) {
 		return nil, err
 	}
-	return db.EntClient.KaguyaChatTurn.Create().
+	create := db.EntClient.KaguyaChatTurn.Create().
 		SetConversationID(start.ConversationID).SetTurnIndex(next).SetStatus(kaguyachatturn.StatusRunning).
 		SetUserContent(start.UserContent).
 		SetProviderID(start.ProviderID).SetProviderName(start.ProviderName).
@@ -169,22 +176,55 @@ func beginTurn(ctx context.Context, start turnStart) (*ent.KaguyaChatTurn, error
 		SetInputTokens(0).SetOutputTokens(0).SetTotalTokens(0).SetCachedTokens(0).SetReasoningTokens(0).
 		SetGlobalInstructionHash(start.GlobalInstructionHash).SetNillableGlobalInstructionVersion(start.GlobalInstructionVersion).
 		SetPermissionMode(kaguyachatturn.PermissionMode(defaultPermissionMode(start.PermissionMode))).
-		SetMessages([]fantasy.Message{}).Save(ctx)
+		SetMessages([]fantasy.Message{})
+	if start.ReferenceSummary != nil {
+		create.SetReferenceSummary(*start.ReferenceSummary)
+	}
+	return create.Save(ctx)
 }
 
 // markTurnEnd 在生成失败或取消后把占位行标为终态并保留已产生的内容。
 // 生成 context 此时可能已被取消，因此使用独立的后台 context。
 func markTurnEnd(turnID string, status kaguyachatturn.Status, finishedAt time.Time) error {
+	return markTurnEndWithPreparation(turnID, "", status, finishedAt, nil, nil)
+}
+
+// markTurnEndWithPreparation 使用一次条件更新保存准备审计与终态。
+// 不能覆盖已经完成的事务；清理不依赖已取消的生成 ctx。
+func markTurnEndWithPreparation(turnID, conversationID string, status kaguyachatturn.Status, finishedAt time.Time, audit *dtochat.TurnPreparationUsage, summary *dtochat.TurnReferenceSummary) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	row, err := db.EntClient.KaguyaChatTurn.Get(ctx, turnID)
 	if err != nil {
 		return err
 	}
-	duration := max(finishedAt.Sub(row.StartedAt).Milliseconds(), 0)
-	_, err = db.EntClient.KaguyaChatTurn.UpdateOneID(turnID).
-		SetStatus(status).SetFinishedAt(finishedAt.UTC()).SetDurationMs(duration).Save(ctx)
-	return err
+	if conversationID != "" && conversationID != row.ConversationID {
+		return ErrConversationBusy
+	}
+	if row.Status != kaguyachatturn.StatusRunning {
+		if row.Status == status {
+			return nil
+		}
+		return ErrConversationBusy
+	}
+	if status != kaguyachatturn.StatusFailed && status != kaguyachatturn.StatusCanceled && status != kaguyachatturn.StatusInterrupted {
+		return ErrConversationUpdate
+	}
+	update := db.EntClient.KaguyaChatTurn.UpdateOneID(turnID).Where(kaguyachatturn.ConversationIDEQ(row.ConversationID), kaguyachatturn.StatusEQ(kaguyachatturn.StatusRunning)).
+		SetStatus(status).SetFinishedAt(finishedAt.UTC()).SetDurationMs(max(finishedAt.Sub(row.StartedAt).Milliseconds(), 0))
+	if audit != nil {
+		update.SetPreparationUsage(audit)
+	}
+	if summary != nil {
+		update.SetReferenceSummary(*summary)
+	}
+	if _, err := update.Save(ctx); err != nil {
+		if ent.IsNotFound(err) {
+			return ErrConversationBusy
+		}
+		return err
+	}
+	return nil
 }
 
 // ReconcileRunningTurns 在进程启动时把遗留的 running 轮次标记为 interrupted。
@@ -206,6 +246,9 @@ func ReconcileRunningTurns(ctx context.Context) error {
 }
 
 type completedTurn struct {
+	PreparationUsage                                          *dtochat.TurnPreparationUsage
+	ContextFingerprintVersion                                 int
+	ContextFingerprint                                        string
 	AgentInstructions                                         *string
 	ProjectInstructions                                       *string // split 首次成功保存的项目快照（可空字符串）
 	InstructionsFormat                                        string
@@ -307,18 +350,22 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 		SetStatus(kaguyachatturn.StatusCompleted).
 		SetStartedAt(turn.StartedAt.UTC()).SetFinishedAt(turn.FinishedAt.UTC()).SetDurationMs(duration).SetToolCalls(toolCalls).
 		SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
-		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
+		SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).SetCacheCreationTokens(turn.Usage.CacheCreationTokens).
 		SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
 		SetCompactionCount(turn.CompactionCount).
 		SetGlobalInstructionHash(turn.GlobalInstructionHash).SetNillableGlobalInstructionVersion(turn.GlobalInstructionVersion).
 		SetPermissionMode(kaguyachatturn.PermissionMode(defaultPermissionMode(turn.PermissionMode))).
-		SetReferenceSummary(turnReferenceSummary(turn.ReferenceSummary))
+		SetReferenceSummary(turnReferenceSummary(turn.ReferenceSummary)).
+		SetContextFingerprintVersion(turn.ContextFingerprintVersion).SetContextFingerprint(turn.ContextFingerprint)
 	// 未压缩的轮次不写 context_messages，列保持 SQL NULL，快照存在时才有 JSON 数组。
 	if turn.ContextMessages != nil {
 		createTurn.SetContextMessages(turn.ContextMessages)
 	}
 	if turn.MemorySelection != nil {
 		createTurn.SetMemoryRefs(*turn.MemorySelection)
+	}
+	if turn.PreparationUsage != nil {
+		createTurn.SetPreparationUsage(turn.PreparationUsage)
 	}
 	turnID := turn.TurnID
 	if turnID == "" {
@@ -335,13 +382,18 @@ func saveCompletedTurn(ctx context.Context, turn completedTurn) error {
 			SetStatus(kaguyachatturn.StatusCompleted).
 			SetStartedAt(turn.StartedAt.UTC()).SetFinishedAt(turn.FinishedAt.UTC()).SetDurationMs(duration).SetToolCalls(toolCalls).
 			SetFinishReason(turn.FinishReason).SetInputTokens(turn.Usage.InputTokens).SetOutputTokens(turn.Usage.OutputTokens).
-			SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).
+			SetTotalTokens(turn.Usage.TotalTokens).SetCachedTokens(turn.Usage.CacheHitTokens).SetReasoningTokens(turn.Usage.ReasoningTokens).SetCacheCreationTokens(turn.Usage.CacheCreationTokens).
 			SetNillableContextTokens(turn.ContextTokens).SetContextWindow(turn.ContextWindow).
 			SetCompactionCount(turn.CompactionCount).SetMessages(turn.Messages).
 			SetGlobalInstructionHash(turn.GlobalInstructionHash).SetNillableGlobalInstructionVersion(turn.GlobalInstructionVersion).
 			SetPermissionMode(kaguyachatturn.PermissionMode(defaultPermissionMode(turn.PermissionMode))).
 			SetReferenceSummary(turnReferenceSummary(turn.ReferenceSummary)).
+			SetContextFingerprintVersion(turn.ContextFingerprintVersion).SetContextFingerprint(turn.ContextFingerprint).
 			ClearContextMessages().ClearMemoryRefs()
+		update.ClearPreparationUsage()
+		if turn.PreparationUsage != nil {
+			update.SetPreparationUsage(turn.PreparationUsage)
+		}
 		if turn.ContextMessages != nil {
 			update.SetContextMessages(turn.ContextMessages)
 		}
@@ -425,16 +477,19 @@ func attachTitleJobStatus(ctx context.Context, items []dtochat.ConversationResp)
 	}
 	jobs, err := db.EntClient.KaguyaTitleJob.Query().
 		Where(kaguyatitlejob.ConversationIDIn(ids...)).
-		Select(kaguyatitlejob.FieldConversationID, kaguyatitlejob.FieldStatus).All(ctx)
+		Select(kaguyatitlejob.FieldConversationID, kaguyatitlejob.FieldStatus, kaguyatitlejob.FieldRevision).All(ctx)
 	if err != nil {
 		return err
 	}
 	status := make(map[string]string, len(jobs))
+	revisions := make(map[string]int64, len(jobs))
 	for _, job := range jobs {
 		status[job.ConversationID] = string(job.Status)
+		revisions[job.ConversationID] = job.Revision
 	}
 	for index := range items {
 		items[index].TitleJobStatus = status[items[index].ID]
+		items[index].TitleJobRevision = revisions[items[index].ID]
 	}
 	return nil
 }
@@ -601,9 +656,11 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 			return nil, err
 		}
 	}
+	var canceledTitleJob *ent.KaguyaTitleJob
 	if titleChanged {
 		// 手动改名与自动生成共享 title_revision：取消在途任务，事件携带新版本。
-		if err := CancelJobs(ctx, tx.Client(), id, "title_renamed"); err != nil {
+		canceledTitleJob, err = CancelJobs(ctx, tx.Client(), id, "title_renamed")
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -611,6 +668,7 @@ func (s *AgentSvc) ConversationUpdate(ctx context.Context, id string, req *dtoch
 		return nil, err
 	}
 	if titleChanged {
+		publishTitleJob(canceledTitleJob)
 		if queue := DefaultTitleQueue; queue != nil {
 			queue.Cancel(id)
 		}
@@ -650,7 +708,7 @@ func (s *AgentSvc) ConversationInstructionsUpgrade(ctx context.Context, id strin
 			return nil, err
 		}
 	}
-	project, err := loadProjectInstructions(projectDir)
+	project, err := loadProjectInstructions(ctx, projectDir)
 	if err != nil {
 		return nil, err
 	}
@@ -690,7 +748,8 @@ func (s *AgentSvc) ConversationDelete(ctx context.Context, id string, purgeMemor
 	if err != nil {
 		return err
 	}
-	if err := CancelJobs(ctx, tx.Client(), id, "conversation_deleted"); err != nil {
+	canceledTitleJob, err := CancelJobs(ctx, tx.Client(), id, "conversation_deleted")
+	if err != nil {
 		return err
 	}
 	if err := memorysvc.OnConversationDeletedTx(ctx, tx.Client(), id, purgeMemory); err != nil {
@@ -699,6 +758,7 @@ func (s *AgentSvc) ConversationDelete(ctx context.Context, id string, purgeMemor
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+	publishTitleJob(canceledTitleJob)
 	if queue := DefaultTitleQueue; queue != nil {
 		queue.Cancel(id)
 	}
@@ -785,12 +845,23 @@ func (s *AgentSvc) ConversationTurns(ctx context.Context, id string, req *dtocha
 			blocksByTurn[block.TurnID] = append(blocksByTurn[block.TurnID], block)
 		}
 	}
+	approvalsByTurn := make(map[string][]dtochat.Approval)
+	if len(ids) > 0 {
+		approvals, err := db.EntClient.KaguyaApproval.Query().Where(kaguyaapproval.ConversationIDEQ(id), kaguyaapproval.TurnIDIn(ids...), kaguyaapproval.DeletedAtIsNil()).
+			Order(ent.Asc(kaguyaapproval.FieldRequestedAt), ent.Asc(kaguyaapproval.FieldApprovalID)).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, approval := range approvals {
+			approvalsByTurn[approval.TurnID] = append(approvalsByTurn[approval.TurnID], approvalAudit(approval))
+		}
+	}
 	for i := len(rows) - 1; i >= 0; i-- {
 		row := rows[i]
-		turn := dtochat.StoredTurn{ID: row.ID, TurnIndex: row.TurnIndex, UserContent: row.UserContent, ProviderName: row.ProviderName,
+		turn := dtochat.StoredTurn{ID: row.ID, PreparationUsage: row.PreparationUsage, Approvals: approvalsByTurn[row.ID], TurnIndex: row.TurnIndex, UserContent: row.UserContent, ProviderName: row.ProviderName,
 			ModelID: row.ModelID, ModelName: row.ModelName, APIProtocol: row.APIProtocol, StartedAt: row.StartedAt, FinishedAt: row.FinishedAt,
 			DurationMS: row.DurationMs, ToolCalls: row.ToolCalls, FinishReason: row.FinishReason, Status: string(row.Status),
-			Usage:  dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), ReasoningTokens: int(row.ReasoningTokens)},
+			Usage:  dtochat.Usage{InputTokens: int(row.InputTokens), OutputTokens: int(row.OutputTokens), TotalTokens: int(row.TotalTokens), CachedTokens: int(row.CachedTokens), CacheCreationTokens: int(row.CacheCreationTokens), ReasoningTokens: int(row.ReasoningTokens)},
 			Blocks: make([]dtochat.StoredBlock, 0, len(blocksByTurn[row.ID]))}
 		if len(row.MemoryRefs.Refs) > 0 {
 			refs, err := memorysvc.NewService(db.EntClient, global.Logger).TurnMemoryRefs(ctx, row.MemoryRefs)

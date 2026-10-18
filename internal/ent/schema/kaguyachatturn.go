@@ -29,8 +29,12 @@ func (KaguyaChatTurn) Fields() []ent.Field {
 		field.Int64("input_tokens").NonNegative(), field.Int64("output_tokens").NonNegative(),
 		field.Int64("total_tokens").NonNegative(), field.Int64("cached_tokens").NonNegative(),
 		field.Int64("reasoning_tokens").NonNegative(),
+		field.Int64("cache_creation_tokens").Default(0).NonNegative().Comment("本轮缓存写入 token；旧记录0仅作兼容，不能反推历史真实用量"),
+		field.JSON("preparation_usage", &dtochat.TurnPreparationUsage{}).Optional().Comment("摘要调用已知与未知用量审计；不重复加入成功轮总量"),
 		field.Int64("context_tokens").Optional().Nillable().NonNegative().Comment("最后一次模型调用输入（含缓存）及输出，用于估算整段上下文；旧记录未知"),
 		field.Int("context_window").Default(0).NonNegative().Comment("本轮模型 token_context_window 快照，0 表示未知"),
+		field.Int("context_fingerprint_version").Default(0).NonNegative().Comment("0 表示旧记录无完整指纹，不复用实际上下文基线"),
+		field.String("context_fingerprint").Optional().Nillable().Comment("执行模型、系统指令与工具等非秘密配置的完整上下文指纹"),
 		// 不使用展示块重建上下文：工具消息、推理签名和 provider metadata 必须无损保留。
 		field.JSON("context_messages", []fantasy.Message{}).Optional().Comment("发生压缩后的完整续聊快照；原始 messages 始终保留"),
 		field.Int("compaction_count").Default(0).NonNegative(),

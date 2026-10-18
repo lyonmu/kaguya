@@ -9,7 +9,7 @@ import (
 // ApprovalDecision
 // @Tags Chat
 // @Summary 批准或拒绝一次工具审批
-// @Description 仅对当前运行轮次中仍等待裁决的审批有效；相同裁决重复请求幂等返回，冲突裁决返回 102013。批准只授权一次调用，参数哈希在登记后不可替换；过期、取消或已执行的审批不能再裁决。
+// @Description 只有当前运行轮次中绑定匹配且未过期的待审批调用能产生新裁决；相同裁决重发只返回持久状态，不再次授权，冲突裁决返回 102013。批准不代表执行完成；只有消费事务成功提交后才允许本次工具调用，消费失败或提交不确定不执行。过期/取消不能重新批准。
 // @Param id path string true "会话雪花 ID"
 // @Param approval_id path string true "审批 ID"
 // @Param data body dtochat.ApprovalDecisionReq true "approve 或 reject"
@@ -38,7 +38,7 @@ func (b *ChatApiV1Group) ApprovalDecision(c *gin.Context) {
 // ConversationApprovals
 // @Tags Chat
 // @Summary 当前等待裁决的审批列表
-// @Description 仅作页面刷新后的状态补齐；不恢复已终结轮次，也不能跨进程复活审批。
+// @Description 仅返回当前运行轮次仍有活执行入口、绑定匹配且未过期的待审批调用，包含安全展示参数与服务端 expires_at。仅补齐状态，不恢复已终结轮次、孤立审计行或跨进程审批。历史授权/执行结果由 turns.approvals 返回。
 // @Param id path string true "会话雪花 ID"
 // @Success 200 {object} dtocode.Response{data=[]dtochat.Approval}
 // @Router /v1/chat/conversation/{id}/approvals [get]

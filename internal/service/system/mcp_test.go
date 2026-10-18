@@ -23,8 +23,17 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 )
 
-func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
+// MCP 的 ID fixture 每个测试重新从 1 开始，策略实例必须与数据库一起隔离。
+func setupMCPServiceTest(t *testing.T) context.Context {
 	ctx := setupSystemServiceTest(t)
+	old := DefaultMCPRecovery
+	DefaultMCPRecovery = NewMCPRecoveryCoordinator()
+	t.Cleanup(func() { DefaultMCPRecovery = old })
+	return ctx
+}
+
+func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
+	ctx := setupMCPServiceTest(t)
 	core, logs := observer.New(zap.DebugLevel)
 	global.Logger = zap.New(core)
 	manager := agentmcp.Default
@@ -36,7 +45,7 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	})
 	remote := httptest.NewServer(sdk.NewStreamableHTTPHandler(func(*http.Request) *sdk.Server { return server }, &sdk.StreamableHTTPOptions{JSONResponse: true}))
 	defer remote.Close()
-	svc := &SystemSvc{}
+	svc := NewSystemSvc(ctx)
 	req := &dtosystem.SystemMCPSaveReq{Name: "MCP", Transport: "streamable-http", URL: remote.URL, TimeoutSeconds: 2, Headers: map[string]string{"Authorization": "secret"}}
 	created, err := svc.MCPCreate(ctx, req)
 	if err != nil {
@@ -124,6 +133,10 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	if err := db.EntClient.KaguyaMCPServer.UpdateOneID(created.ID).SetEnabled(true).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
+	// 显式开启周期后测试启动失败日志；启动恢复本身现在尊重退避。
+	if _, err := DefaultMCPRecovery.StartManualCycle(ctx, created.ID); err != nil {
+		t.Fatal(err)
+	}
 	if err := svc.RestoreMCP(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -154,6 +167,9 @@ func TestMCPCRUDLifecycleAndRestore(t *testing.T) {
 	}
 	if len(agentmcp.Default.Tools()) != 0 {
 		t.Fatal("delete kept tools")
+	}
+	if _, exists := DefaultMCPRecovery.Snapshot(created.ID); exists {
+		t.Fatal("deleted service retained recovery cache")
 	}
 	if _, err := svc.MCPDetail(ctx, created.ID); !errors.Is(err, ErrMCPNotFound) {
 		t.Fatalf("deleted detail err=%v", err)
@@ -255,14 +271,14 @@ func newMCPTestServer(t *testing.T) (*sdk.Server, *httptest.Server) {
 // TestMCPRecoveryReconnectsEnabledService 验证监督器自动重连已启用但未连接的服务，
 // 覆盖应用启动时恢复失败或运行过程中连接断开的场景。
 func TestMCPRecoveryReconnectsEnabledService(t *testing.T) {
-	ctx := setupSystemServiceTest(t)
+	ctx := setupMCPServiceTest(t)
 	core, logs := observer.New(zap.DebugLevel)
 	global.Logger = zap.New(core)
 	manager := agentmcp.Default
 	agentmcp.Default = agentmcp.NewManager()
 
 	_, remoteServer := newMCPTestServer(t)
-	svc := &SystemSvc{}
+	svc := NewSystemSvc(ctx)
 	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Recovery", Transport: "streamable-http", URL: remoteServer.URL, TimeoutSeconds: 2})
 	if err != nil {
 		t.Fatal(err)
@@ -294,7 +310,7 @@ func TestMCPRecoveryReconnectsEnabledService(t *testing.T) {
 
 // TestMCPRecoveryBackoffAndReconnect 验证失败按指数退避调度，服务恢复后自动连接。
 func TestMCPRecoveryBackoffAndReconnect(t *testing.T) {
-	ctx := setupSystemServiceTest(t)
+	ctx := setupMCPServiceTest(t)
 	core, logs := observer.New(zap.DebugLevel)
 	global.Logger = zap.New(core)
 	manager := agentmcp.Default
@@ -317,7 +333,7 @@ func TestMCPRecoveryBackoffAndReconnect(t *testing.T) {
 		handler.ServeHTTP(w, r)
 	}))
 
-	svc := &SystemSvc{}
+	svc := NewSystemSvc(ctx)
 	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Backoff", Transport: "streamable-http", URL: remoteServer.URL, TimeoutSeconds: 2})
 	if err != nil {
 		t.Fatal(err)
@@ -357,7 +373,7 @@ func TestMCPRecoveryBackoffAndReconnect(t *testing.T) {
 
 // TestMCPRecoveryStopsAfterDisable 验证用户停用服务后监督器停止重连。
 func TestMCPRecoveryStopsAfterDisable(t *testing.T) {
-	ctx := setupSystemServiceTest(t)
+	ctx := setupMCPServiceTest(t)
 	core, logs := observer.New(zap.DebugLevel)
 	global.Logger = zap.New(core)
 	manager := agentmcp.Default
@@ -367,7 +383,7 @@ func TestMCPRecoveryStopsAfterDisable(t *testing.T) {
 		agentmcp.Default = manager
 	}()
 
-	svc := &SystemSvc{}
+	svc := NewSystemSvc(ctx)
 	// 指向必定拒绝连接的地址，保证重连失败进入退避。
 	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Disabled", Transport: "streamable-http", URL: "http://127.0.0.1:1/mcp", TimeoutSeconds: 1})
 	if err != nil {
@@ -462,7 +478,7 @@ func TestMCPMutationGateTryAcquire(t *testing.T) {
 
 // 第五次 Prepare 失败后熔断：不再自动尝试第六次，并把 open 持久化。
 func TestMCPRecoveryOpensCircuitAfterFiveFailures(t *testing.T) {
-	ctx := setupSystemServiceTest(t)
+	ctx := setupMCPServiceTest(t)
 	core, _ := observer.New(zap.DebugLevel)
 	global.Logger = zap.New(core)
 	manager := agentmcp.Default
@@ -482,7 +498,7 @@ func TestMCPRecoveryOpensCircuitAfterFiveFailures(t *testing.T) {
 	}))
 	defer remote.Close()
 
-	svc := &SystemSvc{}
+	svc := NewSystemSvc(ctx)
 	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Circuit", Transport: "streamable-http", URL: remote.URL, TimeoutSeconds: 1})
 	if err != nil {
 		t.Fatal(err)
@@ -530,7 +546,7 @@ func TestMCPRecoveryOpensCircuitAfterFiveFailures(t *testing.T) {
 
 // 手动重连开启新周期：清空熔断与失败计数，失败计为新周期第一次。
 func TestMCPManualReconnectStartsNewCycle(t *testing.T) {
-	ctx := setupSystemServiceTest(t)
+	ctx := setupMCPServiceTest(t)
 	core, _ := observer.New(zap.DebugLevel)
 	global.Logger = zap.New(core)
 	manager := agentmcp.Default
@@ -543,7 +559,7 @@ func TestMCPManualReconnectStartsNewCycle(t *testing.T) {
 		DefaultMCPRecovery = coordinator
 	}()
 
-	svc := &SystemSvc{}
+	svc := NewSystemSvc(ctx)
 	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Manual", Transport: "streamable-http", URL: "http://127.0.0.1:1/mcp", TimeoutSeconds: 1})
 	if err != nil {
 		t.Fatal(err)
@@ -580,7 +596,7 @@ func TestMCPManualReconnectStartsNewCycle(t *testing.T) {
 
 // 停用服务拒绝手动重连；并发请求返回忙碌。
 func TestMCPReconnectPreconditions(t *testing.T) {
-	ctx := setupSystemServiceTest(t)
+	ctx := setupMCPServiceTest(t)
 	manager := agentmcp.Default
 	agentmcp.Default = agentmcp.NewManager()
 	coordinator := DefaultMCPRecovery
@@ -591,7 +607,7 @@ func TestMCPReconnectPreconditions(t *testing.T) {
 		DefaultMCPRecovery = coordinator
 	}()
 
-	svc := &SystemSvc{}
+	svc := NewSystemSvc(ctx)
 	created, err := svc.MCPCreate(ctx, &dtosystem.SystemMCPSaveReq{Name: "Preconditions", Transport: "streamable-http", URL: "http://127.0.0.1:1/mcp", TimeoutSeconds: 1})
 	if err != nil {
 		t.Fatal(err)

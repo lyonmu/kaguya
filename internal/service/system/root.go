@@ -1,8 +1,33 @@
 package system
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
-type SystemSvc struct{}
+type SystemSvc struct{ mcpRoot context.Context }
+
+// NewSystemSvc 在启动时绑定本实例 root；MCP 不从可替换的 Default 查找生命周期。
+func NewSystemSvc(root context.Context) *SystemSvc { return &SystemSvc{mcpRoot: root} }
+
+func (s *SystemSvc) mcpRequestContext(request context.Context) (context.Context, func(), error) {
+	if s.mcpRoot == nil {
+		return nil, nil, ErrMCPLifecycle
+	}
+	ctx, cancel := context.WithCancel(request)
+	stop := context.AfterFunc(s.mcpRoot, cancel)
+	if err := s.mcpRoot.Err(); err != nil {
+		cancel()
+		stop()
+		return nil, nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		cancel()
+		stop()
+		return nil, nil, err
+	}
+	return ctx, func() { stop(); cancel() }, nil
+}
 
 var (
 	ErrProviderNotFound  = errors.New("provider not found")

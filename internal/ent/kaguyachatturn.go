@@ -67,10 +67,18 @@ type KaguyaChatTurn struct {
 	CachedTokens int64 `json:"cached_tokens,omitempty"`
 	// ReasoningTokens holds the value of the "reasoning_tokens" field.
 	ReasoningTokens int64 `json:"reasoning_tokens,omitempty"`
+	// 本轮缓存写入 token；旧记录0仅作兼容，不能反推历史真实用量
+	CacheCreationTokens int64 `json:"cache_creation_tokens,omitempty"`
+	// 摘要调用已知与未知用量审计；不重复加入成功轮总量
+	PreparationUsage *chat.TurnPreparationUsage `json:"preparation_usage,omitempty"`
 	// 最后一次模型调用输入（含缓存）及输出，用于估算整段上下文；旧记录未知
 	ContextTokens *int64 `json:"context_tokens,omitempty"`
 	// 本轮模型 token_context_window 快照，0 表示未知
 	ContextWindow int `json:"context_window,omitempty"`
+	// 0 表示旧记录无完整指纹，不复用实际上下文基线
+	ContextFingerprintVersion int `json:"context_fingerprint_version,omitempty"`
+	// 执行模型、系统指令与工具等非秘密配置的完整上下文指纹
+	ContextFingerprint *string `json:"context_fingerprint,omitempty"`
 	// 发生压缩后的完整续聊快照；原始 messages 始终保留
 	ContextMessages []fantasy.Message `json:"context_messages,omitempty"`
 	// CompactionCount holds the value of the "compaction_count" field.
@@ -129,11 +137,11 @@ func (*KaguyaChatTurn) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldMemoryRefs, kaguyachatturn.FieldReferenceSummary, kaguyachatturn.FieldMessages:
+		case kaguyachatturn.FieldPreparationUsage, kaguyachatturn.FieldContextMessages, kaguyachatturn.FieldMemoryRefs, kaguyachatturn.FieldReferenceSummary, kaguyachatturn.FieldMessages:
 			values[i] = new([]byte)
-		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow, kaguyachatturn.FieldCompactionCount, kaguyachatturn.FieldGlobalInstructionVersion:
+		case kaguyachatturn.FieldTurnIndex, kaguyachatturn.FieldDurationMs, kaguyachatturn.FieldToolCalls, kaguyachatturn.FieldInputTokens, kaguyachatturn.FieldOutputTokens, kaguyachatturn.FieldTotalTokens, kaguyachatturn.FieldCachedTokens, kaguyachatturn.FieldReasoningTokens, kaguyachatturn.FieldCacheCreationTokens, kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextWindow, kaguyachatturn.FieldContextFingerprintVersion, kaguyachatturn.FieldCompactionCount, kaguyachatturn.FieldGlobalInstructionVersion:
 			values[i] = new(sql.NullInt64)
-		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldStatus, kaguyachatturn.FieldFinishReason, kaguyachatturn.FieldPermissionMode, kaguyachatturn.FieldGlobalInstructionHash:
+		case kaguyachatturn.FieldID, kaguyachatturn.FieldConversationID, kaguyachatturn.FieldUserContent, kaguyachatturn.FieldProviderID, kaguyachatturn.FieldProviderName, kaguyachatturn.FieldModelID, kaguyachatturn.FieldModelName, kaguyachatturn.FieldAPIProtocol, kaguyachatturn.FieldStatus, kaguyachatturn.FieldFinishReason, kaguyachatturn.FieldContextFingerprint, kaguyachatturn.FieldPermissionMode, kaguyachatturn.FieldGlobalInstructionHash:
 			values[i] = new(sql.NullString)
 		case kaguyachatturn.FieldCreatedAt, kaguyachatturn.FieldUpdatedAt, kaguyachatturn.FieldDeletedAt, kaguyachatturn.FieldStartedAt, kaguyachatturn.FieldFinishedAt:
 			values[i] = new(sql.NullTime)
@@ -291,6 +299,20 @@ func (_m *KaguyaChatTurn) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ReasoningTokens = value.Int64
 			}
+		case kaguyachatturn.FieldCacheCreationTokens:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field cache_creation_tokens", values[i])
+			} else if value.Valid {
+				_m.CacheCreationTokens = value.Int64
+			}
+		case kaguyachatturn.FieldPreparationUsage:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field preparation_usage", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.PreparationUsage); err != nil {
+					return fmt.Errorf("unmarshal field preparation_usage: %w", err)
+				}
+			}
 		case kaguyachatturn.FieldContextTokens:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field context_tokens", values[i])
@@ -303,6 +325,19 @@ func (_m *KaguyaChatTurn) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field context_window", values[i])
 			} else if value.Valid {
 				_m.ContextWindow = int(value.Int64)
+			}
+		case kaguyachatturn.FieldContextFingerprintVersion:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field context_fingerprint_version", values[i])
+			} else if value.Valid {
+				_m.ContextFingerprintVersion = int(value.Int64)
+			}
+		case kaguyachatturn.FieldContextFingerprint:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field context_fingerprint", values[i])
+			} else if value.Valid {
+				_m.ContextFingerprint = new(string)
+				*_m.ContextFingerprint = value.String
 			}
 		case kaguyachatturn.FieldContextMessages:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -476,6 +511,12 @@ func (_m *KaguyaChatTurn) String() string {
 	builder.WriteString("reasoning_tokens=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ReasoningTokens))
 	builder.WriteString(", ")
+	builder.WriteString("cache_creation_tokens=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CacheCreationTokens))
+	builder.WriteString(", ")
+	builder.WriteString("preparation_usage=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PreparationUsage))
+	builder.WriteString(", ")
 	if v := _m.ContextTokens; v != nil {
 		builder.WriteString("context_tokens=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -483,6 +524,14 @@ func (_m *KaguyaChatTurn) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("context_window=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ContextWindow))
+	builder.WriteString(", ")
+	builder.WriteString("context_fingerprint_version=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ContextFingerprintVersion))
+	builder.WriteString(", ")
+	if v := _m.ContextFingerprint; v != nil {
+		builder.WriteString("context_fingerprint=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("context_messages=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ContextMessages))

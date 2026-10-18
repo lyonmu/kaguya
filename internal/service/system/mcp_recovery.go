@@ -8,6 +8,7 @@ import (
 
 	"github.com/lyonmu/kaguya/internal/db"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyamcpserver"
 	"github.com/lyonmu/kaguya/internal/global"
 	"go.uber.org/zap"
 )
@@ -32,161 +33,172 @@ type mcpPolicySnapshot struct {
 	NextAt      time.Time
 	OpenedAt    time.Time
 	PersistFail bool
+	Connecting  bool
 }
 
-// MCPRecoveryCoordinator 统一自动重连与手动重连的失败计数、熔断与周期。
-// 状态读写都在同一实例内串行；数据库持久化在锁外执行，避免阻塞状态读取。
+// MCPRecoveryCoordinator 只发布已持久化的策略。变更入口必须持有 mcpMutations
+// 的同服务门；mu 仅保护短快照，不在全局锁内等待数据库或远端连接。
 type MCPRecoveryCoordinator struct {
 	mu            sync.Mutex
 	states        map[string]*mcpPolicyState
 	persistFailed map[string]bool
+	connecting    map[string]bool
 }
 
 func NewMCPRecoveryCoordinator() *MCPRecoveryCoordinator {
-	return &MCPRecoveryCoordinator{states: map[string]*mcpPolicyState{}, persistFailed: map[string]bool{}}
+	return &MCPRecoveryCoordinator{states: map[string]*mcpPolicyState{}, persistFailed: map[string]bool{}, connecting: map[string]bool{}}
 }
 
-// DefaultMCPRecovery 是进程内默认协调器；测试可替换为独立实例。
 var DefaultMCPRecovery = NewMCPRecoveryCoordinator()
 
-// Load 从数据库行恢复策略状态；已有内存状态时不覆盖，避免用旧库值冲掉手动新周期。
 func (c *MCPRecoveryCoordinator) Load(row *ent.KaguyaMCPServer) mcpPolicySnapshot {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if _, ok := c.states[row.ID]; ok {
-		return c.snapshotLocked(row.ID)
+	if _, ok := c.states[row.ID]; !ok {
+		state := &mcpPolicyState{failures: row.ReconnectFailures, cycle: row.ReconnectCycle, open: row.ReconnectCircuitOpen}
+		if row.ReconnectNextAt != nil {
+			state.nextAt = *row.ReconnectNextAt
+		}
+		if row.ReconnectOpenedAt != nil {
+			state.openedAt = *row.ReconnectOpenedAt
+		}
+		c.states[row.ID] = state
 	}
-	state := &mcpPolicyState{failures: row.ReconnectFailures, cycle: row.ReconnectCycle, open: row.ReconnectCircuitOpen}
-	if row.ReconnectNextAt != nil {
-		state.nextAt = *row.ReconnectNextAt
-	}
-	if row.ReconnectOpenedAt != nil {
-		state.openedAt = *row.ReconnectOpenedAt
-	}
-	c.states[row.ID] = state
-	delete(c.persistFailed, row.ID)
+	// 加载行不能解除本进程的存储故障锁存。
 	return c.snapshotLocked(row.ID)
 }
 
-// Snapshot 返回内存中的策略状态；不存在时返回零值快照。
 func (c *MCPRecoveryCoordinator) Snapshot(id string) (mcpPolicySnapshot, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if _, ok := c.states[id]; !ok {
-		return mcpPolicySnapshot{}, false
-	}
-	return c.snapshotLocked(id), true
+	_, exists := c.states[id]
+	return c.snapshotLocked(id), exists || c.persistFailed[id]
 }
 
 func (c *MCPRecoveryCoordinator) snapshotLocked(id string) mcpPolicySnapshot {
-	state := c.states[id]
-	return mcpPolicySnapshot{
-		Failures: state.failures, Cycle: state.cycle, Open: state.open,
-		NextAt: state.nextAt, OpenedAt: state.openedAt, PersistFail: c.persistFailed[id],
+	snapshot := mcpPolicySnapshot{PersistFail: c.persistFailed[id], Connecting: c.connecting[id]}
+	if state := c.states[id]; state != nil {
+		snapshot.Failures, snapshot.Cycle, snapshot.Open = state.failures, state.cycle, state.open
+		snapshot.NextAt, snapshot.OpenedAt = state.nextAt, state.openedAt
 	}
+	return snapshot
 }
 
-// Allowed 报告自动重连当前是否可以尝试：熔断、持久化失败或尚未到 nextAt 时拒绝。
 func (c *MCPRecoveryCoordinator) Allowed(id string, now time.Time) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	state, ok := c.states[id]
-	if !ok {
-		return true
-	}
-	if state.open || c.persistFailed[id] {
+	if c.persistFailed[id] {
 		return false
 	}
-	return state.nextAt.IsZero() || !now.Before(state.nextAt)
+	state := c.states[id]
+	return state == nil || (!state.open && (state.nextAt.IsZero() || !now.Before(state.nextAt)))
 }
 
-// RecordSuccess 彻底清除失败状态与熔断；已经是干净状态时不做数据库写入。
-func (c *MCPRecoveryCoordinator) RecordSuccess(ctx context.Context, id string) error {
+func (c *MCPRecoveryCoordinator) setConnecting(id string, connecting bool) {
 	c.mu.Lock()
-	state, ok := c.states[id]
-	if !ok {
-		state = &mcpPolicyState{}
-		c.states[id] = state
+	defer c.mu.Unlock()
+	if connecting {
+		c.connecting[id] = true
+	} else {
+		delete(c.connecting, id)
 	}
-	clean := state.failures == 0 && !state.open && state.nextAt.IsZero() && state.openedAt.IsZero()
-	state.failures, state.open, state.nextAt, state.openedAt = 0, false, time.Time{}, time.Time{}
-	delete(c.persistFailed, id)
+}
+
+// confirm 在 SQL 成功后发布私有候选。失败只锁存故障，保留最后确认值；
+// 仅明确的新周期允许解除锁存。所有调用者仍持有同服务变更门。
+func (c *MCPRecoveryCoordinator) confirm(id string, candidate mcpPolicySnapshot, persistErr error, newCycle bool) (mcpPolicySnapshot, error) {
+	c.mu.Lock()
+	if persistErr != nil {
+		c.persistFailed[id] = true
+		snapshot := c.snapshotLocked(id)
+		c.mu.Unlock()
+		if global.Logger != nil {
+			global.Logger.Warn("persist MCP recovery state failed; automatic reconnect stopped for this service", zap.String("service_id", id))
+		}
+		return snapshot, &mcpStorageError{cause: persistErr}
+	}
+	c.states[id] = &mcpPolicyState{failures: candidate.Failures, cycle: candidate.Cycle, open: candidate.Open, nextAt: candidate.NextAt, openedAt: candidate.OpenedAt}
+	if newCycle {
+		delete(c.persistFailed, id)
+	}
 	snapshot := c.snapshotLocked(id)
 	c.mu.Unlock()
-	if clean {
+	return snapshot, nil
+}
+
+func (c *MCPRecoveryCoordinator) storageFailure(id string, cause error) error {
+	current, _ := c.Snapshot(id)
+	_, err := c.confirm(id, current, cause, false)
+	return err
+}
+
+// RecordSuccess 的健康轮询不能解除存储故障，也不能在未确认写入前清零。
+func (c *MCPRecoveryCoordinator) RecordSuccess(ctx context.Context, id string) error {
+	current, exists := c.Snapshot(id)
+	if current.PersistFail {
+		return ErrMCPRecoveryPersistence
+	}
+	if exists && current.Failures == 0 && !current.Open && current.NextAt.IsZero() && current.OpenedAt.IsZero() {
 		return nil
 	}
-	if err := c.persist(ctx, id, snapshot); err != nil {
-		return err
-	}
-	return nil
+	candidate := mcpPolicySnapshot{Cycle: current.Cycle}
+	_, err := c.confirm(id, candidate, c.persist(ctx, id, candidate, candidate.Cycle), false)
+	return err
 }
 
-// RecordFailure 记录一次 Prepare 失败：累计到上限后开路，否则进入指数退避。
-// 持久化失败时标记该服务停止后续自动尝试并返回错误。
 func (c *MCPRecoveryCoordinator) RecordFailure(ctx context.Context, id string, base, maxDelay time.Duration, now time.Time) (mcpPolicySnapshot, error) {
-	c.mu.Lock()
-	state, ok := c.states[id]
-	if !ok {
-		state = &mcpPolicyState{}
-		c.states[id] = state
+	candidate, _ := c.Snapshot(id)
+	if candidate.PersistFail {
+		return candidate, ErrMCPRecoveryPersistence
 	}
-	state.failures++
-	if state.failures >= mcpCircuitFailureLimit {
-		state.open = true
-		state.openedAt = now
-		state.nextAt = time.Time{}
+	if candidate.Open {
+		return candidate, nil
+	}
+	candidate.Failures++
+	if candidate.Failures >= mcpCircuitFailureLimit {
+		candidate.Open, candidate.OpenedAt, candidate.NextAt = true, now, time.Time{}
 	} else {
-		state.nextAt = now.Add(mcpBackoffDelay(MCPRecoveryOptions{BaseDelay: base, MaxDelay: maxDelay}, state.failures))
+		candidate.NextAt = now.Add(mcpBackoffDelay(MCPRecoveryOptions{BaseDelay: base, MaxDelay: maxDelay}, candidate.Failures))
 	}
-	snapshot := c.snapshotLocked(id)
-	c.mu.Unlock()
-	if err := c.persist(ctx, id, snapshot); err != nil {
-		c.mu.Lock()
-		c.persistFailed[id] = true
-		c.mu.Unlock()
-		global.Logger.Error("persist MCP recovery state failed; automatic reconnect stopped for this service",
-			zap.String("service_id", id), zap.Error(err))
-		return snapshot, err
-	}
-	return snapshot, nil
+	return c.confirm(id, candidate, c.persist(ctx, id, candidate, candidate.Cycle), false)
 }
 
-// StartManualCycle 开启手动重连的新周期：提升 cycle 并清除失败、退避与熔断。
+func (c *MCPRecoveryCoordinator) newCycle(row *ent.KaguyaMCPServer) mcpPolicySnapshot {
+	// 明确操作从刚读取的持久行确定周期，兼容 COMMIT 已生效却返回错误。
+	return mcpPolicySnapshot{Cycle: row.ReconnectCycle + 1}
+}
+
 func (c *MCPRecoveryCoordinator) StartManualCycle(ctx context.Context, id string) (mcpPolicySnapshot, error) {
-	c.mu.Lock()
-	state, ok := c.states[id]
-	if !ok {
-		state = &mcpPolicyState{}
-		c.states[id] = state
+	row, err := mcpFind(ctx, id)
+	if err != nil {
+		current, _ := c.Snapshot(id)
+		return c.confirm(id, current, err, false)
 	}
-	state.cycle++
-	state.failures, state.open, state.nextAt, state.openedAt = 0, false, time.Time{}, time.Time{}
-	delete(c.persistFailed, id)
-	snapshot := c.snapshotLocked(id)
-	c.mu.Unlock()
-	if err := c.persist(ctx, id, snapshot); err != nil {
-		c.mu.Lock()
-		c.persistFailed[id] = true
-		c.mu.Unlock()
-		return snapshot, err
-	}
-	return snapshot, nil
+	candidate := c.newCycle(row)
+	return c.confirm(id, candidate, c.persist(ctx, id, candidate, row.ReconnectCycle), true)
 }
 
-// Clear 在服务停用/删除后清除策略状态，并持久化清零值。
+// Clear 保留周期身份；停用/删除即使清理写入失败也不能释放存储故障锁存。
 func (c *MCPRecoveryCoordinator) Clear(ctx context.Context, id string) error {
-	c.mu.Lock()
-	delete(c.states, id)
-	delete(c.persistFailed, id)
-	c.mu.Unlock()
-	return c.persist(ctx, id, mcpPolicySnapshot{})
+	current, _ := c.Snapshot(id)
+	candidate := mcpPolicySnapshot{Cycle: current.Cycle}
+	_, err := c.confirm(id, candidate, c.persist(ctx, id, candidate, candidate.Cycle), false)
+	return err
 }
 
-// persist 在协调器锁外写入数据库；行已删除时跳过。
-func (c *MCPRecoveryCoordinator) persist(ctx context.Context, id string, snapshot mcpPolicySnapshot) error {
-	update := db.EntClient.KaguyaMCPServer.UpdateOneID(id).
-		SetReconnectFailures(snapshot.Failures).SetReconnectCircuitOpen(snapshot.Open).SetReconnectCycle(snapshot.Cycle)
+// 删除且清理确认成功后回收无调用者的缓存，避免反复创建/删除服务累积状态。
+// 已锁存的故障仍保留最小标记；缺少 state 不能绕过它。
+func (c *MCPRecoveryCoordinator) forgetDeleted(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.states, id)
+	delete(c.connecting, id)
+}
+
+// policyUpdate 同时用于独立策略保存与配置+新周期的单次原子 UPDATE。
+// 不采用 upsert；已不存在的行必须返回错误，不能假装成功或重建服务。
+func policyUpdate(update *ent.KaguyaMCPServerUpdateOne, snapshot mcpPolicySnapshot) *ent.KaguyaMCPServerUpdateOne {
+	update.SetReconnectFailures(snapshot.Failures).SetReconnectCircuitOpen(snapshot.Open).SetReconnectCycle(snapshot.Cycle)
 	if snapshot.NextAt.IsZero() {
 		update.ClearReconnectNextAt()
 	} else {
@@ -197,14 +209,18 @@ func (c *MCPRecoveryCoordinator) persist(ctx context.Context, id string, snapsho
 	} else {
 		update.SetReconnectOpenedAt(snapshot.OpenedAt)
 	}
-	if err := update.Exec(ctx); err != nil {
-		if ent.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-	return nil
+	return update
 }
+
+func (c *MCPRecoveryCoordinator) persist(ctx context.Context, id string, snapshot mcpPolicySnapshot, expectedCycle int64) error {
+	return policyUpdate(db.EntClient.KaguyaMCPServer.UpdateOneID(id).Where(kaguyamcpserver.ReconnectCycleEQ(expectedCycle)), snapshot).Exec(ctx)
+}
+
+// 错误链保留存储原因供 errors.Is/As 检查，展示和日志不能包含驱动原文。
+type mcpStorageError struct{ cause error }
+
+func (e *mcpStorageError) Error() string   { return ErrMCPRecoveryPersistence.Error() }
+func (e *mcpStorageError) Unwrap() []error { return []error{ErrMCPRecoveryPersistence, e.cause} }
 
 // mcpBackoffDelay 返回第 failures 次失败后的重试延迟：BaseDelay × 2^(failures-1)，上限 MaxDelay。
 func mcpBackoffDelay(options MCPRecoveryOptions, failures int) time.Duration {

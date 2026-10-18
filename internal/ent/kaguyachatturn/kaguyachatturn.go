@@ -60,10 +60,18 @@ const (
 	FieldCachedTokens = "cached_tokens"
 	// FieldReasoningTokens holds the string denoting the reasoning_tokens field in the database.
 	FieldReasoningTokens = "reasoning_tokens"
+	// FieldCacheCreationTokens holds the string denoting the cache_creation_tokens field in the database.
+	FieldCacheCreationTokens = "cache_creation_tokens"
+	// FieldPreparationUsage holds the string denoting the preparation_usage field in the database.
+	FieldPreparationUsage = "preparation_usage"
 	// FieldContextTokens holds the string denoting the context_tokens field in the database.
 	FieldContextTokens = "context_tokens"
 	// FieldContextWindow holds the string denoting the context_window field in the database.
 	FieldContextWindow = "context_window"
+	// FieldContextFingerprintVersion holds the string denoting the context_fingerprint_version field in the database.
+	FieldContextFingerprintVersion = "context_fingerprint_version"
+	// FieldContextFingerprint holds the string denoting the context_fingerprint field in the database.
+	FieldContextFingerprint = "context_fingerprint"
 	// FieldContextMessages holds the string denoting the context_messages field in the database.
 	FieldContextMessages = "context_messages"
 	// FieldCompactionCount holds the string denoting the compaction_count field in the database.
@@ -127,8 +135,12 @@ var Columns = []string{
 	FieldTotalTokens,
 	FieldCachedTokens,
 	FieldReasoningTokens,
+	FieldCacheCreationTokens,
+	FieldPreparationUsage,
 	FieldContextTokens,
 	FieldContextWindow,
+	FieldContextFingerprintVersion,
+	FieldContextFingerprint,
 	FieldContextMessages,
 	FieldCompactionCount,
 	FieldMemoryRefs,
@@ -180,12 +192,20 @@ var (
 	CachedTokensValidator func(int64) error
 	// ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
 	ReasoningTokensValidator func(int64) error
+	// DefaultCacheCreationTokens holds the default value on creation for the "cache_creation_tokens" field.
+	DefaultCacheCreationTokens int64
+	// CacheCreationTokensValidator is a validator for the "cache_creation_tokens" field. It is called by the builders before save.
+	CacheCreationTokensValidator func(int64) error
 	// ContextTokensValidator is a validator for the "context_tokens" field. It is called by the builders before save.
 	ContextTokensValidator func(int64) error
 	// DefaultContextWindow holds the default value on creation for the "context_window" field.
 	DefaultContextWindow int
 	// ContextWindowValidator is a validator for the "context_window" field. It is called by the builders before save.
 	ContextWindowValidator func(int) error
+	// DefaultContextFingerprintVersion holds the default value on creation for the "context_fingerprint_version" field.
+	DefaultContextFingerprintVersion int
+	// ContextFingerprintVersionValidator is a validator for the "context_fingerprint_version" field. It is called by the builders before save.
+	ContextFingerprintVersionValidator func(int) error
 	// DefaultCompactionCount holds the default value on creation for the "compaction_count" field.
 	DefaultCompactionCount int
 	// CompactionCountValidator is a validator for the "compaction_count" field. It is called by the builders before save.
@@ -372,6 +392,11 @@ func ByReasoningTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldReasoningTokens, opts...).ToFunc()
 }
 
+// ByCacheCreationTokens orders the results by the cache_creation_tokens field.
+func ByCacheCreationTokens(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCacheCreationTokens, opts...).ToFunc()
+}
+
 // ByContextTokens orders the results by the context_tokens field.
 func ByContextTokens(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContextTokens, opts...).ToFunc()
@@ -380,6 +405,16 @@ func ByContextTokens(opts ...sql.OrderTermOption) OrderOption {
 // ByContextWindow orders the results by the context_window field.
 func ByContextWindow(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldContextWindow, opts...).ToFunc()
+}
+
+// ByContextFingerprintVersion orders the results by the context_fingerprint_version field.
+func ByContextFingerprintVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContextFingerprintVersion, opts...).ToFunc()
+}
+
+// ByContextFingerprint orders the results by the context_fingerprint field.
+func ByContextFingerprint(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldContextFingerprint, opts...).ToFunc()
 }
 
 // ByCompactionCount orders the results by the compaction_count field.

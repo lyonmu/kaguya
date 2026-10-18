@@ -202,7 +202,8 @@ func (s *SystemSvc) ModelTest(ctx context.Context, req *dtosystem.SystemModelSav
 	startedAt := time.Now()
 	result, err := ag.Generate(testCtx, fantasy.AgentCall{Prompt: modelTestPrompt, MaxRetries: &maxRetries})
 	if err != nil {
-		global.Logger.Sugar().Warnf("model test call failed: provider_id=%s, model_id=%s, err=%v", req.ProviderID, req.ModelID, err)
+		// 上游错误正文可能回显凭据，只记录本地配置标识。
+		global.Logger.Sugar().Warnf("model test call failed: provider_id=%s, model_id=%s", req.ProviderID, req.ModelID)
 		return nil, fmt.Errorf("%w: %s", ErrModelTest, err)
 	}
 	resp := &dtosystem.SystemModelTestResp{DurationMS: time.Since(startedAt).Milliseconds()}

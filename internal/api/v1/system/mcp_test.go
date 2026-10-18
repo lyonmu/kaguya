@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"strings"
@@ -17,6 +18,9 @@ import (
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	"github.com/lyonmu/kaguya/internal/global"
+	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 type mcpTestID struct{ value atomic.Int64 }
@@ -38,6 +42,10 @@ func TestMCPAPIValidationAndCRUD(t *testing.T) {
 		agentmcp.Default.Close()
 		db.EntClient, global.Id, agentmcp.Default = oldClient, oldID, oldManager
 	}()
+	oldService, oldPolicy := systemsvc, servicesystem.DefaultMCPRecovery
+	UseRuntimeService(servicesystem.NewSystemSvc(context.Background()))
+	servicesystem.DefaultMCPRecovery = servicesystem.NewMCPRecoveryCoordinator()
+	defer func() { systemsvc, servicesystem.DefaultMCPRecovery = oldService, oldPolicy }()
 	api, router := &SystemApiV1Group{}, gin.New()
 	router.GET("/mcp/page", api.SystemMCPPage)
 	router.GET("/mcp/:id", api.SystemMCPDetail)
@@ -89,4 +97,22 @@ func TestMCPAPIValidationAndCRUD(t *testing.T) {
 	request("DELETE", "/mcp/"+id, "", 100000)
 	request("GET", "/mcp/"+id, "", dtocode.MCPNotFound.Code)
 	request("PUT", "/mcp/"+id+"/state", `{"enabled":true}`, dtocode.MCPNotFound.Code)
+}
+
+func TestMCPAPIFailureDoesNotLogRawCause(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+	old := global.Logger
+	global.Logger = zap.New(core)
+	defer func() { global.Logger = old }()
+	for _, cause := range []error{servicesystem.ErrMCPConnect, servicesystem.ErrMCPInvalid, servicesystem.ErrMCPRecoveryPersistence} {
+		writer := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(writer)
+		mcpFailure(ctx, errors.Join(cause, errors.New("header/env/url=fake-secret")))
+		if strings.Contains(writer.Body.String(), "fake-secret") {
+			t.Fatal("raw failure leaked to response")
+		}
+	}
+	if strings.Contains(fmt.Sprint(logs.All()), "fake-secret") {
+		t.Fatal("raw cause leaked to API logs")
+	}
 }

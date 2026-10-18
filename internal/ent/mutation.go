@@ -71,30 +71,34 @@ const (
 // KaguyaApprovalMutation represents an operation that mutates the KaguyaApproval nodes in the graph.
 type KaguyaApprovalMutation struct {
 	config
-	op              Op
-	typ             string
-	id              *string
-	created_at      *time.Time
-	updated_at      *time.Time
-	deleted_at      *time.Time
-	approval_id     *string
-	conversation_id *string
-	turn_id         *string
-	tool_call_id    *string
-	input_hash      *string
-	tool_identity   *string
-	effect          *kaguyaapproval.Effect
-	mode            *kaguyaapproval.Mode
-	status          *kaguyaapproval.Status
-	decision        *string
-	requested_at    *time.Time
-	resolved_at     *time.Time
-	consumed_at     *time.Time
-	reason_code     *string
-	clearedFields   map[string]struct{}
-	done            bool
-	oldValue        func(context.Context) (*KaguyaApproval, error)
-	predicates      []predicate.KaguyaApproval
+	op                    Op
+	typ                   string
+	id                    *string
+	created_at            *time.Time
+	updated_at            *time.Time
+	deleted_at            *time.Time
+	approval_id           *string
+	conversation_id       *string
+	turn_id               *string
+	tool_call_id          *string
+	input_hash            *string
+	tool_identity         *string
+	effect                *kaguyaapproval.Effect
+	mode                  *kaguyaapproval.Mode
+	status                *kaguyaapproval.Status
+	decision              *string
+	requested_at          *time.Time
+	expires_at            *time.Time
+	resolved_at           *time.Time
+	consumed_at           *time.Time
+	execution_state       *kaguyaapproval.ExecutionState
+	execution_finished_at *time.Time
+	execution_reason_code *string
+	reason_code           *string
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*KaguyaApproval, error)
+	predicates            []predicate.KaguyaApproval
 }
 
 var _ ent.Mutation = (*KaguyaApprovalMutation)(nil)
@@ -718,6 +722,55 @@ func (m *KaguyaApprovalMutation) ResetRequestedAt() {
 	m.requested_at = nil
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (m *KaguyaApprovalMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *KaguyaApprovalMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *KaguyaApprovalMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[kaguyaapproval.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *KaguyaApprovalMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[kaguyaapproval.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *KaguyaApprovalMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, kaguyaapproval.FieldExpiresAt)
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (m *KaguyaApprovalMutation) SetResolvedAt(t time.Time) {
 	m.resolved_at = &t
@@ -816,6 +869,127 @@ func (m *KaguyaApprovalMutation) ResetConsumedAt() {
 	delete(m.clearedFields, kaguyaapproval.FieldConsumedAt)
 }
 
+// SetExecutionState sets the "execution_state" field.
+func (m *KaguyaApprovalMutation) SetExecutionState(ks kaguyaapproval.ExecutionState) {
+	m.execution_state = &ks
+}
+
+// ExecutionState returns the value of the "execution_state" field in the mutation.
+func (m *KaguyaApprovalMutation) ExecutionState() (r kaguyaapproval.ExecutionState, exists bool) {
+	v := m.execution_state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExecutionState returns the old "execution_state" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldExecutionState(ctx context.Context) (v kaguyaapproval.ExecutionState, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExecutionState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExecutionState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExecutionState: %w", err)
+	}
+	return oldValue.ExecutionState, nil
+}
+
+// ResetExecutionState resets all changes to the "execution_state" field.
+func (m *KaguyaApprovalMutation) ResetExecutionState() {
+	m.execution_state = nil
+}
+
+// SetExecutionFinishedAt sets the "execution_finished_at" field.
+func (m *KaguyaApprovalMutation) SetExecutionFinishedAt(t time.Time) {
+	m.execution_finished_at = &t
+}
+
+// ExecutionFinishedAt returns the value of the "execution_finished_at" field in the mutation.
+func (m *KaguyaApprovalMutation) ExecutionFinishedAt() (r time.Time, exists bool) {
+	v := m.execution_finished_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExecutionFinishedAt returns the old "execution_finished_at" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldExecutionFinishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExecutionFinishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExecutionFinishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExecutionFinishedAt: %w", err)
+	}
+	return oldValue.ExecutionFinishedAt, nil
+}
+
+// ClearExecutionFinishedAt clears the value of the "execution_finished_at" field.
+func (m *KaguyaApprovalMutation) ClearExecutionFinishedAt() {
+	m.execution_finished_at = nil
+	m.clearedFields[kaguyaapproval.FieldExecutionFinishedAt] = struct{}{}
+}
+
+// ExecutionFinishedAtCleared returns if the "execution_finished_at" field was cleared in this mutation.
+func (m *KaguyaApprovalMutation) ExecutionFinishedAtCleared() bool {
+	_, ok := m.clearedFields[kaguyaapproval.FieldExecutionFinishedAt]
+	return ok
+}
+
+// ResetExecutionFinishedAt resets all changes to the "execution_finished_at" field.
+func (m *KaguyaApprovalMutation) ResetExecutionFinishedAt() {
+	m.execution_finished_at = nil
+	delete(m.clearedFields, kaguyaapproval.FieldExecutionFinishedAt)
+}
+
+// SetExecutionReasonCode sets the "execution_reason_code" field.
+func (m *KaguyaApprovalMutation) SetExecutionReasonCode(s string) {
+	m.execution_reason_code = &s
+}
+
+// ExecutionReasonCode returns the value of the "execution_reason_code" field in the mutation.
+func (m *KaguyaApprovalMutation) ExecutionReasonCode() (r string, exists bool) {
+	v := m.execution_reason_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExecutionReasonCode returns the old "execution_reason_code" field's value of the KaguyaApproval entity.
+// If the KaguyaApproval object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaApprovalMutation) OldExecutionReasonCode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExecutionReasonCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExecutionReasonCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExecutionReasonCode: %w", err)
+	}
+	return oldValue.ExecutionReasonCode, nil
+}
+
+// ResetExecutionReasonCode resets all changes to the "execution_reason_code" field.
+func (m *KaguyaApprovalMutation) ResetExecutionReasonCode() {
+	m.execution_reason_code = nil
+}
+
 // SetReasonCode sets the "reason_code" field.
 func (m *KaguyaApprovalMutation) SetReasonCode(s string) {
 	m.reason_code = &s
@@ -886,7 +1060,7 @@ func (m *KaguyaApprovalMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaApprovalMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 21)
 	if m.created_at != nil {
 		fields = append(fields, kaguyaapproval.FieldCreatedAt)
 	}
@@ -929,11 +1103,23 @@ func (m *KaguyaApprovalMutation) Fields() []string {
 	if m.requested_at != nil {
 		fields = append(fields, kaguyaapproval.FieldRequestedAt)
 	}
+	if m.expires_at != nil {
+		fields = append(fields, kaguyaapproval.FieldExpiresAt)
+	}
 	if m.resolved_at != nil {
 		fields = append(fields, kaguyaapproval.FieldResolvedAt)
 	}
 	if m.consumed_at != nil {
 		fields = append(fields, kaguyaapproval.FieldConsumedAt)
+	}
+	if m.execution_state != nil {
+		fields = append(fields, kaguyaapproval.FieldExecutionState)
+	}
+	if m.execution_finished_at != nil {
+		fields = append(fields, kaguyaapproval.FieldExecutionFinishedAt)
+	}
+	if m.execution_reason_code != nil {
+		fields = append(fields, kaguyaapproval.FieldExecutionReasonCode)
 	}
 	if m.reason_code != nil {
 		fields = append(fields, kaguyaapproval.FieldReasonCode)
@@ -974,10 +1160,18 @@ func (m *KaguyaApprovalMutation) Field(name string) (ent.Value, bool) {
 		return m.Decision()
 	case kaguyaapproval.FieldRequestedAt:
 		return m.RequestedAt()
+	case kaguyaapproval.FieldExpiresAt:
+		return m.ExpiresAt()
 	case kaguyaapproval.FieldResolvedAt:
 		return m.ResolvedAt()
 	case kaguyaapproval.FieldConsumedAt:
 		return m.ConsumedAt()
+	case kaguyaapproval.FieldExecutionState:
+		return m.ExecutionState()
+	case kaguyaapproval.FieldExecutionFinishedAt:
+		return m.ExecutionFinishedAt()
+	case kaguyaapproval.FieldExecutionReasonCode:
+		return m.ExecutionReasonCode()
 	case kaguyaapproval.FieldReasonCode:
 		return m.ReasonCode()
 	}
@@ -1017,10 +1211,18 @@ func (m *KaguyaApprovalMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldDecision(ctx)
 	case kaguyaapproval.FieldRequestedAt:
 		return m.OldRequestedAt(ctx)
+	case kaguyaapproval.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
 	case kaguyaapproval.FieldResolvedAt:
 		return m.OldResolvedAt(ctx)
 	case kaguyaapproval.FieldConsumedAt:
 		return m.OldConsumedAt(ctx)
+	case kaguyaapproval.FieldExecutionState:
+		return m.OldExecutionState(ctx)
+	case kaguyaapproval.FieldExecutionFinishedAt:
+		return m.OldExecutionFinishedAt(ctx)
+	case kaguyaapproval.FieldExecutionReasonCode:
+		return m.OldExecutionReasonCode(ctx)
 	case kaguyaapproval.FieldReasonCode:
 		return m.OldReasonCode(ctx)
 	}
@@ -1130,6 +1332,13 @@ func (m *KaguyaApprovalMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRequestedAt(v)
 		return nil
+	case kaguyaapproval.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
 	case kaguyaapproval.FieldResolvedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -1143,6 +1352,27 @@ func (m *KaguyaApprovalMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetConsumedAt(v)
+		return nil
+	case kaguyaapproval.FieldExecutionState:
+		v, ok := value.(kaguyaapproval.ExecutionState)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExecutionState(v)
+		return nil
+	case kaguyaapproval.FieldExecutionFinishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExecutionFinishedAt(v)
+		return nil
+	case kaguyaapproval.FieldExecutionReasonCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExecutionReasonCode(v)
 		return nil
 	case kaguyaapproval.FieldReasonCode:
 		v, ok := value.(string)
@@ -1184,11 +1414,17 @@ func (m *KaguyaApprovalMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyaapproval.FieldDeletedAt) {
 		fields = append(fields, kaguyaapproval.FieldDeletedAt)
 	}
+	if m.FieldCleared(kaguyaapproval.FieldExpiresAt) {
+		fields = append(fields, kaguyaapproval.FieldExpiresAt)
+	}
 	if m.FieldCleared(kaguyaapproval.FieldResolvedAt) {
 		fields = append(fields, kaguyaapproval.FieldResolvedAt)
 	}
 	if m.FieldCleared(kaguyaapproval.FieldConsumedAt) {
 		fields = append(fields, kaguyaapproval.FieldConsumedAt)
+	}
+	if m.FieldCleared(kaguyaapproval.FieldExecutionFinishedAt) {
+		fields = append(fields, kaguyaapproval.FieldExecutionFinishedAt)
 	}
 	return fields
 }
@@ -1207,11 +1443,17 @@ func (m *KaguyaApprovalMutation) ClearField(name string) error {
 	case kaguyaapproval.FieldDeletedAt:
 		m.ClearDeletedAt()
 		return nil
+	case kaguyaapproval.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
 	case kaguyaapproval.FieldResolvedAt:
 		m.ClearResolvedAt()
 		return nil
 	case kaguyaapproval.FieldConsumedAt:
 		m.ClearConsumedAt()
+		return nil
+	case kaguyaapproval.FieldExecutionFinishedAt:
+		m.ClearExecutionFinishedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown KaguyaApproval nullable field %s", name)
@@ -1263,11 +1505,23 @@ func (m *KaguyaApprovalMutation) ResetField(name string) error {
 	case kaguyaapproval.FieldRequestedAt:
 		m.ResetRequestedAt()
 		return nil
+	case kaguyaapproval.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
 	case kaguyaapproval.FieldResolvedAt:
 		m.ResetResolvedAt()
 		return nil
 	case kaguyaapproval.FieldConsumedAt:
 		m.ResetConsumedAt()
+		return nil
+	case kaguyaapproval.FieldExecutionState:
+		m.ResetExecutionState()
+		return nil
+	case kaguyaapproval.FieldExecutionFinishedAt:
+		m.ResetExecutionFinishedAt()
+		return nil
+	case kaguyaapproval.FieldExecutionReasonCode:
+		m.ResetExecutionReasonCode()
 		return nil
 	case kaguyaapproval.FieldReasonCode:
 		m.ResetReasonCode()
@@ -2791,63 +3045,69 @@ func (m *KaguyaChatBlockMutation) ResetEdge(name string) error {
 // KaguyaChatTurnMutation represents an operation that mutates the KaguyaChatTurn nodes in the graph.
 type KaguyaChatTurnMutation struct {
 	config
-	op                            Op
-	typ                           string
-	id                            *string
-	created_at                    *time.Time
-	updated_at                    *time.Time
-	deleted_at                    *time.Time
-	turn_index                    *int64
-	addturn_index                 *int64
-	user_content                  *string
-	provider_id                   *string
-	provider_name                 *string
-	model_id                      *string
-	model_name                    *string
-	api_protocol                  *string
-	status                        *kaguyachatturn.Status
-	started_at                    *time.Time
-	finished_at                   *time.Time
-	duration_ms                   *int64
-	addduration_ms                *int64
-	tool_calls                    *int64
-	addtool_calls                 *int64
-	finish_reason                 *string
-	input_tokens                  *int64
-	addinput_tokens               *int64
-	output_tokens                 *int64
-	addoutput_tokens              *int64
-	total_tokens                  *int64
-	addtotal_tokens               *int64
-	cached_tokens                 *int64
-	addcached_tokens              *int64
-	reasoning_tokens              *int64
-	addreasoning_tokens           *int64
-	context_tokens                *int64
-	addcontext_tokens             *int64
-	context_window                *int
-	addcontext_window             *int
-	context_messages              *[]fantasy.Message
-	appendcontext_messages        []fantasy.Message
-	compaction_count              *int
-	addcompaction_count           *int
-	memory_refs                   *memory.TurnMemorySelection
-	permission_mode               *kaguyachatturn.PermissionMode
-	global_instruction_hash       *string
-	global_instruction_version    *int64
-	addglobal_instruction_version *int64
-	reference_summary             *chat.TurnReferenceSummary
-	messages                      *[]fantasy.Message
-	appendmessages                []fantasy.Message
-	clearedFields                 map[string]struct{}
-	conversation                  *string
-	clearedconversation           bool
-	blocks                        map[string]struct{}
-	removedblocks                 map[string]struct{}
-	clearedblocks                 bool
-	done                          bool
-	oldValue                      func(context.Context) (*KaguyaChatTurn, error)
-	predicates                    []predicate.KaguyaChatTurn
+	op                             Op
+	typ                            string
+	id                             *string
+	created_at                     *time.Time
+	updated_at                     *time.Time
+	deleted_at                     *time.Time
+	turn_index                     *int64
+	addturn_index                  *int64
+	user_content                   *string
+	provider_id                    *string
+	provider_name                  *string
+	model_id                       *string
+	model_name                     *string
+	api_protocol                   *string
+	status                         *kaguyachatturn.Status
+	started_at                     *time.Time
+	finished_at                    *time.Time
+	duration_ms                    *int64
+	addduration_ms                 *int64
+	tool_calls                     *int64
+	addtool_calls                  *int64
+	finish_reason                  *string
+	input_tokens                   *int64
+	addinput_tokens                *int64
+	output_tokens                  *int64
+	addoutput_tokens               *int64
+	total_tokens                   *int64
+	addtotal_tokens                *int64
+	cached_tokens                  *int64
+	addcached_tokens               *int64
+	reasoning_tokens               *int64
+	addreasoning_tokens            *int64
+	cache_creation_tokens          *int64
+	addcache_creation_tokens       *int64
+	preparation_usage              **chat.TurnPreparationUsage
+	context_tokens                 *int64
+	addcontext_tokens              *int64
+	context_window                 *int
+	addcontext_window              *int
+	context_fingerprint_version    *int
+	addcontext_fingerprint_version *int
+	context_fingerprint            *string
+	context_messages               *[]fantasy.Message
+	appendcontext_messages         []fantasy.Message
+	compaction_count               *int
+	addcompaction_count            *int
+	memory_refs                    *memory.TurnMemorySelection
+	permission_mode                *kaguyachatturn.PermissionMode
+	global_instruction_hash        *string
+	global_instruction_version     *int64
+	addglobal_instruction_version  *int64
+	reference_summary              *chat.TurnReferenceSummary
+	messages                       *[]fantasy.Message
+	appendmessages                 []fantasy.Message
+	clearedFields                  map[string]struct{}
+	conversation                   *string
+	clearedconversation            bool
+	blocks                         map[string]struct{}
+	removedblocks                  map[string]struct{}
+	clearedblocks                  bool
+	done                           bool
+	oldValue                       func(context.Context) (*KaguyaChatTurn, error)
+	predicates                     []predicate.KaguyaChatTurn
 }
 
 var _ ent.Mutation = (*KaguyaChatTurnMutation)(nil)
@@ -3919,6 +4179,111 @@ func (m *KaguyaChatTurnMutation) ResetReasoningTokens() {
 	m.addreasoning_tokens = nil
 }
 
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (m *KaguyaChatTurnMutation) SetCacheCreationTokens(i int64) {
+	m.cache_creation_tokens = &i
+	m.addcache_creation_tokens = nil
+}
+
+// CacheCreationTokens returns the value of the "cache_creation_tokens" field in the mutation.
+func (m *KaguyaChatTurnMutation) CacheCreationTokens() (r int64, exists bool) {
+	v := m.cache_creation_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCacheCreationTokens returns the old "cache_creation_tokens" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldCacheCreationTokens(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCacheCreationTokens is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCacheCreationTokens requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCacheCreationTokens: %w", err)
+	}
+	return oldValue.CacheCreationTokens, nil
+}
+
+// AddCacheCreationTokens adds i to the "cache_creation_tokens" field.
+func (m *KaguyaChatTurnMutation) AddCacheCreationTokens(i int64) {
+	if m.addcache_creation_tokens != nil {
+		*m.addcache_creation_tokens += i
+	} else {
+		m.addcache_creation_tokens = &i
+	}
+}
+
+// AddedCacheCreationTokens returns the value that was added to the "cache_creation_tokens" field in this mutation.
+func (m *KaguyaChatTurnMutation) AddedCacheCreationTokens() (r int64, exists bool) {
+	v := m.addcache_creation_tokens
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCacheCreationTokens resets all changes to the "cache_creation_tokens" field.
+func (m *KaguyaChatTurnMutation) ResetCacheCreationTokens() {
+	m.cache_creation_tokens = nil
+	m.addcache_creation_tokens = nil
+}
+
+// SetPreparationUsage sets the "preparation_usage" field.
+func (m *KaguyaChatTurnMutation) SetPreparationUsage(cpu *chat.TurnPreparationUsage) {
+	m.preparation_usage = &cpu
+}
+
+// PreparationUsage returns the value of the "preparation_usage" field in the mutation.
+func (m *KaguyaChatTurnMutation) PreparationUsage() (r *chat.TurnPreparationUsage, exists bool) {
+	v := m.preparation_usage
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPreparationUsage returns the old "preparation_usage" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldPreparationUsage(ctx context.Context) (v *chat.TurnPreparationUsage, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPreparationUsage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPreparationUsage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPreparationUsage: %w", err)
+	}
+	return oldValue.PreparationUsage, nil
+}
+
+// ClearPreparationUsage clears the value of the "preparation_usage" field.
+func (m *KaguyaChatTurnMutation) ClearPreparationUsage() {
+	m.preparation_usage = nil
+	m.clearedFields[kaguyachatturn.FieldPreparationUsage] = struct{}{}
+}
+
+// PreparationUsageCleared returns if the "preparation_usage" field was cleared in this mutation.
+func (m *KaguyaChatTurnMutation) PreparationUsageCleared() bool {
+	_, ok := m.clearedFields[kaguyachatturn.FieldPreparationUsage]
+	return ok
+}
+
+// ResetPreparationUsage resets all changes to the "preparation_usage" field.
+func (m *KaguyaChatTurnMutation) ResetPreparationUsage() {
+	m.preparation_usage = nil
+	delete(m.clearedFields, kaguyachatturn.FieldPreparationUsage)
+}
+
 // SetContextTokens sets the "context_tokens" field.
 func (m *KaguyaChatTurnMutation) SetContextTokens(i int64) {
 	m.context_tokens = &i
@@ -4043,6 +4408,111 @@ func (m *KaguyaChatTurnMutation) AddedContextWindow() (r int, exists bool) {
 func (m *KaguyaChatTurnMutation) ResetContextWindow() {
 	m.context_window = nil
 	m.addcontext_window = nil
+}
+
+// SetContextFingerprintVersion sets the "context_fingerprint_version" field.
+func (m *KaguyaChatTurnMutation) SetContextFingerprintVersion(i int) {
+	m.context_fingerprint_version = &i
+	m.addcontext_fingerprint_version = nil
+}
+
+// ContextFingerprintVersion returns the value of the "context_fingerprint_version" field in the mutation.
+func (m *KaguyaChatTurnMutation) ContextFingerprintVersion() (r int, exists bool) {
+	v := m.context_fingerprint_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContextFingerprintVersion returns the old "context_fingerprint_version" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldContextFingerprintVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContextFingerprintVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContextFingerprintVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContextFingerprintVersion: %w", err)
+	}
+	return oldValue.ContextFingerprintVersion, nil
+}
+
+// AddContextFingerprintVersion adds i to the "context_fingerprint_version" field.
+func (m *KaguyaChatTurnMutation) AddContextFingerprintVersion(i int) {
+	if m.addcontext_fingerprint_version != nil {
+		*m.addcontext_fingerprint_version += i
+	} else {
+		m.addcontext_fingerprint_version = &i
+	}
+}
+
+// AddedContextFingerprintVersion returns the value that was added to the "context_fingerprint_version" field in this mutation.
+func (m *KaguyaChatTurnMutation) AddedContextFingerprintVersion() (r int, exists bool) {
+	v := m.addcontext_fingerprint_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetContextFingerprintVersion resets all changes to the "context_fingerprint_version" field.
+func (m *KaguyaChatTurnMutation) ResetContextFingerprintVersion() {
+	m.context_fingerprint_version = nil
+	m.addcontext_fingerprint_version = nil
+}
+
+// SetContextFingerprint sets the "context_fingerprint" field.
+func (m *KaguyaChatTurnMutation) SetContextFingerprint(s string) {
+	m.context_fingerprint = &s
+}
+
+// ContextFingerprint returns the value of the "context_fingerprint" field in the mutation.
+func (m *KaguyaChatTurnMutation) ContextFingerprint() (r string, exists bool) {
+	v := m.context_fingerprint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContextFingerprint returns the old "context_fingerprint" field's value of the KaguyaChatTurn entity.
+// If the KaguyaChatTurn object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaChatTurnMutation) OldContextFingerprint(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContextFingerprint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContextFingerprint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContextFingerprint: %w", err)
+	}
+	return oldValue.ContextFingerprint, nil
+}
+
+// ClearContextFingerprint clears the value of the "context_fingerprint" field.
+func (m *KaguyaChatTurnMutation) ClearContextFingerprint() {
+	m.context_fingerprint = nil
+	m.clearedFields[kaguyachatturn.FieldContextFingerprint] = struct{}{}
+}
+
+// ContextFingerprintCleared returns if the "context_fingerprint" field was cleared in this mutation.
+func (m *KaguyaChatTurnMutation) ContextFingerprintCleared() bool {
+	_, ok := m.clearedFields[kaguyachatturn.FieldContextFingerprint]
+	return ok
+}
+
+// ResetContextFingerprint resets all changes to the "context_fingerprint" field.
+func (m *KaguyaChatTurnMutation) ResetContextFingerprint() {
+	m.context_fingerprint = nil
+	delete(m.clearedFields, kaguyachatturn.FieldContextFingerprint)
 }
 
 // SetContextMessages sets the "context_messages" field.
@@ -4585,7 +5055,7 @@ func (m *KaguyaChatTurnMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaChatTurnMutation) Fields() []string {
-	fields := make([]string, 0, 32)
+	fields := make([]string, 0, 36)
 	if m.created_at != nil {
 		fields = append(fields, kaguyachatturn.FieldCreatedAt)
 	}
@@ -4652,11 +5122,23 @@ func (m *KaguyaChatTurnMutation) Fields() []string {
 	if m.reasoning_tokens != nil {
 		fields = append(fields, kaguyachatturn.FieldReasoningTokens)
 	}
+	if m.cache_creation_tokens != nil {
+		fields = append(fields, kaguyachatturn.FieldCacheCreationTokens)
+	}
+	if m.preparation_usage != nil {
+		fields = append(fields, kaguyachatturn.FieldPreparationUsage)
+	}
 	if m.context_tokens != nil {
 		fields = append(fields, kaguyachatturn.FieldContextTokens)
 	}
 	if m.context_window != nil {
 		fields = append(fields, kaguyachatturn.FieldContextWindow)
+	}
+	if m.context_fingerprint_version != nil {
+		fields = append(fields, kaguyachatturn.FieldContextFingerprintVersion)
+	}
+	if m.context_fingerprint != nil {
+		fields = append(fields, kaguyachatturn.FieldContextFingerprint)
 	}
 	if m.context_messages != nil {
 		fields = append(fields, kaguyachatturn.FieldContextMessages)
@@ -4734,10 +5216,18 @@ func (m *KaguyaChatTurnMutation) Field(name string) (ent.Value, bool) {
 		return m.CachedTokens()
 	case kaguyachatturn.FieldReasoningTokens:
 		return m.ReasoningTokens()
+	case kaguyachatturn.FieldCacheCreationTokens:
+		return m.CacheCreationTokens()
+	case kaguyachatturn.FieldPreparationUsage:
+		return m.PreparationUsage()
 	case kaguyachatturn.FieldContextTokens:
 		return m.ContextTokens()
 	case kaguyachatturn.FieldContextWindow:
 		return m.ContextWindow()
+	case kaguyachatturn.FieldContextFingerprintVersion:
+		return m.ContextFingerprintVersion()
+	case kaguyachatturn.FieldContextFingerprint:
+		return m.ContextFingerprint()
 	case kaguyachatturn.FieldContextMessages:
 		return m.ContextMessages()
 	case kaguyachatturn.FieldCompactionCount:
@@ -4807,10 +5297,18 @@ func (m *KaguyaChatTurnMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldCachedTokens(ctx)
 	case kaguyachatturn.FieldReasoningTokens:
 		return m.OldReasoningTokens(ctx)
+	case kaguyachatturn.FieldCacheCreationTokens:
+		return m.OldCacheCreationTokens(ctx)
+	case kaguyachatturn.FieldPreparationUsage:
+		return m.OldPreparationUsage(ctx)
 	case kaguyachatturn.FieldContextTokens:
 		return m.OldContextTokens(ctx)
 	case kaguyachatturn.FieldContextWindow:
 		return m.OldContextWindow(ctx)
+	case kaguyachatturn.FieldContextFingerprintVersion:
+		return m.OldContextFingerprintVersion(ctx)
+	case kaguyachatturn.FieldContextFingerprint:
+		return m.OldContextFingerprint(ctx)
 	case kaguyachatturn.FieldContextMessages:
 		return m.OldContextMessages(ctx)
 	case kaguyachatturn.FieldCompactionCount:
@@ -4990,6 +5488,20 @@ func (m *KaguyaChatTurnMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetReasoningTokens(v)
 		return nil
+	case kaguyachatturn.FieldCacheCreationTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCacheCreationTokens(v)
+		return nil
+	case kaguyachatturn.FieldPreparationUsage:
+		v, ok := value.(*chat.TurnPreparationUsage)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPreparationUsage(v)
+		return nil
 	case kaguyachatturn.FieldContextTokens:
 		v, ok := value.(int64)
 		if !ok {
@@ -5003,6 +5515,20 @@ func (m *KaguyaChatTurnMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetContextWindow(v)
+		return nil
+	case kaguyachatturn.FieldContextFingerprintVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContextFingerprintVersion(v)
+		return nil
+	case kaguyachatturn.FieldContextFingerprint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContextFingerprint(v)
 		return nil
 	case kaguyachatturn.FieldContextMessages:
 		v, ok := value.([]fantasy.Message)
@@ -5092,11 +5618,17 @@ func (m *KaguyaChatTurnMutation) AddedFields() []string {
 	if m.addreasoning_tokens != nil {
 		fields = append(fields, kaguyachatturn.FieldReasoningTokens)
 	}
+	if m.addcache_creation_tokens != nil {
+		fields = append(fields, kaguyachatturn.FieldCacheCreationTokens)
+	}
 	if m.addcontext_tokens != nil {
 		fields = append(fields, kaguyachatturn.FieldContextTokens)
 	}
 	if m.addcontext_window != nil {
 		fields = append(fields, kaguyachatturn.FieldContextWindow)
+	}
+	if m.addcontext_fingerprint_version != nil {
+		fields = append(fields, kaguyachatturn.FieldContextFingerprintVersion)
 	}
 	if m.addcompaction_count != nil {
 		fields = append(fields, kaguyachatturn.FieldCompactionCount)
@@ -5128,10 +5660,14 @@ func (m *KaguyaChatTurnMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedCachedTokens()
 	case kaguyachatturn.FieldReasoningTokens:
 		return m.AddedReasoningTokens()
+	case kaguyachatturn.FieldCacheCreationTokens:
+		return m.AddedCacheCreationTokens()
 	case kaguyachatturn.FieldContextTokens:
 		return m.AddedContextTokens()
 	case kaguyachatturn.FieldContextWindow:
 		return m.AddedContextWindow()
+	case kaguyachatturn.FieldContextFingerprintVersion:
+		return m.AddedContextFingerprintVersion()
 	case kaguyachatturn.FieldCompactionCount:
 		return m.AddedCompactionCount()
 	case kaguyachatturn.FieldGlobalInstructionVersion:
@@ -5201,6 +5737,13 @@ func (m *KaguyaChatTurnMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddReasoningTokens(v)
 		return nil
+	case kaguyachatturn.FieldCacheCreationTokens:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCacheCreationTokens(v)
+		return nil
 	case kaguyachatturn.FieldContextTokens:
 		v, ok := value.(int64)
 		if !ok {
@@ -5214,6 +5757,13 @@ func (m *KaguyaChatTurnMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddContextWindow(v)
+		return nil
+	case kaguyachatturn.FieldContextFingerprintVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddContextFingerprintVersion(v)
 		return nil
 	case kaguyachatturn.FieldCompactionCount:
 		v, ok := value.(int)
@@ -5240,8 +5790,14 @@ func (m *KaguyaChatTurnMutation) ClearedFields() []string {
 	if m.FieldCleared(kaguyachatturn.FieldDeletedAt) {
 		fields = append(fields, kaguyachatturn.FieldDeletedAt)
 	}
+	if m.FieldCleared(kaguyachatturn.FieldPreparationUsage) {
+		fields = append(fields, kaguyachatturn.FieldPreparationUsage)
+	}
 	if m.FieldCleared(kaguyachatturn.FieldContextTokens) {
 		fields = append(fields, kaguyachatturn.FieldContextTokens)
+	}
+	if m.FieldCleared(kaguyachatturn.FieldContextFingerprint) {
+		fields = append(fields, kaguyachatturn.FieldContextFingerprint)
 	}
 	if m.FieldCleared(kaguyachatturn.FieldContextMessages) {
 		fields = append(fields, kaguyachatturn.FieldContextMessages)
@@ -5275,8 +5831,14 @@ func (m *KaguyaChatTurnMutation) ClearField(name string) error {
 	case kaguyachatturn.FieldDeletedAt:
 		m.ClearDeletedAt()
 		return nil
+	case kaguyachatturn.FieldPreparationUsage:
+		m.ClearPreparationUsage()
+		return nil
 	case kaguyachatturn.FieldContextTokens:
 		m.ClearContextTokens()
+		return nil
+	case kaguyachatturn.FieldContextFingerprint:
+		m.ClearContextFingerprint()
 		return nil
 	case kaguyachatturn.FieldContextMessages:
 		m.ClearContextMessages()
@@ -5367,11 +5929,23 @@ func (m *KaguyaChatTurnMutation) ResetField(name string) error {
 	case kaguyachatturn.FieldReasoningTokens:
 		m.ResetReasoningTokens()
 		return nil
+	case kaguyachatturn.FieldCacheCreationTokens:
+		m.ResetCacheCreationTokens()
+		return nil
+	case kaguyachatturn.FieldPreparationUsage:
+		m.ResetPreparationUsage()
+		return nil
 	case kaguyachatturn.FieldContextTokens:
 		m.ResetContextTokens()
 		return nil
 	case kaguyachatturn.FieldContextWindow:
 		m.ResetContextWindow()
+		return nil
+	case kaguyachatturn.FieldContextFingerprintVersion:
+		m.ResetContextFingerprintVersion()
+		return nil
+	case kaguyachatturn.FieldContextFingerprint:
+		m.ResetContextFingerprint()
 		return nil
 	case kaguyachatturn.FieldContextMessages:
 		m.ResetContextMessages()

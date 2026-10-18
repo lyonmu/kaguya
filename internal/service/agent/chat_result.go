@@ -6,19 +6,37 @@ import (
 
 	"charm.land/fantasy"
 	token "github.com/lyonmu/kaguya/internal/agent/token"
+	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	memorysvc "github.com/lyonmu/kaguya/internal/service/memory"
 )
 
-// chatOutcome 是一次成功轮次的结果；持久化与 done 帧都基于它，不重复计算。
+// chatOutcome 保存生成结果或失败准备审计；只有成功结果进入 persist/done。
 type chatOutcome struct {
 	result       *fantasy.AgentResult
 	trace        *turnTrace
 	compactor    *contextCompactor
+	preparation  *chatPreparation
 	startedAt    time.Time
 	finishedAt   time.Time
 	paused       bool
 	finishReason string
 	usage        token.NormalizedUsage
+}
+
+func (o *chatOutcome) preparationAudit() *dtochat.TurnPreparationUsage {
+	if o == nil || o.compactor == nil || o.compactor.preparationUsage == nil {
+		return nil
+	}
+	copy := *o.compactor.preparationUsage
+	return &copy
+}
+
+// referenceAudit 在解析成功后才非空；生成失败也保留已实际准备的安全元信息。
+func (o *chatOutcome) referenceAudit() *dtochat.TurnReferenceSummary {
+	if o == nil || o.preparation == nil {
+		return nil
+	}
+	return o.preparation.referenceSummary
 }
 
 // chatFinishReason 计算落库使用的结束原因；达到步骤上限而暂停时记为 step_limit。
@@ -52,22 +70,30 @@ func instructionVersionPointer(version int64) *int64 {
 // 提交成功后 Notify 唤醒记忆 Worker（通知丢失也不丢任务）。
 func (o *chatOutcome) persist(ctx context.Context, exec chatExecution) error {
 	target := exec.target
+	requestPrompt := exec.prompt.requestPrompt
+	var summary *dtochat.TurnReferenceSummary
+	if o.preparation != nil {
+		requestPrompt, summary = o.preparation.requestPrompt, o.preparation.referenceSummary
+	}
 	err := saveCompletedTurn(ctx, completedTurn{
-		MemorySelection:          exec.prompt.memory.selection(),
-		ProjectInstructions:      exec.prompt.projectSnapshot,
-		InstructionsFormat:       exec.prompt.instructionsFormat,
-		GlobalInstructionHash:    exec.prompt.globalHash,
-		GlobalInstructionVersion: instructionVersionPointer(exec.prompt.globalVersion),
-		PermissionMode:           string(exec.permissionMode),
-		ReferenceSummary:         exec.prompt.referenceSummary,
-		ConversationID:           exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
+		PreparationUsage:          o.preparationAudit(),
+		ContextFingerprintVersion: contextFingerprintVersion,
+		ContextFingerprint:        o.compactor.fingerprint.digest(),
+		MemorySelection:           exec.prompt.memory.selection(),
+		ProjectInstructions:       exec.prompt.projectSnapshot,
+		InstructionsFormat:        exec.prompt.instructionsFormat,
+		GlobalInstructionHash:     exec.prompt.globalHash,
+		GlobalInstructionVersion:  instructionVersionPointer(exec.prompt.globalVersion),
+		PermissionMode:            string(exec.permissionMode),
+		ReferenceSummary:          summary,
+		ConversationID:            exec.conversationID, ProjectID: exec.requestedProjectID, Version: exec.version,
 		TurnID:      exec.turnID,
 		UserContent: exec.userContent,
 		ProviderID:  target.provider.ID, ProviderName: target.provider.ProviderName,
 		ModelID: target.model.ModelID, ModelName: target.model.ModelName,
 		APIProtocol: string(target.model.APIProtocol),
 		StartedAt:   o.startedAt, FinishedAt: o.finishedAt, FinishReason: o.finishReason,
-		Usage: o.usage, Messages: o.conversationMessages(exec.prompt.requestPrompt), Blocks: o.trace.result(),
+		Usage: o.usage, Messages: o.conversationMessages(requestPrompt), Blocks: o.trace.result(),
 		ContextMessages: o.compactor.snapshot(o.result), CompactionCount: o.compactor.count,
 		ContextTokens: completedResultContextTokens(o.result, o.paused), ContextWindow: target.model.TokenContextWindow,
 	})

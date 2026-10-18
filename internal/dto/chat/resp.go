@@ -7,7 +7,7 @@ type ChatFlag string
 const (
 	ChatFlagStart    ChatFlag = "start"    // 下行：本轮首帧（会话 ID + 模型信息）
 	ChatFlagDelta    ChatFlag = "delta"    // 下行：增量内容帧
-	ChatFlagDone     ChatFlag = "done"     // 下行：唯一的本轮结束帧，仅携带 Usage，不重复内容
+	ChatFlagDone     ChatFlag = "done"     // 下行：唯一的成功结束帧，携带 Usage/引用元信息，不重复正文
 	ChatFlagError    ChatFlag = "error"    // 下行：出错或被取消
 	ChatFlagApproval ChatFlag = "approval" // 下行：权限审批状态帧，不结束本轮
 )
@@ -18,6 +18,7 @@ type ChatResp struct {
 	MemoryUnavailable bool                    `json:"memory_unavailable,omitempty"` // 长期记忆检索暂不可用的非致命状态，不改变无记忆语义
 	Chat              Chat                    `json:"chat"`                         // 对话信息
 	Approval          *Approval               `json:"approval,omitempty"`           // 审批状态；仅 flag=approval 帧携带
+	ReferenceSummary  *TurnReferenceSummary   `json:"reference_summary,omitempty"`  // 已实际准备的引用片段元信息；不含正文
 	APIProtocol       consts.ProviderProtocol `json:"api_protocol"`                 // api接口类型
 	Usage             Usage                   `json:"usage"`                        // token 使用信息
 	Created           int64                   `json:"created"`                      // 创建时间时间戳
@@ -28,15 +29,18 @@ type ChatResp struct {
 
 // Approval 是一次工具审批的完整状态；input 只在当前连接展示，不写入审计表。
 type Approval struct {
-	ApprovalID   string `json:"approval_id"`
-	ToolCallID   string `json:"tool_call_id"`
-	ToolName     string `json:"tool_name"`
-	ToolIdentity string `json:"tool_identity,omitempty"`
-	Effect       string `json:"effect"`
-	Mode         string `json:"mode"`
-	Status       string `json:"status"` // pending/approved/rejected/expired/canceled/consumed
-	Input        string `json:"input,omitempty"`
-	ExpiresAt    int64  `json:"expires_at,omitempty"`
+	ApprovalID          string `json:"approval_id"`
+	ToolCallID          string `json:"tool_call_id"`
+	ToolName            string `json:"tool_name"`
+	ToolIdentity        string `json:"tool_identity,omitempty"`
+	Effect              string `json:"effect"`
+	Mode                string `json:"mode"`
+	Status              string `json:"status"` // pending/approved/rejected/expired/canceled/consumed
+	Input               string `json:"input,omitempty"`
+	ExpiresAt           int64  `json:"expires_at,omitempty"`
+	ExecutionState      string `json:"execution_state,omitempty"` // not_started/unknown/succeeded/failed/canceled
+	ExecutionFinishedAt int64  `json:"execution_finished_at,omitempty"`
+	ExecutionReasonCode string `json:"execution_reason_code,omitempty"`
 }
 
 // ApprovalDecisionResp 是裁决接口的幂等结果；重复相同裁决返回同一状态。

@@ -66,6 +66,8 @@ func TestAdditiveMigrationPreservesLegacyData(t *testing.T) {
 		"ALTER TABLE kaguya_chat_turn DROP COLUMN global_instruction_hash",
 		"ALTER TABLE kaguya_chat_turn DROP COLUMN global_instruction_version",
 		"ALTER TABLE kaguya_chat_turn DROP COLUMN reference_summary",
+		"ALTER TABLE kaguya_chat_turn DROP COLUMN context_fingerprint_version",
+		"ALTER TABLE kaguya_chat_turn DROP COLUMN context_fingerprint",
 		"ALTER TABLE kaguya_mcp_server DROP COLUMN reconnect_failures",
 		"ALTER TABLE kaguya_mcp_server DROP COLUMN reconnect_circuit_open",
 		"ALTER TABLE kaguya_mcp_server DROP COLUMN reconnect_cycle",
@@ -106,6 +108,9 @@ func TestAdditiveMigrationPreservesLegacyData(t *testing.T) {
 		}
 		if turn.PermissionMode != "full_access" || turn.UserContent != "旧提问" {
 			t.Fatalf("unexpected turn after migration: %+v", turn)
+		}
+		if turn.ContextFingerprintVersion != 0 || turn.ContextFingerprint != nil {
+			t.Fatal("legacy turn acquired a fabricated context fingerprint")
 		}
 		if attempt == 1 {
 			// 新表存在且默认值正确。

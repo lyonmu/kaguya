@@ -119,6 +119,11 @@ func RequestedAt(v time.Time) predicate.KaguyaApproval {
 	return predicate.KaguyaApproval(sql.FieldEQ(FieldRequestedAt, v))
 }
 
+// ExpiresAt applies equality check predicate on the "expires_at" field. It's identical to ExpiresAtEQ.
+func ExpiresAt(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEQ(FieldExpiresAt, v))
+}
+
 // ResolvedAt applies equality check predicate on the "resolved_at" field. It's identical to ResolvedAtEQ.
 func ResolvedAt(v time.Time) predicate.KaguyaApproval {
 	return predicate.KaguyaApproval(sql.FieldEQ(FieldResolvedAt, v))
@@ -127,6 +132,16 @@ func ResolvedAt(v time.Time) predicate.KaguyaApproval {
 // ConsumedAt applies equality check predicate on the "consumed_at" field. It's identical to ConsumedAtEQ.
 func ConsumedAt(v time.Time) predicate.KaguyaApproval {
 	return predicate.KaguyaApproval(sql.FieldEQ(FieldConsumedAt, v))
+}
+
+// ExecutionFinishedAt applies equality check predicate on the "execution_finished_at" field. It's identical to ExecutionFinishedAtEQ.
+func ExecutionFinishedAt(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEQ(FieldExecutionFinishedAt, v))
+}
+
+// ExecutionReasonCode applies equality check predicate on the "execution_reason_code" field. It's identical to ExecutionReasonCodeEQ.
+func ExecutionReasonCode(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEQ(FieldExecutionReasonCode, v))
 }
 
 // ReasonCode applies equality check predicate on the "reason_code" field. It's identical to ReasonCodeEQ.
@@ -819,6 +834,56 @@ func RequestedAtLTE(v time.Time) predicate.KaguyaApproval {
 	return predicate.KaguyaApproval(sql.FieldLTE(FieldRequestedAt, v))
 }
 
+// ExpiresAtEQ applies the EQ predicate on the "expires_at" field.
+func ExpiresAtEQ(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtNEQ applies the NEQ predicate on the "expires_at" field.
+func ExpiresAtNEQ(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNEQ(FieldExpiresAt, v))
+}
+
+// ExpiresAtIn applies the In predicate on the "expires_at" field.
+func ExpiresAtIn(vs ...time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtNotIn applies the NotIn predicate on the "expires_at" field.
+func ExpiresAtNotIn(vs ...time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNotIn(FieldExpiresAt, vs...))
+}
+
+// ExpiresAtGT applies the GT predicate on the "expires_at" field.
+func ExpiresAtGT(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldGT(FieldExpiresAt, v))
+}
+
+// ExpiresAtGTE applies the GTE predicate on the "expires_at" field.
+func ExpiresAtGTE(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldGTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtLT applies the LT predicate on the "expires_at" field.
+func ExpiresAtLT(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldLT(FieldExpiresAt, v))
+}
+
+// ExpiresAtLTE applies the LTE predicate on the "expires_at" field.
+func ExpiresAtLTE(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldLTE(FieldExpiresAt, v))
+}
+
+// ExpiresAtIsNil applies the IsNil predicate on the "expires_at" field.
+func ExpiresAtIsNil() predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldIsNull(FieldExpiresAt))
+}
+
+// ExpiresAtNotNil applies the NotNil predicate on the "expires_at" field.
+func ExpiresAtNotNil() predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNotNull(FieldExpiresAt))
+}
+
 // ResolvedAtEQ applies the EQ predicate on the "resolved_at" field.
 func ResolvedAtEQ(v time.Time) predicate.KaguyaApproval {
 	return predicate.KaguyaApproval(sql.FieldEQ(FieldResolvedAt, v))
@@ -917,6 +982,141 @@ func ConsumedAtIsNil() predicate.KaguyaApproval {
 // ConsumedAtNotNil applies the NotNil predicate on the "consumed_at" field.
 func ConsumedAtNotNil() predicate.KaguyaApproval {
 	return predicate.KaguyaApproval(sql.FieldNotNull(FieldConsumedAt))
+}
+
+// ExecutionStateEQ applies the EQ predicate on the "execution_state" field.
+func ExecutionStateEQ(v ExecutionState) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEQ(FieldExecutionState, v))
+}
+
+// ExecutionStateNEQ applies the NEQ predicate on the "execution_state" field.
+func ExecutionStateNEQ(v ExecutionState) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNEQ(FieldExecutionState, v))
+}
+
+// ExecutionStateIn applies the In predicate on the "execution_state" field.
+func ExecutionStateIn(vs ...ExecutionState) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldIn(FieldExecutionState, vs...))
+}
+
+// ExecutionStateNotIn applies the NotIn predicate on the "execution_state" field.
+func ExecutionStateNotIn(vs ...ExecutionState) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNotIn(FieldExecutionState, vs...))
+}
+
+// ExecutionFinishedAtEQ applies the EQ predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtEQ(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEQ(FieldExecutionFinishedAt, v))
+}
+
+// ExecutionFinishedAtNEQ applies the NEQ predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtNEQ(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNEQ(FieldExecutionFinishedAt, v))
+}
+
+// ExecutionFinishedAtIn applies the In predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtIn(vs ...time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldIn(FieldExecutionFinishedAt, vs...))
+}
+
+// ExecutionFinishedAtNotIn applies the NotIn predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtNotIn(vs ...time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNotIn(FieldExecutionFinishedAt, vs...))
+}
+
+// ExecutionFinishedAtGT applies the GT predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtGT(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldGT(FieldExecutionFinishedAt, v))
+}
+
+// ExecutionFinishedAtGTE applies the GTE predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtGTE(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldGTE(FieldExecutionFinishedAt, v))
+}
+
+// ExecutionFinishedAtLT applies the LT predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtLT(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldLT(FieldExecutionFinishedAt, v))
+}
+
+// ExecutionFinishedAtLTE applies the LTE predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtLTE(v time.Time) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldLTE(FieldExecutionFinishedAt, v))
+}
+
+// ExecutionFinishedAtIsNil applies the IsNil predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtIsNil() predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldIsNull(FieldExecutionFinishedAt))
+}
+
+// ExecutionFinishedAtNotNil applies the NotNil predicate on the "execution_finished_at" field.
+func ExecutionFinishedAtNotNil() predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNotNull(FieldExecutionFinishedAt))
+}
+
+// ExecutionReasonCodeEQ applies the EQ predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeEQ(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEQ(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeNEQ applies the NEQ predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeNEQ(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNEQ(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeIn applies the In predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeIn(vs ...string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldIn(FieldExecutionReasonCode, vs...))
+}
+
+// ExecutionReasonCodeNotIn applies the NotIn predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeNotIn(vs ...string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldNotIn(FieldExecutionReasonCode, vs...))
+}
+
+// ExecutionReasonCodeGT applies the GT predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeGT(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldGT(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeGTE applies the GTE predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeGTE(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldGTE(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeLT applies the LT predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeLT(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldLT(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeLTE applies the LTE predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeLTE(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldLTE(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeContains applies the Contains predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeContains(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldContains(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeHasPrefix applies the HasPrefix predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeHasPrefix(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldHasPrefix(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeHasSuffix applies the HasSuffix predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeHasSuffix(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldHasSuffix(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeEqualFold applies the EqualFold predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeEqualFold(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldEqualFold(FieldExecutionReasonCode, v))
+}
+
+// ExecutionReasonCodeContainsFold applies the ContainsFold predicate on the "execution_reason_code" field.
+func ExecutionReasonCodeContainsFold(v string) predicate.KaguyaApproval {
+	return predicate.KaguyaApproval(sql.FieldContainsFold(FieldExecutionReasonCode, v))
 }
 
 // ReasonCodeEQ applies the EQ predicate on the "reason_code" field.

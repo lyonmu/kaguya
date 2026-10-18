@@ -11,6 +11,7 @@ import (
 	pkgid "github.com/lyonmu/gopkg/id"
 	"github.com/lyonmu/kaguya/internal/agent/instructions"
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
+	systemapi "github.com/lyonmu/kaguya/internal/api/v1/system"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
@@ -38,8 +39,12 @@ type appRuntime struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	logger  *zap.Logger
-	dbReady bool
+	systemSvc      *servicesystem.SystemSvc
+	logger         *zap.Logger
+	dbReady        bool
+	instructions   *instructions.Manager
+	titleQueue     *serviceagent.TitleQueue
+	titlePublisher *serviceagent.TitlePublisher
 
 	gate          *pkg.Admission
 	restoreDone   chan struct{}
@@ -58,6 +63,7 @@ func newAppRuntime(parent context.Context) *appRuntime {
 	ctx, cancel := context.WithCancel(parent)
 	return &appRuntime{
 		ctx:           ctx,
+		systemSvc:     servicesystem.NewSystemSvc(ctx),
 		cancel:        cancel,
 		gate:          pkg.NewAdmission(),
 		restoreDone:   make(chan struct{}),
@@ -146,14 +152,14 @@ func (rt *appRuntime) init() error {
 		return rt.fail(fmt.Errorf("read SQLCipher key for provider secret encryption: %w", err))
 	}
 	secretCtx, cancelSecret := context.WithTimeout(rt.ctx, initStageTimeout)
-	secretErr := (&servicesystem.SystemSvc{}).InitSecret(secretCtx, global.Cfg.SecretKey, dbKey)
+	secretErr := rt.systemSvc.InitSecret(secretCtx, global.Cfg.SecretKey, dbKey)
 	cancelSecret()
 	if secretErr != nil {
 		return rt.fail(fmt.Errorf("initialize provider API key encryption: %w", secretErr))
 	}
 
 	// 全局指令 Manager：启动时同步加载，缺失文件允许为空；非法内容等严重错误中止启动。
-	systemInfo, err := (&servicesystem.SystemSvc{}).Info(rt.ctx)
+	systemInfo, err := rt.systemSvc.Info(rt.ctx)
 	if err != nil {
 		return rt.fail(fmt.Errorf("load system info for global instructions: %w", err))
 	}
@@ -161,13 +167,14 @@ func (rt *appRuntime) init() error {
 	if err != nil {
 		return rt.fail(fmt.Errorf("load global instructions: %w", err))
 	}
+	rt.instructions = instructionManager
 	instructionManager.Start()
 	serviceagent.DefaultGlobalInstructions = instructionManager
 	servicesystem.ReloadGlobalInstructions = instructionManager.Reconfigure
 	servicesystem.GlobalInstructionStatus = func() *dtosystem.InstructionStatus {
 		status := instructionManager.Status()
 		resp := &dtosystem.InstructionStatus{
-			Version: status.Version, Hash: status.Hash, Generation: status.Generation, LastError: status.LastError,
+			Version: status.Version, Hash: status.Hash, Generation: status.Generation, LoadedGeneration: status.LoadedGeneration, LastError: status.LastError,
 		}
 		if !status.LoadedAt.IsZero() {
 			loadedAt := status.LoadedAt
@@ -177,10 +184,13 @@ func (rt *appRuntime) init() error {
 	}
 
 	// 标题事件发布者与 FIFO 队列随实例创建：订阅者与 worker 都受本进程生命周期约束。
-	serviceagent.DefaultTitlePublisher = serviceagent.NewTitlePublisher()
-	serviceagent.DefaultTitleQueue = serviceagent.NewTitleQueue(rt.ctx, db.EntClient, global.Logger)
-	serviceagent.DefaultTitleQueue.Start()
+	rt.titlePublisher = serviceagent.NewTitlePublisher()
+	rt.titleQueue = serviceagent.NewTitleQueue(rt.ctx, db.EntClient, global.Logger)
+	serviceagent.DefaultTitlePublisher = rt.titlePublisher
+	serviceagent.DefaultTitleQueue = rt.titleQueue
+	rt.titleQueue.Start()
 
+	systemapi.UseRuntimeService(rt.systemSvc)
 	rt.startMCPRestore()
 	rt.startMCPRecovery()
 	rt.startModelCatalogSync()
@@ -217,7 +227,7 @@ func (rt *appRuntime) startMCPRestore() {
 	rt.restoreUp = true
 	go func() {
 		defer close(rt.restoreDone)
-		if err := (&servicesystem.SystemSvc{}).RestoreMCP(rt.ctx); err != nil && rt.ctx.Err() == nil {
+		if err := rt.systemSvc.RestoreMCP(rt.ctx); err != nil && rt.ctx.Err() == nil {
 			global.Logger.Error("restore MCP configuration failed")
 		}
 	}()
@@ -229,7 +239,7 @@ func (rt *appRuntime) startMCPRecovery() {
 	rt.recoveryUp = true
 	go func() {
 		defer close(rt.recoveryDone)
-		(&servicesystem.SystemSvc{}).RunMCPRecovery(rt.ctx, servicesystem.DefaultMCPRecoveryOptions)
+		rt.systemSvc.RunMCPRecovery(rt.ctx, servicesystem.DefaultMCPRecoveryOptions)
 	}()
 }
 
@@ -263,7 +273,9 @@ func (rt *appRuntime) admissionHandler(next http.Handler) http.Handler {
 func (rt *appRuntime) beginShutdown() {
 	rt.gate.Stop()
 	serviceagent.Shutdown()
-	serviceagent.DefaultTitlePublisher.Close()
+	if rt.titlePublisher != nil {
+		rt.titlePublisher.Close()
+	}
 	rt.cancel()
 }
 
@@ -282,12 +294,12 @@ func (rt *appRuntime) close() {
 			<-rt.modelSyncDone
 		}
 		// 先停止全局指令监听，避免关停期间继续发布新版本。
-		if manager := serviceagent.DefaultGlobalInstructions; manager != nil {
+		if manager := rt.instructions; manager != nil {
 			manager.Close()
 			<-manager.Done()
 		}
 		// 再等待标题 worker 退出（执行中的任务会还原为 pending），然后关闭数据库与日志。
-		if queue := serviceagent.DefaultTitleQueue; queue != nil {
+		if queue := rt.titleQueue; queue != nil {
 			queue.Close()
 			<-queue.Done()
 		}

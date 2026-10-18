@@ -46,10 +46,18 @@ type KaguyaApproval struct {
 	Decision string `json:"decision,omitempty"`
 	// RequestedAt holds the value of the "requested_at" field.
 	RequestedAt time.Time `json:"requested_at,omitempty"`
+	// 服务端裁决期限；旧空值不恢复授权
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 	// ResolvedAt holds the value of the "resolved_at" field.
 	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
 	// ConsumedAt holds the value of the "consumed_at" field.
 	ConsumedAt *time.Time `json:"consumed_at,omitempty"`
+	// 独立于授权状态；consumed 且无结果时间的旧行读取为 unknown
+	ExecutionState kaguyaapproval.ExecutionState `json:"execution_state,omitempty"`
+	// ExecutionFinishedAt holds the value of the "execution_finished_at" field.
+	ExecutionFinishedAt *time.Time `json:"execution_finished_at,omitempty"`
+	// 执行结果安全原因码，不保存原始错误或参数
+	ExecutionReasonCode string `json:"execution_reason_code,omitempty"`
 	// 安全原因码，不保存原始错误或参数
 	ReasonCode   string `json:"reason_code,omitempty"`
 	selectValues sql.SelectValues
@@ -60,9 +68,9 @@ func (*KaguyaApproval) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case kaguyaapproval.FieldID, kaguyaapproval.FieldApprovalID, kaguyaapproval.FieldConversationID, kaguyaapproval.FieldTurnID, kaguyaapproval.FieldToolCallID, kaguyaapproval.FieldInputHash, kaguyaapproval.FieldToolIdentity, kaguyaapproval.FieldEffect, kaguyaapproval.FieldMode, kaguyaapproval.FieldStatus, kaguyaapproval.FieldDecision, kaguyaapproval.FieldReasonCode:
+		case kaguyaapproval.FieldID, kaguyaapproval.FieldApprovalID, kaguyaapproval.FieldConversationID, kaguyaapproval.FieldTurnID, kaguyaapproval.FieldToolCallID, kaguyaapproval.FieldInputHash, kaguyaapproval.FieldToolIdentity, kaguyaapproval.FieldEffect, kaguyaapproval.FieldMode, kaguyaapproval.FieldStatus, kaguyaapproval.FieldDecision, kaguyaapproval.FieldExecutionState, kaguyaapproval.FieldExecutionReasonCode, kaguyaapproval.FieldReasonCode:
 			values[i] = new(sql.NullString)
-		case kaguyaapproval.FieldCreatedAt, kaguyaapproval.FieldUpdatedAt, kaguyaapproval.FieldDeletedAt, kaguyaapproval.FieldRequestedAt, kaguyaapproval.FieldResolvedAt, kaguyaapproval.FieldConsumedAt:
+		case kaguyaapproval.FieldCreatedAt, kaguyaapproval.FieldUpdatedAt, kaguyaapproval.FieldDeletedAt, kaguyaapproval.FieldRequestedAt, kaguyaapproval.FieldExpiresAt, kaguyaapproval.FieldResolvedAt, kaguyaapproval.FieldConsumedAt, kaguyaapproval.FieldExecutionFinishedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -170,6 +178,13 @@ func (_m *KaguyaApproval) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RequestedAt = value.Time
 			}
+		case kaguyaapproval.FieldExpiresAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field expires_at", values[i])
+			} else if value.Valid {
+				_m.ExpiresAt = new(time.Time)
+				*_m.ExpiresAt = value.Time
+			}
 		case kaguyaapproval.FieldResolvedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field resolved_at", values[i])
@@ -183,6 +198,25 @@ func (_m *KaguyaApproval) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ConsumedAt = new(time.Time)
 				*_m.ConsumedAt = value.Time
+			}
+		case kaguyaapproval.FieldExecutionState:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field execution_state", values[i])
+			} else if value.Valid {
+				_m.ExecutionState = kaguyaapproval.ExecutionState(value.String)
+			}
+		case kaguyaapproval.FieldExecutionFinishedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field execution_finished_at", values[i])
+			} else if value.Valid {
+				_m.ExecutionFinishedAt = new(time.Time)
+				*_m.ExecutionFinishedAt = value.Time
+			}
+		case kaguyaapproval.FieldExecutionReasonCode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field execution_reason_code", values[i])
+			} else if value.Valid {
+				_m.ExecutionReasonCode = value.String
 			}
 		case kaguyaapproval.FieldReasonCode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -270,6 +304,11 @@ func (_m *KaguyaApproval) String() string {
 	builder.WriteString("requested_at=")
 	builder.WriteString(_m.RequestedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
+	if v := _m.ExpiresAt; v != nil {
+		builder.WriteString("expires_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
 	if v := _m.ResolvedAt; v != nil {
 		builder.WriteString("resolved_at=")
 		builder.WriteString(v.Format(time.ANSIC))
@@ -279,6 +318,17 @@ func (_m *KaguyaApproval) String() string {
 		builder.WriteString("consumed_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
+	builder.WriteString(", ")
+	builder.WriteString("execution_state=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ExecutionState))
+	builder.WriteString(", ")
+	if v := _m.ExecutionFinishedAt; v != nil {
+		builder.WriteString("execution_finished_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("execution_reason_code=")
+	builder.WriteString(_m.ExecutionReasonCode)
 	builder.WriteString(", ")
 	builder.WriteString("reason_code=")
 	builder.WriteString(_m.ReasonCode)

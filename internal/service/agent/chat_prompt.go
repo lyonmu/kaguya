@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"charm.land/fantasy"
@@ -15,7 +16,7 @@ import (
 
 // chatPrompt 是一次轮次使用的提示词与工具集合。
 type chatPrompt struct {
-	requestPrompt string              // 用户提问（含内联文件引用）
+	requestPrompt string              // 原始用户提问；引用只在首个 PrepareStep 展开
 	system        string              // 系统提示词：全局人设 + 指令 + 工具说明
 	tools         []fantasy.AgentTool // 项目工具 + MCP 工具 + 只读记忆工具
 	instructions  string              // 本轮实际使用的完整指令文本
@@ -28,13 +29,15 @@ type chatPrompt struct {
 	globalHash         string
 	globalVersion      int64
 
-	// referenceSummary 是本轮引用解析的选择与包含范围；不保存第二份正文。
-	referenceSummary *dtochat.TurnReferenceSummary
+	// 规范化选择不含文件正文，来源归属在准备阶段从数据库解析。
+	references          []dtochat.Reference
+	requestedReferences *dtochat.TurnReferenceSummary
+	projectID           string
 }
 
 // prepareChatPrompt 组装系统提示词、项目指令快照、文件引用与可用工具。
 // conversationID 用于指令快照；projectID 来自数据库权威项目归属，普通会话为空。
-// toolset 为空表示本次对话没有项目工作区；history 用于引用预算估算。
+// 引用这里只校验形状/归属，不进行文件 I/O；history 的预算在首个 PrepareStep 计算。
 func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingtools.Set, conversationID, projectID string, history []fantasy.Message, req *dtochat.ChatReq, mem memoryTurn) (*chatPrompt, error) {
 	projectDir := ""
 	if toolset != nil {
@@ -67,13 +70,20 @@ func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingt
 		prompt.tools = append(prompt.tools, memorytools.Tools(mem.reader)...)
 		prompt.system += "\n\n" + memorytools.SystemPrompt
 	}
-	// 引用预算需要已完成的 system 与工具 schema；正文与引用格式化在最后一步完成。
-	requestPrompt, summary, err := composeRequestPrompt(ctx, target, projectID, prompt, history, req, mem)
+	refs, err := normalizeReferences(req.Files, req.References)
 	if err != nil {
 		return nil, err
 	}
-	prompt.requestPrompt = requestPrompt
-	prompt.referenceSummary = summary
+	if len(refs) > 0 && projectID == "" {
+		return nil, ErrReferenceInvalid
+	}
+	prompt.requestPrompt = req.Messages
+	prompt.references, prompt.projectID = refs, projectID
+	prompt.requestedReferences, err = referenceIntent(refs)
+	if err != nil {
+		return nil, err
+	}
+
 	return prompt, nil
 }
 
@@ -97,4 +107,31 @@ func closeToolset(toolset *codingtools.Set) {
 	if err := toolset.Close(); err != nil {
 		global.Logger.Sugar().Warnf("close project tool workspace: %v", err)
 	}
+}
+
+// referenceIntent 保存选择而非文件读取证明；正文、显示名和文件状态不进入意图摘要。
+
+func referenceIntent(refs []dtochat.Reference) (*dtochat.TurnReferenceSummary, error) {
+	if len(refs) == 0 {
+		return nil, nil
+	}
+	summary := &dtochat.TurnReferenceSummary{PreparationState: "requested"}
+	size := len(`{"preparation_state":"requested","sources":[]}`)
+	for _, ref := range refs {
+		source := dtochat.TurnReferenceSource{Type: ref.Type, Path: ref.Path}
+		encoded, err := json.Marshal(source)
+		if err != nil {
+			return nil, ErrReferenceInvalid
+		}
+		size += len(encoded) + 1
+		if size > referenceMetadataBytes {
+			return nil, ErrContextBudgetExceeded
+		}
+		summary.Sources = append(summary.Sources, source)
+	}
+	encoded, err := json.Marshal(summary)
+	if err != nil || len(encoded) > referenceMetadataBytes {
+		return nil, ErrContextBudgetExceeded
+	}
+	return summary, nil
 }

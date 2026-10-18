@@ -8,6 +8,7 @@ import (
 	dtocode "github.com/lyonmu/kaguya/internal/dto/code"
 	"github.com/lyonmu/kaguya/internal/global"
 	serviceagent "github.com/lyonmu/kaguya/internal/service/agent"
+	"go.uber.org/zap"
 )
 
 // mapChatError 是聊天域服务端错误的唯一映射入口：把服务层哨兵错误映射为
@@ -28,6 +29,8 @@ func mapChatError(err error, operation dtocode.Response) dtocode.Response {
 	case errors.Is(err, serviceagent.ErrServiceStopping):
 		return dtocode.ServiceStopping
 	case errors.Is(err, serviceagent.ErrConversationUpdate):
+		return dtocode.RequestParameterError
+	case errors.Is(err, serviceagent.ErrApprovalDecisionInvalid):
 		return dtocode.RequestParameterError
 	case errors.Is(err, serviceagent.ErrPermissionModeInvalid):
 		return dtocode.PermissionModeInvalid
@@ -54,7 +57,9 @@ func conversationFailure(c *gin.Context, err error, fallback dtocode.Response) {
 	}
 	resp := mapChatError(err, fallback)
 	if resp == fallback {
-		global.Logger.Sugar().Errorf("conversation API failed: %v", err)
+		// Storage/driver errors may contain request input or credentials.
+		// The fixed operation code identifies the failure without its cause.
+		global.Logger.Error("conversation API failed", zap.Int("code", fallback.Code))
 	}
 	resp.Failure(c)
 }

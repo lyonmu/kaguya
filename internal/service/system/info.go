@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/lyonmu/kaguya/internal/consts"
@@ -24,6 +25,8 @@ var ErrInvalidSystemInfo = errors.New("invalid system configuration")
 var (
 	ReloadGlobalInstructions func(paths []string) error
 	GlobalInstructionStatus  func() *dtosystem.InstructionStatus
+	// 同一进程中，路径配置提交与通知按同一顺序完成。
+	instructionPathsMu sync.Mutex
 )
 
 // Info 每次从数据库读取，不使用进程缓存；新请求立即使用已保存配置。
@@ -75,13 +78,15 @@ func (s *SystemSvc) UpdateAgentsPaths(ctx context.Context, paths []string) error
 	if paths == nil {
 		paths = []string{}
 	}
+	instructionPathsMu.Lock()
+	defer instructionPathsMu.Unlock()
 	if _, err := db.EntClient.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).
 		SetGlobalAgentsPaths(paths).Save(ctx); err != nil {
 		return err
 	}
 	if ReloadGlobalInstructions != nil {
 		if err := ReloadGlobalInstructions(paths); err != nil {
-			// 保存已提交；监督器保留旧版本并在后台重试。
+			// 保存已提交；关停期间 Manager 不再接收通知，下次启动加载已保存配置。
 			global.Logger.Warn("reload global instructions after path update failed", zap.Error(err))
 		}
 	}
@@ -106,6 +111,10 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 	}
 	if err := validateAgentsPaths(req.GlobalAgentsPaths); err != nil {
 		return nil, err
+	}
+	if req.GlobalAgentsPaths != nil {
+		instructionPathsMu.Lock()
+		defer instructionPathsMu.Unlock()
 	}
 	current, err := s.Info(ctx)
 	if err != nil {
@@ -176,13 +185,17 @@ func (s *SystemSvc) InfoUpdate(ctx context.Context, req *dtosystem.SystemInfoSav
 		return nil, err
 	}
 	DefaultModelCatalogSyncer.Notify()
-	// 路径提交后通知 Manager 重建 watch 集合；失败保留旧版本并在后台重试。
+	// 路径提交后只通知 Manager；加载失败由其保留旧版本并在后台重试。
 	if req.GlobalAgentsPaths != nil && ReloadGlobalInstructions != nil {
 		if err := ReloadGlobalInstructions(req.GlobalAgentsPaths); err != nil {
 			global.Logger.Warn("reload global instructions after info update failed", zap.Error(err))
 		}
 	}
-	return systemInfoResponse(row), nil
+	resp := systemInfoResponse(row)
+	if GlobalInstructionStatus != nil {
+		resp.InstructionStatus = GlobalInstructionStatus()
+	}
+	return resp, nil
 }
 
 func systemInfoResponse(row *ent.KaguyaSystemInfo) *dtosystem.SystemInfoResp {

@@ -2,12 +2,14 @@ package system
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
 
 	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 	dtosystem "github.com/lyonmu/kaguya/internal/dto/system"
@@ -27,10 +29,15 @@ func (g *testIDGenerator) GenID() (int64, error) {
 
 func setupSystemServiceTest(t *testing.T) context.Context {
 	t.Helper()
-	client, err := ent.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=on", t.Name()))
+	pool, err := sql.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_foreign_keys=on", t.Name()))
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
+	// 与生产InitSQLite一致；共享内存的多物理连接读写会返回SQLITE_LOCKED，
+	// busy_timeout并不能替代进程内单连接串行化。
+	pool.SetMaxOpenConns(1)
+	pool.SetMaxIdleConns(1)
+	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.SQLite, pool)))
 	if err = client.Schema.Create(context.Background(), migrate.WithForeignKeys(false)); err != nil {
 		client.Close()
 		t.Fatalf("create schema: %v", err)

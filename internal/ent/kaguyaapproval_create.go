@@ -163,6 +163,20 @@ func (_c *KaguyaApprovalCreate) SetRequestedAt(v time.Time) *KaguyaApprovalCreat
 	return _c
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_c *KaguyaApprovalCreate) SetExpiresAt(v time.Time) *KaguyaApprovalCreate {
+	_c.mutation.SetExpiresAt(v)
+	return _c
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_c *KaguyaApprovalCreate) SetNillableExpiresAt(v *time.Time) *KaguyaApprovalCreate {
+	if v != nil {
+		_c.SetExpiresAt(*v)
+	}
+	return _c
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (_c *KaguyaApprovalCreate) SetResolvedAt(v time.Time) *KaguyaApprovalCreate {
 	_c.mutation.SetResolvedAt(v)
@@ -187,6 +201,48 @@ func (_c *KaguyaApprovalCreate) SetConsumedAt(v time.Time) *KaguyaApprovalCreate
 func (_c *KaguyaApprovalCreate) SetNillableConsumedAt(v *time.Time) *KaguyaApprovalCreate {
 	if v != nil {
 		_c.SetConsumedAt(*v)
+	}
+	return _c
+}
+
+// SetExecutionState sets the "execution_state" field.
+func (_c *KaguyaApprovalCreate) SetExecutionState(v kaguyaapproval.ExecutionState) *KaguyaApprovalCreate {
+	_c.mutation.SetExecutionState(v)
+	return _c
+}
+
+// SetNillableExecutionState sets the "execution_state" field if the given value is not nil.
+func (_c *KaguyaApprovalCreate) SetNillableExecutionState(v *kaguyaapproval.ExecutionState) *KaguyaApprovalCreate {
+	if v != nil {
+		_c.SetExecutionState(*v)
+	}
+	return _c
+}
+
+// SetExecutionFinishedAt sets the "execution_finished_at" field.
+func (_c *KaguyaApprovalCreate) SetExecutionFinishedAt(v time.Time) *KaguyaApprovalCreate {
+	_c.mutation.SetExecutionFinishedAt(v)
+	return _c
+}
+
+// SetNillableExecutionFinishedAt sets the "execution_finished_at" field if the given value is not nil.
+func (_c *KaguyaApprovalCreate) SetNillableExecutionFinishedAt(v *time.Time) *KaguyaApprovalCreate {
+	if v != nil {
+		_c.SetExecutionFinishedAt(*v)
+	}
+	return _c
+}
+
+// SetExecutionReasonCode sets the "execution_reason_code" field.
+func (_c *KaguyaApprovalCreate) SetExecutionReasonCode(v string) *KaguyaApprovalCreate {
+	_c.mutation.SetExecutionReasonCode(v)
+	return _c
+}
+
+// SetNillableExecutionReasonCode sets the "execution_reason_code" field if the given value is not nil.
+func (_c *KaguyaApprovalCreate) SetNillableExecutionReasonCode(v *string) *KaguyaApprovalCreate {
+	if v != nil {
+		_c.SetExecutionReasonCode(*v)
 	}
 	return _c
 }
@@ -285,6 +341,14 @@ func (_c *KaguyaApprovalCreate) defaults() error {
 	if _, ok := _c.mutation.Decision(); !ok {
 		v := kaguyaapproval.DefaultDecision
 		_c.mutation.SetDecision(v)
+	}
+	if _, ok := _c.mutation.ExecutionState(); !ok {
+		v := kaguyaapproval.DefaultExecutionState
+		_c.mutation.SetExecutionState(v)
+	}
+	if _, ok := _c.mutation.ExecutionReasonCode(); !ok {
+		v := kaguyaapproval.DefaultExecutionReasonCode
+		_c.mutation.SetExecutionReasonCode(v)
 	}
 	if _, ok := _c.mutation.ReasonCode(); !ok {
 		v := kaguyaapproval.DefaultReasonCode
@@ -386,6 +450,17 @@ func (_c *KaguyaApprovalCreate) check() error {
 	if _, ok := _c.mutation.RequestedAt(); !ok {
 		return &ValidationError{Name: "requested_at", err: errors.New(`ent: missing required field "KaguyaApproval.requested_at"`)}
 	}
+	if _, ok := _c.mutation.ExecutionState(); !ok {
+		return &ValidationError{Name: "execution_state", err: errors.New(`ent: missing required field "KaguyaApproval.execution_state"`)}
+	}
+	if v, ok := _c.mutation.ExecutionState(); ok {
+		if err := kaguyaapproval.ExecutionStateValidator(v); err != nil {
+			return &ValidationError{Name: "execution_state", err: fmt.Errorf(`ent: validator failed for field "KaguyaApproval.execution_state": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ExecutionReasonCode(); !ok {
+		return &ValidationError{Name: "execution_reason_code", err: errors.New(`ent: missing required field "KaguyaApproval.execution_reason_code"`)}
+	}
 	if _, ok := _c.mutation.ReasonCode(); !ok {
 		return &ValidationError{Name: "reason_code", err: errors.New(`ent: missing required field "KaguyaApproval.reason_code"`)}
 	}
@@ -486,6 +561,10 @@ func (_c *KaguyaApprovalCreate) createSpec() (*KaguyaApproval, *sqlgraph.CreateS
 		_spec.SetField(kaguyaapproval.FieldRequestedAt, field.TypeTime, value)
 		_node.RequestedAt = value
 	}
+	if value, ok := _c.mutation.ExpiresAt(); ok {
+		_spec.SetField(kaguyaapproval.FieldExpiresAt, field.TypeTime, value)
+		_node.ExpiresAt = &value
+	}
 	if value, ok := _c.mutation.ResolvedAt(); ok {
 		_spec.SetField(kaguyaapproval.FieldResolvedAt, field.TypeTime, value)
 		_node.ResolvedAt = &value
@@ -493,6 +572,18 @@ func (_c *KaguyaApprovalCreate) createSpec() (*KaguyaApproval, *sqlgraph.CreateS
 	if value, ok := _c.mutation.ConsumedAt(); ok {
 		_spec.SetField(kaguyaapproval.FieldConsumedAt, field.TypeTime, value)
 		_node.ConsumedAt = &value
+	}
+	if value, ok := _c.mutation.ExecutionState(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionState, field.TypeEnum, value)
+		_node.ExecutionState = value
+	}
+	if value, ok := _c.mutation.ExecutionFinishedAt(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionFinishedAt, field.TypeTime, value)
+		_node.ExecutionFinishedAt = &value
+	}
+	if value, ok := _c.mutation.ExecutionReasonCode(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionReasonCode, field.TypeString, value)
+		_node.ExecutionReasonCode = value
 	}
 	if value, ok := _c.mutation.ReasonCode(); ok {
 		_spec.SetField(kaguyaapproval.FieldReasonCode, field.TypeString, value)
@@ -712,6 +803,24 @@ func (u *KaguyaApprovalUpsert) UpdateRequestedAt() *KaguyaApprovalUpsert {
 	return u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (u *KaguyaApprovalUpsert) SetExpiresAt(v time.Time) *KaguyaApprovalUpsert {
+	u.Set(kaguyaapproval.FieldExpiresAt, v)
+	return u
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsert) UpdateExpiresAt() *KaguyaApprovalUpsert {
+	u.SetExcluded(kaguyaapproval.FieldExpiresAt)
+	return u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *KaguyaApprovalUpsert) ClearExpiresAt() *KaguyaApprovalUpsert {
+	u.SetNull(kaguyaapproval.FieldExpiresAt)
+	return u
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (u *KaguyaApprovalUpsert) SetResolvedAt(v time.Time) *KaguyaApprovalUpsert {
 	u.Set(kaguyaapproval.FieldResolvedAt, v)
@@ -745,6 +854,48 @@ func (u *KaguyaApprovalUpsert) UpdateConsumedAt() *KaguyaApprovalUpsert {
 // ClearConsumedAt clears the value of the "consumed_at" field.
 func (u *KaguyaApprovalUpsert) ClearConsumedAt() *KaguyaApprovalUpsert {
 	u.SetNull(kaguyaapproval.FieldConsumedAt)
+	return u
+}
+
+// SetExecutionState sets the "execution_state" field.
+func (u *KaguyaApprovalUpsert) SetExecutionState(v kaguyaapproval.ExecutionState) *KaguyaApprovalUpsert {
+	u.Set(kaguyaapproval.FieldExecutionState, v)
+	return u
+}
+
+// UpdateExecutionState sets the "execution_state" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsert) UpdateExecutionState() *KaguyaApprovalUpsert {
+	u.SetExcluded(kaguyaapproval.FieldExecutionState)
+	return u
+}
+
+// SetExecutionFinishedAt sets the "execution_finished_at" field.
+func (u *KaguyaApprovalUpsert) SetExecutionFinishedAt(v time.Time) *KaguyaApprovalUpsert {
+	u.Set(kaguyaapproval.FieldExecutionFinishedAt, v)
+	return u
+}
+
+// UpdateExecutionFinishedAt sets the "execution_finished_at" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsert) UpdateExecutionFinishedAt() *KaguyaApprovalUpsert {
+	u.SetExcluded(kaguyaapproval.FieldExecutionFinishedAt)
+	return u
+}
+
+// ClearExecutionFinishedAt clears the value of the "execution_finished_at" field.
+func (u *KaguyaApprovalUpsert) ClearExecutionFinishedAt() *KaguyaApprovalUpsert {
+	u.SetNull(kaguyaapproval.FieldExecutionFinishedAt)
+	return u
+}
+
+// SetExecutionReasonCode sets the "execution_reason_code" field.
+func (u *KaguyaApprovalUpsert) SetExecutionReasonCode(v string) *KaguyaApprovalUpsert {
+	u.Set(kaguyaapproval.FieldExecutionReasonCode, v)
+	return u
+}
+
+// UpdateExecutionReasonCode sets the "execution_reason_code" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsert) UpdateExecutionReasonCode() *KaguyaApprovalUpsert {
+	u.SetExcluded(kaguyaapproval.FieldExecutionReasonCode)
 	return u
 }
 
@@ -1000,6 +1151,27 @@ func (u *KaguyaApprovalUpsertOne) UpdateRequestedAt() *KaguyaApprovalUpsertOne {
 	})
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (u *KaguyaApprovalUpsertOne) SetExpiresAt(v time.Time) *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertOne) UpdateExpiresAt() *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *KaguyaApprovalUpsertOne) ClearExpiresAt() *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.ClearExpiresAt()
+	})
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (u *KaguyaApprovalUpsertOne) SetResolvedAt(v time.Time) *KaguyaApprovalUpsertOne {
 	return u.Update(func(s *KaguyaApprovalUpsert) {
@@ -1039,6 +1211,55 @@ func (u *KaguyaApprovalUpsertOne) UpdateConsumedAt() *KaguyaApprovalUpsertOne {
 func (u *KaguyaApprovalUpsertOne) ClearConsumedAt() *KaguyaApprovalUpsertOne {
 	return u.Update(func(s *KaguyaApprovalUpsert) {
 		s.ClearConsumedAt()
+	})
+}
+
+// SetExecutionState sets the "execution_state" field.
+func (u *KaguyaApprovalUpsertOne) SetExecutionState(v kaguyaapproval.ExecutionState) *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExecutionState(v)
+	})
+}
+
+// UpdateExecutionState sets the "execution_state" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertOne) UpdateExecutionState() *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExecutionState()
+	})
+}
+
+// SetExecutionFinishedAt sets the "execution_finished_at" field.
+func (u *KaguyaApprovalUpsertOne) SetExecutionFinishedAt(v time.Time) *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExecutionFinishedAt(v)
+	})
+}
+
+// UpdateExecutionFinishedAt sets the "execution_finished_at" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertOne) UpdateExecutionFinishedAt() *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExecutionFinishedAt()
+	})
+}
+
+// ClearExecutionFinishedAt clears the value of the "execution_finished_at" field.
+func (u *KaguyaApprovalUpsertOne) ClearExecutionFinishedAt() *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.ClearExecutionFinishedAt()
+	})
+}
+
+// SetExecutionReasonCode sets the "execution_reason_code" field.
+func (u *KaguyaApprovalUpsertOne) SetExecutionReasonCode(v string) *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExecutionReasonCode(v)
+	})
+}
+
+// UpdateExecutionReasonCode sets the "execution_reason_code" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertOne) UpdateExecutionReasonCode() *KaguyaApprovalUpsertOne {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExecutionReasonCode()
 	})
 }
 
@@ -1463,6 +1684,27 @@ func (u *KaguyaApprovalUpsertBulk) UpdateRequestedAt() *KaguyaApprovalUpsertBulk
 	})
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (u *KaguyaApprovalUpsertBulk) SetExpiresAt(v time.Time) *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExpiresAt(v)
+	})
+}
+
+// UpdateExpiresAt sets the "expires_at" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertBulk) UpdateExpiresAt() *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExpiresAt()
+	})
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (u *KaguyaApprovalUpsertBulk) ClearExpiresAt() *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.ClearExpiresAt()
+	})
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (u *KaguyaApprovalUpsertBulk) SetResolvedAt(v time.Time) *KaguyaApprovalUpsertBulk {
 	return u.Update(func(s *KaguyaApprovalUpsert) {
@@ -1502,6 +1744,55 @@ func (u *KaguyaApprovalUpsertBulk) UpdateConsumedAt() *KaguyaApprovalUpsertBulk 
 func (u *KaguyaApprovalUpsertBulk) ClearConsumedAt() *KaguyaApprovalUpsertBulk {
 	return u.Update(func(s *KaguyaApprovalUpsert) {
 		s.ClearConsumedAt()
+	})
+}
+
+// SetExecutionState sets the "execution_state" field.
+func (u *KaguyaApprovalUpsertBulk) SetExecutionState(v kaguyaapproval.ExecutionState) *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExecutionState(v)
+	})
+}
+
+// UpdateExecutionState sets the "execution_state" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertBulk) UpdateExecutionState() *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExecutionState()
+	})
+}
+
+// SetExecutionFinishedAt sets the "execution_finished_at" field.
+func (u *KaguyaApprovalUpsertBulk) SetExecutionFinishedAt(v time.Time) *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExecutionFinishedAt(v)
+	})
+}
+
+// UpdateExecutionFinishedAt sets the "execution_finished_at" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertBulk) UpdateExecutionFinishedAt() *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExecutionFinishedAt()
+	})
+}
+
+// ClearExecutionFinishedAt clears the value of the "execution_finished_at" field.
+func (u *KaguyaApprovalUpsertBulk) ClearExecutionFinishedAt() *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.ClearExecutionFinishedAt()
+	})
+}
+
+// SetExecutionReasonCode sets the "execution_reason_code" field.
+func (u *KaguyaApprovalUpsertBulk) SetExecutionReasonCode(v string) *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.SetExecutionReasonCode(v)
+	})
+}
+
+// UpdateExecutionReasonCode sets the "execution_reason_code" field to the value that was provided on create.
+func (u *KaguyaApprovalUpsertBulk) UpdateExecutionReasonCode() *KaguyaApprovalUpsertBulk {
+	return u.Update(func(s *KaguyaApprovalUpsert) {
+		s.UpdateExecutionReasonCode()
 	})
 }
 

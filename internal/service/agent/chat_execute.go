@@ -172,7 +172,8 @@ func (s *AgentSvc) streamChat(ctx context.Context, agent *agentruntime.Agent, ex
 			return
 		}
 		retryCount++
-		global.Logger.Sugar().Warnf("retry chat stream: conversation_id=%s retry=%d/%d delay=%s err=%v", exec.conversationID, retryCount, *info.ChatMaxRetries, delay, err)
+		// 上游错误正文可能回显凭据或提示词，重试日志只记录本地元数据。
+		global.Logger.Sugar().Warnf("retry chat stream: conversation_id=%s retry=%d/%d delay=%s", exec.conversationID, retryCount, *info.ChatMaxRetries, delay)
 	}
 
 	maxRetries := *info.ChatMaxRetries
@@ -182,13 +183,14 @@ func (s *AgentSvc) streamChat(ctx context.Context, agent *agentruntime.Agent, ex
 		call.StopWhen = []fantasy.StopCondition{fantasy.StepCountIs(*info.AgentMaxSteps)}
 	}
 
+	preparation := &chatPreparation{requestPrompt: exec.prompt.requestPrompt, referenceSummary: exec.prompt.requestedReferences}
 	compactor, err := s.newContextCompactor(ctx, exec, info)
 	if err != nil {
-		return nil, err
+		return &chatOutcome{preparation: preparation}, err
 	}
 	// 自动召回 sidecar 在压缩器处理之后、模型调用之前注入；每 step 重新校验
 	// 冻结选择的可用性，运行中被删除/禁用的页面不再附加。
-	call.PrepareStep = prepareWithMemory(compactor, exec.prompt.memory.renderTransient)
+	call.PrepareStep = prepareChatStep(compactor, exec.prompt, preparation)
 
 	trace := exec.trace
 	if trace == nil {
@@ -211,21 +213,22 @@ func (s *AgentSvc) streamChat(ctx context.Context, agent *agentruntime.Agent, ex
 	if err == nil && result == nil {
 		err = fmt.Errorf("conversation returned no result")
 	}
+	partial := &chatOutcome{compactor: compactor, preparation: preparation, startedAt: startedAt, finishedAt: finishedAt}
 	if err != nil {
-		return nil, err
+		return partial, err
 	}
 
 	paused := *info.AgentMaxSteps > 0 && len(result.Steps) >= *info.AgentMaxSteps && result.Steps[len(result.Steps)-1].FinishReason == fantasy.FinishReasonToolCalls
 	if !paused && result.Response.FinishReason != fantasy.FinishReasonStop {
-		return nil, fmt.Errorf("conversation did not finish normally (finish reason: %s, step limit: %d); tool side effects may already have occurred", result.Response.FinishReason, *info.AgentMaxSteps)
+		return partial, fmt.Errorf("conversation did not finish normally (finish reason: %s, step limit: %d); tool side effects may already have occurred", result.Response.FinishReason, *info.AgentMaxSteps)
 	}
 	// 有工具调用却没有结果说明轨迹不完整，不能作为完整轮次落库。
 	if err := trace.finish(finishedAt); err != nil {
 		global.Logger.Sugar().Errorf("incomplete conversation trace: id=%s err=%v", exec.conversationID, err)
-		return nil, err
+		return partial, err
 	}
 	return &chatOutcome{
-		result: result, trace: trace, compactor: compactor,
+		result: result, trace: trace, compactor: compactor, preparation: preparation,
 		startedAt: startedAt, finishedAt: finishedAt, paused: paused,
 		finishReason: chatFinishReason(result, paused),
 		usage:        chatTurnUsage(result, compactor),
@@ -240,6 +243,7 @@ func chatTurnUsage(result *fantasy.AgentResult, compactor *contextCompactor) tok
 	usage.OutputTokens += summary.OutputTokens
 	usage.TotalTokens += summary.TotalTokens
 	usage.CacheHitTokens += summary.CacheHitTokens
+	usage.CacheCreationTokens += summary.CacheCreationTokens
 	usage.ReasoningTokens += summary.ReasoningTokens
 	return usage
 }
@@ -260,16 +264,37 @@ func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, 
 		}
 		compactor.toolTokens += int64((len(data) + 3) / 4)
 	}
-	compactor.fingerprint = contextFingerprint{
-		modelKey:           model.ModelID,
-		instructionHash:    exec.prompt.globalHash,
-		instructionVersion: exec.prompt.globalVersion,
-		toolSchemaHash:     toolSchemaFingerprint(exec.prompt.tools),
-		memorySelectionKey: memorySelectionFingerprint(exec.prompt.memory.selection()),
-	}
 	var outputReserve int64
 	if limit := contextOutputLimit(model.TokenContextWindow, model.TokenMaxOutputTokens, *info.ContextCompactionPercent); limit != nil {
 		outputReserve = *limit
+	}
+	compactor.outputReserve = outputReserve
+	endpointHash, endpointKnown, err := fingerprintURL(exec.target.provider.BaseURL)
+	if err != nil {
+		return nil, err
+	}
+	requestPathHash, pathKnown, err := fingerprintURL(model.RequestPath)
+	if err != nil {
+		return nil, err
+	}
+	configuration, err := json.Marshal(struct {
+		UpstreamModel, Protocol, ProviderType, EndpointHash, RequestPathHash, ReasoningEffort string
+		ReasoningEnabled, Window, MaxOutput, Percent, ToolUse, Vision, Structured             int
+		OutputReserve                                                                         int64
+	}{model.ModelID, string(model.APIProtocol), string(exec.target.provider.ProviderType), endpointHash, requestPathHash, string(model.ReasoningEffort), int(model.ReasoningEnabled), model.TokenContextWindow, model.TokenMaxOutputTokens, compactionPercent(*info.ContextCompactionPercent), int(model.CapabilityToolUse), int(model.CapabilityVision), int(model.CapabilityStructuredOutput), outputReserve})
+	if err != nil {
+		return nil, err
+	}
+	toolsHash, toolsKnown, err := effectiveToolsFingerprint(exec.prompt.tools)
+	if err != nil {
+		return nil, err
+	}
+	compactor.fingerprint = contextFingerprint{
+		modelKey: model.ID, providerKey: exec.target.provider.ID, configurationHash: fullTextFingerprint(string(configuration)),
+		systemHash: fullTextFingerprint(exec.prompt.system), instructionHash: fullTextFingerprint(exec.prompt.instructions), instructionFormat: exec.prompt.instructionsFormat,
+		instructionVersion: exec.prompt.globalVersion, toolSchemaHash: toolsHash,
+		memorySelectionKey: memorySelectionFingerprint(exec.prompt.memory.selection()), permissionMode: string(exec.permissionMode),
+		baselineUnknown: !endpointKnown || !pathKnown || !toolsKnown,
 	}
 	compactor.budget = computeContextBudget(contextBudgetInput{
 		window:            int64(model.TokenContextWindow),
@@ -281,32 +306,21 @@ func (s *AgentSvc) newContextCompactor(ctx context.Context, exec chatExecution, 
 		memoryTokens:      exec.prompt.memory.estimated,
 		outputReserve:     outputReserve,
 	})
-	// 续聊时用上一次完成轮次的实际占用作为基线，避免重复估算整段历史。
-	// 上一轮与本轮 Memory 选择不同时废弃旧估算基线，避免逐轮累积。
-	if exec.version > 0 {
-		previous, err := s.ConversationContext(ctx, exec.conversationID)
-		if err != nil {
+	// 从同一完成轮次读取指纹和实际 token 数；legacy/缺值/版本失配都重估。
+	if exec.version > 0 && !compactor.fingerprint.baselineUnknown {
+		previous, err := db.EntClient.KaguyaChatTurn.Query().
+			Where(kaguyachatturn.ConversationIDEQ(exec.conversationID), kaguyachatturn.StatusEQ(kaguyachatturn.StatusCompleted)).
+			Select(kaguyachatturn.FieldContextTokens, kaguyachatturn.FieldContextFingerprintVersion, kaguyachatturn.FieldContextFingerprint).
+			Order(ent.Desc(kaguyachatturn.FieldTurnIndex)).First(ctx)
+		if err != nil && !ent.IsNotFound(err) {
 			return nil, err
 		}
-		lastSelection, err := lastTurnMemorySelection(ctx, exec.conversationID)
-		if err != nil {
-			return nil, err
-		}
-		// 模型、指令版本、工具 schema 或召回选择任一变化都废弃旧基线；保守重估
-		// 优于带旧指令/旧工具窗口的伪精确减法。
-		previousHash, previousVersion, err := lastTurnInstructionMeta(ctx, exec.conversationID)
-		if err != nil {
-			return nil, err
-		}
-		sameContext := previous.ModelID == model.ModelID &&
-			sameMemorySelection(lastSelection, exec.prompt.memory.selection()) &&
-			previousHash == compactor.fingerprint.instructionHash &&
-			previousVersion == compactor.fingerprint.instructionVersion
-		if sameContext && previous.ContextTokens != nil {
+		if previous != nil && previous.ContextFingerprintVersion == contextFingerprintVersion && previous.ContextFingerprint != nil && *previous.ContextFingerprint == compactor.fingerprint.digest() && previous.ContextTokens != nil {
 			estimate := *previous.ContextTokens + estimateMessages([]fantasy.Message{fantasy.NewUserMessage(exec.prompt.requestPrompt)})
 			compactor.lastTokens = &estimate
 		}
 	}
+
 	return compactor, nil
 }
 

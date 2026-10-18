@@ -17,7 +17,7 @@ type TitleSubscription struct {
 }
 
 // TitlePublisher 只发布标题事件。订阅 registry 是 channel 的唯一关闭者，
-// Publish 在锁外发送，慢订阅者不会阻塞模型调用或数据库提交。
+// Publish 在 registry 锁内非阻塞发送，慢订阅者不会阻塞模型调用或数据库提交。
 type TitlePublisher struct {
 	mu     sync.Mutex
 	subs   map[*titleSubscriber]struct{}

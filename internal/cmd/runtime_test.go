@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -12,11 +13,13 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	"github.com/lyonmu/kaguya/internal/agent/instructions"
 	"github.com/lyonmu/kaguya/internal/db"
 	"github.com/lyonmu/kaguya/internal/ent"
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
 	"github.com/lyonmu/kaguya/internal/global"
+	serviceagent "github.com/lyonmu/kaguya/internal/service/agent"
 	"go.uber.org/zap"
 )
 
@@ -194,5 +197,48 @@ func TestRuntimeDoesNotStartSuspendedMemoryWorker(t *testing.T) {
 	}
 	if driver.closes.Load() == 0 {
 		t.Fatal("database was not closed")
+	}
+}
+
+func TestRuntimeClosesItsOwnInstructionManager(t *testing.T) {
+	rt := newAppRuntime(context.Background())
+	own, err := instructions.New(rt.ctx, nil, instructions.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := instructions.New(context.Background(), nil, instructions.Options{})
+	if err != nil {
+		own.Close()
+		t.Fatal(err)
+	}
+	defer func() { other.Close(); <-other.Done() }()
+	old := serviceagent.DefaultGlobalInstructions
+	serviceagent.DefaultGlobalInstructions = other
+	defer func() { serviceagent.DefaultGlobalInstructions = old }()
+	rt.instructions = own
+	own.Start()
+	other.Start()
+	rt.close()
+	select {
+	case <-own.Done():
+	default:
+		t.Fatal("owned manager was not drained")
+	}
+	select {
+	case <-other.Done():
+		t.Fatal("runtime closed another instance through package global")
+	default:
+	}
+}
+
+func TestRuntimeOwnsMCPServiceLifetime(t *testing.T) {
+	rt := newAppRuntime(context.Background())
+	defer rt.close()
+	if rt.systemSvc == nil {
+		t.Fatal("runtime did not construct its service")
+	}
+	rt.beginShutdown()
+	if _, err := rt.systemSvc.MCPReconnect(context.Background(), "not-queried"); !errors.Is(err, context.Canceled) {
+		t.Fatal("service ignored owning runtime shutdown", err)
 	}
 }

@@ -164,8 +164,12 @@ func init() {
 	kaguyaapprovalDescDecision := kaguyaapprovalFields[9].Descriptor()
 	// kaguyaapproval.DefaultDecision holds the default value on creation for the decision field.
 	kaguyaapproval.DefaultDecision = kaguyaapprovalDescDecision.Default.(string)
+	// kaguyaapprovalDescExecutionReasonCode is the schema descriptor for execution_reason_code field.
+	kaguyaapprovalDescExecutionReasonCode := kaguyaapprovalFields[16].Descriptor()
+	// kaguyaapproval.DefaultExecutionReasonCode holds the default value on creation for the execution_reason_code field.
+	kaguyaapproval.DefaultExecutionReasonCode = kaguyaapprovalDescExecutionReasonCode.Default.(string)
 	// kaguyaapprovalDescReasonCode is the schema descriptor for reason_code field.
-	kaguyaapprovalDescReasonCode := kaguyaapprovalFields[13].Descriptor()
+	kaguyaapprovalDescReasonCode := kaguyaapprovalFields[17].Descriptor()
 	// kaguyaapproval.DefaultReasonCode holds the default value on creation for the reason_code field.
 	kaguyaapproval.DefaultReasonCode = kaguyaapprovalDescReasonCode.Default.(string)
 	// kaguyaapprovalDescID is the schema descriptor for id field.
@@ -356,24 +360,36 @@ func init() {
 	kaguyachatturnDescReasoningTokens := kaguyachatturnFields[18].Descriptor()
 	// kaguyachatturn.ReasoningTokensValidator is a validator for the "reasoning_tokens" field. It is called by the builders before save.
 	kaguyachatturn.ReasoningTokensValidator = kaguyachatturnDescReasoningTokens.Validators[0].(func(int64) error)
+	// kaguyachatturnDescCacheCreationTokens is the schema descriptor for cache_creation_tokens field.
+	kaguyachatturnDescCacheCreationTokens := kaguyachatturnFields[19].Descriptor()
+	// kaguyachatturn.DefaultCacheCreationTokens holds the default value on creation for the cache_creation_tokens field.
+	kaguyachatturn.DefaultCacheCreationTokens = kaguyachatturnDescCacheCreationTokens.Default.(int64)
+	// kaguyachatturn.CacheCreationTokensValidator is a validator for the "cache_creation_tokens" field. It is called by the builders before save.
+	kaguyachatturn.CacheCreationTokensValidator = kaguyachatturnDescCacheCreationTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescContextTokens is the schema descriptor for context_tokens field.
-	kaguyachatturnDescContextTokens := kaguyachatturnFields[19].Descriptor()
+	kaguyachatturnDescContextTokens := kaguyachatturnFields[21].Descriptor()
 	// kaguyachatturn.ContextTokensValidator is a validator for the "context_tokens" field. It is called by the builders before save.
 	kaguyachatturn.ContextTokensValidator = kaguyachatturnDescContextTokens.Validators[0].(func(int64) error)
 	// kaguyachatturnDescContextWindow is the schema descriptor for context_window field.
-	kaguyachatturnDescContextWindow := kaguyachatturnFields[20].Descriptor()
+	kaguyachatturnDescContextWindow := kaguyachatturnFields[22].Descriptor()
 	// kaguyachatturn.DefaultContextWindow holds the default value on creation for the context_window field.
 	kaguyachatturn.DefaultContextWindow = kaguyachatturnDescContextWindow.Default.(int)
 	// kaguyachatturn.ContextWindowValidator is a validator for the "context_window" field. It is called by the builders before save.
 	kaguyachatturn.ContextWindowValidator = kaguyachatturnDescContextWindow.Validators[0].(func(int) error)
+	// kaguyachatturnDescContextFingerprintVersion is the schema descriptor for context_fingerprint_version field.
+	kaguyachatturnDescContextFingerprintVersion := kaguyachatturnFields[23].Descriptor()
+	// kaguyachatturn.DefaultContextFingerprintVersion holds the default value on creation for the context_fingerprint_version field.
+	kaguyachatturn.DefaultContextFingerprintVersion = kaguyachatturnDescContextFingerprintVersion.Default.(int)
+	// kaguyachatturn.ContextFingerprintVersionValidator is a validator for the "context_fingerprint_version" field. It is called by the builders before save.
+	kaguyachatturn.ContextFingerprintVersionValidator = kaguyachatturnDescContextFingerprintVersion.Validators[0].(func(int) error)
 	// kaguyachatturnDescCompactionCount is the schema descriptor for compaction_count field.
-	kaguyachatturnDescCompactionCount := kaguyachatturnFields[22].Descriptor()
+	kaguyachatturnDescCompactionCount := kaguyachatturnFields[26].Descriptor()
 	// kaguyachatturn.DefaultCompactionCount holds the default value on creation for the compaction_count field.
 	kaguyachatturn.DefaultCompactionCount = kaguyachatturnDescCompactionCount.Default.(int)
 	// kaguyachatturn.CompactionCountValidator is a validator for the "compaction_count" field. It is called by the builders before save.
 	kaguyachatturn.CompactionCountValidator = kaguyachatturnDescCompactionCount.Validators[0].(func(int) error)
 	// kaguyachatturnDescGlobalInstructionVersion is the schema descriptor for global_instruction_version field.
-	kaguyachatturnDescGlobalInstructionVersion := kaguyachatturnFields[26].Descriptor()
+	kaguyachatturnDescGlobalInstructionVersion := kaguyachatturnFields[30].Descriptor()
 	// kaguyachatturn.GlobalInstructionVersionValidator is a validator for the "global_instruction_version" field. It is called by the builders before save.
 	kaguyachatturn.GlobalInstructionVersionValidator = kaguyachatturnDescGlobalInstructionVersion.Validators[0].(func(int64) error)
 	// kaguyachatturnDescID is the schema descriptor for id field.

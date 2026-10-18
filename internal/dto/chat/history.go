@@ -3,6 +3,7 @@ package chat
 import (
 	"time"
 
+	token "github.com/lyonmu/kaguya/internal/agent/token"
 	dtomemory "github.com/lyonmu/kaguya/internal/dto/memory"
 )
 
@@ -29,6 +30,24 @@ type ConversationTitleResp struct {
 	Title    string `json:"title"`              // 当前已保存标题；生成失败或等待超时保留原标题
 	Status   string `json:"status,omitempty"`   // 标题任务状态；等待超时仍返回当前值
 	Revision int64  `json:"revision,omitempty"` // 与标题同时提交的 revision
+}
+
+type TitleSnapshotsReq struct {
+	IDs []string `json:"ids" binding:"required,min=1,max=200,dive,required,max=64"`
+}
+
+// TitleSnapshot 的文本版本与任务版本独立；无任务时 JobStatus 为 null、版本为0。
+type TitleSnapshot struct {
+	ID            string  `json:"id"`
+	Title         string  `json:"title"`
+	TitleRevision int64   `json:"title_revision"`
+	JobStatus     *string `json:"job_status"`
+	JobRevision   int64   `json:"job_revision"`
+}
+
+type TitleSnapshotsResp struct {
+	Items      []TitleSnapshot `json:"items"`
+	MissingIDs []string        `json:"missing_ids"`
 }
 
 // TurnPageReq 按轮次分页；compact 模式延迟加载工具与思考详情，返回值始终按时间正序。
@@ -66,6 +85,7 @@ type ConversationResp struct {
 	InstructionsLegacy bool                      `json:"instructions_legacy"`        // 旧项目会话仍使用不可拆解快照，需显式升级
 	TitleRevision      int64                     `json:"title_revision"`             // 标题版本，事件按它只前进合并
 	TitleJobStatus     string                    `json:"title_job_status,omitempty"` // pending/running/succeeded/failed/canceled；无任务时为空
+	TitleJobRevision   int64                     `json:"title_job_revision"`         // 与任务状态一并读取；无任务为0
 }
 type ConversationListResp struct {
 	Items    []ConversationResp `json:"items"`
@@ -93,21 +113,34 @@ type StoredBlock struct {
 	StartOrder       int64       `json:"start_order"` // Trace 按事件序号还原并行开始/结束顺序
 	EndOrder         int64       `json:"end_order"`
 }
+
+// TurnPreparationUsage 只审计摘要调用；成功轮次的 usage 已包含它，不能重复累计。
+// UnreportedCalls 表示调用没有返回可信 usage，不代表确认零消费。
+type TurnPreparationUsage struct {
+	Version         int                   `json:"version"`
+	SummaryCalls    int                   `json:"summary_calls"`
+	ReportedCalls   int                   `json:"reported_calls"`
+	UnreportedCalls int                   `json:"unreported_calls"`
+	Usage           token.NormalizedUsage `json:"usage"`
+}
+
 type StoredTurn struct {
-	ID           string                    `json:"id"`         // 轮次行 ID，保存为记忆时定位来源
-	TurnIndex    int64                     `json:"turn_index"` // 仅历史分页/排序使用，不改变实时 DTO
-	UserContent  string                    `json:"user_content"`
-	ProviderName string                    `json:"provider_name"`
-	ModelID      string                    `json:"model_id"`
-	ModelName    string                    `json:"model_name"`
-	APIProtocol  string                    `json:"api_protocol"`
-	StartedAt    time.Time                 `json:"started_at"`
-	FinishedAt   time.Time                 `json:"finished_at"`
-	DurationMS   int64                     `json:"duration_ms"`
-	ToolCalls    int64                     `json:"tool_calls"`
-	FinishReason string                    `json:"finish_reason"`
-	Status       string                    `json:"status"`                // running/completed/interrupted/failed；只有 completed 是完整上下文
-	MemoryRefs   *dtomemory.MemoryRefsResp `json:"memory_refs,omitempty"` // 本轮自动召回选择的页面版本，不复制正文
+	PreparationUsage *TurnPreparationUsage     `json:"preparation_usage,omitempty"`
+	Approvals        []Approval                `json:"approvals,omitempty"` // 仅安全审计元信息，不含原始参数
+	ID               string                    `json:"id"`                  // 轮次行 ID，保存为记忆时定位来源
+	TurnIndex        int64                     `json:"turn_index"`          // 仅历史分页/排序使用，不改变实时 DTO
+	UserContent      string                    `json:"user_content"`
+	ProviderName     string                    `json:"provider_name"`
+	ModelID          string                    `json:"model_id"`
+	ModelName        string                    `json:"model_name"`
+	APIProtocol      string                    `json:"api_protocol"`
+	StartedAt        time.Time                 `json:"started_at"`
+	FinishedAt       time.Time                 `json:"finished_at"`
+	DurationMS       int64                     `json:"duration_ms"`
+	ToolCalls        int64                     `json:"tool_calls"`
+	FinishReason     string                    `json:"finish_reason"`
+	Status           string                    `json:"status"`                // running/completed/interrupted/failed；只有 completed 是完整上下文
+	MemoryRefs       *dtomemory.MemoryRefsResp `json:"memory_refs,omitempty"` // 本轮自动召回选择的页面版本，不复制正文
 	// ReferenceSummary 是本轮引用选择、包含范围与遗漏原因；不保存第二份正文。
 	ReferenceSummary *TurnReferenceSummary `json:"reference_summary,omitempty"`
 	Usage            Usage                 `json:"usage"`

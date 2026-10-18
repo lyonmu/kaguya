@@ -22,7 +22,7 @@ type SystemMCPResp struct {
 	ID      string          `json:"id"`
 	Enabled bool            `json:"enabled"`
 	Status  agentmcp.Status `json:"status"`
-	// Phase 是细粒度状态：stopped/connecting/running/backoff/circuit_open；
+	// Phase 是细粒度状态：stopped/connecting/running/backoff/circuit_open/storage_error；
 	// 旧 state 字段保持 running/stopped/error 兼容。
 	Phase               string     `json:"phase"`
 	ConsecutiveFailures int        `json:"consecutive_failures"`

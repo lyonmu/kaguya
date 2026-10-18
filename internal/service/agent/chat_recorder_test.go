@@ -32,11 +32,19 @@ var errInjectedFailure = errors.New("injected database failure")
 // faultDriver 把连接交给真实 SQLite 驱动，并按语句内容注入一次失败。
 // 只用于测试：占位块写入失败或 commit 失败后，recorder 必须保持旧水位并重试。
 type faultDriver struct {
-	base    driver.Driver
-	mu      sync.Mutex
-	failOn  []string
-	failNth map[string]int // 语句模式的第几次匹配触发注入
-	seen    map[string]int
+	base          driver.Driver
+	mu            sync.Mutex
+	failOn        []string
+	failNth       map[string]int // 语句模式的第几次匹配触发注入
+	seen          map[string]int
+	beginCalls    int
+	failCommitted bool // 模拟真实提交成功但驱动无法确认结果
+}
+
+func (d *faultDriver) failNextCommitted() {
+	d.mu.Lock()
+	d.failCommitted = true
+	d.mu.Unlock()
 }
 
 func (d *faultDriver) Open(name string) (driver.Conn, error) {
@@ -105,6 +113,9 @@ func (c *faultConn) Prepare(query string) (driver.Stmt, error) {
 func (c *faultConn) Close() error { return c.conn.Close() }
 
 func (c *faultConn) Begin() (driver.Tx, error) { //nolint:staticcheck // 底层驱动只实现旧接口
+	c.owner.mu.Lock()
+	c.owner.beginCalls++
+	c.owner.mu.Unlock()
 	tx, err := c.conn.Begin() //nolint:staticcheck // 底层驱动只实现旧接口
 	if err != nil {
 		return nil, err
@@ -140,7 +151,15 @@ func (t *faultTx) Commit() error {
 		_ = t.tx.Rollback()
 		return err
 	}
-	return t.tx.Commit()
+	err := t.tx.Commit()
+	t.owner.mu.Lock()
+	failCommitted := t.owner.failCommitted
+	t.owner.failCommitted = false
+	t.owner.mu.Unlock()
+	if err == nil && failCommitted {
+		return errInjectedFailure
+	}
+	return err
 }
 
 func (t *faultTx) Rollback() error { return t.tx.Rollback() }
@@ -326,5 +345,86 @@ func TestRecorderFlushFailsWhenBlockDisappeared(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "affected 0 rows") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRecorderUnchangedFlushDoesNotAcquireTransaction(t *testing.T) {
+	ctx, client, fault := setupFaultRecorderTest(t)
+	recorder, _ := startRecorderTurn(t, ctx, client)
+	begins := func() int { fault.mu.Lock(); defer fault.mu.Unlock(); return fault.beginCalls }
+	before := begins()
+	if err := recorder.flush(ctx); err != nil || begins() != before {
+		t.Fatal("empty flush acquired a transaction", err)
+	}
+	recordTextDelta(recorder.trace, 0, "first")
+	if err := recorder.flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	before = begins()
+	watermark, lastFlush := recorder.flushed, recorder.lastFlush
+	// 无变更的最终flush不能占连接或消费后续真实写入的commit故障。
+	fault.failNext("COMMIT")
+	if err := recorder.flush(ctx); err != nil || begins() != before {
+		t.Fatal("unchanged flush acquired a transaction", err)
+	}
+	if recorder.flushed != watermark || recorder.lastFlush != lastFlush {
+		t.Fatal("unchanged flush advanced persistence state")
+	}
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := recorder.flush(canceled); !errors.Is(err, context.Canceled) || begins() != before {
+		t.Fatal("empty flush ignored cancellation", err)
+	}
+	recordTextDelta(recorder.trace, 0, "-next")
+	if err := recorder.flush(ctx); !errors.Is(err, errInjectedFailure) {
+		t.Fatal("no-op consumed the pending commit fault", err)
+	}
+	if recorder.flushed != watermark || recorder.lastFlush != lastFlush {
+		t.Fatal("failed commit advanced persistence state")
+	}
+	if err := recorder.flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRecorderToolOutputAndClearRemainAtomic(t *testing.T) {
+	ctx, client, fault := setupFaultRecorderTest(t)
+	recorder, turnID := startRecorderTurn(t, ctx, client)
+	trace := recorder.trace
+	trace.mu.Lock()
+	block := trace.event(dtochat.BlockTypeToolCall, "tool")
+	block.ToolCallID, block.ToolName, block.Input = "call", "read", `{"path":"fixture"}`
+	block.Output = &dtochat.ToolOutput{Type: dtochat.ToolOutputText, Text: "line\n\"quoted\"中文"}
+	trace.toolRev++
+	trace.mu.Unlock()
+	if err := recorder.flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	row, err := client.KaguyaChatBlock.Query().Where(kaguyachatblock.TurnIDEQ(turnID)).Only(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := storedBlock(row)
+	if err != nil || stored.Output == nil || stored.Output.Text != "line\n\"quoted\"中文" || !row.FinishedAt.Equal(row.StartedAt) || row.EndOrder != row.StartOrder {
+		t.Fatal("prepared tool snapshot changed serialization or placeholders", err)
+	}
+	trace.mu.Lock()
+	block = trace.event(dtochat.BlockTypeToolCall, "tool")
+	block.Output = nil
+	trace.mu.Unlock()
+	fault.failNext("COMMIT")
+	if err := recorder.flush(ctx); !errors.Is(err, errInjectedFailure) {
+		t.Fatal("clear commit failure missing", err)
+	}
+	row, err = client.KaguyaChatBlock.Query().Where(kaguyachatblock.TurnIDEQ(turnID)).Only(ctx)
+	if err != nil || len(row.Output) == 0 {
+		t.Fatal("failed transaction cleared persisted output", err)
+	}
+	if err := recorder.flush(ctx); err != nil {
+		t.Fatal(err)
+	}
+	row, err = client.KaguyaChatBlock.Query().Where(kaguyachatblock.TurnIDEQ(turnID)).Only(ctx)
+	if err != nil || row.Output != nil {
+		t.Fatal("successful update did not restore SQL NULL output", err)
 	}
 }

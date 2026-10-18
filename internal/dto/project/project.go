@@ -42,8 +42,8 @@ type DirectoryResp struct {
 	Items  []Directory `json:"items"`
 }
 
-// FilesReq 是候选搜索请求：cursor 与 query/include_directories 绑定，
-// 不匹配的旧游标由服务端忽略。
+// FilesReq的cursor绑定项目、工作区身份、query及观察到的候选摘要；
+// 不匹配的旧游标回到第一页并显式返回cursor_reset。
 type FilesReq struct {
 	ID                 string `uri:"id" binding:"required,max=64"`
 	Query              string `form:"query" binding:"max=512"`

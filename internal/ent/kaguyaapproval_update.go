@@ -209,6 +209,26 @@ func (_u *KaguyaApprovalUpdate) SetNillableRequestedAt(v *time.Time) *KaguyaAppr
 	return _u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_u *KaguyaApprovalUpdate) SetExpiresAt(v time.Time) *KaguyaApprovalUpdate {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdate) SetNillableExpiresAt(v *time.Time) *KaguyaApprovalUpdate {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *KaguyaApprovalUpdate) ClearExpiresAt() *KaguyaApprovalUpdate {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (_u *KaguyaApprovalUpdate) SetResolvedAt(v time.Time) *KaguyaApprovalUpdate {
 	_u.mutation.SetResolvedAt(v)
@@ -246,6 +266,54 @@ func (_u *KaguyaApprovalUpdate) SetNillableConsumedAt(v *time.Time) *KaguyaAppro
 // ClearConsumedAt clears the value of the "consumed_at" field.
 func (_u *KaguyaApprovalUpdate) ClearConsumedAt() *KaguyaApprovalUpdate {
 	_u.mutation.ClearConsumedAt()
+	return _u
+}
+
+// SetExecutionState sets the "execution_state" field.
+func (_u *KaguyaApprovalUpdate) SetExecutionState(v kaguyaapproval.ExecutionState) *KaguyaApprovalUpdate {
+	_u.mutation.SetExecutionState(v)
+	return _u
+}
+
+// SetNillableExecutionState sets the "execution_state" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdate) SetNillableExecutionState(v *kaguyaapproval.ExecutionState) *KaguyaApprovalUpdate {
+	if v != nil {
+		_u.SetExecutionState(*v)
+	}
+	return _u
+}
+
+// SetExecutionFinishedAt sets the "execution_finished_at" field.
+func (_u *KaguyaApprovalUpdate) SetExecutionFinishedAt(v time.Time) *KaguyaApprovalUpdate {
+	_u.mutation.SetExecutionFinishedAt(v)
+	return _u
+}
+
+// SetNillableExecutionFinishedAt sets the "execution_finished_at" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdate) SetNillableExecutionFinishedAt(v *time.Time) *KaguyaApprovalUpdate {
+	if v != nil {
+		_u.SetExecutionFinishedAt(*v)
+	}
+	return _u
+}
+
+// ClearExecutionFinishedAt clears the value of the "execution_finished_at" field.
+func (_u *KaguyaApprovalUpdate) ClearExecutionFinishedAt() *KaguyaApprovalUpdate {
+	_u.mutation.ClearExecutionFinishedAt()
+	return _u
+}
+
+// SetExecutionReasonCode sets the "execution_reason_code" field.
+func (_u *KaguyaApprovalUpdate) SetExecutionReasonCode(v string) *KaguyaApprovalUpdate {
+	_u.mutation.SetExecutionReasonCode(v)
+	return _u
+}
+
+// SetNillableExecutionReasonCode sets the "execution_reason_code" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdate) SetNillableExecutionReasonCode(v *string) *KaguyaApprovalUpdate {
+	if v != nil {
+		_u.SetExecutionReasonCode(*v)
+	}
 	return _u
 }
 
@@ -357,6 +425,11 @@ func (_u *KaguyaApprovalUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "KaguyaApproval.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExecutionState(); ok {
+		if err := kaguyaapproval.ExecutionStateValidator(v); err != nil {
+			return &ValidationError{Name: "execution_state", err: fmt.Errorf(`ent: validator failed for field "KaguyaApproval.execution_state": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -420,6 +493,12 @@ func (_u *KaguyaApprovalUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.RequestedAt(); ok {
 		_spec.SetField(kaguyaapproval.FieldRequestedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(kaguyaapproval.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(kaguyaapproval.FieldExpiresAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.ResolvedAt(); ok {
 		_spec.SetField(kaguyaapproval.FieldResolvedAt, field.TypeTime, value)
 	}
@@ -431,6 +510,18 @@ func (_u *KaguyaApprovalUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if _u.mutation.ConsumedAtCleared() {
 		_spec.ClearField(kaguyaapproval.FieldConsumedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExecutionState(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionState, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ExecutionFinishedAt(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionFinishedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExecutionFinishedAtCleared() {
+		_spec.ClearField(kaguyaapproval.FieldExecutionFinishedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExecutionReasonCode(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionReasonCode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ReasonCode(); ok {
 		_spec.SetField(kaguyaapproval.FieldReasonCode, field.TypeString, value)
@@ -637,6 +728,26 @@ func (_u *KaguyaApprovalUpdateOne) SetNillableRequestedAt(v *time.Time) *KaguyaA
 	return _u
 }
 
+// SetExpiresAt sets the "expires_at" field.
+func (_u *KaguyaApprovalUpdateOne) SetExpiresAt(v time.Time) *KaguyaApprovalUpdateOne {
+	_u.mutation.SetExpiresAt(v)
+	return _u
+}
+
+// SetNillableExpiresAt sets the "expires_at" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdateOne) SetNillableExpiresAt(v *time.Time) *KaguyaApprovalUpdateOne {
+	if v != nil {
+		_u.SetExpiresAt(*v)
+	}
+	return _u
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (_u *KaguyaApprovalUpdateOne) ClearExpiresAt() *KaguyaApprovalUpdateOne {
+	_u.mutation.ClearExpiresAt()
+	return _u
+}
+
 // SetResolvedAt sets the "resolved_at" field.
 func (_u *KaguyaApprovalUpdateOne) SetResolvedAt(v time.Time) *KaguyaApprovalUpdateOne {
 	_u.mutation.SetResolvedAt(v)
@@ -674,6 +785,54 @@ func (_u *KaguyaApprovalUpdateOne) SetNillableConsumedAt(v *time.Time) *KaguyaAp
 // ClearConsumedAt clears the value of the "consumed_at" field.
 func (_u *KaguyaApprovalUpdateOne) ClearConsumedAt() *KaguyaApprovalUpdateOne {
 	_u.mutation.ClearConsumedAt()
+	return _u
+}
+
+// SetExecutionState sets the "execution_state" field.
+func (_u *KaguyaApprovalUpdateOne) SetExecutionState(v kaguyaapproval.ExecutionState) *KaguyaApprovalUpdateOne {
+	_u.mutation.SetExecutionState(v)
+	return _u
+}
+
+// SetNillableExecutionState sets the "execution_state" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdateOne) SetNillableExecutionState(v *kaguyaapproval.ExecutionState) *KaguyaApprovalUpdateOne {
+	if v != nil {
+		_u.SetExecutionState(*v)
+	}
+	return _u
+}
+
+// SetExecutionFinishedAt sets the "execution_finished_at" field.
+func (_u *KaguyaApprovalUpdateOne) SetExecutionFinishedAt(v time.Time) *KaguyaApprovalUpdateOne {
+	_u.mutation.SetExecutionFinishedAt(v)
+	return _u
+}
+
+// SetNillableExecutionFinishedAt sets the "execution_finished_at" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdateOne) SetNillableExecutionFinishedAt(v *time.Time) *KaguyaApprovalUpdateOne {
+	if v != nil {
+		_u.SetExecutionFinishedAt(*v)
+	}
+	return _u
+}
+
+// ClearExecutionFinishedAt clears the value of the "execution_finished_at" field.
+func (_u *KaguyaApprovalUpdateOne) ClearExecutionFinishedAt() *KaguyaApprovalUpdateOne {
+	_u.mutation.ClearExecutionFinishedAt()
+	return _u
+}
+
+// SetExecutionReasonCode sets the "execution_reason_code" field.
+func (_u *KaguyaApprovalUpdateOne) SetExecutionReasonCode(v string) *KaguyaApprovalUpdateOne {
+	_u.mutation.SetExecutionReasonCode(v)
+	return _u
+}
+
+// SetNillableExecutionReasonCode sets the "execution_reason_code" field if the given value is not nil.
+func (_u *KaguyaApprovalUpdateOne) SetNillableExecutionReasonCode(v *string) *KaguyaApprovalUpdateOne {
+	if v != nil {
+		_u.SetExecutionReasonCode(*v)
+	}
 	return _u
 }
 
@@ -798,6 +957,11 @@ func (_u *KaguyaApprovalUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "KaguyaApproval.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ExecutionState(); ok {
+		if err := kaguyaapproval.ExecutionStateValidator(v); err != nil {
+			return &ValidationError{Name: "execution_state", err: fmt.Errorf(`ent: validator failed for field "KaguyaApproval.execution_state": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -878,6 +1042,12 @@ func (_u *KaguyaApprovalUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaAp
 	if value, ok := _u.mutation.RequestedAt(); ok {
 		_spec.SetField(kaguyaapproval.FieldRequestedAt, field.TypeTime, value)
 	}
+	if value, ok := _u.mutation.ExpiresAt(); ok {
+		_spec.SetField(kaguyaapproval.FieldExpiresAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExpiresAtCleared() {
+		_spec.ClearField(kaguyaapproval.FieldExpiresAt, field.TypeTime)
+	}
 	if value, ok := _u.mutation.ResolvedAt(); ok {
 		_spec.SetField(kaguyaapproval.FieldResolvedAt, field.TypeTime, value)
 	}
@@ -889,6 +1059,18 @@ func (_u *KaguyaApprovalUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaAp
 	}
 	if _u.mutation.ConsumedAtCleared() {
 		_spec.ClearField(kaguyaapproval.FieldConsumedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExecutionState(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionState, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.ExecutionFinishedAt(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionFinishedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ExecutionFinishedAtCleared() {
+		_spec.ClearField(kaguyaapproval.FieldExecutionFinishedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ExecutionReasonCode(); ok {
+		_spec.SetField(kaguyaapproval.FieldExecutionReasonCode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ReasonCode(); ok {
 		_spec.SetField(kaguyaapproval.FieldReasonCode, field.TypeString, value)

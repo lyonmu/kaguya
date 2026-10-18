@@ -24,11 +24,12 @@ type SystemInfoSaveReq struct {
 
 // InstructionStatus 是全局指令 reload 的只读状态，不包含正文。
 type InstructionStatus struct {
-	Version    int64      `json:"version"`
-	Hash       string     `json:"hash,omitempty"`
-	LoadedAt   *time.Time `json:"loaded_at,omitempty"`
-	Generation int64      `json:"generation"`
-	LastError  string     `json:"last_error,omitempty"`
+	Version          int64      `json:"version"`
+	Hash             string     `json:"hash,omitempty"`
+	LoadedAt         *time.Time `json:"loaded_at,omitempty"`
+	Generation       int64      `json:"generation"`
+	LoadedGeneration int64      `json:"loaded_generation"`
+	LastError        string     `json:"last_error,omitempty"`
 }
 
 // AgentsPathsReq 是全局指令路径的专用保存请求；路径列表不受固定 body 大小限制。

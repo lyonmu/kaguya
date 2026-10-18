@@ -114,8 +114,8 @@ func TestApprovalDecisionNotFoundAndConflict(t *testing.T) {
 	}
 }
 
-// GET approvals 只返回 pending 审批；会话不存在返回 102003。
-func TestConversationApprovalsListsPendingOnly(t *testing.T) {
+// 孤立的持久 pending 行不是当前可执行入口，GET 不能复活崩溃遗留审批。
+func TestConversationApprovalsDoesNotRestoreOrphanedPending(t *testing.T) {
 	client, engine := setupApprovalAPI(t)
 	seedApprovalConversation(t, client, "c1")
 	ctx := context.Background()
@@ -141,7 +141,7 @@ func TestConversationApprovalsListsPendingOnly(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("invalid response %q: %v", response.Body.String(), err)
 	}
-	if payload.Code != 100000 || len(payload.Data) != 1 || payload.Data[0].ApprovalID != "p1" {
+	if payload.Code != 100000 || len(payload.Data) != 0 {
 		t.Fatalf("approvals payload = %+v", payload)
 	}
 

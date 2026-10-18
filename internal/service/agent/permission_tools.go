@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"encoding/json"
 	"errors"
 
 	"charm.land/fantasy"
@@ -49,60 +48,36 @@ func defaultPermissionMode(mode string) string {
 	return mode
 }
 
-// toolIdentityProvider 由 MCP 适配器实现；接口定义在消费侧，保持 agent/mcp
-// 不依赖 service。身份绑定 server/remote/generation/schema，不按模型名字猜测。
+// toolIdentityProvider 由本机工厂与 MCP 适配器提供注册身份；名称不授予权限。
+// 接口定义在消费侧，避免工具层依赖 service。
 type toolIdentityProvider interface{ PermissionIdentity() string }
 
-// classifyRegisteredTools 为全部已注册工具建立可信 descriptor。内置工具来自
-// 本进程注册表；MCP 一律 unknown；无法识别的一律 unknown，绝不放行。
 func classifyRegisteredTools(tools []fantasy.AgentTool) []permission.GatedTool {
 	gated := make([]permission.GatedTool, 0, len(tools))
 	for _, tool := range tools {
-		if tool == nil {
-			continue
+		if tool != nil {
+			gated = append(gated, permission.GatedTool{Tool: tool, Class: classifyRegisteredTool(tool, tool.Info().Name)})
 		}
-		name := tool.Info().Name
-		class := classifyRegisteredTool(tool, name)
-		item := permission.GatedTool{Tool: tool, Class: class}
-		if name == "bash" {
-			item.Classify = classifyBashCall
-		}
-		gated = append(gated, item)
 	}
 	return gated
 }
 
-// classifyRegisteredTool 返回单个工具的可信身份与副作用分类。
+// classifyRegisteredTool 先检查注册身份。远端 hint 和 Info 名称不能冒充本机工具。
 func classifyRegisteredTool(tool fantasy.AgentTool, name string) permission.Classification {
-	switch name {
-	case "read", "grep", "find", "ls":
-		return permission.Classification{Identity: "builtin:" + name, Effect: permission.EffectReadOnly}
-	case "edit", "write":
-		return permission.Classification{Identity: "builtin:" + name, Effect: permission.EffectMutating}
-	case "bash":
-		return permission.Classification{Identity: "builtin:bash", Effect: permission.EffectUnknown}
-	case "memory_search", "memory_read":
-		return permission.Classification{Identity: "memory:" + name, Effect: permission.EffectReadOnly}
-	}
+	identity := "unknown:" + name
 	if provider, ok := tool.(toolIdentityProvider); ok {
-		if identity := provider.PermissionIdentity(); identity != "" {
-			// MCP 远端 hint 不是本机信任来源；默认 unknown，必须审批。
-			return permission.Classification{Identity: identity, Effect: permission.EffectUnknown}
+		if registered := provider.PermissionIdentity(); registered != "" {
+			identity = registered
 		}
 	}
-	return permission.Classification{Identity: "unknown:" + name, Effect: permission.EffectUnknown}
-}
-
-// classifyBashCall 用固定版本的 AST 解析器对最终命令动态分类；解析失败或
-// 不在只读白名单时返回 unknown，保留静态 descriptor 的身份。
-func classifyBashCall(call fantasy.ToolCall) permission.Classification {
-	var input struct {
-		Command string `json:"command"`
+	class := permission.Classification{Identity: identity, Effect: permission.EffectUnknown}
+	switch identity {
+	case "builtin:read", "builtin:grep", "builtin:find", "builtin:ls", "memory:memory_search", "memory:memory_read":
+		class.Effect = permission.EffectReadOnly
+	case "builtin:edit", "builtin:write":
+		class.Effect = permission.EffectMutating
 	}
-	if err := json.Unmarshal([]byte(call.Input), &input); err != nil {
-		return permission.Classification{Identity: "builtin:bash", Effect: permission.EffectUnknown}
-	}
-	return permission.ShellClassification(input.Command)
+	return class
 }
 
 // turnReferenceSummary 把可空的引用摘要转换为 Ent JSON 值；nil 时写入空结构，

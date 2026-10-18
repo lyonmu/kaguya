@@ -47,7 +47,7 @@ func (s *ProjectSvc) Tree(ctx context.Context, id string) (*dto.TreeResp, error)
 		return nil, err
 	}
 	defer root.Close()
-	ignore := workspace.NewLenientIgnoreMatcher(root)
+	ignore := workspace.NewLenientIgnoreMatcher(ctx, root)
 	children := map[string][]*dto.TreeItem{}
 	visited := 0
 	resp := &dto.TreeResp{Name: filepath.Base(dir), Items: []*dto.TreeItem{}}
@@ -209,7 +209,7 @@ func (s *ProjectSvc) ReadDocument(ctx context.Context, projectID, path string, m
 	}
 	defer root.Close()
 	// 严格模式：忽略文件不可读时拒绝，而不是按“未忽略”继续导入内容。
-	if matcher, matchErr := workspace.NewIgnoreMatcher(root); matchErr != nil {
+	if matcher, matchErr := workspace.NewIgnoreMatcher(ctx, root); matchErr != nil {
 		return nil, ErrInvalid
 	} else if ignored, _ := matcher.Match(rel, false); ignored {
 		return nil, ErrInvalid

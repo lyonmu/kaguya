@@ -14,7 +14,7 @@ func mapFrame(v *dtochat.ChatResp) (dtocode.Response, bool) {
 		resp = mapChatError(v.Err, dtocode.ChatSSEFailure)
 		chat := v.Chat
 		chat.Flag = dtochat.ChatFlagError
-		resp.Data = dtochat.ChatResp{Chat: chat}
+		resp.Data = dtochat.ChatResp{Chat: chat, ReferenceSummary: v.ReferenceSummary}
 		return resp, true
 	}
 	resp.Data = v

@@ -383,6 +383,39 @@ func (_u *KaguyaChatTurnUpdate) AddReasoningTokens(v int64) *KaguyaChatTurnUpdat
 	return _u
 }
 
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (_u *KaguyaChatTurnUpdate) SetCacheCreationTokens(v int64) *KaguyaChatTurnUpdate {
+	_u.mutation.ResetCacheCreationTokens()
+	_u.mutation.SetCacheCreationTokens(v)
+	return _u
+}
+
+// SetNillableCacheCreationTokens sets the "cache_creation_tokens" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableCacheCreationTokens(v *int64) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetCacheCreationTokens(*v)
+	}
+	return _u
+}
+
+// AddCacheCreationTokens adds value to the "cache_creation_tokens" field.
+func (_u *KaguyaChatTurnUpdate) AddCacheCreationTokens(v int64) *KaguyaChatTurnUpdate {
+	_u.mutation.AddCacheCreationTokens(v)
+	return _u
+}
+
+// SetPreparationUsage sets the "preparation_usage" field.
+func (_u *KaguyaChatTurnUpdate) SetPreparationUsage(v *chat.TurnPreparationUsage) *KaguyaChatTurnUpdate {
+	_u.mutation.SetPreparationUsage(v)
+	return _u
+}
+
+// ClearPreparationUsage clears the value of the "preparation_usage" field.
+func (_u *KaguyaChatTurnUpdate) ClearPreparationUsage() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearPreparationUsage()
+	return _u
+}
+
 // SetContextTokens sets the "context_tokens" field.
 func (_u *KaguyaChatTurnUpdate) SetContextTokens(v int64) *KaguyaChatTurnUpdate {
 	_u.mutation.ResetContextTokens()
@@ -428,6 +461,47 @@ func (_u *KaguyaChatTurnUpdate) SetNillableContextWindow(v *int) *KaguyaChatTurn
 // AddContextWindow adds value to the "context_window" field.
 func (_u *KaguyaChatTurnUpdate) AddContextWindow(v int) *KaguyaChatTurnUpdate {
 	_u.mutation.AddContextWindow(v)
+	return _u
+}
+
+// SetContextFingerprintVersion sets the "context_fingerprint_version" field.
+func (_u *KaguyaChatTurnUpdate) SetContextFingerprintVersion(v int) *KaguyaChatTurnUpdate {
+	_u.mutation.ResetContextFingerprintVersion()
+	_u.mutation.SetContextFingerprintVersion(v)
+	return _u
+}
+
+// SetNillableContextFingerprintVersion sets the "context_fingerprint_version" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableContextFingerprintVersion(v *int) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetContextFingerprintVersion(*v)
+	}
+	return _u
+}
+
+// AddContextFingerprintVersion adds value to the "context_fingerprint_version" field.
+func (_u *KaguyaChatTurnUpdate) AddContextFingerprintVersion(v int) *KaguyaChatTurnUpdate {
+	_u.mutation.AddContextFingerprintVersion(v)
+	return _u
+}
+
+// SetContextFingerprint sets the "context_fingerprint" field.
+func (_u *KaguyaChatTurnUpdate) SetContextFingerprint(v string) *KaguyaChatTurnUpdate {
+	_u.mutation.SetContextFingerprint(v)
+	return _u
+}
+
+// SetNillableContextFingerprint sets the "context_fingerprint" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdate) SetNillableContextFingerprint(v *string) *KaguyaChatTurnUpdate {
+	if v != nil {
+		_u.SetContextFingerprint(*v)
+	}
+	return _u
+}
+
+// ClearContextFingerprint clears the value of the "context_fingerprint" field.
+func (_u *KaguyaChatTurnUpdate) ClearContextFingerprint() *KaguyaChatTurnUpdate {
+	_u.mutation.ClearContextFingerprint()
 	return _u
 }
 
@@ -729,6 +803,11 @@ func (_u *KaguyaChatTurnUpdate) check() error {
 			return &ValidationError{Name: "reasoning_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.reasoning_tokens": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CacheCreationTokens(); ok {
+		if err := kaguyachatturn.CacheCreationTokensValidator(v); err != nil {
+			return &ValidationError{Name: "cache_creation_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.cache_creation_tokens": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ContextTokens(); ok {
 		if err := kaguyachatturn.ContextTokensValidator(v); err != nil {
 			return &ValidationError{Name: "context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_tokens": %w`, err)}
@@ -737,6 +816,11 @@ func (_u *KaguyaChatTurnUpdate) check() error {
 	if v, ok := _u.mutation.ContextWindow(); ok {
 		if err := kaguyachatturn.ContextWindowValidator(v); err != nil {
 			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContextFingerprintVersion(); ok {
+		if err := kaguyachatturn.ContextFingerprintVersionValidator(v); err != nil {
+			return &ValidationError{Name: "context_fingerprint_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_fingerprint_version": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.CompactionCount(); ok {
@@ -865,6 +949,18 @@ func (_u *KaguyaChatTurnUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.AddedReasoningTokens(); ok {
 		_spec.AddField(kaguyachatturn.FieldReasoningTokens, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.CacheCreationTokens(); ok {
+		_spec.SetField(kaguyachatturn.FieldCacheCreationTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCacheCreationTokens(); ok {
+		_spec.AddField(kaguyachatturn.FieldCacheCreationTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PreparationUsage(); ok {
+		_spec.SetField(kaguyachatturn.FieldPreparationUsage, field.TypeJSON, value)
+	}
+	if _u.mutation.PreparationUsageCleared() {
+		_spec.ClearField(kaguyachatturn.FieldPreparationUsage, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ContextTokens(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
 	}
@@ -879,6 +975,18 @@ func (_u *KaguyaChatTurnUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.AddedContextWindow(); ok {
 		_spec.AddField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ContextFingerprintVersion(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextFingerprintVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContextFingerprintVersion(); ok {
+		_spec.AddField(kaguyachatturn.FieldContextFingerprintVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ContextFingerprint(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextFingerprint, field.TypeString, value)
+	}
+	if _u.mutation.ContextFingerprintCleared() {
+		_spec.ClearField(kaguyachatturn.FieldContextFingerprint, field.TypeString)
 	}
 	if value, ok := _u.mutation.ContextMessages(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextMessages, field.TypeJSON, value)
@@ -1379,6 +1487,39 @@ func (_u *KaguyaChatTurnUpdateOne) AddReasoningTokens(v int64) *KaguyaChatTurnUp
 	return _u
 }
 
+// SetCacheCreationTokens sets the "cache_creation_tokens" field.
+func (_u *KaguyaChatTurnUpdateOne) SetCacheCreationTokens(v int64) *KaguyaChatTurnUpdateOne {
+	_u.mutation.ResetCacheCreationTokens()
+	_u.mutation.SetCacheCreationTokens(v)
+	return _u
+}
+
+// SetNillableCacheCreationTokens sets the "cache_creation_tokens" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableCacheCreationTokens(v *int64) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetCacheCreationTokens(*v)
+	}
+	return _u
+}
+
+// AddCacheCreationTokens adds value to the "cache_creation_tokens" field.
+func (_u *KaguyaChatTurnUpdateOne) AddCacheCreationTokens(v int64) *KaguyaChatTurnUpdateOne {
+	_u.mutation.AddCacheCreationTokens(v)
+	return _u
+}
+
+// SetPreparationUsage sets the "preparation_usage" field.
+func (_u *KaguyaChatTurnUpdateOne) SetPreparationUsage(v *chat.TurnPreparationUsage) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetPreparationUsage(v)
+	return _u
+}
+
+// ClearPreparationUsage clears the value of the "preparation_usage" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearPreparationUsage() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearPreparationUsage()
+	return _u
+}
+
 // SetContextTokens sets the "context_tokens" field.
 func (_u *KaguyaChatTurnUpdateOne) SetContextTokens(v int64) *KaguyaChatTurnUpdateOne {
 	_u.mutation.ResetContextTokens()
@@ -1424,6 +1565,47 @@ func (_u *KaguyaChatTurnUpdateOne) SetNillableContextWindow(v *int) *KaguyaChatT
 // AddContextWindow adds value to the "context_window" field.
 func (_u *KaguyaChatTurnUpdateOne) AddContextWindow(v int) *KaguyaChatTurnUpdateOne {
 	_u.mutation.AddContextWindow(v)
+	return _u
+}
+
+// SetContextFingerprintVersion sets the "context_fingerprint_version" field.
+func (_u *KaguyaChatTurnUpdateOne) SetContextFingerprintVersion(v int) *KaguyaChatTurnUpdateOne {
+	_u.mutation.ResetContextFingerprintVersion()
+	_u.mutation.SetContextFingerprintVersion(v)
+	return _u
+}
+
+// SetNillableContextFingerprintVersion sets the "context_fingerprint_version" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableContextFingerprintVersion(v *int) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetContextFingerprintVersion(*v)
+	}
+	return _u
+}
+
+// AddContextFingerprintVersion adds value to the "context_fingerprint_version" field.
+func (_u *KaguyaChatTurnUpdateOne) AddContextFingerprintVersion(v int) *KaguyaChatTurnUpdateOne {
+	_u.mutation.AddContextFingerprintVersion(v)
+	return _u
+}
+
+// SetContextFingerprint sets the "context_fingerprint" field.
+func (_u *KaguyaChatTurnUpdateOne) SetContextFingerprint(v string) *KaguyaChatTurnUpdateOne {
+	_u.mutation.SetContextFingerprint(v)
+	return _u
+}
+
+// SetNillableContextFingerprint sets the "context_fingerprint" field if the given value is not nil.
+func (_u *KaguyaChatTurnUpdateOne) SetNillableContextFingerprint(v *string) *KaguyaChatTurnUpdateOne {
+	if v != nil {
+		_u.SetContextFingerprint(*v)
+	}
+	return _u
+}
+
+// ClearContextFingerprint clears the value of the "context_fingerprint" field.
+func (_u *KaguyaChatTurnUpdateOne) ClearContextFingerprint() *KaguyaChatTurnUpdateOne {
+	_u.mutation.ClearContextFingerprint()
 	return _u
 }
 
@@ -1738,6 +1920,11 @@ func (_u *KaguyaChatTurnUpdateOne) check() error {
 			return &ValidationError{Name: "reasoning_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.reasoning_tokens": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.CacheCreationTokens(); ok {
+		if err := kaguyachatturn.CacheCreationTokensValidator(v); err != nil {
+			return &ValidationError{Name: "cache_creation_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.cache_creation_tokens": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.ContextTokens(); ok {
 		if err := kaguyachatturn.ContextTokensValidator(v); err != nil {
 			return &ValidationError{Name: "context_tokens", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_tokens": %w`, err)}
@@ -1746,6 +1933,11 @@ func (_u *KaguyaChatTurnUpdateOne) check() error {
 	if v, ok := _u.mutation.ContextWindow(); ok {
 		if err := kaguyachatturn.ContextWindowValidator(v); err != nil {
 			return &ValidationError{Name: "context_window", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_window": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ContextFingerprintVersion(); ok {
+		if err := kaguyachatturn.ContextFingerprintVersionValidator(v); err != nil {
+			return &ValidationError{Name: "context_fingerprint_version", err: fmt.Errorf(`ent: validator failed for field "KaguyaChatTurn.context_fingerprint_version": %w`, err)}
 		}
 	}
 	if v, ok := _u.mutation.CompactionCount(); ok {
@@ -1891,6 +2083,18 @@ func (_u *KaguyaChatTurnUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaCh
 	if value, ok := _u.mutation.AddedReasoningTokens(); ok {
 		_spec.AddField(kaguyachatturn.FieldReasoningTokens, field.TypeInt64, value)
 	}
+	if value, ok := _u.mutation.CacheCreationTokens(); ok {
+		_spec.SetField(kaguyachatturn.FieldCacheCreationTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCacheCreationTokens(); ok {
+		_spec.AddField(kaguyachatturn.FieldCacheCreationTokens, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.PreparationUsage(); ok {
+		_spec.SetField(kaguyachatturn.FieldPreparationUsage, field.TypeJSON, value)
+	}
+	if _u.mutation.PreparationUsageCleared() {
+		_spec.ClearField(kaguyachatturn.FieldPreparationUsage, field.TypeJSON)
+	}
 	if value, ok := _u.mutation.ContextTokens(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextTokens, field.TypeInt64, value)
 	}
@@ -1905,6 +2109,18 @@ func (_u *KaguyaChatTurnUpdateOne) sqlSave(ctx context.Context) (_node *KaguyaCh
 	}
 	if value, ok := _u.mutation.AddedContextWindow(); ok {
 		_spec.AddField(kaguyachatturn.FieldContextWindow, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ContextFingerprintVersion(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextFingerprintVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedContextFingerprintVersion(); ok {
+		_spec.AddField(kaguyachatturn.FieldContextFingerprintVersion, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.ContextFingerprint(); ok {
+		_spec.SetField(kaguyachatturn.FieldContextFingerprint, field.TypeString, value)
+	}
+	if _u.mutation.ContextFingerprintCleared() {
+		_spec.ClearField(kaguyachatturn.FieldContextFingerprint, field.TypeString)
 	}
 	if value, ok := _u.mutation.ContextMessages(); ok {
 		_spec.SetField(kaguyachatturn.FieldContextMessages, field.TypeJSON, value)
