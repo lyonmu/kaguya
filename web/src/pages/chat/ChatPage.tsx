@@ -6,6 +6,7 @@ import { useConversations } from '../../features/chat/useConversations'
 import { useConversationActions } from '../../features/chat/useConversationActions'
 import { useWorkspaceChat } from '../../features/chat/chatContext'
 import { VirtualList } from '../../features/chat/components/VirtualList'
+import { ConversationRowMenu } from '../../features/chat/components/ConversationRowMenu'
 import { MessageList } from '../../features/chat/components/MessageList'
 import { AssistantThread } from '../../features/chat/components/AssistantThread'
 import { Composer } from '../../features/chat/components/Composer'
@@ -90,22 +91,24 @@ export function ChatPage() {
     sessions.refresh()
   }
   const local = chat.localSessions.filter(item => item.streaming || !sessions.items.some(saved => saved.id === item.id))
+  const streamingConversationIds = new Set(chat.localSessions.filter(item => item.streaming).map(item => item.id))
+  if (chat.streaming) streamingConversationIds.add(chat.id)
   const targetSession = target && chat.localSessions.find(item => item.id === target.id || item.key === target.id)
   const visibleTarget = targetSession ? { ...target, id: targetSession.id || targetSession.key, title: targetSession.title } : target
-  const conversationItems = visibleTarget && !visibleTarget.projectId && !sessions.items.some(item => item.id === visibleTarget.id)
-    ? [{ id: visibleTarget.id, title: visibleTarget.title, model_name: '', last_message_at: '' }, ...sessions.items] : sessions.items
+  const extraConversationItem = visibleTarget && !visibleTarget.projectId && !sessions.items.some(item => item.id === visibleTarget.id)
+    ? { id: visibleTarget.id, title: visibleTarget.title, model_name: '', last_message_at: '' } : undefined
+  const conversationItems = extraConversationItem ? [extraConversationItem, ...sessions.items] : sessions.items
   const removeFromList = (id: string, items: readonly ConversationTarget[]) => {
     const index = items.findIndex(item => item.id === id)
     const next = index < 0 ? items[0] : items[index + 1] ?? items[index - 1]
     remove(id, next?.id ?? '')
   }
-  const removeCurrent = () => {
-    const projectId = chat.conversation?.project_id
+  const removeFromWorkspace = (id: string, projectId?: string | null) => {
     const projectList = projectConversations.current
     const items = projectId
-      ? (projectList?.projectId === projectId && projectList.items.length ? projectList.items : sessions.items)
+      ? (projectList?.projectId === projectId && projectList.items.length ? projectList.items : sessions.items.filter(item => item.project_id === projectId))
       : conversationItems
-    removeFromList(chat.id, items)
+    removeFromList(id, items)
   }
   const showConversations = view === '对话' || !!project || !!chat.projectId || !!chat.turns.length
   const activeProjectId = chat.conversation?.project_id ?? chat.projectId ?? (view === '项目' ? project?.id : undefined)
@@ -114,15 +117,21 @@ export function ChatPage() {
       {view === '对话' && <Input aria-label="搜索对话标题前缀" placeholder="搜索对话（标题前缀）" prefix={<SearchOutlined />} value={sessions.keyword} onChange={event => sessions.search(event.target.value)} allowClear maxLength={200} />}
       <Segmented size="small" value={view} options={['对话', '项目']} disabled={saving} onChange={value => { setView(value); chooseProject(undefined) }} />
     </div>
-    {view === '项目' && <ProjectPanel selected={project} disabled={saving} onSelect={chooseProject} activeId={chat.id || chat.sessionKey} reveal={target} localTarget={visibleTarget} refreshVersion={projectVersion} onSelectedConversations={trackProjectConversations} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
+    {view === '项目' && <ProjectPanel selected={project} disabled={saving} onSelect={chooseProject} activeId={chat.id || chat.sessionKey} reveal={target} localTarget={visibleTarget} refreshVersion={projectVersion} onSelectedConversations={trackProjectConversations} onConversationRemove={removeFromList} streamingConversationIds={streamingConversationIds} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
     {view === '对话' && <><div className="chat-session-status">
       {sessions.error && <Alert type="error" title={sessions.error} action={<Button size="small" onClick={sessions.refresh}>重试</Button>} />}
       {sessions.titleError && <Alert type="warning" title={sessions.titleError} action={<Button size="small" onClick={sessions.refresh}>重新加载</Button>} />}
       {sessions.loading && !sessions.items.length && <div className="chat-center"><Spin size="small" /></div>}
       {!sessions.loading && !sessions.error && !conversationItems.length && <p className="chat-center chat-muted">暂无对话</p>}
     </div>
-    <VirtualList key={`${sessions.keyword}:${project?.id}:${view}`} className="chat-session-list" items={conversationItems} itemKey={item => item.id} estimate={76} onEnd={sessions.loadMore} reveal={target && { key: visibleTarget!.id, request: target }} renderItem={item => <button className={`chat-session ${(chat.id || chat.sessionKey) === item.id ? 'active' : ''}`} key={item.id} disabled={saving} onClick={() => select(item.id)}><span className="chat-session-title"><MessageOutlined className="session-icon" aria-hidden="true" /><span className="chat-session-text">{item.title}</span></span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span>{item.last_message_at && <time>{new Date(item.last_message_at).toLocaleDateString()}</time>}</span></button>} /></>}
-    {local.length > 0 && <div className="chat-local-sessions" aria-label="本地会话"><h3>进行中与最近会话</h3>{local.map(item => <button key={item.key} className={`chat-session ${item.key === chat.sessionKey ? 'active' : ''}`} disabled={saving} onClick={() => selectLocal(item)}><span className="chat-session-title"><MessageOutlined className="session-icon" aria-hidden="true" /><span className="chat-session-text">{item.streaming ? '◌ ' : ''}{item.title}</span></span><span className="chat-session-meta">{item.streaming ? '正在运行' : item.draft ? '草稿' : '查看结果'}{item.projectId ? ' · 项目' : ''}</span></button>)}</div>}
+    <VirtualList key={`${sessions.keyword}:${project?.id}:${view}`} className="chat-session-list" items={conversationItems} itemKey={item => item.id} estimate={76} onEnd={sessions.loadMore} reveal={target && { key: visibleTarget!.id, request: target }} renderItem={item => <div className="chat-session-row">
+      <button className={`chat-session ${(chat.id || chat.sessionKey) === item.id ? 'active' : ''}`} disabled={saving} onClick={() => select(item.id)}><span className="chat-session-title"><MessageOutlined className="session-icon" aria-hidden="true" /><span className="chat-session-text">{item.title}</span></span><span className="chat-session-meta"><span>{item.model_name || '默认模型'}</span>{item.last_message_at && <time>{new Date(item.last_message_at).toLocaleDateString()}</time>}</span></button>
+      {(item !== extraConversationItem || targetSession?.id) && <ConversationRowMenu title={item.title} disabled={saving || streamingConversationIds.has(item.id)} onRemove={() => removeFromList(item.id, conversationItems)} />}
+    </div>} /></>}
+    {local.length > 0 && <div className="chat-local-sessions" aria-label="本地会话"><h3>进行中与最近会话</h3>{local.map(item => <div className="chat-session-row" key={item.key}>
+      <button className={`chat-session ${item.key === chat.sessionKey ? 'active' : ''}`} disabled={saving} onClick={() => selectLocal(item)}><span className="chat-session-title"><MessageOutlined className="session-icon" aria-hidden="true" /><span className="chat-session-text">{item.streaming ? '◌ ' : ''}{item.title}</span></span><span className="chat-session-meta">{item.streaming ? '正在运行' : item.draft ? '草稿' : '查看结果'}{item.projectId ? ' · 项目' : ''}</span></button>
+      {item.id && <ConversationRowMenu title={item.title} disabled={saving || item.streaming} onRemove={() => removeFromWorkspace(item.id, item.projectId)} />}
+    </div>)}</div>}
     <div className="chat-sidebar-footer"><BottomActions onRefresh={sessions.refresh} loading={sessions.loading} /></div>
   </div>
   return <div className="chat-workspace">
@@ -144,7 +153,7 @@ export function ChatPage() {
             if (key === 'reload') void chat.select(chat.id)
             if (key === 'generate-title') { void generateTitle(); return }
             if (key === 'rename') { setTitle(chat.conversation?.title ?? ''); setRenaming(true) }
-            if (key === 'delete') { removeCurrent(); return }
+            if (key === 'delete') { removeFromWorkspace(chat.id, chat.conversation?.project_id); return }
             if (key.startsWith('memory-')) void update({ memory_mode: key.slice('memory-'.length) })
           } }}><Button aria-label="更多会话操作" type="text" icon={<MoreOutlined />} disabled={!chat.id || chat.streaming || saving || chat.loading} /></Dropdown>
         </div>

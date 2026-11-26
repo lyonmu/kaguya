@@ -2,15 +2,18 @@ import { useEffect, useMemo } from 'react'
 import { Alert, Button, Dropdown, Spin } from 'antd'
 import { DownOutlined, FolderOpenOutlined, MessageOutlined, MoreOutlined, RightOutlined } from '@ant-design/icons'
 import { useConversations } from '../chat/useConversations'
+import { ConversationRowMenu } from '../chat/components/ConversationRowMenu'
 import { VirtualList } from '../chat/components/VirtualList'
 import type { Project } from './api'
 import type { ConversationTarget } from '../chat/types'
 
-export function ProjectGroup({ project, expanded, onToggle, activeId, selected, disabled, version, onSelect, onConversationSelect, onEdit, onDelete, reveal, localTarget, onSelectedConversations }: {
+export function ProjectGroup({ project, expanded, onToggle, activeId, selected, disabled, version, onSelect, onConversationSelect, onConversationRemove, streamingConversationIds, onEdit, onDelete, reveal, localTarget, onSelectedConversations }: {
   project: Project; expanded: boolean; onToggle: () => void; activeId?: string; selected: boolean; disabled: boolean; version: number
   onSelect: () => void; onConversationSelect: (id: string) => void; onEdit: () => void; onDelete: () => void
   reveal?: ConversationTarget; localTarget?: ConversationTarget
   onSelectedConversations?: (projectId: string, items: readonly ConversationTarget[]) => void
+  onConversationRemove?: (id: string, items: readonly ConversationTarget[]) => void
+  streamingConversationIds?: ReadonlySet<string>
 }) {
   // 折叠时不请求会话；展开后按服务端分页逐步加载，滚动到底再取下一页。
   const sessions = useConversations(project.id, { enabled: expanded })
@@ -33,7 +36,10 @@ export function ProjectGroup({ project, expanded, onToggle, activeId, selected, 
       {sessions.titleError && <Alert type="warning" title={sessions.titleError} action={<Button onClick={refresh}>重新加载</Button>} />}
       {sessions.loading && !sessions.items.length && <Spin size="small" />}
       {!sessions.loading && !sessions.error && !items.length && <p className="project-empty">暂无对话</p>}
-      {items.length > 0 && <VirtualList className="project-conversations" items={items} itemKey={item => item.id} estimate={38} onEnd={sessions.loadMore} reveal={revealKey && reveal ? { key: revealKey, request: reveal } : undefined} renderItem={item => <button className={`project-conversation ${item.id === activeId ? 'active' : ''}`} disabled={disabled} onClick={() => onConversationSelect(item.id)} title={item.title}><MessageOutlined className="session-icon" aria-hidden="true" /><span className="project-conversation-text">{item.title}</span></button>} />}
+      {items.length > 0 && <VirtualList className="project-conversations" items={items} itemKey={item => item.id} estimate={38} onEnd={sessions.loadMore} reveal={revealKey && reveal ? { key: revealKey, request: reveal } : undefined} renderItem={item => <div className="chat-session-row">
+        <button className={`project-conversation ${item.id === activeId ? 'active' : ''}`} disabled={disabled} onClick={() => onConversationSelect(item.id)} title={item.title}><MessageOutlined className="session-icon" aria-hidden="true" /><span className="project-conversation-text">{item.title}</span></button>
+        {onConversationRemove && item !== localTarget && <ConversationRowMenu title={item.title} disabled={disabled || !!streamingConversationIds?.has(item.id)} onRemove={() => onConversationRemove(item.id, items)} />}
+      </div>} />}
     </>}
   </section>
 }

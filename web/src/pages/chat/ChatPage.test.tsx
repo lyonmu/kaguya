@@ -137,7 +137,7 @@ it('opens the next saved conversation after deleting the current one and falls b
     { id: '101', title: '第一条' }, { id: '102', title: '第二条' }, { id: '103', title: '第三条' },
   ])
   const view = render(<App><ChatPage /></App>)
-  fireEvent.click(await view.findByRole('button', { name: /第二条/ }))
+  fireEvent.click(await view.findByRole('button', { name: '第二条 默认模型' }))
   await view.findByRole('heading', { name: '第二条' })
   const removeCurrent = async (next: string) => {
     const actions = view.getByLabelText('更多会话操作')
@@ -157,6 +157,43 @@ it('opens the next saved conversation after deleting the current one and falls b
   await removeCurrent('新对话')
   assert.deepEqual(deleted, ['102', '103', '101'])
   assert.equal(view.container.querySelector('.chat-session-list .active'), null)
+})
+
+it('deletes an inactive ordinary conversation from its row without switching the active conversation', async () => {
+  const deleted = mockSavedConversations([
+    { id: '101', title: '当前会话' }, { id: '102', title: '待删会话' },
+  ])
+  const view = render(<App><ChatPage /></App>)
+  fireEvent.click(await view.findByRole('button', { name: '当前会话 默认模型' }))
+  await view.findByRole('heading', { name: '当前会话' })
+  fireEvent.click(view.getByRole('button', { name: '待删会话 会话操作' }))
+  fireEvent.click(await view.findByRole('menuitem', { name: /删除对话/ }))
+  assert.deepEqual(deleted, [])
+  assert.ok(view.getByRole('heading', { name: '当前会话' }))
+  fireEvent.click(await view.findByRole('button', { name: /^删\s*除$/ }))
+  await waitFor(() => assert.equal(view.queryByRole('button', { name: '待删会话 会话操作' }), null))
+  assert.deepEqual(deleted, ['102'])
+  assert.equal(view.container.querySelector('.chat-session-list .active .chat-session-title')?.textContent, '当前会话')
+})
+
+it('deletes the active conversation from a project row and opens the next conversation in that project', async () => {
+  const deleted = mockSavedConversations([
+    { id: '201', title: '项目会话甲', project_id: 'p1' },
+    { id: '202', title: '项目会话乙', project_id: 'p1' },
+    { id: '101', title: '普通会话' },
+  ])
+  const view = render(<App><ChatPage /></App>)
+  fireEvent.click(view.getByRole('radio', { name: '项目' }))
+  fireEvent.click(await view.findByRole('button', { name: '展开项目 项目一' }))
+  fireEvent.click(await view.findByRole('button', { name: '项目会话甲' }))
+  await view.findByRole('heading', { name: '项目会话甲' })
+  fireEvent.click(view.getByRole('button', { name: '项目会话甲 会话操作' }))
+  fireEvent.click(await view.findByRole('menuitem', { name: /删除对话/ }))
+  fireEvent.click(await view.findByRole('button', { name: /^删\s*除$/ }))
+  await view.findByRole('heading', { name: '项目会话乙' })
+  assert.deepEqual(deleted, ['201'])
+  assert.equal(view.container.querySelector('.project-conversation.active')?.textContent, '项目会话乙')
+  assert.equal(view.queryByText('会话已删除或不可用'), null)
 })
 
 it('virtualizes long lists and updates the visible window on scroll', () => {
@@ -354,7 +391,7 @@ it('hides memory references and controls even for existing memory-enabled conver
     return response(conversation)
   }) as typeof fetch
   const view = render(<App><ChatPage /></App>)
-  fireEvent.click(await view.findByRole('button', { name: /记忆会话/ }))
+  fireEvent.click(await view.findByRole('button', { name: /^记忆会话 模型/ }))
   await waitFor(() => assert.equal(view.getByRole('button', { name: '更多会话操作' }).hasAttribute('disabled'), false))
   assert.equal(view.queryByText(/本轮提供 1 条记忆目录/), null)
   fireEvent.mouseEnter(view.getByRole('button', { name: '更多会话操作' }))

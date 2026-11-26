@@ -31,6 +31,11 @@
 .project-directories { max-height: 280px; overflow: auto; }
 .project-directories .ant-btn { text-align: left; justify-content: flex-start; }
 .chat-session-list { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
+.chat-session-row { position: relative; }
+.chat-session-row:has(.chat-session-menu) .chat-session-title { padding-right: 24px; }
+.chat-session-row:has(.chat-session-menu) .project-conversation { padding-right: 32px; }
+.chat-session-menu.ant-btn { position: absolute; top: 5px; right: 5px; color: var(--k-text-muted); }
+.project-conversations .chat-session-menu.ant-btn { top: 50%; transform: translateY(-50%); }
 .chat-session { display: block; width: 100%; text-align: left; padding: 9px 9px; margin-bottom: 2px; border: 1px solid transparent; border-radius: 8px; cursor: pointer; background: transparent; color: var(--k-text); }
 .chat-session:hover { background: var(--k-elevated); }
 .chat-session.active { background: var(--k-selected); border-color: var(--k-border); }
