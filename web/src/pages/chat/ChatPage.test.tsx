@@ -196,6 +196,32 @@ it('deletes the active conversation from a project row and opens the next conver
   assert.equal(view.queryByText('会话已删除或不可用'), null)
 })
 
+it('only offers the code browser for project conversations', async () => {
+  mockSavedConversations([
+    { id: '101', title: '普通会话' },
+    { id: '201', title: '项目会话', project_id: 'p1' },
+  ])
+  const view = render(<App><ChatPage /></App>)
+  const openMenu = async () => {
+    const actions = view.getByLabelText('更多会话操作')
+    await waitFor(() => assert.equal(actions.hasAttribute('disabled'), false))
+    fireEvent.mouseEnter(actions)
+    return within(await view.findByRole('menu'))
+  }
+  fireEvent.click(await view.findByRole('button', { name: '普通会话 默认模型' }))
+  await view.findByRole('heading', { name: '普通会话' })
+  assert.equal(view.queryByLabelText('查看代码与改动'), null)
+  assert.equal((await openMenu()).queryByRole('menuitem', { name: /查看代码与改动/ }), null)
+  fireEvent.mouseLeave(view.getByLabelText('更多会话操作'))
+
+  fireEvent.click(view.getByRole('radio', { name: '项目' }))
+  fireEvent.click(await view.findByRole('button', { name: '展开项目 项目一' }))
+  fireEvent.click(await view.findByRole('button', { name: '项目会话' }))
+  await view.findByRole('heading', { name: '项目会话' })
+  assert.ok(view.getByLabelText('查看代码与改动'))
+  assert.ok((await openMenu()).getByRole('menuitem', { name: /查看代码与改动/ }))
+})
+
 it('virtualizes long lists and updates the visible window on scroll', () => {
   const original = dom.HTMLElement.prototype.getBoundingClientRect
   dom.HTMLElement.prototype.getBoundingClientRect = () => new dom.DOMRect(0, 0, 500, 100)
