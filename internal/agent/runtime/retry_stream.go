@@ -34,8 +34,7 @@ type streamErrorEnvelope struct {
 }
 
 // retryableStreamModel classifies transient errors carried inside an already
-// successful SSE response. Fantasy v0.33 can retry HTTP 5xx responses, but the
-// provider SDK exposes these in-band errors without an HTTP status.
+// successful SSE response, including gateway-specific error types and codes.
 type retryableStreamModel struct{ fantasy.LanguageModel }
 
 func withRetryableStreamErrors(model fantasy.LanguageModel) fantasy.LanguageModel {
@@ -62,16 +61,22 @@ func classifyTransientStreamError(err error) error {
 		return nil
 	}
 	var providerErr *fantasy.ProviderError
+	var payload []byte
 	if errors.As(err, &providerErr) {
-		return err
+		if providerErr.StatusCode != 0 || providerErr.IsRetryable() {
+			return err
+		}
+		// Fantasy exposes in-band errors as a ProviderError with no HTTP status.
+		payload = providerErr.ResponseBody
+	} else {
+		_, body, ok := strings.Cut(err.Error(), streamErrorPrefix)
+		if !ok {
+			return err
+		}
+		payload = []byte(strings.TrimSpace(body))
 	}
-	_, payload, ok := strings.Cut(err.Error(), streamErrorPrefix)
-	if !ok {
-		return err
-	}
-	payload = strings.TrimSpace(payload)
 	var envelope streamErrorEnvelope
-	if json.Unmarshal([]byte(payload), &envelope) != nil {
+	if json.Unmarshal(payload, &envelope) != nil {
 		return err
 	}
 	if envelope.Error != nil {
@@ -83,13 +88,19 @@ func classifyTransientStreamError(err error) error {
 	if !transientStreamErrors[errType] && !transientStreamErrors[strings.ToLower(envelope.Code)] {
 		return err
 	}
-	message := firstNonEmpty(envelope.Message, payload)
+	if providerErr != nil {
+		classified := *providerErr
+		classified.TransientError = true
+		classified.Cause = err
+		return &classified
+	}
+	message := firstNonEmpty(envelope.Message, string(payload))
 	return &fantasy.ProviderError{
 		Title:        "provider temporarily unavailable",
 		Message:      message,
 		Cause:        err,
 		StatusCode:   http.StatusServiceUnavailable,
-		ResponseBody: []byte(payload),
+		ResponseBody: payload,
 	}
 }
 

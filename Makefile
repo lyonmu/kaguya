@@ -10,7 +10,7 @@ BRANCH = $(shell git branch --show-current)
 # macOS Desktop 发行包
 APP_NAME := Kaguya
 APP_BUNDLE := $(APP_NAME).app
-# Wails 3 预发布依赖使用 production 构建标签：关闭 dev server 与调试行为。
+# Wails 使用 production 构建标签关闭开发服务器与调试行为。
 PRODUCTION_TAG := production
 # 发布支持的最低系统版本（Info.plist 与 C 部署目标保持一致）。
 MACOS_DEPLOYMENT_TARGET ?= 14.0

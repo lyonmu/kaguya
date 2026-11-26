@@ -35,3 +35,28 @@ func TestClassifyTransientStreamError(t *testing.T) {
 		})
 	}
 }
+
+func TestClassifyTypedStreamError(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		status    int
+		response  string
+		retryable bool
+	}{
+		{name: "gateway overload code", response: `{"error":{"type":"gateway_error","code":"server_is_overloaded"}}`, retryable: true},
+		{name: "invalid request", response: `{"error":{"type":"invalid_request_error"}}`},
+		{name: "HTTP error", status: 400, response: `{"error":{"code":"server_is_overloaded"}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			original := &fantasy.ProviderError{StatusCode: tc.status, ResponseBody: []byte(tc.response)}
+			got := classifyTransientStreamError(original)
+			var classified *fantasy.ProviderError
+			if !errors.As(got, &classified) || classified.IsRetryable() != tc.retryable || classified.StatusCode != tc.status {
+				t.Fatalf("error=%+v, want retryable=%v with status=%d", classified, tc.retryable, tc.status)
+			}
+			if original.TransientError || !errors.Is(got, original) || !tc.retryable && got != original {
+				t.Fatal("classification changed or lost the original error")
+			}
+		})
+	}
+}
