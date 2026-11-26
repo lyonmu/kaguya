@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Build the official source, not a Go fork's bundled SQLite amalgamation.
-version=4.19.0
-sha256=7075f96cbabe45b4ecfc2e6b1745a625f856f695b0827a5506ce9ed85b906aa0
+version=4.20.0
+sha256=38705f51b61ac0636a5fd064f9a77fafabc7227b2aa2513f1b14c8bb1102affc
 root=$(cd "$(dirname "$0")/.." && pwd)
 prefix="$root/target/sqlcipher"
 work="$root/target/sqlcipher-build"

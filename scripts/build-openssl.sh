@@ -5,8 +5,8 @@ set -euo pipefail
 # The static libcrypto.a is what SQLCipher links against, so building it here
 # keeps the release artifact reproducible instead of depending on whatever
 # system or Homebrew OpenSSL happens to be installed.
-version=3.5.8
-sha256=a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2
+version=3.5.9
+sha256=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 root=$(cd "$(dirname "$0")/.." && pwd)
 prefix="$root/target/openssl"
 work="$root/target/openssl-build"
