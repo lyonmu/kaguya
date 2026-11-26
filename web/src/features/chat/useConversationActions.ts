@@ -11,13 +11,14 @@ interface Options {
   chat: ReturnType<typeof useChat>
   sessions: ReturnType<typeof useConversations>
   onProjectsChanged: () => void
+  onRemoved: (id: string) => void
 }
 
 /**
  * useConversationActions 集中会话写操作：改名/收藏/记忆模式/权限模式、删除与
  * 指令升级。它只调用 chat/sessions 暴露的操作，不复制会话状态。
  */
-export function useConversationActions({ chat, sessions, onProjectsChanged }: Options) {
+export function useConversationActions({ chat, sessions, onProjectsChanged, onRemoved }: Options) {
   const { message, modal } = App.useApp()
   const [saving, setSaving] = useState(false)
   const titles = useContext(TitleSyncContext)
@@ -42,17 +43,15 @@ export function useConversationActions({ chat, sessions, onProjectsChanged }: Op
     }
   }
 
-  const remove = () => {
-    const id = chat.id
-    return modal.confirm({
+  const remove = (id: string, nextId: string) => modal.confirm({
     title: '删除此对话？', content: '删除后无法恢复，也无法继续对话。', okText: '删除', okButtonProps: { danger: true },
     onOk: async () => {
-      chat.cancelTitleWait()
       setSaving(true)
       try {
         await deleteConversation(id)
+        chat.removeConversation(id, nextId)
         titles?.remove(id)
-        if (!titles) { chat.forget(); await chat.select('') }
+        onRemoved(id)
         sessions.refresh()
         onProjectsChanged()
       } catch (error) {
@@ -62,8 +61,7 @@ export function useConversationActions({ chat, sessions, onProjectsChanged }: Op
         setSaving(false)
       }
     },
-    })
-  }
+  })
 
   const generateTitle = async () => {
     setSaving(true)

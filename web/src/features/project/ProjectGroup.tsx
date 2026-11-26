@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Alert, Button, Dropdown, Spin } from 'antd'
 import { DownOutlined, FolderOpenOutlined, MessageOutlined, MoreOutlined, RightOutlined } from '@ant-design/icons'
 import { useConversations } from '../chat/useConversations'
@@ -6,16 +6,21 @@ import { VirtualList } from '../chat/components/VirtualList'
 import type { Project } from './api'
 import type { ConversationTarget } from '../chat/types'
 
-export function ProjectGroup({ project, expanded, onToggle, activeId, selected, disabled, version, onSelect, onConversationSelect, onEdit, onDelete, reveal, localTarget }: {
+export function ProjectGroup({ project, expanded, onToggle, activeId, selected, disabled, version, onSelect, onConversationSelect, onEdit, onDelete, reveal, localTarget, onSelectedConversations }: {
   project: Project; expanded: boolean; onToggle: () => void; activeId?: string; selected: boolean; disabled: boolean; version: number
   onSelect: () => void; onConversationSelect: (id: string) => void; onEdit: () => void; onDelete: () => void
   reveal?: ConversationTarget; localTarget?: ConversationTarget
+  onSelectedConversations?: (projectId: string, items: readonly ConversationTarget[]) => void
 }) {
   // 折叠时不请求会话；展开后按服务端分页逐步加载，滚动到底再取下一页。
   const sessions = useConversations(project.id, { enabled: expanded })
   const refresh = sessions.refresh
   useEffect(() => { refresh() }, [version, refresh])
-  const items = localTarget && !sessions.items.some(item => item.id === localTarget.id) ? [localTarget, ...sessions.items] : sessions.items
+  const items = useMemo(() => localTarget && !sessions.items.some(item => item.id === localTarget.id)
+    ? [localTarget, ...sessions.items] : sessions.items, [localTarget, sessions.items])
+  useEffect(() => {
+    if (selected) onSelectedConversations?.(project.id, items)
+  }, [selected, onSelectedConversations, project.id, items])
   const revealKey = localTarget?.id ?? reveal?.id
   return <section className="project-group" aria-label={`项目 ${project.name}`}>
     <div className="project-group-header">

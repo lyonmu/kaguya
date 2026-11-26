@@ -417,13 +417,18 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
       return conflict
     },
     titleSyncError: (message: string) => { if (mounted.current) setTitleError(message) },
-    removeConversation: (id: string) => {
+    removeConversation: (id: string, nextId?: string) => {
       for (const item of sessions.current.values()) {
         if (item.id !== id) continue
         item.opVersion++
         item.request?.abort(); item.stream?.abort(); item.completion?.abort(); item.title?.abort(); item.confirm?.abort()
         sessions.current.delete(item.key)
         if (selected.current === item) {
+          if (nextId !== undefined) {
+            setTitleError('')
+            void select(nextId)
+            return
+          }
           const replacement = createSession()
           replacement.error = '会话已删除或不可用'
           sessions.current.set(replacement.key, replacement)
@@ -432,15 +437,6 @@ export function useChat(onCompleted: () => Promise<void>, onTitleUpdated: (title
         }
       }
       notify()
-    },
-    forget: () => {
-      const item = selected.current
-      if (item.streaming) return
-      item.opVersion++
-      item.confirm?.abort()
-      item.completion?.abort()
-      item.title?.abort()
-      sessions.current.delete(item.key)
     },
     cancelTitleWait: () => { selected.current.completion?.abort(); selected.current.title?.abort() },
     stop: () => {

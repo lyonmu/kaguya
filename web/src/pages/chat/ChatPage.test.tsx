@@ -7,6 +7,7 @@ const dom = new Window({ url: 'http://localhost' })
 const globals = {
   window: dom, document: dom.document, navigator: dom.navigator,
   HTMLElement: dom.HTMLElement, Element: dom.Element, Node: dom.Node,
+  HTMLBodyElement: dom.HTMLBodyElement, HTMLHtmlElement: dom.HTMLHtmlElement,
   SVGElement: dom.SVGElement, ShadowRoot: dom.ShadowRoot,
   MutationObserver: dom.MutationObserver, ResizeObserver: dom.ResizeObserver,
   cancelAnimationFrame: dom.cancelAnimationFrame.bind(dom),
@@ -31,6 +32,40 @@ function MessageList(props: React.ComponentProps<typeof RuntimeMessageList>) {
 }
 const originalFetch = globalThis.fetch
 const response = (data: unknown) => Response.json({ code: 100000, data })
+
+function mockSavedConversations(initial: { id: string; title: string; project_id?: string }[]) {
+  let items = [...initial]
+  const deleted: string[] = []
+  const project = { id: 'p1', name: '项目一', path: '/root/one', description: '', created_at: '' }
+  globalThis.fetch = (async (url, init) => {
+    const { pathname, searchParams } = new URL(String(url), 'http://localhost')
+    if (pathname.endsWith('/events')) return new Response(new ReadableStream(), { headers: { 'Content-Type': 'text/event-stream' } })
+    if (pathname.endsWith('/model/label') || pathname.endsWith('/approvals')) return response([])
+    if (pathname.endsWith('/project/page')) return response({ items: [project], total: 1 })
+    if (pathname.endsWith('/project/p1')) return response(project)
+    if (pathname.endsWith('/conversation/page')) {
+      const matching = items.filter(item => (item.project_id ?? null) === searchParams.get('project_id'))
+      return response({ items: matching, total: matching.length })
+    }
+    if (pathname.endsWith('/title-snapshots')) {
+      const { ids } = JSON.parse(String(init?.body)) as { ids: string[] }
+      return response({
+        items: items.filter(item => ids.includes(item.id)).map(item => ({ id: item.id, title: item.title, title_revision: 0, job_status: null, job_revision: 0 })),
+        missing_ids: ids.filter(id => !items.some(item => item.id === id)),
+      })
+    }
+    if (pathname.endsWith('/turns')) return response({ items: [], page: 1, total_pages: 0 })
+    const id = pathname.split('/').at(-1)!
+    if (init?.method === 'DELETE') {
+      deleted.push(id)
+      items = items.filter(item => item.id !== id)
+      return response(null)
+    }
+    return response(items.find(item => item.id === id))
+  }) as typeof fetch
+  return deleted
+}
+
 afterEach(async () => {
   invalidateModelLabels()
   cleanup()
@@ -95,6 +130,33 @@ it('groups navigation with refresh and keeps it accessible after collapsing the 
   fireEvent.click(bottom.getByLabelText('对话管理'))
   assert.equal(page, 'chat')
   await waitFor(() => assert.equal(bottom.getByLabelText('刷新列表').hasAttribute('disabled'), false))
+})
+
+it('opens the next saved conversation after deleting the current one and falls back at the end', async () => {
+  const deleted = mockSavedConversations([
+    { id: '101', title: '第一条' }, { id: '102', title: '第二条' }, { id: '103', title: '第三条' },
+  ])
+  const view = render(<App><ChatPage /></App>)
+  fireEvent.click(await view.findByRole('button', { name: /第二条/ }))
+  await view.findByRole('heading', { name: '第二条' })
+  const removeCurrent = async (next: string) => {
+    const actions = view.getByLabelText('更多会话操作')
+    await waitFor(() => assert.equal(actions.hasAttribute('disabled'), false))
+    fireEvent.mouseEnter(actions)
+    fireEvent.click(await view.findByRole('menuitem', { name: /删除对话/ }))
+    fireEvent.mouseLeave(actions)
+    const confirm = { name: /^删\s*除$/ }
+    fireEvent.click(await view.findByRole('button', confirm))
+    await waitFor(() => assert.equal(view.queryByRole('button', confirm), null))
+    await view.findByRole('heading', { name: next })
+    assert.equal(view.queryByText('会话已删除或不可用'), null)
+  }
+  await removeCurrent('第三条')
+  assert.equal(view.container.querySelector('.chat-session-list .active .chat-session-title')?.textContent, '第三条')
+  await removeCurrent('第一条')
+  await removeCurrent('新对话')
+  assert.deepEqual(deleted, ['102', '103', '101'])
+  assert.equal(view.container.querySelector('.chat-session-list .active'), null)
 })
 
 it('virtualizes long lists and updates the visible window on scroll', () => {

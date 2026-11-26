@@ -1,5 +1,5 @@
 import { MEMORY_ENABLED } from '../../app/features'
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { App, Alert, Button, Drawer, Dropdown, Input, Modal, Popover, Segmented, Spin } from 'antd'
 import { CodeOutlined, DeleteOutlined, EditOutlined, MenuOutlined, MessageOutlined, MoreOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { useConversations } from '../../features/chat/useConversations'
@@ -27,13 +27,20 @@ export function ChatPage() {
   const [view, setView] = useState('对话')
   const [project, setProject] = useState<Project>()
   const [target, setTarget] = useState<ConversationTarget>()
+  const projectConversations = useRef<{ projectId: string; items: readonly ConversationTarget[] }>(undefined)
+  const trackProjectConversations = useCallback((projectId: string, items: readonly ConversationTarget[]) => {
+    projectConversations.current = { projectId, items }
+  }, [])
   const sessions = useConversations(view === '项目' ? project?.id : undefined)
   const [projectVersion, setProjectVersion] = useState(0)
   const refreshProjects = () => setProjectVersion(value => value + 1)
   const chat = useWorkspaceChat(async () => { await sessions.refreshQuietly(); refreshProjects() }, title => { sessions.updateTitle(title); refreshProjects() })
   const { draft, references, modelId, setModelId } = chat
   const pendingApprovals = chat.approvals.filter(approval => approval.status === 'pending')
-  const { saving, update, remove, upgradeInstructions, generateTitle } = useConversationActions({ chat, sessions, onProjectsChanged: refreshProjects })
+  const { saving, update, remove, upgradeInstructions, generateTitle } = useConversationActions({
+    chat, sessions, onProjectsChanged: refreshProjects,
+    onRemoved: id => setTarget(current => current?.id === id || (current === target && visibleTarget?.id === id) ? undefined : current),
+  })
   const changePermission = (mode: 'full_approval' | 'auto_approval' | 'full_access') => {
     if (chat.conversation) { void update({ permission_mode: mode }); return }
     chat.setPermissionMode(mode)
@@ -87,6 +94,19 @@ export function ChatPage() {
   const visibleTarget = targetSession ? { ...target, id: targetSession.id || targetSession.key, title: targetSession.title } : target
   const conversationItems = visibleTarget && !visibleTarget.projectId && !sessions.items.some(item => item.id === visibleTarget.id)
     ? [{ id: visibleTarget.id, title: visibleTarget.title, model_name: '', last_message_at: '' }, ...sessions.items] : sessions.items
+  const removeFromList = (id: string, items: readonly ConversationTarget[]) => {
+    const index = items.findIndex(item => item.id === id)
+    const next = index < 0 ? items[0] : items[index + 1] ?? items[index - 1]
+    remove(id, next?.id ?? '')
+  }
+  const removeCurrent = () => {
+    const projectId = chat.conversation?.project_id
+    const projectList = projectConversations.current
+    const items = projectId
+      ? (projectList?.projectId === projectId && projectList.items.length ? projectList.items : sessions.items)
+      : conversationItems
+    removeFromList(chat.id, items)
+  }
   const showConversations = view === '对话' || !!project || !!chat.projectId || !!chat.turns.length
   const activeProjectId = chat.conversation?.project_id ?? chat.projectId ?? (view === '项目' ? project?.id : undefined)
   const sidebar = <div className="chat-sidebar-inner">
@@ -94,7 +114,7 @@ export function ChatPage() {
       {view === '对话' && <Input aria-label="搜索对话标题前缀" placeholder="搜索对话（标题前缀）" prefix={<SearchOutlined />} value={sessions.keyword} onChange={event => sessions.search(event.target.value)} allowClear maxLength={200} />}
       <Segmented size="small" value={view} options={['对话', '项目']} disabled={saving} onChange={value => { setView(value); chooseProject(undefined) }} />
     </div>
-    {view === '项目' && <ProjectPanel selected={project} disabled={saving} onSelect={chooseProject} activeId={chat.id || chat.sessionKey} reveal={target} localTarget={visibleTarget} refreshVersion={projectVersion} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
+    {view === '项目' && <ProjectPanel selected={project} disabled={saving} onSelect={chooseProject} activeId={chat.id || chat.sessionKey} reveal={target} localTarget={visibleTarget} refreshVersion={projectVersion} onSelectedConversations={trackProjectConversations} onConversationSelect={(value, id) => { setProject(value); select(id) }} />}
     {view === '对话' && <><div className="chat-session-status">
       {sessions.error && <Alert type="error" title={sessions.error} action={<Button size="small" onClick={sessions.refresh}>重试</Button>} />}
       {sessions.titleError && <Alert type="warning" title={sessions.titleError} action={<Button size="small" onClick={sessions.refresh}>重新加载</Button>} />}
@@ -112,7 +132,7 @@ export function ChatPage() {
       <header className="chat-header"><div className="chat-header-title"><Button className="chat-desktop-menu" type="text" aria-label={sidebarCollapsed ? '展开会话列表' : '收起会话列表'} aria-expanded={!sidebarCollapsed} icon={<MenuOutlined />} onClick={() => setSidebarCollapsed(value => !value)} /><Button className="chat-mobile-menu" type="text" aria-label="打开会话列表" icon={<MenuOutlined />} onClick={() => setShowSidebar(true)} /><img className="chat-header-avatar" {...kaguyaAvatar} alt="Kaguya" width={26} height={26} /><h1>{chat.conversation?.title || (project ? `${project.name} · 新对话` : '新对话')}</h1>{chat.streaming && <span className="chat-pill is-running" role="status">正在生成</span>}{chat.conversation?.title === '新对话' && chat.conversation.title_job_status && <span className="chat-pill" role="status">{titleJobLabels[chat.conversation.title_job_status]}</span>}{MEMORY_ENABLED && (chat.conversation?.memory_refs?.items.length ?? 0) > 0 && <Popover trigger="click" placement="bottom" title="本轮记忆目录" content={<div className="chat-memory-directory"><p>模型获得的标题与说明。正文是否读取，请查看 memory_read 执行记录。</p><ul>{chat.conversation!.memory_refs!.items.map(item => <li key={item.page_id}><strong>{item.deleted ? '已删除的记忆' : item.title}</strong><small>v{item.version}{item.deleted ? ' · 已删除' : ''}</small></li>)}</ul></div>}><Button type="text" className="chat-memory-trigger">本轮提供 {chat.conversation!.memory_refs!.items.length} 条记忆目录</Button></Popover>}</div>
         <div className="chat-header-actions">
           {activeProjectId && <Button type="text" aria-label="查看代码与改动" icon={<CodeOutlined />} disabled={!chat.id || chat.streaming || saving || chat.loading} onClick={() => setCodeOpen(true)} />}
-          <Dropdown menu={{ items: [{ key: 'code', label: '查看代码与改动', icon: <CodeOutlined />, disabled: !activeProjectId }, { key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'generate-title', label: '补生成标题', disabled: chat.conversation?.title !== '新对话' }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, ...(MEMORY_ENABLED ? [{
+          <Dropdown key={chat.sessionKey} menu={{ items: [{ key: 'code', label: '查看代码与改动', icon: <CodeOutlined />, disabled: !activeProjectId }, { key: 'reload', label: '重新加载历史', icon: <ReloadOutlined /> }, { key: 'generate-title', label: '补生成标题', disabled: chat.conversation?.title !== '新对话' }, { key: 'rename', label: '重命名', icon: <EditOutlined />, disabled: !chat.conversation }, ...(MEMORY_ENABLED ? [{
             key: 'memory', label: '本会话记忆', disabled: !chat.conversation,
             children: [
               { key: 'memory-inherit', label: '继承全局' },
@@ -124,7 +144,7 @@ export function ChatPage() {
             if (key === 'reload') void chat.select(chat.id)
             if (key === 'generate-title') { void generateTitle(); return }
             if (key === 'rename') { setTitle(chat.conversation?.title ?? ''); setRenaming(true) }
-            if (key === 'delete') { remove(); return }
+            if (key === 'delete') { removeCurrent(); return }
             if (key.startsWith('memory-')) void update({ memory_mode: key.slice('memory-'.length) })
           } }}><Button aria-label="更多会话操作" type="text" icon={<MoreOutlined />} disabled={!chat.id || chat.streaming || saving || chat.loading} /></Dropdown>
         </div>
