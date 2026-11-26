@@ -142,7 +142,7 @@ it('requests subsequent memory pages instead of hiding records after twenty', as
   }) as typeof fetch
   const view = render(<App><MemoryPage /></App>)
   await waitFor(() => assert.ok(view.queryByText(pageItem.title)))
-  fireEvent.click(view.getByTitle('2'))
+  fireEvent.click(view.getByRole('button', { name: 'Page 2' }))
   await waitFor(() => assert.ok(view.queryByText('第二页记忆')))
   assert.equal(requestedPage, '2')
 })

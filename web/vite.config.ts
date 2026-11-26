@@ -77,9 +77,15 @@ export default defineConfig({
             },
             {
               // Ant Design X Mermaid 代码视图的高亮器与样式；语言按需注册，
-              // 单独缓存以免进入聊天首屏。虚拟模块与高亮器同块，避免产生导入环。
+              // 单独缓存以免进入聊天首屏。高亮器、虚拟入口和语法树转换依赖同块，
+              // 避免高亮器反向依赖 AntMermaid。
               name: 'vendor-antdx-highlighter',
-              test: /[\\/]node_modules[\\/](?:react-syntax-highlighter|refractor)[\\/]|kaguya:react-syntax-highlighter/,
+              test: id => (
+                /[\\/]node_modules[\\/](?:react-syntax-highlighter|refractor)[\\/]|kaguya:react-syntax-highlighter/.test(id) ||
+                /[\\/]node_modules[\\/](?:hastscript|hast-util-parse-selector|parse-entities)[\\/]/.test(id) ||
+                /[\\/]node_modules[\\/](?:character-entities-legacy|character-reference-invalid|is-alphabetical|is-alphanumerical|is-decimal|is-hexadecimal)[\\/]/.test(id) ||
+                /[\\/]node_modules[\\/]@babel[\\/]runtime[\\/]helpers[\\/]esm[\\/]objectWithoutProperties\.js$/.test(id)
+              ),
               includeDependenciesRecursively: false,
             },
             {

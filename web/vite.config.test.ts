@@ -4,14 +4,26 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 import { build } from 'vite'
 
-it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () => {
+async function buildForTest() {
   // 使用真实生产配置，在内存中构建，避免测试覆盖 dist 或嵌入后端的前端文件。
-  const result = await build({
-    root: fileURLToPath(new URL('.', import.meta.url)),
-    configFile: fileURLToPath(new URL('./vite.config.ts', import.meta.url)),
-    logLevel: 'silent',
-    build: { write: false },
-  })
+  // Bun 测试默认设置 NODE_ENV=test，Vite 会据此选择依赖的非生产入口。
+  const nodeEnv = process.env.NODE_ENV
+  process.env.NODE_ENV = 'production'
+  try {
+    return await build({
+      root: fileURLToPath(new URL('.', import.meta.url)),
+      configFile: fileURLToPath(new URL('./vite.config.ts', import.meta.url)),
+      logLevel: 'silent',
+      build: { write: false },
+    })
+  } finally {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV
+    else process.env.NODE_ENV = nodeEnv
+  }
+}
+
+it('enforces chunk budgets and keeps Mermaid and system pages lazy', async () => {
+  const result = await buildForTest()
   const outputs = Array.isArray(result) ? result : [result]
   for (const output of outputs) {
     assert.ok('output' in output)
@@ -92,13 +104,7 @@ it('keeps avatar derivatives within the image budget', async () => {
   assert.ok(total <= 200 * 1024, `avatar derivatives total ${total} bytes exceed 200KiB`)
 
   // 构建产物不得包含头像原图：favicon 与首屏都使用压缩衍生图。
-  const { build } = await import('vite')
-  const result = await build({
-    root: fileURLToPath(new URL('.', import.meta.url)),
-    configFile: fileURLToPath(new URL('./vite.config.ts', import.meta.url)),
-    logLevel: 'silent',
-    build: { write: false },
-  })
+  const result = await buildForTest()
   const outputs = Array.isArray(result) ? result : [result]
   const bigImages = outputs.flatMap(output => 'output' in output ? output.output : [])
     .filter(item => item.type === 'asset' && /\.(png|jpe?g)$/.test(item.fileName) && item.source.length > 100 * 1024)
