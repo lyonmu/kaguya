@@ -228,9 +228,10 @@ func TestCompactionRejectsUncompactableInput(t *testing.T) {
 
 func TestConfiguredCompactionTriggersAtBoundary(t *testing.T) {
 	for _, percent := range []int{50, 80, 95} {
+		outputReserve := *contextOutputLimit(1000, 1000, percent)
 		for _, offset := range []int64{-1, 0, 1} {
 			tokens := int64(percent*10) + offset
-			c := &contextCompactor{window: 1000, percent: percent, lastTokens: &tokens}
+			c := &contextCompactor{window: 1000, percent: percent, lastTokens: &tokens, outputReserve: outputReserve}
 			_, _, err := c.prepare(context.Background(), fantasy.PrepareStepFunctionOptions{Messages: []fantasy.Message{fantasy.NewUserMessage("single input")}})
 			if (err != nil) != (offset >= 0) {
 				t.Fatalf("percent=%d tokens=%d error=%v", percent, tokens, err)

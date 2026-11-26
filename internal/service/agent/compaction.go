@@ -76,7 +76,7 @@ func (c *contextCompactor) prepare(ctx context.Context, opts fantasy.PrepareStep
 	}
 	percent := compactionPercent(c.percent)
 	threshold := c.thresholdTokens()
-	if tokens+c.transientTokens+c.outputReserve < threshold {
+	if tokens+c.transientTokens < threshold {
 		return ctx, fantasy.PrepareStepResult{Messages: c.messages}, nil
 	}
 	// Keep approximately 20k recent tokens, scaled down for small model windows.
@@ -126,7 +126,7 @@ func (c *contextCompactor) prepare(ctx context.Context, opts fantasy.PrepareStep
 	next := append([]fantasy.Message{}, c.messages[:start]...)
 	next = append(next, summary)
 	next = append(next, c.messages[cut:]...)
-	if estimateMessages(next)+c.toolTokens+c.transientTokens+c.outputReserve >= threshold {
+	if estimateMessages(next)+c.toolTokens+c.transientTokens >= threshold {
 		return ctx, fantasy.PrepareStepResult{}, fmt.Errorf("%w: compacted context still exceeds %d%% of model window; shorten input or increase model window", ErrContextBudgetExceeded, percent)
 	}
 	c.messages = next
@@ -217,7 +217,7 @@ func (c *contextCompactor) thresholdTokens() int64 {
 	if c.window <= 0 {
 		return 0
 	}
-	return int64(c.window) * int64(compactionPercent(c.percent)) / 100
+	return contextInputLimit(int64(c.window), c.percent, c.outputReserve)
 }
 
 func (c *contextCompactor) snapshot(result *fantasy.AgentResult) []fantasy.Message {

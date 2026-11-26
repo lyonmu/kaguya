@@ -27,8 +27,24 @@ func TestComputeContextBudget(t *testing.T) {
 		window: 10000, compactionPercent: 80, systemTokens: 1000, toolSchemaTokens: 1000,
 		historyTokens: 2000, userTokens: 500, memoryTokens: 500, outputReserve: 1000,
 	})
-	if budget.threshold != 8000 || budget.remaining != 2000 || budget.referenceBudget != 500 {
+	if budget.threshold != 8000 || budget.remaining != 3000 || budget.referenceBudget != 750 {
 		t.Fatalf("budget=%+v", budget)
+	}
+
+	// 50% 阈值与 50% 输出预留共用完整窗口，短输入仍有空间装入引用。
+	balanced := computeContextBudget(contextBudgetInput{
+		window: 1000, compactionPercent: 50, systemTokens: 100, outputReserve: 500,
+	})
+	if balanced.threshold != 500 || balanced.remaining != 400 || balanced.referenceBudget != 100 {
+		t.Fatalf("balanced budget=%+v", balanced)
+	}
+
+	// 输出预留超过阈值外的空间时，输入仍须满足完整窗口容量。
+	limited := computeContextBudget(contextBudgetInput{
+		window: 1000, compactionPercent: 90, systemTokens: 100, outputReserve: 600,
+	})
+	if limited.threshold != 400 || limited.remaining != 300 || limited.referenceBudget != 75 {
+		t.Fatalf("limited budget=%+v", limited)
 	}
 }
 

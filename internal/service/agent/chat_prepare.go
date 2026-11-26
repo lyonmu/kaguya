@@ -54,7 +54,7 @@ func prepareChatStep(c *contextCompactor, prompt *chatPrompt, state *chatPrepara
 				if c.window <= 0 {
 					c.seen = len(opts.Messages)
 				}
-				if c.window > 0 && estimateMessages(messages)+c.toolTokens+c.transientTokens+c.outputReserve >= c.thresholdTokens() {
+				if c.window > 0 && estimateMessages(messages)+c.toolTokens+c.transientTokens >= c.thresholdTokens() {
 					return nextCtx, fantasy.PrepareStepResult{}, ErrContextBudgetExceeded
 				}
 			}

@@ -20,6 +20,7 @@ import (
 	"github.com/lyonmu/kaguya/internal/db"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/ent"
+	"github.com/lyonmu/kaguya/internal/ent/kaguyachatturn"
 	"github.com/lyonmu/kaguya/internal/ent/kaguyatitlejob"
 	"github.com/lyonmu/kaguya/internal/ent/migrate"
 	_ "github.com/lyonmu/kaguya/internal/ent/runtime"
@@ -83,6 +84,73 @@ func setupChatTestWithTimeout(t *testing.T, timeout time.Duration) (context.Cont
 		t.Fatal(err)
 	}
 	return ctx, client
+}
+
+func TestChatResponsesWithLargeOutputReserve(t *testing.T) {
+	ctx, client := setupChatTest(t)
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		var body struct {
+			Model           string `json:"model"`
+			Stream          bool   `json:"stream"`
+			MaxOutputTokens int    `json:"max_output_tokens"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.URL.Path != "/zen/go/v1/responses" || body.Model != "grok-4.7" || !body.Stream || body.MaxOutputTokens != 250000 {
+			t.Errorf("unexpected Responses request: path=%s body=%+v", r.URL.Path, body)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		for _, event := range []string{
+			`{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"msg_1","role":"assistant","content":[]}}`,
+			`{"type":"response.output_text.delta","item_id":"msg_1","output_index":0,"content_index":0,"delta":"OK"}`,
+			`{"type":"response.output_item.done","output_index":0,"item":{"type":"message","id":"msg_1","role":"assistant","content":[{"type":"output_text","text":"OK","annotations":[]}]}}`,
+			`{"type":"response.completed","response":{"id":"resp_1","status":"completed","usage":{"input_tokens":30,"output_tokens":1,"total_tokens":31}}}`,
+		} {
+			fmt.Fprintf(w, "data: %s\n\n", event)
+		}
+	}))
+	defer server.Close()
+
+	provider, err := client.KaguyaProviderInfo.Create().SetProviderName("OpenCode Go").
+		SetProviderType(consts.ProviderTypeOpenCodeGo).SetAPIKey("test").SetBaseURL(server.URL + "/zen/go/v1").Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := client.KaguyaModelsInfo.Create().SetProviderID(provider.ID).SetModelName("Grok 4.7").SetModelID("grok-4.7").
+		SetAPIProtocol(consts.ProtocolOpenAIResponses).SetRequestPath("/responses").
+		SetTokenContextWindow(500000).SetTokenMaxOutputTokens(500000).Save(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := client.KaguyaSystemInfo.UpdateOneID(consts.SystemInfoID).SetContextCompactionPercent(50).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	ch := make(chan *dtochat.ChatResp)
+	go (&AgentSvc{}).Chat(ctx, ch, &dtochat.ChatReq{ModelID: model.ID, Messages: "Reply with only OK."})
+	var reply strings.Builder
+	var done int
+	for frame := range ch {
+		if frame.Err != nil {
+			t.Fatalf("chat failed after %d upstream calls: %v", calls.Load(), frame.Err)
+		}
+		reply.WriteString(frame.Chat.Content)
+		if frame.Chat.Flag == dtochat.ChatFlagDone {
+			done++
+		}
+	}
+	if calls.Load() != 1 || done != 1 || reply.String() != "OK" {
+		t.Fatalf("calls=%d done=%d reply=%q", calls.Load(), done, reply.String())
+	}
+	turn, err := client.KaguyaChatTurn.Query().Only(ctx)
+	if err != nil || turn.Status != kaguyachatturn.StatusCompleted || turn.CompactionCount != 0 {
+		t.Fatalf("expected one completed turn without compaction: turn=%v err=%v", turn, err)
+	}
 }
 
 // 真正走 Service → Agent → HTTP，验证唯一 done、落库和从数据库恢复历史。

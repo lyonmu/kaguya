@@ -30,7 +30,7 @@ type contextBudgetInput struct {
 type contextBudget struct {
 	known           bool
 	window          int64
-	threshold       int64 // 触发压缩的占用阈值
+	threshold       int64 // 触发压缩的输入占用阈值
 	remaining       int64 // 阈值内剩余可用预算
 	referenceBudget int64 // 引用行内内容最多可用的预算
 }
@@ -42,12 +42,17 @@ func computeContextBudget(input contextBudgetInput) contextBudget {
 	if !budget.known {
 		return budget
 	}
-	percent := compactionPercent(input.compactionPercent)
-	budget.threshold = input.window * int64(percent) / 100
-	used := input.systemTokens + input.toolSchemaTokens + input.historyTokens + input.userTokens + input.memoryTokens + input.outputReserve
+	budget.threshold = contextInputLimit(input.window, input.compactionPercent, input.outputReserve)
+	used := input.systemTokens + input.toolSchemaTokens + input.historyTokens + input.userTokens + input.memoryTokens
 	budget.remaining = max(budget.threshold-used, 0)
 	budget.referenceBudget = budget.remaining * 25 / 100
 	return budget
+}
+
+// 输出预留占用完整模型窗口，输入同时受压缩比例与完整窗口的剩余容量约束。
+func contextInputLimit(window int64, percent int, outputReserve int64) int64 {
+	threshold := window * int64(compactionPercent(percent)) / 100
+	return max(0, min(threshold, window-outputReserve))
 }
 
 // contextFingerprint 标识影响历史基线有效性的上下文特征。任一变化都必须

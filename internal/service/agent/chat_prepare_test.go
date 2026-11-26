@@ -20,8 +20,8 @@ import (
 )
 
 func TestFirstStepCompactsBeforeReferenceResolution(t *testing.T) {
-	for _, window := range []int{10000, 0} {
-		t.Run(fmt.Sprint(window), func(t *testing.T) {
+	for _, tc := range []struct{ window, percent int }{{10000, 90}, {10000, 50}, {0, 90}} {
+		t.Run(fmt.Sprintf("window=%d/percent=%d", tc.window, tc.percent), func(t *testing.T) {
 			ctx, projectID, dir := seedReferenceProject(t)
 			file := filepath.Join(dir, "note.txt")
 			const after = "reference written after compaction"
@@ -55,11 +55,14 @@ func TestFirstStepCompactsBeforeReferenceResolution(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			c := &contextCompactor{window: window, percent: 90, outputReserve: 1000}
+			c := &contextCompactor{window: tc.window, percent: tc.percent}
+			if limit := contextOutputLimit(tc.window, 10000, tc.percent); limit != nil {
+				c.outputReserve = *limit
+			}
 			prompt := &chatPrompt{requestPrompt: "inspect note", projectID: projectID, references: []dtochat.Reference{{Type: "file", Path: "note.txt"}}}
 			state := &chatPreparation{requestPrompt: prompt.requestPrompt}
 			prepare := prepareChatStep(c, prompt, state)
-			if window > 0 && referenceByteBudget(c, messages) != 0 {
+			if tc.window > 0 && referenceByteBudget(c, messages) != 0 {
 				t.Fatal("fixture should require compaction before references fit")
 			}
 			_, first, err := prepare(ctx, fantasy.PrepareStepFunctionOptions{Messages: messages, Model: model})
@@ -67,7 +70,7 @@ func TestFirstStepCompactsBeforeReferenceResolution(t *testing.T) {
 				t.Fatal(err)
 			}
 			wanted := after
-			if window == 0 {
+			if tc.window == 0 {
 				wanted = "reference evidence"
 				if calls.Load() != 0 {
 					t.Fatal("unknown window started compaction")
