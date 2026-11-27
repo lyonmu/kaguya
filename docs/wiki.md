@@ -6,7 +6,7 @@
 
 # Kaguya Documentation (English)
 
-This guide covers the Kaguya v0.1.0 interface, settings, and runtime behavior. The interface is in Chinese. For a quick start see [README.md](../README.md).
+This guide covers the Kaguya v0.1.0 interface, settings, and runtime behavior. The screenshots show the macOS app with fresh local data. The interface is in Chinese. For a quick start see [README.md](../README.md).
 
 ## Contents
 
@@ -22,6 +22,8 @@ This guide covers the Kaguya v0.1.0 interface, settings, and runtime behavior. T
 10. [Project structure and development](#10-project-structure-and-development)
 
 ## 1. Interface overview
+
+![The welcome screen with the conversation sidebar and composer](../images/app/chat.jpg)
 
 The application opens on the chat screen: a session sidebar on the left, the message area and composer on the right. A set of persistent quick actions sits in the bottom-left corner:
 
@@ -144,6 +146,8 @@ Authorization and execution results are displayed separately: “已批准” me
 
 ### 3.1 Project list
 
+![Project workspace with the new project and search controls](../images/app/projects.jpg)
+
 Switching the sidebar to **项目** (Projects) shows the project panel: **新建项目** (new project), **刷新** (refresh), **搜索项目（名称前缀）** (search by name prefix), and the conversations of each project grouped below it.
 
 The create / edit project dialog contains:
@@ -198,6 +202,8 @@ AI configuration has five tabs: **提供商与模型** (providers and models), *
 
 ### 4.1 Providers and models
 
+![Provider and model management](../images/app/providers.jpg)
+
 List columns: provider, type (标准 / OpenCode Go), model protocols (the distinct protocols of that provider's models), Base URL, API key (masked, with an eye button to reveal the full value), model count, and actions (模型管理 / 编辑 / 删除 — manage models / edit / delete). Deleting a provider also deletes its models.
 
 Create / edit provider:
@@ -239,6 +245,8 @@ The protocol belongs to the model, so one provider can mix protocols. Project an
 
 ### 4.2 MCP management
 
+![MCP server management](../images/app/mcp.jpg)
+
 List columns: name, transport, runtime state (运行中 / 连接异常 / 等待连接 / 已停用 — running / connection error / waiting / disabled, with the error message under it), tool count, enable switch, and actions (edit / retry / delete). Clicking the name opens a detail drawer with transport, timeout, creation time, and discovered tools. The list auto-refreshes every 5 seconds and pauses while the page is hidden.
 
 Create / edit MCP service:
@@ -267,6 +275,8 @@ Behavior:
 
 ### 4.3 Web search management
 
+![DeepSeek web search and fetch settings](../images/app/web-search.jpg)
+
 Enter a DeepSeek API key and save **启用联网搜索和抓取** to make both `web_search` and `web_fetch` available in ordinary and project chats with a model configured for tool calling. DeepSeek handles the searches and page retrieval. You can use any configured provider for the chat model.
 
 This setting is disabled by default. Changes apply to the next turn. Disabling preserves the encrypted key, and an empty key field keeps the saved value. In full approval and auto approval modes, each search and fetch requires approval. Full access allows both tools to run directly. DeepSeek bills successful requests that return results. [Search and Fetch pricing](https://api-docs.deepseek.com/guides/search/#pricing)
@@ -280,13 +290,19 @@ Kaguya sends the query or URL to the DeepSeek Search or Fetch API. Requests time
 
 ### 4.4 Provider catalog
 
+![Provider catalog before the first sync](../images/app/provider-catalog.jpg)
+
 The models.dev provider catalog (`api.json`), keeping only providers with an API address, sorted A→Z by name. Searchable by provider name, identifier, package, or API address; columns: provider (name + identifier), model count, package, API address (copyable), and a documentation link. The header offers “重新加载” (reload) and “立即同步” (sync now). New providers are added from “提供商与模型” by searching this catalog.
 
 ### 4.5 Model catalog
 
+![Model catalog before the first sync](../images/app/model-catalog.jpg)
+
 The models.dev model catalog (`models.json`), deduplicated by model and sorted by release date newest first. Searchable by model name, identifier, provider, family, or description; columns: model (name + identifier + description), provider, context, max output, input modalities (text / image / pdf / audio / video), capabilities (推理 / Tool / 视觉 / JSON), and a “查看” (view) action. The detail drawer shows provider, family, release date, last update, context window, max output, input modalities, and the four capabilities. Reload and sync-now buttons are in the header as well.
 
 ## 5. Preferences → System configuration
+
+![Default models, chat limits, and catalog sync settings](../images/app/system-settings.jpg)
 
 System configuration is a single form; saved values apply to newly issued requests immediately, without a restart.
 
@@ -311,14 +327,16 @@ The interface also offers theme switching and sidebar collapse (see [1. Interfac
 
 ## 6. Preferences → Usage analytics
 
+![Token usage summary, activity heatmap, and model and provider views](../images/app/usage.jpg)
+
 Titled “Token 使用分析” (Token usage analytics), with a date-range picker in the header spanning at most 365 days.
 
 - **Summary cards** (follow the date range): total tokens, daily token peak, total conversations (distinct active conversations), and daily conversation peak.
 - **Background-task note**: shows how many tokens background tasks consumed in the range; when background calls returned no confirmable usage, their count is shown and excluded from known totals.
 - **Token activity**: always covers the last year in UTC, with daily / weekly / monthly aggregation; the heatmap is colored in quantile buckets and shows exact values on hover.
-- **Token composition**: uses all history to show the top ten entries, switchable between by-model and by-provider; a stacked bar chart separates input, output, reasoning, and cache tokens.
+- **Token composition**: uses all history to show the top ten entries, switchable between by-model and by-provider; a stacked bar chart separates input, output, reasoning, cache reads, and cache writes.
 
-Accounting rules: input includes cache writes, output excludes reasoning, and the four token classes are never double counted. Recorded usage covers chat turns, context summaries, title tasks, model tests, and historical memory calls; failed or canceled calls count when their usage is known; deleting conversations does not remove consumption; calls without returned usage are never given invented token counts; previously unrecorded usage cannot be backfilled. Conversation counts still count distinct conversations with completed turns.
+The five token categories are counted separately. Input excludes cache reads and writes, and output excludes reasoning. Recorded usage covers chat turns, context summaries, title tasks, model tests, and historical memory calls; failed or canceled calls count when their usage is known; deleting conversations does not remove consumption; calls without returned usage are never given invented token counts; previously unrecorded usage cannot be backfilled. Conversation counts still count distinct conversations with completed turns.
 
 ## 7. Runtime behavior and limits
 
