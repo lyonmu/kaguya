@@ -14,6 +14,8 @@ func (r *SystemRouter) InitSystemRouter(group *gin.RouterGroup, apiGroup apiv1.A
 		systemRouter.GET("info", apiGroup.SystemInfo)
 		systemRouter.PUT("info", apiGroup.SystemInfoUpdate)
 		systemRouter.PUT("info/agents-paths", apiGroup.SystemInfoAgentsPaths)
+		systemRouter.GET("web-search", apiGroup.SystemWebSearch)
+		systemRouter.PUT("web-search", apiGroup.SystemWebSearchUpdate)
 
 		systemRouter.GET("mcp/page", apiGroup.SystemMCPPage)
 		systemRouter.GET("mcp/:id", apiGroup.SystemMCPDetail)

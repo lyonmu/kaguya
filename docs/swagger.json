@@ -3064,6 +3064,72 @@
                     }
                 }
             }
+        },
+        "/v1/system/web-search": {
+            "get": {
+                "tags": [
+                    "System Info"
+                ],
+                "summary": "读取联网搜索配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.WebSearchConfig"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "一个开关同时控制网页搜索与抓取，保存后下一轮生效。API Key 留空时保留已有值。",
+                "tags": [
+                    "System Info"
+                ],
+                "summary": "保存联网搜索配置",
+                "parameters": [
+                    {
+                        "description": "联网搜索配置",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/system.WebSearchSaveReq"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/code.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/system.WebSearchConfig"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -6381,6 +6447,33 @@
                 "unknown_calls": {
                     "description": "请求时间段内未返回用量的后台调用数",
                     "type": "integer"
+                }
+            }
+        },
+        "system.WebSearchConfig": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "key_configured": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "system.WebSearchSaveReq": {
+            "type": "object",
+            "required": [
+                "enabled"
+            ],
+            "properties": {
+                "api_key": {
+                    "description": "留空保留已保存密钥",
+                    "type": "string",
+                    "maxLength": 2048
+                },
+                "enabled": {
+                    "type": "boolean"
                 }
             }
         }

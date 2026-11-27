@@ -60,6 +60,10 @@ const (
 	FieldDefaultModelID = "default_model_id"
 	// FieldTaskModelID holds the string denoting the task_model_id field in the database.
 	FieldTaskModelID = "task_model_id"
+	// FieldWebSearchEnabled holds the string denoting the web_search_enabled field in the database.
+	FieldWebSearchEnabled = "web_search_enabled"
+	// FieldWebSearchAPIKey holds the string denoting the web_search_api_key field in the database.
+	FieldWebSearchAPIKey = "web_search_api_key"
 	// FieldMemoryEnabled holds the string denoting the memory_enabled field in the database.
 	FieldMemoryEnabled = "memory_enabled"
 	// FieldMemoryAutoCapture holds the string denoting the memory_auto_capture field in the database.
@@ -98,6 +102,8 @@ var Columns = []string{
 	FieldModelSyncLastError,
 	FieldDefaultModelID,
 	FieldTaskModelID,
+	FieldWebSearchEnabled,
+	FieldWebSearchAPIKey,
 	FieldMemoryEnabled,
 	FieldMemoryAutoCapture,
 	FieldMemoryContextTokens,
@@ -179,6 +185,10 @@ var (
 	DefaultDefaultModelID string
 	// DefaultTaskModelID holds the default value on creation for the "task_model_id" field.
 	DefaultTaskModelID string
+	// DefaultWebSearchEnabled holds the default value on creation for the "web_search_enabled" field.
+	DefaultWebSearchEnabled bool
+	// DefaultWebSearchAPIKey holds the default value on creation for the "web_search_api_key" field.
+	DefaultWebSearchAPIKey string
 	// DefaultMemoryEnabled holds the default value on creation for the "memory_enabled" field.
 	DefaultMemoryEnabled bool
 	// DefaultMemoryAutoCapture holds the default value on creation for the "memory_auto_capture" field.
@@ -313,6 +323,16 @@ func ByDefaultModelID(opts ...sql.OrderTermOption) OrderOption {
 // ByTaskModelID orders the results by the task_model_id field.
 func ByTaskModelID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldTaskModelID, opts...).ToFunc()
+}
+
+// ByWebSearchEnabled orders the results by the web_search_enabled field.
+func ByWebSearchEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWebSearchEnabled, opts...).ToFunc()
+}
+
+// ByWebSearchAPIKey orders the results by the web_search_api_key field.
+func ByWebSearchAPIKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWebSearchAPIKey, opts...).ToFunc()
 }
 
 // ByMemoryEnabled orders the results by the memory_enabled field.

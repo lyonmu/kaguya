@@ -22029,6 +22029,8 @@ type KaguyaSystemInfoMutation struct {
 	model_sync_last_error         *string
 	default_model_id              *string
 	task_model_id                 *string
+	web_search_enabled            *bool
+	web_search_api_key            *string
 	memory_enabled                *bool
 	memory_auto_capture           *bool
 	memory_context_tokens         *int
@@ -23181,6 +23183,78 @@ func (m *KaguyaSystemInfoMutation) ResetTaskModelID() {
 	m.task_model_id = nil
 }
 
+// SetWebSearchEnabled sets the "web_search_enabled" field.
+func (m *KaguyaSystemInfoMutation) SetWebSearchEnabled(b bool) {
+	m.web_search_enabled = &b
+}
+
+// WebSearchEnabled returns the value of the "web_search_enabled" field in the mutation.
+func (m *KaguyaSystemInfoMutation) WebSearchEnabled() (r bool, exists bool) {
+	v := m.web_search_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWebSearchEnabled returns the old "web_search_enabled" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldWebSearchEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWebSearchEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWebSearchEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWebSearchEnabled: %w", err)
+	}
+	return oldValue.WebSearchEnabled, nil
+}
+
+// ResetWebSearchEnabled resets all changes to the "web_search_enabled" field.
+func (m *KaguyaSystemInfoMutation) ResetWebSearchEnabled() {
+	m.web_search_enabled = nil
+}
+
+// SetWebSearchAPIKey sets the "web_search_api_key" field.
+func (m *KaguyaSystemInfoMutation) SetWebSearchAPIKey(s string) {
+	m.web_search_api_key = &s
+}
+
+// WebSearchAPIKey returns the value of the "web_search_api_key" field in the mutation.
+func (m *KaguyaSystemInfoMutation) WebSearchAPIKey() (r string, exists bool) {
+	v := m.web_search_api_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWebSearchAPIKey returns the old "web_search_api_key" field's value of the KaguyaSystemInfo entity.
+// If the KaguyaSystemInfo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *KaguyaSystemInfoMutation) OldWebSearchAPIKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWebSearchAPIKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWebSearchAPIKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWebSearchAPIKey: %w", err)
+	}
+	return oldValue.WebSearchAPIKey, nil
+}
+
+// ResetWebSearchAPIKey resets all changes to the "web_search_api_key" field.
+func (m *KaguyaSystemInfoMutation) ResetWebSearchAPIKey() {
+	m.web_search_api_key = nil
+}
+
 // SetMemoryEnabled sets the "memory_enabled" field.
 func (m *KaguyaSystemInfoMutation) SetMemoryEnabled(b bool) {
 	m.memory_enabled = &b
@@ -23399,7 +23473,7 @@ func (m *KaguyaSystemInfoMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *KaguyaSystemInfoMutation) Fields() []string {
-	fields := make([]string, 0, 27)
+	fields := make([]string, 0, 29)
 	if m.created_at != nil {
 		fields = append(fields, kaguyasysteminfo.FieldCreatedAt)
 	}
@@ -23469,6 +23543,12 @@ func (m *KaguyaSystemInfoMutation) Fields() []string {
 	if m.task_model_id != nil {
 		fields = append(fields, kaguyasysteminfo.FieldTaskModelID)
 	}
+	if m.web_search_enabled != nil {
+		fields = append(fields, kaguyasysteminfo.FieldWebSearchEnabled)
+	}
+	if m.web_search_api_key != nil {
+		fields = append(fields, kaguyasysteminfo.FieldWebSearchAPIKey)
+	}
 	if m.memory_enabled != nil {
 		fields = append(fields, kaguyasysteminfo.FieldMemoryEnabled)
 	}
@@ -23535,6 +23615,10 @@ func (m *KaguyaSystemInfoMutation) Field(name string) (ent.Value, bool) {
 		return m.DefaultModelID()
 	case kaguyasysteminfo.FieldTaskModelID:
 		return m.TaskModelID()
+	case kaguyasysteminfo.FieldWebSearchEnabled:
+		return m.WebSearchEnabled()
+	case kaguyasysteminfo.FieldWebSearchAPIKey:
+		return m.WebSearchAPIKey()
 	case kaguyasysteminfo.FieldMemoryEnabled:
 		return m.MemoryEnabled()
 	case kaguyasysteminfo.FieldMemoryAutoCapture:
@@ -23598,6 +23682,10 @@ func (m *KaguyaSystemInfoMutation) OldField(ctx context.Context, name string) (e
 		return m.OldDefaultModelID(ctx)
 	case kaguyasysteminfo.FieldTaskModelID:
 		return m.OldTaskModelID(ctx)
+	case kaguyasysteminfo.FieldWebSearchEnabled:
+		return m.OldWebSearchEnabled(ctx)
+	case kaguyasysteminfo.FieldWebSearchAPIKey:
+		return m.OldWebSearchAPIKey(ctx)
 	case kaguyasysteminfo.FieldMemoryEnabled:
 		return m.OldMemoryEnabled(ctx)
 	case kaguyasysteminfo.FieldMemoryAutoCapture:
@@ -23775,6 +23863,20 @@ func (m *KaguyaSystemInfoMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetTaskModelID(v)
+		return nil
+	case kaguyasysteminfo.FieldWebSearchEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWebSearchEnabled(v)
+		return nil
+	case kaguyasysteminfo.FieldWebSearchAPIKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWebSearchAPIKey(v)
 		return nil
 	case kaguyasysteminfo.FieldMemoryEnabled:
 		v, ok := value.(bool)
@@ -24059,6 +24161,12 @@ func (m *KaguyaSystemInfoMutation) ResetField(name string) error {
 		return nil
 	case kaguyasysteminfo.FieldTaskModelID:
 		m.ResetTaskModelID()
+		return nil
+	case kaguyasysteminfo.FieldWebSearchEnabled:
+		m.ResetWebSearchEnabled()
+		return nil
+	case kaguyasysteminfo.FieldWebSearchAPIKey:
+		m.ResetWebSearchAPIKey()
 		return nil
 	case kaguyasysteminfo.FieldMemoryEnabled:
 		m.ResetMemoryEnabled()

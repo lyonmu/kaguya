@@ -2239,6 +2239,24 @@ definitions:
         description: 请求时间段内未返回用量的后台调用数
         type: integer
     type: object
+  system.WebSearchConfig:
+    properties:
+      enabled:
+        type: boolean
+      key_configured:
+        type: boolean
+    type: object
+  system.WebSearchSaveReq:
+    properties:
+      api_key:
+        description: 留空保留已保存密钥
+        maxLength: 2048
+        type: string
+      enabled:
+        type: boolean
+    required:
+    - enabled
+    type: object
 host: localhost:9024
 info:
   contact:
@@ -4093,6 +4111,43 @@ paths:
       summary: Token 用量分析
       tags:
       - System
+  /v1/system/web-search:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.WebSearchConfig'
+              type: object
+      summary: 读取联网搜索配置
+      tags:
+      - System Info
+    put:
+      description: 一个开关同时控制网页搜索与抓取，保存后下一轮生效。API Key 留空时保留已有值。
+      parameters:
+      - description: 联网搜索配置
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/system.WebSearchSaveReq'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/code.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/system.WebSearchConfig'
+              type: object
+      summary: 保存联网搜索配置
+      tags:
+      - System Info
 schemes:
 - http
 swagger: "2.0"

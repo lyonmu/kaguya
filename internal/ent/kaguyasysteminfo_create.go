@@ -337,6 +337,34 @@ func (_c *KaguyaSystemInfoCreate) SetNillableTaskModelID(v *string) *KaguyaSyste
 	return _c
 }
 
+// SetWebSearchEnabled sets the "web_search_enabled" field.
+func (_c *KaguyaSystemInfoCreate) SetWebSearchEnabled(v bool) *KaguyaSystemInfoCreate {
+	_c.mutation.SetWebSearchEnabled(v)
+	return _c
+}
+
+// SetNillableWebSearchEnabled sets the "web_search_enabled" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableWebSearchEnabled(v *bool) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetWebSearchEnabled(*v)
+	}
+	return _c
+}
+
+// SetWebSearchAPIKey sets the "web_search_api_key" field.
+func (_c *KaguyaSystemInfoCreate) SetWebSearchAPIKey(v string) *KaguyaSystemInfoCreate {
+	_c.mutation.SetWebSearchAPIKey(v)
+	return _c
+}
+
+// SetNillableWebSearchAPIKey sets the "web_search_api_key" field if the given value is not nil.
+func (_c *KaguyaSystemInfoCreate) SetNillableWebSearchAPIKey(v *string) *KaguyaSystemInfoCreate {
+	if v != nil {
+		_c.SetWebSearchAPIKey(*v)
+	}
+	return _c
+}
+
 // SetMemoryEnabled sets the "memory_enabled" field.
 func (_c *KaguyaSystemInfoCreate) SetMemoryEnabled(v bool) *KaguyaSystemInfoCreate {
 	_c.mutation.SetMemoryEnabled(v)
@@ -526,6 +554,14 @@ func (_c *KaguyaSystemInfoCreate) defaults() error {
 		v := kaguyasysteminfo.DefaultTaskModelID
 		_c.mutation.SetTaskModelID(v)
 	}
+	if _, ok := _c.mutation.WebSearchEnabled(); !ok {
+		v := kaguyasysteminfo.DefaultWebSearchEnabled
+		_c.mutation.SetWebSearchEnabled(v)
+	}
+	if _, ok := _c.mutation.WebSearchAPIKey(); !ok {
+		v := kaguyasysteminfo.DefaultWebSearchAPIKey
+		_c.mutation.SetWebSearchAPIKey(v)
+	}
 	if _, ok := _c.mutation.MemoryEnabled(); !ok {
 		v := kaguyasysteminfo.DefaultMemoryEnabled
 		_c.mutation.SetMemoryEnabled(v)
@@ -652,6 +688,12 @@ func (_c *KaguyaSystemInfoCreate) check() error {
 	}
 	if _, ok := _c.mutation.TaskModelID(); !ok {
 		return &ValidationError{Name: "task_model_id", err: errors.New(`ent: missing required field "KaguyaSystemInfo.task_model_id"`)}
+	}
+	if _, ok := _c.mutation.WebSearchEnabled(); !ok {
+		return &ValidationError{Name: "web_search_enabled", err: errors.New(`ent: missing required field "KaguyaSystemInfo.web_search_enabled"`)}
+	}
+	if _, ok := _c.mutation.WebSearchAPIKey(); !ok {
+		return &ValidationError{Name: "web_search_api_key", err: errors.New(`ent: missing required field "KaguyaSystemInfo.web_search_api_key"`)}
 	}
 	if _, ok := _c.mutation.MemoryEnabled(); !ok {
 		return &ValidationError{Name: "memory_enabled", err: errors.New(`ent: missing required field "KaguyaSystemInfo.memory_enabled"`)}
@@ -807,6 +849,14 @@ func (_c *KaguyaSystemInfoCreate) createSpec() (*KaguyaSystemInfo, *sqlgraph.Cre
 	if value, ok := _c.mutation.TaskModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldTaskModelID, field.TypeString, value)
 		_node.TaskModelID = value
+	}
+	if value, ok := _c.mutation.WebSearchEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldWebSearchEnabled, field.TypeBool, value)
+		_node.WebSearchEnabled = value
+	}
+	if value, ok := _c.mutation.WebSearchAPIKey(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldWebSearchAPIKey, field.TypeString, value)
+		_node.WebSearchAPIKey = value
 	}
 	if value, ok := _c.mutation.MemoryEnabled(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldMemoryEnabled, field.TypeBool, value)
@@ -1203,6 +1253,30 @@ func (u *KaguyaSystemInfoUpsert) SetTaskModelID(v string) *KaguyaSystemInfoUpser
 // UpdateTaskModelID sets the "task_model_id" field to the value that was provided on create.
 func (u *KaguyaSystemInfoUpsert) UpdateTaskModelID() *KaguyaSystemInfoUpsert {
 	u.SetExcluded(kaguyasysteminfo.FieldTaskModelID)
+	return u
+}
+
+// SetWebSearchEnabled sets the "web_search_enabled" field.
+func (u *KaguyaSystemInfoUpsert) SetWebSearchEnabled(v bool) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldWebSearchEnabled, v)
+	return u
+}
+
+// UpdateWebSearchEnabled sets the "web_search_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateWebSearchEnabled() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldWebSearchEnabled)
+	return u
+}
+
+// SetWebSearchAPIKey sets the "web_search_api_key" field.
+func (u *KaguyaSystemInfoUpsert) SetWebSearchAPIKey(v string) *KaguyaSystemInfoUpsert {
+	u.Set(kaguyasysteminfo.FieldWebSearchAPIKey, v)
+	return u
+}
+
+// UpdateWebSearchAPIKey sets the "web_search_api_key" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsert) UpdateWebSearchAPIKey() *KaguyaSystemInfoUpsert {
+	u.SetExcluded(kaguyasysteminfo.FieldWebSearchAPIKey)
 	return u
 }
 
@@ -1699,6 +1773,34 @@ func (u *KaguyaSystemInfoUpsertOne) SetTaskModelID(v string) *KaguyaSystemInfoUp
 func (u *KaguyaSystemInfoUpsertOne) UpdateTaskModelID() *KaguyaSystemInfoUpsertOne {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateTaskModelID()
+	})
+}
+
+// SetWebSearchEnabled sets the "web_search_enabled" field.
+func (u *KaguyaSystemInfoUpsertOne) SetWebSearchEnabled(v bool) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetWebSearchEnabled(v)
+	})
+}
+
+// UpdateWebSearchEnabled sets the "web_search_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateWebSearchEnabled() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateWebSearchEnabled()
+	})
+}
+
+// SetWebSearchAPIKey sets the "web_search_api_key" field.
+func (u *KaguyaSystemInfoUpsertOne) SetWebSearchAPIKey(v string) *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetWebSearchAPIKey(v)
+	})
+}
+
+// UpdateWebSearchAPIKey sets the "web_search_api_key" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertOne) UpdateWebSearchAPIKey() *KaguyaSystemInfoUpsertOne {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateWebSearchAPIKey()
 	})
 }
 
@@ -2372,6 +2474,34 @@ func (u *KaguyaSystemInfoUpsertBulk) SetTaskModelID(v string) *KaguyaSystemInfoU
 func (u *KaguyaSystemInfoUpsertBulk) UpdateTaskModelID() *KaguyaSystemInfoUpsertBulk {
 	return u.Update(func(s *KaguyaSystemInfoUpsert) {
 		s.UpdateTaskModelID()
+	})
+}
+
+// SetWebSearchEnabled sets the "web_search_enabled" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetWebSearchEnabled(v bool) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetWebSearchEnabled(v)
+	})
+}
+
+// UpdateWebSearchEnabled sets the "web_search_enabled" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateWebSearchEnabled() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateWebSearchEnabled()
+	})
+}
+
+// SetWebSearchAPIKey sets the "web_search_api_key" field.
+func (u *KaguyaSystemInfoUpsertBulk) SetWebSearchAPIKey(v string) *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.SetWebSearchAPIKey(v)
+	})
+}
+
+// UpdateWebSearchAPIKey sets the "web_search_api_key" field to the value that was provided on create.
+func (u *KaguyaSystemInfoUpsertBulk) UpdateWebSearchAPIKey() *KaguyaSystemInfoUpsertBulk {
+	return u.Update(func(s *KaguyaSystemInfoUpsert) {
+		s.UpdateWebSearchAPIKey()
 	})
 }
 

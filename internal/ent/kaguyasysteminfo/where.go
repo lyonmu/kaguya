@@ -176,6 +176,16 @@ func TaskModelID(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldTaskModelID, v))
 }
 
+// WebSearchEnabled applies equality check predicate on the "web_search_enabled" field. It's identical to WebSearchEnabledEQ.
+func WebSearchEnabled(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldWebSearchEnabled, v))
+}
+
+// WebSearchAPIKey applies equality check predicate on the "web_search_api_key" field. It's identical to WebSearchAPIKeyEQ.
+func WebSearchAPIKey(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldWebSearchAPIKey, v))
+}
+
 // MemoryEnabled applies equality check predicate on the "memory_enabled" field. It's identical to MemoryEnabledEQ.
 func MemoryEnabled(v bool) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldMemoryEnabled, v))
@@ -1337,6 +1347,81 @@ func TaskModelIDEqualFold(v string) predicate.KaguyaSystemInfo {
 // TaskModelIDContainsFold applies the ContainsFold predicate on the "task_model_id" field.
 func TaskModelIDContainsFold(v string) predicate.KaguyaSystemInfo {
 	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldTaskModelID, v))
+}
+
+// WebSearchEnabledEQ applies the EQ predicate on the "web_search_enabled" field.
+func WebSearchEnabledEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldWebSearchEnabled, v))
+}
+
+// WebSearchEnabledNEQ applies the NEQ predicate on the "web_search_enabled" field.
+func WebSearchEnabledNEQ(v bool) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldWebSearchEnabled, v))
+}
+
+// WebSearchAPIKeyEQ applies the EQ predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEQ(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyNEQ applies the NEQ predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyNEQ(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNEQ(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyIn applies the In predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldIn(FieldWebSearchAPIKey, vs...))
+}
+
+// WebSearchAPIKeyNotIn applies the NotIn predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyNotIn(vs ...string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldNotIn(FieldWebSearchAPIKey, vs...))
+}
+
+// WebSearchAPIKeyGT applies the GT predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyGT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGT(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyGTE applies the GTE predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyGTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldGTE(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyLT applies the LT predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyLT(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLT(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyLTE applies the LTE predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyLTE(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldLTE(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyContains applies the Contains predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyContains(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContains(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyHasPrefix applies the HasPrefix predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyHasPrefix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasPrefix(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyHasSuffix applies the HasSuffix predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyHasSuffix(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldHasSuffix(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyEqualFold applies the EqualFold predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyEqualFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldEqualFold(FieldWebSearchAPIKey, v))
+}
+
+// WebSearchAPIKeyContainsFold applies the ContainsFold predicate on the "web_search_api_key" field.
+func WebSearchAPIKeyContainsFold(v string) predicate.KaguyaSystemInfo {
+	return predicate.KaguyaSystemInfo(sql.FieldContainsFold(FieldWebSearchAPIKey, v))
 }
 
 // MemoryEnabledEQ applies the EQ predicate on the "memory_enabled" field.

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/lyonmu/kaguya/internal/config"
+	"github.com/lyonmu/kaguya/internal/consts"
 	"github.com/lyonmu/kaguya/internal/db"
 )
 
@@ -57,6 +58,9 @@ func TestAdditiveMigrationPreservesLegacyData(t *testing.T) {
 	cfg, conn := legacyDatabase(t)
 	execSQL(t, conn,
 		"DROP TABLE IF EXISTS kaguya_title_job",
+		"ALTER TABLE kaguya_system_info DROP COLUMN web_search_enabled",
+		"ALTER TABLE kaguya_system_info DROP COLUMN web_search_api_key",
+		`INSERT INTO kaguya_system_info (id, created_at, updated_at, system_prompt) VALUES ('`+consts.SystemInfoID+`', '2026-01-01 00:00:00', '2026-01-01 00:00:00', 'legacy prompt')`,
 		"DROP TABLE IF EXISTS kaguya_approval",
 		"ALTER TABLE kaguya_conversation DROP COLUMN project_instructions",
 		"ALTER TABLE kaguya_conversation DROP COLUMN instructions_format",
@@ -89,6 +93,13 @@ func TestAdditiveMigrationPreservesLegacyData(t *testing.T) {
 			t.Fatalf("migration attempt %d: %v", attempt+1, err)
 		}
 		ctx := context.Background()
+		info, err := client.KaguyaSystemInfo.Get(ctx, consts.SystemInfoID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.WebSearchEnabled || info.WebSearchAPIKey != "" || info.SystemPrompt != "legacy prompt" {
+			t.Fatal("web search migration changed existing settings or enabled new tools")
+		}
 		row, err := client.KaguyaConversation.Get(ctx, "legacy-1")
 		if err != nil {
 			t.Fatal(err)

@@ -64,6 +64,10 @@ type KaguyaSystemInfo struct {
 	DefaultModelID string `json:"default_model_id,omitempty"`
 	// 后台任务模型的本地记录 ID，空值表示未配置
 	TaskModelID string `json:"task_model_id,omitempty"`
+	// 是否启用网页搜索和抓取工具
+	WebSearchEnabled bool `json:"web_search_enabled,omitempty"`
+	// 加密后的 DeepSeek 搜索服务 API Key
+	WebSearchAPIKey string `json:"-"`
 	// 长期记忆总开关：关闭后停止自动召回、工具与编译
 	MemoryEnabled bool `json:"memory_enabled,omitempty"`
 	// 是否自动产生新来源；关闭只停止学习，不删除已有页面
@@ -82,11 +86,11 @@ func (*KaguyaSystemInfo) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case kaguyasysteminfo.FieldGlobalAgentsPaths:
 			values[i] = new([]byte)
-		case kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldMemoryEnabled, kaguyasysteminfo.FieldMemoryAutoCapture:
+		case kaguyasysteminfo.FieldModelSyncEnabled, kaguyasysteminfo.FieldWebSearchEnabled, kaguyasysteminfo.FieldMemoryEnabled, kaguyasysteminfo.FieldMemoryAutoCapture:
 			values[i] = new(sql.NullBool)
 		case kaguyasysteminfo.FieldAgentMaxSteps, kaguyasysteminfo.FieldContextCompactionPercent, kaguyasysteminfo.FieldCommandTimeoutSeconds, kaguyasysteminfo.FieldChatMaxRetries, kaguyasysteminfo.FieldModelSyncIntervalHours, kaguyasysteminfo.FieldModelCatalogCount, kaguyasysteminfo.FieldProviderCatalogCount, kaguyasysteminfo.FieldMemoryContextTokens, kaguyasysteminfo.FieldMemoryPolicyEpoch:
 			values[i] = new(sql.NullInt64)
-		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldProviderSyncURL, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldProviderCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID:
+		case kaguyasysteminfo.FieldID, kaguyasysteminfo.FieldGlobalSystemPrompt, kaguyasysteminfo.FieldSystemPrompt, kaguyasysteminfo.FieldProviderSyncURL, kaguyasysteminfo.FieldModelSyncURL, kaguyasysteminfo.FieldModelCatalogJSON, kaguyasysteminfo.FieldProviderCatalogJSON, kaguyasysteminfo.FieldModelSyncLastError, kaguyasysteminfo.FieldDefaultModelID, kaguyasysteminfo.FieldTaskModelID, kaguyasysteminfo.FieldWebSearchAPIKey:
 			values[i] = new(sql.NullString)
 		case kaguyasysteminfo.FieldCreatedAt, kaguyasysteminfo.FieldUpdatedAt, kaguyasysteminfo.FieldDeletedAt, kaguyasysteminfo.FieldModelSyncLastAttemptAt, kaguyasysteminfo.FieldModelSyncLastSuccessAt:
 			values[i] = new(sql.NullTime)
@@ -254,6 +258,18 @@ func (_m *KaguyaSystemInfo) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.TaskModelID = value.String
 			}
+		case kaguyasysteminfo.FieldWebSearchEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field web_search_enabled", values[i])
+			} else if value.Valid {
+				_m.WebSearchEnabled = value.Bool
+			}
+		case kaguyasysteminfo.FieldWebSearchAPIKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field web_search_api_key", values[i])
+			} else if value.Valid {
+				_m.WebSearchAPIKey = value.String
+			}
 		case kaguyasysteminfo.FieldMemoryEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field memory_enabled", values[i])
@@ -388,6 +404,11 @@ func (_m *KaguyaSystemInfo) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("task_model_id=")
 	builder.WriteString(_m.TaskModelID)
+	builder.WriteString(", ")
+	builder.WriteString("web_search_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WebSearchEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("web_search_api_key=<sensitive>")
 	builder.WriteString(", ")
 	builder.WriteString("memory_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.MemoryEnabled))

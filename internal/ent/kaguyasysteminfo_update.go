@@ -401,6 +401,34 @@ func (_u *KaguyaSystemInfoUpdate) SetNillableTaskModelID(v *string) *KaguyaSyste
 	return _u
 }
 
+// SetWebSearchEnabled sets the "web_search_enabled" field.
+func (_u *KaguyaSystemInfoUpdate) SetWebSearchEnabled(v bool) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetWebSearchEnabled(v)
+	return _u
+}
+
+// SetNillableWebSearchEnabled sets the "web_search_enabled" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableWebSearchEnabled(v *bool) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetWebSearchEnabled(*v)
+	}
+	return _u
+}
+
+// SetWebSearchAPIKey sets the "web_search_api_key" field.
+func (_u *KaguyaSystemInfoUpdate) SetWebSearchAPIKey(v string) *KaguyaSystemInfoUpdate {
+	_u.mutation.SetWebSearchAPIKey(v)
+	return _u
+}
+
+// SetNillableWebSearchAPIKey sets the "web_search_api_key" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdate) SetNillableWebSearchAPIKey(v *string) *KaguyaSystemInfoUpdate {
+	if v != nil {
+		_u.SetWebSearchAPIKey(*v)
+	}
+	return _u
+}
+
 // SetMemoryEnabled sets the "memory_enabled" field.
 func (_u *KaguyaSystemInfoUpdate) SetMemoryEnabled(v bool) *KaguyaSystemInfoUpdate {
 	_u.mutation.SetMemoryEnabled(v)
@@ -699,6 +727,12 @@ func (_u *KaguyaSystemInfoUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.TaskModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldTaskModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.WebSearchEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldWebSearchEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.WebSearchAPIKey(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldWebSearchAPIKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.MemoryEnabled(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldMemoryEnabled, field.TypeBool, value)
@@ -1111,6 +1145,34 @@ func (_u *KaguyaSystemInfoUpdateOne) SetNillableTaskModelID(v *string) *KaguyaSy
 	return _u
 }
 
+// SetWebSearchEnabled sets the "web_search_enabled" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetWebSearchEnabled(v bool) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetWebSearchEnabled(v)
+	return _u
+}
+
+// SetNillableWebSearchEnabled sets the "web_search_enabled" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableWebSearchEnabled(v *bool) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetWebSearchEnabled(*v)
+	}
+	return _u
+}
+
+// SetWebSearchAPIKey sets the "web_search_api_key" field.
+func (_u *KaguyaSystemInfoUpdateOne) SetWebSearchAPIKey(v string) *KaguyaSystemInfoUpdateOne {
+	_u.mutation.SetWebSearchAPIKey(v)
+	return _u
+}
+
+// SetNillableWebSearchAPIKey sets the "web_search_api_key" field if the given value is not nil.
+func (_u *KaguyaSystemInfoUpdateOne) SetNillableWebSearchAPIKey(v *string) *KaguyaSystemInfoUpdateOne {
+	if v != nil {
+		_u.SetWebSearchAPIKey(*v)
+	}
+	return _u
+}
+
 // SetMemoryEnabled sets the "memory_enabled" field.
 func (_u *KaguyaSystemInfoUpdateOne) SetMemoryEnabled(v bool) *KaguyaSystemInfoUpdateOne {
 	_u.mutation.SetMemoryEnabled(v)
@@ -1439,6 +1501,12 @@ func (_u *KaguyaSystemInfoUpdateOne) sqlSave(ctx context.Context) (_node *Kaguya
 	}
 	if value, ok := _u.mutation.TaskModelID(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldTaskModelID, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.WebSearchEnabled(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldWebSearchEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.WebSearchAPIKey(); ok {
+		_spec.SetField(kaguyasysteminfo.FieldWebSearchAPIKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.MemoryEnabled(); ok {
 		_spec.SetField(kaguyasysteminfo.FieldMemoryEnabled, field.TypeBool, value)

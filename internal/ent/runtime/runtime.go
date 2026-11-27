@@ -1848,16 +1848,24 @@ func init() {
 	kaguyasysteminfoDescTaskModelID := kaguyasysteminfoFields[20].Descriptor()
 	// kaguyasysteminfo.DefaultTaskModelID holds the default value on creation for the task_model_id field.
 	kaguyasysteminfo.DefaultTaskModelID = kaguyasysteminfoDescTaskModelID.Default.(string)
+	// kaguyasysteminfoDescWebSearchEnabled is the schema descriptor for web_search_enabled field.
+	kaguyasysteminfoDescWebSearchEnabled := kaguyasysteminfoFields[21].Descriptor()
+	// kaguyasysteminfo.DefaultWebSearchEnabled holds the default value on creation for the web_search_enabled field.
+	kaguyasysteminfo.DefaultWebSearchEnabled = kaguyasysteminfoDescWebSearchEnabled.Default.(bool)
+	// kaguyasysteminfoDescWebSearchAPIKey is the schema descriptor for web_search_api_key field.
+	kaguyasysteminfoDescWebSearchAPIKey := kaguyasysteminfoFields[22].Descriptor()
+	// kaguyasysteminfo.DefaultWebSearchAPIKey holds the default value on creation for the web_search_api_key field.
+	kaguyasysteminfo.DefaultWebSearchAPIKey = kaguyasysteminfoDescWebSearchAPIKey.Default.(string)
 	// kaguyasysteminfoDescMemoryEnabled is the schema descriptor for memory_enabled field.
-	kaguyasysteminfoDescMemoryEnabled := kaguyasysteminfoFields[21].Descriptor()
+	kaguyasysteminfoDescMemoryEnabled := kaguyasysteminfoFields[23].Descriptor()
 	// kaguyasysteminfo.DefaultMemoryEnabled holds the default value on creation for the memory_enabled field.
 	kaguyasysteminfo.DefaultMemoryEnabled = kaguyasysteminfoDescMemoryEnabled.Default.(bool)
 	// kaguyasysteminfoDescMemoryAutoCapture is the schema descriptor for memory_auto_capture field.
-	kaguyasysteminfoDescMemoryAutoCapture := kaguyasysteminfoFields[22].Descriptor()
+	kaguyasysteminfoDescMemoryAutoCapture := kaguyasysteminfoFields[24].Descriptor()
 	// kaguyasysteminfo.DefaultMemoryAutoCapture holds the default value on creation for the memory_auto_capture field.
 	kaguyasysteminfo.DefaultMemoryAutoCapture = kaguyasysteminfoDescMemoryAutoCapture.Default.(bool)
 	// kaguyasysteminfoDescMemoryContextTokens is the schema descriptor for memory_context_tokens field.
-	kaguyasysteminfoDescMemoryContextTokens := kaguyasysteminfoFields[23].Descriptor()
+	kaguyasysteminfoDescMemoryContextTokens := kaguyasysteminfoFields[25].Descriptor()
 	// kaguyasysteminfo.DefaultMemoryContextTokens holds the default value on creation for the memory_context_tokens field.
 	kaguyasysteminfo.DefaultMemoryContextTokens = kaguyasysteminfoDescMemoryContextTokens.Default.(int)
 	// kaguyasysteminfo.MemoryContextTokensValidator is a validator for the "memory_context_tokens" field. It is called by the builders before save.
@@ -1877,7 +1885,7 @@ func init() {
 		}
 	}()
 	// kaguyasysteminfoDescMemoryPolicyEpoch is the schema descriptor for memory_policy_epoch field.
-	kaguyasysteminfoDescMemoryPolicyEpoch := kaguyasysteminfoFields[24].Descriptor()
+	kaguyasysteminfoDescMemoryPolicyEpoch := kaguyasysteminfoFields[26].Descriptor()
 	// kaguyasysteminfo.DefaultMemoryPolicyEpoch holds the default value on creation for the memory_policy_epoch field.
 	kaguyasysteminfo.DefaultMemoryPolicyEpoch = kaguyasysteminfoDescMemoryPolicyEpoch.Default.(int64)
 	// kaguyasysteminfo.MemoryPolicyEpochValidator is a validator for the "memory_policy_epoch" field. It is called by the builders before save.
