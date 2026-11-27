@@ -206,7 +206,7 @@ Project conversations run with the project directory as working directory and en
 
 ## 4. Preferences → AI configuration
 
-AI configuration has four tabs: **提供商与模型** (providers and models), **MCP 管理** (MCP), **提供商目录** (provider catalog), and **模型目录** (model catalog).
+AI configuration has five tabs: **提供商与模型** (providers and models), **MCP 管理** (MCP), **联网搜索管理** (web search), **提供商目录** (provider catalog), and **模型目录** (model catalog).
 
 ### 4.1 Providers and models
 
@@ -281,13 +281,19 @@ Behavior:
 - A recovery-state storage failure stops automatic retries. A healthy connection keeps its running status while the interface separately reports the storage failure. Only a successfully saved manual cycle, re-enable, or configuration replacement clears this process's block. Manual reconnect closes the old connection after saving the new cycle and interrupts its requests; external effects are not undone.
 - Runtime hardening (same-origin HTTP requests, refusing cross-origin redirects and HTTPS downgrade, never logging environment variables or auth headers) is described in [7.5](#75-mcp-runtime).
 
-### 4.3 Provider catalog
+### 4.3 Web search management
+
+Enter a DeepSeek API key and save **启用联网搜索和抓取** to make both `web_search` and `web_fetch` available in ordinary and project chats with a model configured for tool calling. DeepSeek handles the searches and page retrieval. You can use any configured provider for the chat model.
+
+This setting is disabled by default. Changes apply to the next turn. Disabling preserves the encrypted key, and an empty key field keeps the saved value. In full approval and auto approval modes, each search and fetch requires approval. Full access allows both tools to run directly. DeepSeek bills successful [Search and Fetch requests](https://api-docs.deepseek.com/guides/search/#pricing) that return results.
+
+### 4.4 Provider catalog
 
 The models.dev provider catalog (`api.json`), keeping only providers with an API address, sorted A→Z by name. Searchable by provider name, identifier, package, or API address; columns: provider (name + identifier), model count, package, API address (copyable), and a documentation link. The header offers “重新加载” (reload) and “立即同步” (sync now). New providers are added from “提供商与模型” by searching this catalog.
 
 ![Provider catalog: models.dev provider list with model counts and API addresses](../images/app/chat-6.png)
 
-### 4.4 Model catalog
+### 4.5 Model catalog
 
 The models.dev model catalog (`models.json`), deduplicated by model and sorted by release date newest first. Searchable by model name, identifier, provider, family, or description; columns: model (name + identifier + description), provider, context, max output, input modalities (text / image / pdf / audio / video), capabilities (推理 / Tool / 视觉 / JSON), and a “查看” (view) action. The detail drawer shows provider, family, release date, last update, context window, max output, input modalities, and the four capabilities. Reload and sync-now buttons are in the header as well.
 

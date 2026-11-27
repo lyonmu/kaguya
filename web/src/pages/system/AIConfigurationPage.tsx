@@ -22,6 +22,12 @@ const MCPManagementPanel = lazy(() =>
   })),
 );
 
+const WebSearchManagementPanel = lazy(() =>
+  import("./WebSearchManagementPanel").then((module) => ({
+    default: module.WebSearchManagementPanel,
+  })),
+);
+
 export function AIConfigurationPage() {
   return (
     <Suspense
@@ -42,6 +48,11 @@ export function AIConfigurationPage() {
             children: <ProviderManagementPage />,
           },
           { key: "mcp", label: "MCP 管理", children: <MCPManagementPanel /> },
+          {
+            key: "web-search",
+            label: "联网搜索管理",
+            children: <WebSearchManagementPanel />,
+          },
           {
             key: "provider-catalog",
             label: "提供商目录",
