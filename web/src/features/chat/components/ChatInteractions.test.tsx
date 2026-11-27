@@ -447,3 +447,35 @@ it('moves resolved live approvals into the latest message once and keeps histori
   view.rerender(<MessageList {...props} page={1} totalPages={2} turns={[{ ...turn, approvals: [] }]} liveApprovals={[resolved]} />)
   assert.equal(view.queryByText('工具返回成功'), null)
 })
+
+it('shows safe search links and a bounded fetch preview in existing tool cards', async () => {
+  const url = 'https://example.com/article'
+  const block = { type: 'tool_call' as const, phase: 'block_end' as const }
+  const search = {
+    ...block, tool_name: 'web_search', input: '{"query":"topic"}',
+    output: { type: 'text' as const, text: JSON.stringify({ results: [
+      { url, title: '搜索来源', snippet: '网页摘要' },
+      { url: 'javascript:alert(1)', title: '非法来源' },
+    ] }) },
+  }
+  const view = render(<ActivityBlock block={search} />)
+  assert.ok(view.getByText('网页搜索'))
+  const details = view.container.querySelector('details')!
+  await act(async () => { details.open = true; fireEvent(details, new dom.Event('toggle') as unknown as Event) })
+  assert.equal(view.getByRole('link', { name: '搜索来源' }).getAttribute('href'), url)
+  assert.ok(view.getByText('网页摘要'))
+  assert.equal(view.queryByRole('link', { name: '非法来源' }), null)
+  view.rerender(<ActivityBlock block={{ ...search, output: { type: 'text', text: '{"results":[]}' } }} />)
+  assert.ok(view.getByText('没有找到相关网页'))
+
+  const content = '# 正文\n![外部图片](https://example.com/image.png)'
+  view.rerender(<ActivityBlock block={{
+    ...block, tool_name: 'web_fetch', input: JSON.stringify({ url }),
+    output: { type: 'text', text: JSON.stringify({ url, title: '抓取页面', content, truncated: true }) },
+  }} />)
+  assert.ok(view.getByText('网页抓取'))
+  assert.equal(view.getByRole('link', { name: '抓取页面' }).getAttribute('href'), url)
+  assert.equal(view.getByLabelText('output 代码').textContent, content)
+  assert.ok(view.getByText('仅显示正文开头，内容已截断'))
+  assert.equal(view.container.querySelector('img'), null)
+})

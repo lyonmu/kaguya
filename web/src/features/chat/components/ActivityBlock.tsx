@@ -3,6 +3,7 @@ import { CheckCircleOutlined, CloseCircleOutlined, CodeOutlined, FileTextOutline
 import type { Block } from '../types'
 import { CodeBlock, CopyButton, Markdown } from './Markdown'
 import { fetchBlock } from '../api'
+import { WebToolResult } from './WebToolResult'
 
 function useDuration(block: Block, running: boolean) {
   const [now, setNow] = useState(Date.now())
@@ -23,8 +24,8 @@ function toolSummary(block: Block) {
     const parsed: unknown = JSON.parse(block.input || '{}')
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) input = parsed as Record<string, unknown>
   } catch { /* Partial streaming JSON. */ }
-  const names: Record<string, string> = { read: '读取文件', bash: '执行命令', edit: '修改文件', write: '写入文件', grep: '搜索内容', find: '查找文件', ls: '浏览目录', memory_read: '读取记忆', memory_search: '检索记忆' }
-  const detail = input.command ?? input.path ?? input.query ?? input.pattern ?? input.page_id ?? ''
+  const names: Record<string, string> = { read: '读取文件', bash: '执行命令', edit: '修改文件', write: '写入文件', grep: '搜索内容', find: '查找文件', ls: '浏览目录', memory_read: '读取记忆', memory_search: '检索记忆', web_search: '网页搜索', web_fetch: '网页抓取' }
+  const detail = input.command ?? input.path ?? input.query ?? input.pattern ?? input.page_id ?? (block.tool_name === 'web_fetch' ? input.url : '')
   return { label: names[block.tool_name || ''] || block.tool_name || '工具调用', detail: typeof detail === 'string' ? detail : '', input }
 }
 
@@ -67,7 +68,12 @@ export function ActivityBlock({ block: summary, streaming = false, conversationI
     {open && !pending && (thinking ? <div className="chat-reasoning-content"><Markdown text={block.text || '正在整理思路…'} streaming={running} /></div> : <div className="chat-activity-body">
       <div className="chat-activity-section">{block.tool_name === 'bash' ? '命令' : '参数'}</div>
       <CodeBlock code={inputAction} language={block.tool_name === 'bash' ? 'bash' : 'json'} copyable={false} />
-      {block.output && <><div className="chat-activity-section">输出</div><CodeBlock code={block.output.type === 'media' ? `媒体输出 · ${block.output.media_type || '未知类型'}（不自动加载）` : block.output.text || '（空输出）'} language="output" copyable={false} /></>}
+      {block.output && <>
+        <div className="chat-activity-section">输出</div>
+        {block.output.type === 'text' && (block.tool_name === 'web_search' || block.tool_name === 'web_fetch')
+          ? <WebToolResult name={block.tool_name} text={block.output.text || ''} />
+          : <CodeBlock code={block.output.type === 'media' ? `媒体输出 · ${block.output.media_type || '未知类型'}（不自动加载）` : block.output.text || '（空输出）'} language="output" copyable={false} />}
+      </>}
       {block.error_message && <p className="chat-failure">{block.error_message}</p>}
       <div className="chat-local-actions" aria-label={`${info.label}本地操作`}>
         <CopyButton text={inputAction} label={block.tool_name === 'bash' ? '复制命令' : '复制参数'} visibleLabel={block.tool_name === 'bash' ? '复制命令' : '复制参数'} />

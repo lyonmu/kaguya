@@ -59,6 +59,15 @@ function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
   return <img src={src} alt={alt ?? ''} referrerPolicy="no-referrer" />
 }
 
+export function ExternalLink({ href, children }: { href?: string; children?: ReactNode }) {
+  return <a href={href} target="_blank" rel="noopener noreferrer" onClick={event => {
+    // Desktop 不把外部站点加载到应用窗口，交给系统浏览器打开。
+    if (!href || !isDesktop()) return
+    event.preventDefault()
+    void openExternal(href).catch(() => { /* 打开失败时保持当前页面 */ })
+  }}>{children}</a>
+}
+
 export function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
   const components = useMemo<Components>(() => ({
     pre: ({ children }) => {
@@ -68,17 +77,7 @@ export function Markdown({ text, streaming = false }: { text: string; streaming?
       return language?.toLowerCase() === 'mermaid' ? <MermaidBlock code={code} streaming={streaming} /> : <CodeBlock code={code} language={language} />
     },
     table: ({ children }) => <div className="chat-table-scroll" tabIndex={0} aria-label="表格"><table>{children}</table></div>,
-    a: ({ href, children }) => <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={event => {
-        // Desktop 不把外部站点加载到应用窗口，交给系统浏览器打开。
-        if (!href || !isDesktop()) return
-        event.preventDefault()
-        void openExternal(href).catch(() => { /* 打开失败时保持当前页面 */ })
-      }}
-    >{children}</a>,
+    a: ExternalLink,
     img: MarkdownImage,
   }), [streaming])
   return <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{text}</ReactMarkdown></div>
