@@ -11,17 +11,15 @@
 
 # Kaguya
 
-**Kaguya** is my personal desktop AI Agent: everyday conversations, local project work, model and MCP configuration, history, and token usage in one application. The backend uses Go, the React interface ships inside the binary, and data is stored locally in a SQLCipher-encrypted database.
+**Kaguya** is my personal desktop AI Agent: everyday conversations, local project work, model configuration, MCP and web tools, history, and token usage in one application. The backend uses Go, the React interface ships inside the binary, and data is stored locally in a SQLCipher-encrypted database.
 
-The project targets a cross-platform Desktop application. **The native desktop host and packaging implemented in this repository support macOS 14 and later**; the interface is currently in Chinese.
-
-![Kaguya chat interface with conversation history, streaming answers, and tool cards](images/app/chat-1.png)
+The downloadable desktop app supports **macOS 14 or later on Apple silicon**. The interface is in Chinese.
 
 ## Features
 
 - **Conversations**: streaming Markdown answers, Mermaid diagrams, expandable reasoning and tool cards, per-turn tokens / duration / tool-call counts, paginated history, and concurrent sessions that keep running while you switch; titles come from a persistent FIFO queue and merge by revision through events and reconnect snapshots, with an explicit action to generate a missing title.
-- **Local projects**: work inside a home-directory project with seven built-in tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`), `@` file, directory, and project-root references with a paged typed candidate list, reference details showing preparation state and actual excerpt ranges, and a code browser with file tree and unified / split Git diffs. Failed turns can restore reference selections after checking the conversation's current project association; restoring does not send a message.
-- **Permissions and approvals**: three per-conversation modes (full approval, auto approval, full access). All Bash and MCP calls require approval in restricted modes; auto approval exempts only trusted read-only tools. The wait window is 10 minutes, and structured denials let the model continue. Audits retain associations, hashes, and separate execution results rather than arguments; unconfirmed results stay unknown and are never replayed automatically.
+- **Local projects**: add a project under your home directory and use built-in file and command tools, `@` file, directory, and project-root references with a paged typed candidate list, reference details showing preparation state and actual excerpt ranges, and a code browser with file tree and unified / split Git diffs. Failed turns can restore reference selections after checking the conversation's current project association; restoring does not send a message.
+- **Permissions and approvals**: three per-conversation modes (full approval, auto approval, full access). Bash, MCP, and web tool calls require approval in restricted modes; auto approval exempts only trusted read-only tools. The wait window is 10 minutes, and structured denials let the model continue. Audits retain associations, hashes, and separate execution results rather than arguments; unconfirmed results stay unknown and are never replayed automatically.
 - **Models and providers**: OpenAI Chat, OpenAI Responses, and Anthropic protocols on a per-model basis, catalog prefill from [models.dev](https://models.dev), request-path overrides, a mandatory model test before saving, and refreshed model choices after provider/model changes.
 - **MCP tools**: `stdio`, `streamable-http`, and `sse` services with dynamic enable / disable, runtime status and failure count, per-service timeouts, automatic reconnection with exponential backoff after a dropped connection, and a circuit breaker after five consecutive failures with manual reconnect; recovery-state storage failures stop automatic retries and are shown separately.
 - **Web tools**: enable DeepSeek Search and Fetch together under **联网搜索管理**. Any configured chat model with tool calling can search the web and retrieve page text.
@@ -30,14 +28,19 @@ The project targets a cross-platform Desktop application. **The native desktop h
 - **Usage analytics**: token totals and peaks, a one-year activity heatmap, and composition by model or provider.
 - **Local-first data**: SQLCipher database, AES-256-GCM encrypted API keys, no listening port in Desktop mode.
 
+## Install
+
+Download `Kaguya-0.1.0.dmg` from [GitHub Releases](https://github.com/lyonmu/kaguya/releases/tag/v0.1.0). Open the DMG, drag `Kaguya.app` into `Applications`, and open it from there. The app bundle is ad-hoc signed. This release has no Apple notarization.
+
+When upgrading, quit Kaguya before replacing the app. On the next launch it opens the existing local database.
+
 ## Getting started
 
-1. Open `Kaguya.app` (from a DMG, drag it into `Applications` first).
-2. Open **偏好与配置 → AI 配置 → 提供商与模型**, add a provider — you can prefill name and Base URL from the provider catalog — and enter the API key. Under a provider's **模型管理**, add a model and pass the **测试** before saving.
-3. In **系统配置**, pick a default chat model and a background-task model (used for conversation titles), and sync the catalogs if needed.
-4. Return to **对话管理** to chat, or switch to the **项目** tab and add a local directory for project work.
+1. Open **偏好与配置 → AI 配置 → 提供商与模型**, add a provider — you can prefill name and Base URL from the provider catalog — and enter the API key. Under a provider's **模型管理**, add a model and pass the **测试** before saving.
+2. In **系统配置**, pick a default chat model and a background-task model (used for conversation titles), and sync the catalogs if needed.
+3. Return to **对话管理** to chat, or switch to the **项目** tab and add a local directory for project work.
 
-An installed application needs neither Go, Bun, nor a separate database service. Model requests use your configured providers and credentials; project commands and local MCP services use tools installed on the host.
+An installed application needs neither Go, Bun, nor a separate database service. Model requests use your configured providers and credentials; project commands and local MCP services use tools installed on the host. Web search and page retrieval use the DeepSeek API key saved under **联网搜索管理**.
 
 ## Documentation
 

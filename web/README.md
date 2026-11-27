@@ -1,68 +1,53 @@
-# Kaguya Agent Console
+# Kaguya 前端
 
-Kaguya 的 React 管理控制台。默认首页为对话工作区，系统管理中提供用量分析和 AI 提供商配置。
-
-## 技术栈
-
-- React 19 + TypeScript + Vite
-- Ant Design
-- Tailwind CSS 4
-- Day.js
-
-页面支持明亮/暗黑模式，并会将用户选择保存在 `localStorage` 中；首次访问默认跟随操作系统。
+Kaguya 的 React 界面由 macOS Desktop 和可选 Web 模式共用。Desktop 将前端静态文件嵌入 Go 二进制，通过 Wails 原生通道调用后端。安装方法见 [项目 README](../README.zh.md)。
 
 ## 本地开发
 
-```bash
-bun install
+在仓库根目录构建并启动 Web 后端。
+
+```sh
+make build
+./target/kaguya --web
+```
+
+在另一个终端启动前端开发服务器。
+
+```sh
+cd web
+bun install --frozen-lockfile
 bun run dev
 ```
 
-开发服务器会将 `/kaguya/api` 代理到 `http://localhost:9024`，请先启动 Kaguya 后端。
+Vite 将 `/kaguya/api` 代理到 `http://127.0.0.1:9024`。Web 构建可通过 `VITE_API_BASE_URL` 指定其他 API 基础地址。Desktop 使用宿主提供的 API 前缀。
 
-如 API 使用其他基础地址，可在构建或启动前指定：
+## 页面与请求
 
-```bash
-VITE_API_BASE_URL=https://example.com/kaguya/api bun run build
-```
+- **对话管理**包含普通对话和项目工作区，支持并行会话、历史分页、工具审批与结果卡片。对话请求使用 `POST /kaguya/api/v1/chat/sse` 流式接收内容。切换页面时，运行中的轮次会继续。
+- **对话标题**由后端任务生成。前端通过 `GET /kaguya/api/v1/events` 接收更新，重连时补查快照。已有会话可从菜单操作「补生成标题」。
+- **偏好与配置**包含 AI 配置、系统配置和用量分析。AI 配置中的「联网搜索管理」统一设置 DeepSeek 网页搜索与抓取。两个工具可供支持工具调用的模型使用。
+- 页面支持明亮与暗黑主题。首次使用跟随系统，手动选择保存在 `localStorage`。
 
-## 构建与嵌入
+## 构建与检查
 
-在仓库根目录执行：
+在 `web/` 中运行测试、lint 和构建。
 
-```bash
-make build
-```
-
-该命令会构建前端，将 `web/dist/` 同步到 Go 的嵌入资源目录，再生成包含前端静态文件的单一 Kaguya 二进制。启动后访问 `http://localhost:9024/`。
-
-单独校验前端：
-
-```bash
+```sh
 bun run test
 bun run lint
 bun run build
 ```
 
-## 对话工作区
+仓库根目录的 `make frontend` 将 `web/dist/` 同步到 Go 嵌入目录。用 `make build` 构建完整二进制，或用 `make dmg-macos` 构建 macOS 安装包。Desktop 的前端改动需要重新构建并启动应用。
 
-- 使用 `POST /v1/chat/sse` 和 Fetch 流接收回复，不使用 WebSocket；模型由后端默认配置决定，请先在「系统管理 / AI 提供商」配置可用的默认模型。
-- 支持新建/续聊、标题前缀搜索、收藏、重命名、删除，以及按完整轮次向前加载历史。
-- 新会话在首轮正文开始生成前即由后端创建并出现在列表中；发送首轮时前端收到 `start` 帧就刷新列表并等待标题，不必等整轮完成。失败或取消的轮次保留空会话。
-- 新会话创建后后端立即并行请求一次标题（只用用户提问，不等回答），模型返回后异步写入数据库；前端同时调用 `POST /v1/chat/conversation/{id}/title/wait` 等待该任务并更新页头与列表。
-- 每轮 `done` 后检查已保存标题；仍为“新对话”且没有进行中的任务时，调用一次 `POST /v1/chat/conversation/{id}/title/wait`，根据已保存首轮问答及其提供商/模型重新生成。已有任务（含提前启动的）则共享等待，成功后条件更新数据库，不覆盖正式或手动标题。
-- 最多等待 30 秒，失败保留原标题，下一轮成功结束再尝试，不定时轮询。返回后仅更新页头和列表中的标题；切换会话、离开页面或手动改名时取消等待。
-- 保留原有 GET 等待接口的只读语义。任务合并与等待通知限于当前进程，多实例部署需要会话亲和路由。
-- 刷新当前会话时保留已有标题和消息；流式分配 ID 不重建消息视图，列表已有内容时不插入 loading 占位，避免闪烁和布局跳动。
-- Markdown 回复、思考和工具输入输出分别呈现；Overview 展示已保存会话的累计信息，Trace 展示已加载轮次，Debug 展示公开运行字段。
-- 停止生成或离开页面会中断请求，不会自动重发；失败或停止的轮次可能未持久化，可通过「更多 / 重新加载历史」确认。
-- `features/chat/api.ts` 负责接口，`sse.ts` 负责流解码，`reducer.ts` 负责内容块合并，hooks 管理请求生命周期，组件负责展示。测试覆盖 SSE 分片、错误/取消和并行工具事件。
+## 源码目录
 
-## 目录
+| 路径 | 用途 |
+| --- | --- |
+| `src/api/`、`src/platform/` | HTTP、流式请求和 Desktop 宿主适配 |
+| `src/pages/`、`src/components/` | 页面与共享布局 |
+| `src/features/chat/` | 对话 API、SSE 解码、状态合并、工具卡片与测试 |
+| `src/features/` | 其他业务的 API、类型、状态与组件 |
+| `src/app/`、`src/styles/` | 应用主题与全局样式 |
 
-- `src/api/`：通用 HTTP 客户端
-- `src/components/`：共享布局组件
-- `src/features/`：按业务领域组织的 API、类型与状态逻辑
-- `src/pages/`：页面组件
-- `src/app/`：应用级主题与模式配置
-- `src/styles/`：Tailwind 入口及全局设计变量
+界面使用 React、TypeScript、Vite、Ant Design 和 Tailwind CSS。页面与行为细节见 [中文 Wiki](../docs/wiki.zh.md)。

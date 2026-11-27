@@ -6,9 +6,7 @@
 
 # Kaguya Documentation (English)
 
-This is the complete interface and behavior documentation for Kaguya, describing every screen, control, limit, and backend behavior. Screenshots come from a locally installed `Kaguya.app`; the providers, models, MCP services, settings, and usage in them belong to that instance and are not built-in defaults. Defaults and ranges stated below follow the code.
-
-The interface is currently in Chinese. For a quick start and build instructions see [README.md](../README.md).
+This guide covers the Kaguya v0.1.0 interface, settings, and runtime behavior. The interface is in Chinese. For a quick start see [README.md](../README.md).
 
 ## Contents
 
@@ -38,8 +36,6 @@ The application opens on the chat screen: a session sidebar on the left, the mes
 
 The preferences screen has a settings navigation on the left (**AI configuration** AI 配置, **System configuration** 系统配置, **Usage records → Usage analytics** 使用记录 → 用量分析), a breadcrumb “偏好与配置 › current page” at the top, and a menu button to collapse the navigation; on narrow windows the navigation becomes a drawer. Settings and conversations share the same data, and switching pages never interrupts a running conversation.
 
-![New conversation welcome screen with hero text, composer, and model picker](../images/app/chat-2.png)
-
 A new conversation shows the welcome screen: the Kaguya avatar, the title, “从一个问题，到一件完成的事。” (From one question to one finished thing.) and the shortcut hint (Enter to send · Shift + Enter for a newline).
 
 ## 2. Conversations
@@ -49,10 +45,8 @@ A new conversation shows the welcome screen: the Kaguya avatar, the title, “�
 - The header shows the title **对话管理** (Conversations) and a **新建对话** (New conversation) button.
 - **搜索对话（标题前缀）** (Search conversations): matches title prefixes, up to 200 characters, filtering as you type.
 - **对话 / 项目** (Conversations / Projects) switch: shows ordinary conversations or the project workspace; switching clears the current selection.
-- Conversation list: each row shows the title, the model used (“默认模型” when none is pinned), and the last-message date; clicking switches conversations, scrolling to the end loads the next page.
+- Each conversation row shows the title, model (“默认模型” when none is pinned), and last-message date. Select a row to open it, or scroll to the end to load more. Use the row menu to delete a conversation directly from the list.
 - **进行中与最近会话** (Running and recent conversations): locally held sessions labeled “正在运行” (running), “草稿” (draft), or “查看结果” (view result); project sessions are additionally marked “项目”.
-
-![Ordinary conversation: session list, tool output card, turn usage, and running sessions](../images/app/chat-1.png)
 
 ### 2.2 Conversation header
 
@@ -62,7 +56,7 @@ A new conversation shows the welcome screen: the Kaguya avatar, the title, “�
 | Avatar and title | Shows the conversation title; new conversations show “新对话” or “<project> · 新对话” |
 | “正在生成” pill | A turn is streaming right now |
 | 查看代码与改动 | Project conversations only; opens the code browser (see [3.3](#33-view-code-and-changes)) |
-| More menu | View code and changes, reload history, rename, delete |
+| More menu | Reload history, generate a missing title, rename, or delete. Project conversations also offer the code browser. |
 
 Deleting a conversation asks for confirmation and cannot be undone; titles are limited to 200 characters.
 
@@ -70,13 +64,11 @@ Deleting a conversation asks for confirmation and cannot be undone; titles are l
 
 - **User message**: “你 · timestamp”, the question text, and a “复制提问” (copy question) action.
 - **Assistant message**: “Kaguya · model name”, with content blocks rendered in order:
-  - **Text blocks**: Markdown, tables, lists, inline code, and highlighted code blocks, with “复制回答” (copy answer). Mermaid blocks render as diagrams once generation finishes, with zoom, pan, download, and source switching; Markdown images load only after a click.
+  - **Text blocks**: Markdown, tables, lists, inline code, and highlighted code blocks, with “复制回答” (copy answer). Mermaid blocks render as diagrams once generation finishes, with zoom, pan, and source switching; Markdown images load only after a click.
   - **Reasoning cards**: collapsible, labeled 思考中 / 思考完成 (thinking / thinking finished).
-  - **Tool cards**: titled by tool in Chinese (读取文件 / 执行命令 / 修改文件 / 写入文件 / 搜索内容 / 查找文件 / 浏览目录 …), the collapsed row shows the state (执行中 / 完成 / 失败 / 未完成 — running / done / failed / unfinished) and duration; expanding shows the command or parameters and the output as code blocks plus “复制命令 / 复制参数” and “复制输出”.
+  - **Tool cards**: titled by tool in Chinese (读取文件 / 执行命令 / 修改文件 / 写入文件 / 搜索内容 / 查找文件 / 浏览目录 …), the collapsed row shows the state (执行中 / 完成 / 失败 / 未完成 — running / done / failed / unfinished) and duration; expanding shows the command or parameters and the output, with “复制命令 / 复制参数” and “复制输出”. Web tool cards show result links, fetched text, and a truncation notice when applicable.
 - Completed turns with usage show a summary line: `22,318 tokens · 18.2 s · 1 次工具调用` (tokens · seconds · tool calls).
 - Running turns show “正在生成…”; abnormal turns show an alert: “本轮生成已中断 / 已取消 / 失败，已保留已产生的内容。” (this turn was interrupted / canceled / failed; generated content is kept).
-
-![Streaming answer and an MCP tool card with parameters, output, copy actions, and the latest-message button](../images/app/chat-3.png)
 
 ### 2.4 Composer
 
@@ -132,13 +124,13 @@ Occupancy comes from the latest model call. At the configured compaction thresho
 
 ### 2.8 Concurrent conversations
 
-Switching conversations, opening settings, or collapsing the sidebar never stops generation; one turn runs per conversation at a time and further requests queue. Running sessions can be inspected and stopped individually under “进行中与最近会话”. Closing the application, refreshing the page, or losing the streaming connection marks the current turn as interrupted (generated content is kept).
+Switching conversations, opening settings, or collapsing the sidebar never stops generation; each conversation runs one turn at a time and returns a busy response to a competing request. Running sessions can be inspected and stopped individually under “进行中与最近会话”. Closing the application, refreshing the page, or losing the streaming connection marks the current turn as interrupted (generated content is kept).
 
 ### 2.9 Permission modes and tool approvals
 
 Every conversation has one persisted permission mode, switchable at the bottom of the composer; a continuation request must not carry a mode that differs from the database:
 
-| Mode | Trusted read-only tools (`read` / `grep` / `find` / `ls` / read-only memory) | `edit` / `write` | `bash` / unknown MCP tools |
+| Mode | Trusted read-only tools (`read` / `grep` / `find` / `ls`) | `edit` / `write` | `bash` / MCP / web tools |
 | --- | --- | --- | --- |
 | Full approval (`full_approval`) | approval | approval | approval |
 | Auto approval (`auto_approval`) | allowed | approval | approval |
@@ -166,7 +158,7 @@ Project paths must live inside the current user's home directory and be unique a
 
 ### 3.2 Project conversations and built-in tools
 
-Project conversations run with the project directory as working directory and enable seven built-in tools:
+Project conversations use the selected project directory. Ordinary conversations work in `~/.kaguya`. Both can use the following built-in tools.
 
 | Tool | Purpose |
 | --- | --- |
@@ -178,9 +170,7 @@ Project conversations run with the project directory as working directory and en
 | `find` | Find paths recursively by glob through host fd |
 | `ls` | List the direct children of one directory |
 
-`grep`, `find`, and `ls` are read-only and depend on host `rg` and `fd`; they honor `.gitignore` and include hidden files. Ordinary conversations do not register these tools, but both ordinary and project conversations can use enabled MCP tools.
-
-![Project conversation: bash command cards, the permission-mode selector, and the project session list](../images/app/chat-4.png)
+`grep`, `find`, and `ls` are read-only and depend on host `rg` and `fd`; they honor `.gitignore` and include hidden files. Both conversation types can also use enabled MCP tools and the [web tools](#43-web-search-management).
 
 ### 3.3 View code and changes
 
@@ -194,8 +184,6 @@ Project conversations run with the project directory as working directory and en
 | Text preview | Up to 512 KiB per file |
 | Per-file diff | Up to 1 MiB |
 | Non-Git directories | Shows “当前项目不是 Git 仓库，仅支持浏览文件” (browsing only) |
-
-![Code browser: file tree, branch and commit header, and file preview](../images/app/chat-9.png)
 
 ### 3.4 Execution boundaries of project conversations
 
@@ -211,8 +199,6 @@ AI configuration has five tabs: **提供商与模型** (providers and models), *
 ### 4.1 Providers and models
 
 List columns: provider, type (标准 / OpenCode Go), model protocols (the distinct protocols of that provider's models), Base URL, API key (masked, with an eye button to reveal the full value), model count, and actions (模型管理 / 编辑 / 删除 — manage models / edit / delete). Deleting a provider also deletes its models.
-
-![AI provider management: type, model protocols, masked API key, and the model management entry](../images/app/chat-10.png)
 
 Create / edit provider:
 
@@ -255,8 +241,6 @@ The protocol belongs to the model, so one provider can mix protocols. Project an
 
 List columns: name, transport, runtime state (运行中 / 连接异常 / 等待连接 / 已停用 — running / connection error / waiting / disabled, with the error message under it), tool count, enable switch, and actions (edit / retry / delete). Clicking the name opens a detail drawer with transport, timeout, creation time, and discovered tools. The list auto-refreshes every 5 seconds and pauses while the page is hidden.
 
-![MCP management: transports, runtime state, tool counts, and enable switches](../images/app/chat-5.png)
-
 Create / edit MCP service:
 
 | Field | Applies to | Description |
@@ -285,25 +269,26 @@ Behavior:
 
 Enter a DeepSeek API key and save **启用联网搜索和抓取** to make both `web_search` and `web_fetch` available in ordinary and project chats with a model configured for tool calling. DeepSeek handles the searches and page retrieval. You can use any configured provider for the chat model.
 
-This setting is disabled by default. Changes apply to the next turn. Disabling preserves the encrypted key, and an empty key field keeps the saved value. In full approval and auto approval modes, each search and fetch requires approval. Full access allows both tools to run directly. DeepSeek bills successful [Search and Fetch requests](https://api-docs.deepseek.com/guides/search/#pricing) that return results.
+This setting is disabled by default. Changes apply to the next turn. Disabling preserves the encrypted key, and an empty key field keeps the saved value. In full approval and auto approval modes, each search and fetch requires approval. Full access allows both tools to run directly. DeepSeek bills successful requests that return results. [Search and Fetch pricing](https://api-docs.deepseek.com/guides/search/#pricing)
+
+| Tool | Input and result |
+| --- | --- |
+| `web_search` | Accepts a query of 1–128 Unicode characters and returns up to five results with links and summaries. |
+| `web_fetch` | Accepts an HTTP(S) URL from a search result or directly from the user. Returns the page title and Markdown text, capped at 16 KiB with a truncation notice. |
+
+Kaguya sends the query or URL to the DeepSeek Search or Fetch API. Requests time out after 30 seconds, respect turn cancellation, and have no automatic tool-level retry. The model chooses which tools to call. In sessions that allow shell commands, `bash` is also available under the session's approval rules.
 
 ### 4.4 Provider catalog
 
 The models.dev provider catalog (`api.json`), keeping only providers with an API address, sorted A→Z by name. Searchable by provider name, identifier, package, or API address; columns: provider (name + identifier), model count, package, API address (copyable), and a documentation link. The header offers “重新加载” (reload) and “立即同步” (sync now). New providers are added from “提供商与模型” by searching this catalog.
 
-![Provider catalog: models.dev provider list with model counts and API addresses](../images/app/chat-6.png)
-
 ### 4.5 Model catalog
 
 The models.dev model catalog (`models.json`), deduplicated by model and sorted by release date newest first. Searchable by model name, identifier, provider, family, or description; columns: model (name + identifier + description), provider, context, max output, input modalities (text / image / pdf / audio / video), capabilities (推理 / Tool / 视觉 / JSON), and a “查看” (view) action. The detail drawer shows provider, family, release date, last update, context window, max output, input modalities, and the four capabilities. Reload and sync-now buttons are in the header as well.
 
-![Model catalog: models with context windows, max output, and input modalities](../images/app/chat-11.png)
-
 ## 5. Preferences → System configuration
 
 System configuration is a single form; saved values apply to newly issued requests immediately, without a restart.
-
-![System configuration: default models, Agent Loop limits, catalog sync, and prompts](../images/app/chat-7.png)
 
 | Setting | Default / range | Behavior |
 | --- | --- | --- |
@@ -328,14 +313,10 @@ The interface also offers theme switching and sidebar collapse (see [1. Interfac
 
 Titled “Token 使用分析” (Token usage analytics), with a date-range picker in the header spanning at most 365 days.
 
-![Usage analytics: summary cards, the background-task note, and the token activity heatmap](../images/app/chat-12.png)
-
 - **Summary cards** (follow the date range): total tokens, daily token peak, total conversations (distinct active conversations), and daily conversation peak.
 - **Background-task note**: shows how many tokens background tasks consumed in the range; when background calls returned no confirmable usage, their count is shown and excluded from known totals.
 - **Token activity**: always covers the last year in UTC, with daily / weekly / monthly aggregation; the heatmap is colored in quantile buckets and shows exact values on hover.
 - **Token composition**: uses all history to show the top ten entries, switchable between by-model and by-provider; a stacked bar chart separates input, output, reasoning, and cache tokens.
-
-![Usage analytics: token composition by model and the accounting note](../images/app/chat-8.png)
 
 Accounting rules: input includes cache writes, output excludes reasoning, and the four token classes are never double counted. Recorded usage covers chat turns, context summaries, title tasks, model tests, and historical memory calls; failed or canceled calls count when their usage is known; deleting conversations does not remove consumption; calls without returned usage are never given invented token counts; previously unrecorded usage cannot be backfilled. Conversation counts still count distinct conversations with completed turns.
 
@@ -367,7 +348,7 @@ Conversation titles are automatically queued by the background-task model when t
 
 - File tools (`read` / `edit` / `write`) are constrained with `os.Root`, rejecting outside-workspace paths and symlink escapes; reference resolution reuses the same root confinement.
 - `bash` runs with the service process permissions; cancellation stops the process group but does not undo side effects; edits to the same file are serialized. Permission modes are not an OS sandbox: full access keeps host command permissions.
-- In restricted modes every registered tool (built-in, MCP, memory) passes through the same approval decorator; provider-executed tools cannot be approved locally, so restricted modes stop the turn and report unsupported instead.
+- In restricted modes every registered tool (including built-in web tools and MCP) passes through the same approval decorator; provider-executed tools cannot be approved locally, so restricted modes stop the turn and report unsupported instead.
 - All Bash calls require approval as unknown side effects in restricted modes, including `pwd` and `true`: inherited host environment, exported functions, and startup scripts mean a command name cannot prove read-only execution. Tool classification uses trusted registration identity; model-provided names and MCP read-only hints never exempt a call from approval.
 - Output truncation: `read` returns at most 2000 lines / 50 KB per call; `grep` returns at most 100 matches (adjustable) or 50 KB with long lines cut to 500 characters; `bash` shows only the last 2000 lines / 50 KB and writes the full output to the conversation temp directory.
 - Logs never contain raw commands or file contents; approval audit records never contain command or argument bodies.
@@ -395,7 +376,7 @@ Conversation titles are automatically queued by the background-task model when t
 | --- | --- |
 | Database | `~/.kaguya/kaguya.db`, SQLCipher-encrypted SQLite in WAL mode |
 | Database key | `~/.kaguya/kaguya.key`, generated on the first start of a fresh installation |
-| Providers, models, MCP, system settings, conversations | Stored in the database |
+| Providers, models, MCP, web search settings, system settings, conversations | Stored in the database |
 | Custom database location | `--db.path` / `DB_PATH` |
 | Custom key file | `--db.key-file` / `DB_KEY_FILE`; the specified file must already exist |
 | Independent API key encryption key | `--secret-key` / `KAGUYA_SECRET_KEY`; derived from the database key when unset |
@@ -407,6 +388,14 @@ For backups, quit the application, copy the database and any remaining WAL/SHM f
 API keys use AES-256-GCM (`enc:v2:`). Legacy credentials require the offline migration tool in [cmd/migrate-provider-secrets](../cmd/migrate-provider-secrets/) run against a database copy; startup never rewrites old data in place.
 
 ## 9. Installing, building, and run modes
+
+### Install from GitHub
+
+The v0.1.0 DMG supports **macOS 14 or later on Apple silicon**. Download `Kaguya-0.1.0.dmg` from [the release](https://github.com/lyonmu/kaguya/releases/tag/v0.1.0), open it, and drag `Kaguya.app` into `Applications`. The app bundle is ad-hoc signed. This release has no Apple notarization.
+
+Quit Kaguya before replacing an installed copy. The app opens its existing local database the next time it starts.
+
+### Build from source
 
 Build dependencies: the Go version in [go.mod](../go.mod), Bun, Make, Git, Xcode Command Line Tools, Tcl, pkg-config, curl, and Perl; on macOS `brew install pkgconf tcl-tk` installs the extras. The native desktop host and packaging currently support **macOS 14 and later**.
 
@@ -425,14 +414,14 @@ make dmg-macos          # builds the drag-to-install target/Kaguya-<version>.dmg
 | `make install` | Builds and installs the CLI entry at `~/.local/bin/<repo directory name>` (directory must exist) |
 | `make test` | `go test -race -count=1 ./...` |
 
-Signing and notarization take their identity from the release environment: `CODESIGN_IDENTITY=... make sign-macos`; `CODESIGN_IDENTITY=... NOTARY_PROFILE=kaguya make notarize-macos` (notarizes and staples both the app and the DMG). Ordinary packaging targets apply an ad-hoc signature to the app bundle, which does not establish Apple developer trust; if the first launch is blocked, allow it under “System Settings → Privacy & Security → Open Anyway”.
+For Developer ID signing, run `CODESIGN_IDENTITY=... make sign-macos`. To notarize and staple the app and DMG, run `CODESIGN_IDENTITY=... NOTARY_PROFILE=kaguya make notarize-macos`. Ordinary packaging applies an ad-hoc signature to the app bundle.
 
 ### Run modes
 
 - **Desktop (default)**: the same Go services are called through Wails' native asset channel, with no local listening port; external links open in the system browser and copying uses the system clipboard. Launched from Finder, the app tries to load the complete exported environment from `~/.zshrc` through a login shell (5 second timeout), keeping the existing environment on failure.
 - **Web (optional)**: `./target/kaguya --web` starts the HTTP service on [http://127.0.0.1:9024](http://127.0.0.1:9024) by default, API prefix `/kaguya/api`; `--host` / `--port` / `--trusted-host` apply only to this mode. Remote access should sit behind an authenticated HTTPS gateway that preserves the original Host / Origin / Sec-Fetch-Site and allowlists the exact hostname with `--trusted-host`. Swagger defaults to `/kaguya/api/swagger/index.html`, Prometheus metrics to `/kaguya/api/metrics`.
 
-Model and remote MCP requests use the network as configured; Bash, Git, and other project tools must be installed on the host.
+Model, remote MCP, and web tool requests use the network as configured; Bash, Git, and other project tools must be installed on the host.
 
 ## 10. Project structure and development
 
@@ -441,7 +430,7 @@ Desktop window / optional Web interface
         │ JSON + POST SSE
         ▼
 Go startup and routes → application services → Fantasy Agent → model providers
-                              ├── project file tools / MCP tools
+                              ├── file, command, MCP, and web tools
                               └── Ent → local SQLCipher database
 ```
 
@@ -452,9 +441,9 @@ Go startup and routes → application services → Fantasy Agent → model provi
 | `internal/router/`, `internal/api/`, `internal/dto/` | Routes, request handling, data contracts |
 | `internal/service/agent/` | Chat, history, titles, instruction snapshots, context compaction |
 | `internal/service/project/` | Project management, file browsing, Git diffs |
-| `internal/service/system/` | Providers, models, MCP configuration, settings, usage |
+| `internal/service/system/` | Providers, models, MCP and web search configuration, settings, usage |
 | `internal/agent/runtime/`, `internal/agent/token/` | Fantasy model execution and usage recording |
-| `internal/agent/tools/`, `internal/agent/mcp/` | Built-in file/command tools and MCP connection lifecycle |
+| `internal/agent/tools/`, `internal/agent/mcp/`, `internal/agent/webtools/` | File and command tools, MCP connections, and DeepSeek Search and Fetch |
 | `internal/db/`, `internal/secret/`, `internal/ent/schema/` | Database, credential encryption, handwritten schemas |
 | `web/` | React / TypeScript interface and tests |
 | `build/darwin/`, `scripts/` | Desktop resources, native dependencies, packaging scripts |
