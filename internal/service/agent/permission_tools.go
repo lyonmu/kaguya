@@ -70,6 +70,7 @@ func classifyRegisteredTool(tool fantasy.AgentTool, name string) permission.Clas
 			identity = registered
 		}
 	}
+	// 联网工具会向外部服务发送参数且可能计费，沿用 unknown 的逐次审批。
 	class := permission.Classification{Identity: identity, Effect: permission.EffectUnknown}
 	switch identity {
 	case "builtin:read", "builtin:grep", "builtin:find", "builtin:ls", "memory:memory_search", "memory:memory_read":

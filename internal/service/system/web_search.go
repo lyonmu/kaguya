@@ -62,3 +62,23 @@ func (s *SystemSvc) UpdateWebSearchConfig(ctx context.Context, req *dtosystem.We
 	}
 	return webSearchConfig(row), nil
 }
+
+// WebSearchToolKey reads one configuration snapshot for a chat turn.
+// An empty key with no error means that both tools are disabled.
+func (s *SystemSvc) WebSearchToolKey(ctx context.Context) (string, error) {
+	row, err := loadWebSearchConfig(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !row.WebSearchEnabled {
+		return "", nil
+	}
+	if !secret.IsEncrypted(row.WebSearchAPIKey) {
+		return "", errWebSearchSecret
+	}
+	key, err := secret.Decrypt(row.WebSearchAPIKey)
+	if err != nil || key == "" {
+		return "", errWebSearchSecret
+	}
+	return key, nil
+}

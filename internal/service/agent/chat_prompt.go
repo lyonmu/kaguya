@@ -9,6 +9,8 @@ import (
 	agentmcp "github.com/lyonmu/kaguya/internal/agent/mcp"
 	"github.com/lyonmu/kaguya/internal/agent/memorytools"
 	codingtools "github.com/lyonmu/kaguya/internal/agent/tools"
+	"github.com/lyonmu/kaguya/internal/agent/webtools"
+	"github.com/lyonmu/kaguya/internal/consts"
 	dtochat "github.com/lyonmu/kaguya/internal/dto/chat"
 	"github.com/lyonmu/kaguya/internal/global"
 	servicesystem "github.com/lyonmu/kaguya/internal/service/system"
@@ -18,7 +20,7 @@ import (
 type chatPrompt struct {
 	requestPrompt string              // 原始用户提问；引用只在首个 PrepareStep 展开
 	system        string              // 系统提示词：全局人设 + 指令 + 工具说明
-	tools         []fantasy.AgentTool // 项目工具 + MCP 工具 + 只读记忆工具
+	tools         []fantasy.AgentTool // 项目、MCP、记忆与联网工具
 	instructions  string              // 本轮实际使用的完整指令文本
 	memory        memoryTurn          // 本轮自动召回的临时上下文与冻结选择
 
@@ -65,6 +67,15 @@ func prepareChatPrompt(ctx context.Context, target *chatTarget, toolset *codingt
 
 	mcpTools := agentmcp.Default.Tools()
 	prompt.tools = append(prompt.tools, mcpTools...)
+	if target.model.CapabilityToolUse == consts.IsTrue {
+		key, err := (&servicesystem.SystemSvc{}).WebSearchToolKey(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if key != "" {
+			prompt.tools = append(prompt.tools, webtools.Tools(key)...)
+		}
+	}
 	// 工具名与外部 MCP 工具冲突时不注册记忆工具，保持已有工具契约不变。
 	if mem.reader != nil && !toolNameConflict(mcpTools, "memory_search", "memory_read") {
 		prompt.tools = append(prompt.tools, memorytools.Tools(mem.reader)...)
